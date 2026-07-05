@@ -109,6 +109,16 @@ export const requirements = pgTable("requirements", {
   confidence: text("confidence"),
   reviewStatus: text("review_status").notNull().default("suggested"),
   reviewerNotes: text("reviewer_notes"),
+  // Gate 0 Technical Scorecard fields (FR-EXT-03/04): who surfaced the row
+  // ("engine" | "manual"; null = legacy), the frozen engine proposal so edits
+  // stay diffable, and the server-derived reviewer stamp on review actions.
+  origin: text("origin"),
+  engineText: text("engine_text"),
+  reviewedBy: uuid("reviewed_by").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  reviewedByName: text("reviewed_by_name"),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
   createdAt: createdAt(),
 });
 

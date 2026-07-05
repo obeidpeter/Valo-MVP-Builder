@@ -7,6 +7,7 @@
  */
 import type { RequirementCategory } from './requirementCategory';
 import type { RequirementConfidence } from './requirementConfidence';
+import type { RequirementOrigin } from './requirementOrigin';
 import type { RequirementReviewStatus } from './requirementReviewStatus';
 
 export interface Requirement {
@@ -23,5 +24,9 @@ export interface Requirement {
   confidence?: RequirementConfidence;
   reviewStatus: RequirementReviewStatus;
   reviewerNotes?: string | null;
+  origin?: RequirementOrigin;
+  engineText?: string | null;
+  reviewedByName?: string | null;
+  reviewedAt?: string | null;
   createdAt: string;
 }

@@ -60,6 +60,7 @@ import type {
   ResponsivenessResult,
   RiskAssessment,
   RiskOverride,
+  Scorecard,
   SignOffRequest,
   UnauthorizedResponse,
   UploadUrlRequest,
@@ -1958,6 +1959,83 @@ export const useExtractRequirements = <TError = ErrorType<BadRequestResponse>,
       > => {
       return useMutation(getExtractRequirementsMutationOptions(options));
     }
+
+export const getGetProjectScorecardUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/scorecard`
+}
+
+/**
+ * @summary Gate 0 Technical Scorecard — engine-vs-human diff and mandatory recall
+ */
+export const getProjectScorecard = async (id: string, options?: RequestInit): Promise<Scorecard> => {
+
+  return customFetch<Scorecard>(getGetProjectScorecardUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProjectScorecardQueryKey = (id: string,) => {
+    return [
+    `/api/projects/${id}/scorecard`
+    ] as const;
+    }
+
+
+export const getGetProjectScorecardQueryOptions = <TData = Awaited<ReturnType<typeof getProjectScorecard>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectScorecard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProjectScorecardQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProjectScorecard>>> = ({ signal }) => getProjectScorecard(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProjectScorecard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProjectScorecardQueryResult = NonNullable<Awaited<ReturnType<typeof getProjectScorecard>>>
+export type GetProjectScorecardQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Gate 0 Technical Scorecard — engine-vs-human diff and mandatory recall
+ */
+
+export function useGetProjectScorecard<TData = Awaited<ReturnType<typeof getProjectScorecard>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectScorecard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProjectScorecardQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListRequirementsUrl = (id: string,) => {
 

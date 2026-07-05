@@ -669,8 +669,47 @@ export const ExtractRequirementsResponse = zod.object({
   "confidence": zod.enum(['high', 'medium', 'low', 'unclear']).nullish(),
   "reviewStatus": zod.enum(['suggested', 'confirmed', 'edited', 'rejected', 'pending']),
   "reviewerNotes": zod.string().nullish(),
+  "origin": zod.enum(['engine', 'manual']).nullish(),
+  "engineText": zod.string().nullish(),
+  "reviewedByName": zod.string().nullish(),
+  "reviewedAt": zod.string().nullish(),
   "createdAt": zod.string()
 }))
+})
+
+
+/**
+ * @summary Gate 0 Technical Scorecard — engine-vs-human diff and mandatory recall
+ */
+export const GetProjectScorecardParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetProjectScorecardResponse = zod.object({
+  "totals": zod.object({
+  "engineConfirmed": zod.number(),
+  "engineEdited": zod.number(),
+  "engineRejected": zod.number(),
+  "engineUnreviewed": zod.number(),
+  "manualVerified": zod.number(),
+  "mandatoryEngineVerified": zod.number(),
+  "mandatoryVerifiedTotal": zod.number(),
+  "mandatoryRecall": zod.number().nullish()
+}),
+  "perDocument": zod.array(zod.object({
+  "engineConfirmed": zod.number(),
+  "engineEdited": zod.number(),
+  "engineRejected": zod.number(),
+  "engineUnreviewed": zod.number(),
+  "manualVerified": zod.number(),
+  "mandatoryEngineVerified": zod.number(),
+  "mandatoryVerifiedTotal": zod.number(),
+  "mandatoryRecall": zod.number().nullish()
+}).and(zod.object({
+  "documentId": zod.string().nullish(),
+  "documentName": zod.string().nullish()
+}))),
+  "legacyRows": zod.number()
 })
 
 
@@ -692,6 +731,10 @@ export const ListRequirementsResponseItem = zod.object({
   "confidence": zod.enum(['high', 'medium', 'low', 'unclear']).nullish(),
   "reviewStatus": zod.enum(['suggested', 'confirmed', 'edited', 'rejected', 'pending']),
   "reviewerNotes": zod.string().nullish(),
+  "origin": zod.enum(['engine', 'manual']).nullish(),
+  "engineText": zod.string().nullish(),
+  "reviewedByName": zod.string().nullish(),
+  "reviewedAt": zod.string().nullish(),
   "createdAt": zod.string()
 })
 export const ListRequirementsResponse = zod.array(ListRequirementsResponseItem)
@@ -731,6 +774,10 @@ export const CreateRequirementResponse = zod.object({
   "confidence": zod.enum(['high', 'medium', 'low', 'unclear']).nullish(),
   "reviewStatus": zod.enum(['suggested', 'confirmed', 'edited', 'rejected', 'pending']),
   "reviewerNotes": zod.string().nullish(),
+  "origin": zod.enum(['engine', 'manual']).nullish(),
+  "engineText": zod.string().nullish(),
+  "reviewedByName": zod.string().nullish(),
+  "reviewedAt": zod.string().nullish(),
   "createdAt": zod.string()
 })
 
@@ -771,6 +818,10 @@ export const UpdateRequirementResponse = zod.object({
   "confidence": zod.enum(['high', 'medium', 'low', 'unclear']).nullish(),
   "reviewStatus": zod.enum(['suggested', 'confirmed', 'edited', 'rejected', 'pending']),
   "reviewerNotes": zod.string().nullish(),
+  "origin": zod.enum(['engine', 'manual']).nullish(),
+  "engineText": zod.string().nullish(),
+  "reviewedByName": zod.string().nullish(),
+  "reviewedAt": zod.string().nullish(),
   "createdAt": zod.string()
 })
 

@@ -23,6 +23,7 @@ import { writeAudit } from "../lib/audit";
 import { buildReportDocx, DOCX_MIME, type ReportData } from "../lib/docx";
 import { ENGINE_VERSION, PROMPT_PACK_VERSION, MODEL_ID } from "../lib/provenance";
 import { computeRisk, blockingSignOffDefects, type Severity } from "../lib/deterministic";
+import { computeScorecard } from "../lib/scorecard";
 import { ObjectStorageService } from "../lib/objectStorage";
 
 const router: IRouter = Router();
@@ -416,6 +417,24 @@ router.get(
     archive.append(toCsv(boqs), { name: "boq_checks.csv" });
     archive.append(toCsv(audits), { name: "audit_events.csv" });
     archive.append(toCsv(docManifest), { name: "documents_manifest.csv" });
+    // Exportable Gate 0 Technical Scorecard (FR-EXT-04): the engine-vs-human
+    // diff and mandatory recall, recomputed from the stored records at export
+    // time so the figures are independently reproducible.
+    archive.append(
+      JSON.stringify(
+        computeScorecard(
+          reqs.map((r) => ({
+            sourceDocId: r.sourceDocId,
+            origin: r.origin,
+            isMandatory: r.isMandatory,
+            reviewStatus: r.reviewStatus,
+          })),
+        ),
+        null,
+        2,
+      ),
+      { name: "scorecard.json" },
+    );
 
     if (reportDocx) {
       archive.append(reportDocx.buffer, { name: reportDocx.name });

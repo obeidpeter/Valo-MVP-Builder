@@ -265,7 +265,7 @@ describe("GET /projects/:id/export (live route)", () => {
     const zip = await JSZip.loadAsync(buffer);
     const files = Object.keys(zip.files).sort();
 
-    // The archive must contain exactly the seven data files (no DOCX: the
+    // The archive must contain exactly the eight data files (no DOCX: the
     // signed report has no docxPath).
     assert.deepEqual(files, [
       "audit_events.csv",
@@ -275,6 +275,7 @@ describe("GET /projects/:id/export (live route)", () => {
       "evidence.csv",
       "project.json",
       "requirements.csv",
+      "scorecard.json",
     ]);
 
     const read = async (name: string) => zip.file(name)!.async("string");

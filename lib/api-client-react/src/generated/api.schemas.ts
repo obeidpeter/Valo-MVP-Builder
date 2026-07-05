@@ -159,6 +159,28 @@ export interface ClientUpdate {
   notes?: string;
 }
 
+export interface ScorecardCounts {
+  engineConfirmed: number;
+  engineEdited: number;
+  engineRejected: number;
+  engineUnreviewed: number;
+  manualVerified: number;
+  mandatoryEngineVerified: number;
+  mandatoryVerifiedTotal: number;
+  mandatoryRecall?: number | null;
+}
+
+export type DocumentScorecard = ScorecardCounts & ({
+  documentId?: string | null;
+  documentName?: string | null;
+});
+
+export interface Scorecard {
+  totals: ScorecardCounts;
+  perDocument: DocumentScorecard[];
+  legacyRows: number;
+}
+
 export type VaultItemExpiryBand = typeof VaultItemExpiryBand[keyof typeof VaultItemExpiryBand];
 
 
@@ -625,6 +647,14 @@ export const RequirementReviewStatus = {
   pending: 'pending',
 } as const;
 
+export type RequirementOrigin = typeof RequirementOrigin[keyof typeof RequirementOrigin] | null;
+
+
+export const RequirementOrigin = {
+  engine: 'engine',
+  manual: 'manual',
+} as const;
+
 export interface Requirement {
   id: string;
   projectId: string;
@@ -639,6 +669,10 @@ export interface Requirement {
   confidence?: RequirementConfidence;
   reviewStatus: RequirementReviewStatus;
   reviewerNotes?: string | null;
+  origin?: RequirementOrigin;
+  engineText?: string | null;
+  reviewedByName?: string | null;
+  reviewedAt?: string | null;
   createdAt: string;
 }
 

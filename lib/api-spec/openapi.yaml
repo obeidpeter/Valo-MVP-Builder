@@ -484,6 +484,20 @@ paths:
                 $ref: "#/components/schemas/ExtractResult"
         "400":
           $ref: "#/components/responses/BadRequest"
+  /projects/{id}/scorecard:
+    get:
+      operationId: getProjectScorecard
+      tags: [Requirements]
+      summary: Gate 0 Technical Scorecard — engine-vs-human diff and mandatory recall
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Scorecard recomputed live from stored requirement records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scorecard"
   /projects/{id}/requirements:
     get:
       operationId: listRequirements
@@ -1061,6 +1075,39 @@ components:
           type: string
           enum: [pending, signed, not_required, declined]
         notes: { type: string }
+    ScorecardCounts:
+      type: object
+      required:
+        [engineConfirmed, engineEdited, engineRejected, engineUnreviewed,
+         manualVerified, mandatoryEngineVerified, mandatoryVerifiedTotal]
+      properties:
+        engineConfirmed: { type: integer }
+        engineEdited: { type: integer }
+        engineRejected: { type: integer }
+        engineUnreviewed: { type: integer }
+        manualVerified: { type: integer }
+        mandatoryEngineVerified: { type: integer }
+        mandatoryVerifiedTotal: { type: integer }
+        mandatoryRecall: { type: number, nullable: true }
+    DocumentScorecard:
+      allOf:
+        - $ref: "#/components/schemas/ScorecardCounts"
+        - type: object
+          properties:
+            documentId: { type: string, nullable: true }
+            documentName: { type: string, nullable: true }
+    Scorecard:
+      type: object
+      required: [totals, perDocument, legacyRows]
+      properties:
+        totals:
+          $ref: "#/components/schemas/ScorecardCounts"
+        perDocument:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentScorecard"
+        legacyRows: { type: integer }
+
     VaultItem:
       type: object
       required: [id, clientId, artefactType, status, expiryBand, createdAt]
@@ -1367,6 +1414,13 @@ components:
           type: string
           enum: [suggested, confirmed, edited, rejected, pending]
         reviewerNotes: { type: string, nullable: true }
+        origin:
+          type: string
+          enum: [engine, manual]
+          nullable: true
+        engineText: { type: string, nullable: true }
+        reviewedByName: { type: string, nullable: true }
+        reviewedAt: { type: string, nullable: true }
         createdAt: { type: string }
     RequirementCreate:
       type: object

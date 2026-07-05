@@ -102,6 +102,10 @@ export function serializeRequirement(r: any, sourceDocName?: string | null) {
     confidence: r.confidence ?? null,
     reviewStatus: r.reviewStatus,
     reviewerNotes: r.reviewerNotes ?? null,
+    origin: r.origin ?? null,
+    engineText: r.engineText ?? null,
+    reviewedByName: r.reviewedByName ?? null,
+    reviewedAt: iso(r.reviewedAt),
     createdAt: iso(r.createdAt) ?? new Date(0).toISOString(),
   };
 }

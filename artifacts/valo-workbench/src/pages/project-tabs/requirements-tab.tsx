@@ -1,24 +1,35 @@
-import { 
-  useListRequirements, 
+import {
+  useListRequirements,
   useExtractRequirements,
-  getListRequirementsQueryKey
+  useGetProjectScorecard,
+  getListRequirementsQueryKey,
+  getGetProjectScorecardQueryKey
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Zap, CheckSquare } from "lucide-react";
+import { Loader2, Zap, CheckSquare, Target } from "lucide-react";
 
 export function RequirementsTab({ projectId }: { projectId: string }) {
   const { data: requirements, isLoading } = useListRequirements(projectId);
+  const { data: scorecard } = useGetProjectScorecard(projectId);
   const extractReqs = useExtractRequirements();
   const queryClient = useQueryClient();
 
   const handleExtract = () => {
     extractReqs.mutate({ id: projectId }, {
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: getListRequirementsQueryKey(projectId) })
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListRequirementsQueryKey(projectId) });
+        queryClient.invalidateQueries({ queryKey: getGetProjectScorecardQueryKey(projectId) });
+      }
     });
   };
+
+  const totals = scorecard?.totals;
+  const reviewedAny =
+    !!totals &&
+    totals.engineConfirmed + totals.engineEdited + totals.engineRejected + totals.manualVerified > 0;
 
   return (
     <div className="space-y-4">
@@ -29,6 +40,37 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
           AI Extraction
         </Button>
       </div>
+
+      {reviewedAny && totals && (
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-border bg-card px-4 py-2.5 text-xs shadow-xs">
+          <div className="flex items-center gap-1.5 font-medium">
+            <Target className="w-3.5 h-3.5 text-primary" />
+            <span className="uppercase tracking-wider text-muted-foreground">Gate 0 Scorecard</span>
+          </div>
+          <span title="Engine-alone mandatory recall: verified mandatory requirements the AI surfaced ÷ all verified mandatory requirements. Gate 0 target ≥ 85%.">
+            Mandatory recall:{" "}
+            <strong>
+              {totals.mandatoryRecall == null ? "—" : `${(totals.mandatoryRecall * 100).toFixed(1)}%`}
+            </strong>
+            {totals.mandatoryRecall != null && (
+              <span className={totals.mandatoryRecall >= 0.85 ? "text-emerald-600" : "text-destructive"}>
+                {" "}({totals.mandatoryRecall >= 0.85 ? "meets" : "below"} 85% gate)
+              </span>
+            )}
+          </span>
+          <span>Engine confirmed: <strong>{totals.engineConfirmed}</strong></span>
+          <span>Edited: <strong>{totals.engineEdited}</strong></span>
+          <span title="Engine suggestions a reviewer rejected (false positives).">
+            Rejected: <strong>{totals.engineRejected}</strong>
+          </span>
+          <span title="Requirements a reviewer added that the engine missed.">
+            Manual adds: <strong>{totals.manualVerified}</strong>
+          </span>
+          {totals.engineUnreviewed > 0 && (
+            <span className="text-muted-foreground">{totals.engineUnreviewed} awaiting review</span>
+          )}
+        </div>
+      )}
 
       <div className="bg-card border border-border rounded-lg shadow-xs overflow-hidden">
         {isLoading ? (
