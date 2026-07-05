@@ -2,6 +2,7 @@ import {
   useListReports, 
   useGenerateReport,
   useSignOffReport,
+  useGetMe,
   getListReportsQueryKey
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -12,6 +13,7 @@ import { Loader2, FileBarChart, Download, FileSignature } from "lucide-react";
 
 export function ReportsTab({ projectId }: { projectId: string }) {
   const { data: reports, isLoading } = useListReports(projectId);
+  const { data: user } = useGetMe();
   const generateReport = useGenerateReport();
   const signOffReport = useSignOffReport();
   const queryClient = useQueryClient();
@@ -27,7 +29,10 @@ export function ReportsTab({ projectId }: { projectId: string }) {
       {
         id,
         data: {
-          reviewerName: "Reviewer",
+          // The server derives the reviewer identity from the authenticated
+          // user and ignores this value; we send the current user's name only
+          // to satisfy the request schema.
+          reviewerName: user?.name || user?.email || "",
           attestation:
             "I have reviewed the findings in this report and confirm them as the responsible reviewer.",
         },
@@ -63,6 +68,7 @@ export function ReportsTab({ projectId }: { projectId: string }) {
               <TableRow className="bg-muted/30">
                 <TableHead>Version</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Reviewer</TableHead>
                 <TableHead>Generated At</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -75,6 +81,13 @@ export function ReportsTab({ projectId }: { projectId: string }) {
                     <Badge variant={report.status === 'signed_off' ? 'default' : 'secondary'} className="capitalize text-[10px]">
                       {report.status.replace('_', ' ')}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {report.status === 'signed_off' && report.reviewerName ? (
+                      <span className="text-foreground">{report.reviewerName}</span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {new Date(report.createdAt).toLocaleString()}

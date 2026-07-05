@@ -1,6 +1,7 @@
 import { 
   useGetRisk, 
   useOverrideRisk,
+  useGetMe,
   getGetRiskQueryKey
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -14,6 +15,7 @@ import { RiskOverrideBand } from "@workspace/api-client-react";
 
 export function RiskTab({ projectId }: { projectId: string }) {
   const { data: risk, isLoading } = useGetRisk(projectId);
+  const { data: user } = useGetMe();
   const overrideRisk = useOverrideRisk();
   const queryClient = useQueryClient();
 
@@ -22,7 +24,11 @@ export function RiskTab({ projectId }: { projectId: string }) {
 
   const handleOverride = () => {
     if (band === "none") return;
-    overrideRisk.mutate({ id: projectId, data: { band, note, reviewerName: "Reviewer" } }, {
+    // The server derives the reviewer identity from the authenticated user and
+    // ignores this value; we send the current user's name only to satisfy the
+    // request schema.
+    const reviewerName = user?.name || user?.email || "";
+    overrideRisk.mutate({ id: projectId, data: { band, note, reviewerName } }, {
       onSuccess: () => {
         setBand("none");
         setNote("");
@@ -71,6 +77,9 @@ export function RiskTab({ projectId }: { projectId: string }) {
                 <span className="text-xs text-muted-foreground capitalize font-mono">Set to: {risk.overrideBand}</span>
               </div>
               <p className="text-sm italic text-muted-foreground">"{risk.overrideNote}"</p>
+              {risk.overrideBy && (
+                <p className="text-xs text-muted-foreground mt-2">— {risk.overrideBy}</p>
+              )}
             </div>
           )}
         </div>
