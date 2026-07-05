@@ -14,3 +14,8 @@ description: Non-obvious design decisions for the Valo Bid Autopsy Workbench tha
 
 - **Risk `distribution` is serialised as `CountBucket[]` (`{key,count}`) at the route boundary**, even though `computeRisk` returns a `Record<Severity, number>` internally. The generated OpenAPI client expects the array shape.
   **How to apply:** any new consumer of the risk assessment must map the record→array at the edge, matching the OpenAPI contract.
+
+- **`wordsToNumber` does NOT actually drop a spelled-out fractional part despite its docstring.** It only halts on a literal `cent`/`cents` token, so "one hundred dollars and fifty cents" returns 150 (the "fifty" is consumed as tens before "cents" breaks). Whole-number and currency-filler cases work correctly.
+  **Why:** noted while writing unit tests; treated as existing behavior, not fixed, to keep the test task in scope. If a future task tightens `words_vs_figures`, fix the parser to drop the fraction and update the characterization test.
+
+- **Deterministic-core unit tests live at `artifacts/api-server/src/lib/deterministic.test.ts`** and run via Node's built-in test runner through `tsx` (`pnpm --filter @workspace/api-server run test`), registered as the `test` validation command. No vitest/jest — imports must be extensionless so `tsc` typecheck also passes.
