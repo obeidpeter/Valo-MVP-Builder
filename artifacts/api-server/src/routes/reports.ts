@@ -243,7 +243,7 @@ router.get("/reports/:id/download", requireMember, async (req: Request, res: Res
   }
 });
 
-function toCsv(rows: Record<string, unknown>[]): string {
+export function toCsv(rows: Record<string, unknown>[]): string {
   if (rows.length === 0) return "";
   const headers = Object.keys(rows[0]);
   const escape = (v: unknown) => {
@@ -251,6 +251,32 @@ function toCsv(rows: Record<string, unknown>[]): string {
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return [headers.join(","), ...rows.map((r) => headers.map((h) => escape(r[h])).join(","))].join("\n");
+}
+
+export type ReviewState = "confirmed" | "suggested";
+
+/**
+ * Derive the export `review_state` for a register row, so recipients can tell
+ * reviewer-confirmed findings from raw AI suggestions. This is the single
+ * source of truth for the CSV column and must stay consistent with how the
+ * signed DOCX report (`lib/docx.ts`) segregates confirmed vs suggested items:
+ *   - a requirement is confirmed unless its `reviewStatus` is still "suggested"
+ *   - evidence and defects carry an explicit `suggested` boolean
+ */
+export function requirementReviewState(row: { reviewStatus: string }): ReviewState {
+  return row.reviewStatus === "suggested" ? "suggested" : "confirmed";
+}
+
+export function suggestedFlagReviewState(row: { suggested: boolean }): ReviewState {
+  return row.suggested ? "suggested" : "confirmed";
+}
+
+/** Prepend a `review_state` column to each row for CSV export. */
+export function withReviewState<T extends Record<string, unknown>>(
+  rows: T[],
+  reviewState: (row: T) => ReviewState,
+): (T & { review_state: ReviewState })[] {
+  return rows.map((row) => ({ review_state: reviewState(row), ...row }));
 }
 
 router.get(
@@ -289,20 +315,9 @@ router.get(
 
     // Flag review state so recipients can tell reviewer-confirmed findings from
     // raw AI suggestions, mirroring how the signed DOCX report segregates them.
-    // A requirement is confirmed unless its reviewStatus is still "suggested";
-    // evidence and defects carry an explicit `suggested` boolean.
-    const reqsCsv = reqs.map((r) => ({
-      review_state: r.reviewStatus === "suggested" ? "suggested" : "confirmed",
-      ...r,
-    }));
-    const evCsv = ev.map((e) => ({
-      review_state: e.suggested ? "suggested" : "confirmed",
-      ...e,
-    }));
-    const defsCsv = defs.map((d) => ({
-      review_state: d.suggested ? "suggested" : "confirmed",
-      ...d,
-    }));
+    const reqsCsv = withReviewState(reqs, requirementReviewState);
+    const evCsv = withReviewState(ev, suggestedFlagReviewState);
+    const defsCsv = withReviewState(defs, suggestedFlagReviewState);
 
     archive.append(JSON.stringify(project, null, 2), { name: "project.json" });
     archive.append(toCsv(reqsCsv), { name: "requirements.csv" });
