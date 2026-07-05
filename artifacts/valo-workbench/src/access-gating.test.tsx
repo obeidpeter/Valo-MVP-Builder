@@ -80,4 +80,23 @@ describe("access gating in Layout", () => {
     expect(screen.queryByText(/pending access/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/authentication failed/i)).not.toBeInTheDocument();
   });
+
+  it("shows the Settings nav item for an approved admin", () => {
+    meResult = {
+      data: { id: "u4", email: "admin@example.com", name: "Admin User", role: "admin", status: "active" },
+      isLoading: false,
+    };
+    renderLayout();
+    expect(screen.getByText(/settings/i)).toBeInTheDocument();
+  });
+
+  it("hides the Settings nav item from an approved reviewer", () => {
+    meResult = {
+      data: { id: "u5", email: "reviewer@example.com", name: "Reviewer User", role: "reviewer", status: "active" },
+      isLoading: false,
+    };
+    renderLayout();
+    expect(screen.getByText(/dashboard/i)).toBeInTheDocument();
+    expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
+  });
 });
