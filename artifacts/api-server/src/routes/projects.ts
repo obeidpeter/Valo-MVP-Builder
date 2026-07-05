@@ -145,6 +145,14 @@ router.get("/projects/:id", requireMember, async (req: Request, res: Response) =
     res.status(404).json({ error: "Not found" });
     return;
   }
+  await writeAudit({
+    user: getLocalUser(req),
+    projectId: row.project.id,
+    eventType: "project.viewed",
+    objectType: "project",
+    objectId: row.project.id,
+    details: row.project.tenderTitle,
+  });
   res.json(
     serializeProject(row.project, {
       clientName: row.clientName,

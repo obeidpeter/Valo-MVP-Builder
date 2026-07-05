@@ -47,7 +47,10 @@ router.post(
       .returning();
 
     // Best-effort text extraction from the stored object.
-    const extraction = await extractDocumentText(created.objectPath, created.contentType);
+    const extraction = await extractDocumentText(created.objectPath, created.contentType, {
+      projectId: created.projectId,
+      filename: created.filename,
+    });
     const [updated] = await db
       .update(documents)
       .set({
@@ -80,6 +83,14 @@ router.get("/documents/:id", requireMember, async (req: Request, res: Response) 
     res.status(404).json({ error: "Not found" });
     return;
   }
+  await writeAudit({
+    user: getLocalUser(req),
+    projectId: row.doc.projectId,
+    eventType: "document.viewed",
+    objectType: "document",
+    objectId: row.doc.id,
+    details: row.doc.filename,
+  });
   res.json(serializeDocument(row.doc, row.uploadedByName));
 });
 

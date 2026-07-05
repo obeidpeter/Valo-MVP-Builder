@@ -1,10 +1,20 @@
 import { ObjectStorageService } from "./objectStorage";
+import { extractPdfTextMultimodal } from "./llm";
 
 const objectStorage = new ObjectStorageService();
+
+// Below this many characters of embedded PDF text we treat the page(s) as
+// scanned / image-only and fall back to multimodal OCR.
+const LOW_TEXT_THRESHOLD = 100;
 
 export interface ExtractionResult {
   text: string | null;
   status: "extracted" | "failed" | "skipped";
+}
+
+export interface ExtractionContext {
+  projectId?: string | null;
+  filename?: string;
 }
 
 function isTextual(contentType: string | null | undefined): boolean {
@@ -31,6 +41,7 @@ async function readObjectBuffer(objectPath: string): Promise<Buffer> {
 export async function extractDocumentText(
   objectPath: string,
   contentType: string | null | undefined,
+  context?: ExtractionContext,
 ): Promise<ExtractionResult> {
   try {
     if (isTextual(contentType)) {
@@ -43,8 +54,27 @@ export async function extractDocumentText(
       // @ts-expect-error - no type declarations for the pdf-parse internal entrypoint
       const mod = await import("pdf-parse/lib/pdf-parse.js");
       const pdfParse = (mod as any).default ?? mod;
-      const parsed = await pdfParse(buf);
-      const text = (parsed?.text ?? "").trim();
+      let text = "";
+      try {
+        const parsed = await pdfParse(buf);
+        text = (parsed?.text ?? "").trim();
+      } catch {
+        text = "";
+      }
+
+      // Scanned / low-text PDF: fall back to multimodal OCR transcription.
+      if (text.length < LOW_TEXT_THRESHOLD) {
+        try {
+          const ocr = await extractPdfTextMultimodal(buf, {
+            projectId: context?.projectId ?? null,
+            filename: context?.filename,
+          });
+          if (ocr.length > text.length) text = ocr;
+        } catch {
+          // Fall through to whatever embedded text we managed to extract.
+        }
+      }
+
       return text ? { text, status: "extracted" } : { text: null, status: "failed" };
     }
 

@@ -78,12 +78,21 @@ async function gatherReportData(projectId: string): Promise<ReportData | null> {
 }
 
 router.get("/projects/:id/reports", requireMember, async (req: Request, res: Response) => {
+  const projectId = String(req.params.id);
   const rows = await db
     .select({ report: reports, generatedByName: users.name })
     .from(reports)
     .leftJoin(users, eq(reports.generatedBy, users.id))
-    .where(eq(reports.projectId, String(req.params.id)))
+    .where(eq(reports.projectId, projectId))
     .orderBy(desc(reports.version));
+  await writeAudit({
+    user: getLocalUser(req),
+    projectId,
+    eventType: "report.viewed",
+    objectType: "project",
+    objectId: projectId,
+    details: `${rows.length} report version(s)`,
+  });
   res.json(rows.map((r) => serializeReport(r.report, r.generatedByName)));
 });
 

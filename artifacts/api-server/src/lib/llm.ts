@@ -59,6 +59,62 @@ async function callJson(
   return JSON.parse(content);
 }
 
+/**
+ * Multimodal fallback for scanned / low-text PDFs. Sends the PDF itself to the
+ * multimodal model for verbatim transcription (OCR) when embedded-text
+ * extraction yields little or nothing. Every call is logged to llm_runs. The
+ * transcription is a SUGGESTION the reviewer verifies against the source, in
+ * keeping with the no-fabrication doctrine — the prompt forbids interpretation.
+ */
+export async function extractPdfTextMultimodal(
+  buffer: Buffer,
+  opts?: { projectId?: string | null; filename?: string },
+): Promise<string> {
+  const filename = opts?.filename ?? "document.pdf";
+  const dataUrl = `data:application/pdf;base64,${buffer.toString("base64")}`;
+  const system =
+    GUARDRAILS +
+    " Task: transcribe ALL readable text from this document exactly as written. " +
+    "Do NOT summarise, interpret, translate, or add anything not printed on the page. " +
+    'Return JSON {"text": string} with the verbatim transcription, or {"text": ""} if unreadable.';
+  const inputTag = `pdf:${filename}:${buffer.length}b`;
+  try {
+    const completion = await openai.chat.completions.create({
+      model: MODEL,
+      max_completion_tokens: 8192,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: system },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Transcribe every readable line of this document." },
+            { type: "file", file: { filename, file_data: dataUrl } },
+          ],
+        },
+      ],
+    });
+    const content = completion.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(content);
+    const text = typeof parsed?.text === "string" ? parsed.text.trim() : "";
+    await logRun({
+      projectId: opts?.projectId ?? null,
+      task: "extract_pdf_multimodal",
+      input: inputTag,
+      output: { chars: text.length },
+    });
+    return text;
+  } catch (error) {
+    await logRun({
+      projectId: opts?.projectId ?? null,
+      task: "extract_pdf_multimodal",
+      input: inputTag,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+}
+
 export interface DocForLlm {
   id: string;
   filename: string;

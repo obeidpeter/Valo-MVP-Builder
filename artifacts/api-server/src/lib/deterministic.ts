@@ -39,6 +39,62 @@ export interface BoqRunResult {
 
 const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 
+const WORD_UNITS: Record<string, number> = {
+  zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
+  eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13,
+  fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18,
+  nineteen: 19,
+};
+const WORD_TENS: Record<string, number> = {
+  twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70,
+  eighty: 80, ninety: 90,
+};
+const WORD_SCALES: Record<string, number> = {
+  thousand: 1000, million: 1_000_000, billion: 1_000_000_000,
+};
+
+/**
+ * Parse an English amount-in-words into its whole-number value, ignoring
+ * currency and filler words ("dollars", "rand", "only", "and"). Fractional
+ * parts ("... and fifty cents", ".../100") are intentionally dropped — BOQ
+ * lines are compared on whole currency units. Returns null when nothing
+ * parseable is found so callers can skip rather than flag falsely.
+ */
+export function wordsToNumber(input: string | null | undefined): number | null {
+  if (!input) return null;
+  const tokens = input
+    .toLowerCase()
+    .replace(/[.,]/g, " ")
+    .split(/[\s-]+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0 && t !== "and");
+
+  let current = 0;
+  let total = 0;
+  let matched = false;
+  for (const tok of tokens) {
+    if (tok in WORD_UNITS) {
+      current += WORD_UNITS[tok];
+      matched = true;
+    } else if (tok in WORD_TENS) {
+      current += WORD_TENS[tok];
+      matched = true;
+    } else if (tok === "hundred") {
+      current = (current || 1) * 100;
+      matched = true;
+    } else if (tok in WORD_SCALES) {
+      total += (current || 1) * WORD_SCALES[tok];
+      current = 0;
+      matched = true;
+    } else if (tok === "cent" || tok === "cents") {
+      break; // stop at the fractional part
+    }
+    // any other token (currency name, "only", etc.) is ignored
+  }
+  if (!matched) return null;
+  return total + current;
+}
+
 /**
  * Deterministic Bill of Quantities arithmetic verification.
  * All findings are exact, reproducible, and require no LLM. Rows that pass
@@ -54,6 +110,20 @@ export function runBoqChecks(
   const tol = Math.max(0, tolerance);
   let computedGrandTotal = 0;
 
+  // Sum of computed line extensions per section, plus any declared section
+  // subtotal rows, used for the section_total check after the row loop.
+  const sectionSums = new Map<string, number>();
+  const subtotalRows: {
+    lineRef: string | null;
+    description: string | null;
+    section: string;
+    declared: number;
+  }[] = [];
+  const addToSection = (section: string | null | undefined, amount: number) => {
+    if (section == null || section === "") return;
+    sectionSums.set(section, round2((sectionSums.get(section) ?? 0) + amount));
+  };
+
   for (const row of rows) {
     const lineRef = row.lineRef ?? null;
     const description = row.description ?? null;
@@ -64,6 +134,25 @@ export function runBoqChecks(
     const hasQty = typeof quantity === "number" && Number.isFinite(quantity);
     const hasRate = typeof unitRate === "number" && Number.isFinite(unitRate);
     const hasExt = typeof extension === "number" && Number.isFinite(extension);
+
+    // A declared section subtotal row (an amount with no qty/rate whose
+    // description reads as a subtotal). Recorded for the section_total check
+    // and excluded from the grand-total sum so it is not double-counted.
+    const isSubtotalMarker =
+      hasExt &&
+      !(hasQty && hasRate) &&
+      !!description &&
+      /\b(sub[\s-]?total|section\s+total)\b/i.test(description) &&
+      !!row.section;
+    if (isSubtotalMarker) {
+      subtotalRows.push({
+        lineRef,
+        description,
+        section: row.section as string,
+        declared: extension as number,
+      });
+      continue;
+    }
 
     // Blank / incomplete priced line.
     if (!hasQty && !hasRate && !hasExt) {
@@ -86,6 +175,7 @@ export function runBoqChecks(
     if (hasQty && hasRate) {
       computedExtension = round2(quantity * unitRate);
       computedGrandTotal += computedExtension;
+      addToSection(row.section, computedExtension);
 
       if (hasExt) {
         const delta = Math.abs(round2(extension - computedExtension));
@@ -108,6 +198,7 @@ export function runBoqChecks(
       }
     } else if (hasExt) {
       computedGrandTotal += extension;
+      addToSection(row.section, extension);
     }
 
     // Suspicious zero: priced line with a description but zero/blank rate.
@@ -125,9 +216,58 @@ export function runBoqChecks(
         status: "flagged",
       });
     }
+
+    // Words-vs-figures: the amount-in-words must equal the line figure.
+    if (row.amountInWords && row.amountInWords.trim().length > 0) {
+      const figure = hasExt ? extension : computedExtension;
+      const parsedWords = wordsToNumber(row.amountInWords);
+      if (
+        figure != null &&
+        parsedWords != null &&
+        Math.abs(round2(figure - parsedWords)) > tol
+      ) {
+        findings.push({
+          lineRef,
+          description,
+          quantity,
+          unitRate,
+          extension,
+          computedExtension,
+          checkType: "words_vs_figures",
+          finding: `Amount in words ("${row.amountInWords.trim()}" = ${parsedWords}) does not match the figure ${figure}; difference ${round2(
+            figure - parsedWords,
+          )}.`,
+          severity: "likely_fatal",
+          status: "flagged",
+        });
+      }
+    }
   }
 
   computedGrandTotal = round2(computedGrandTotal);
+
+  // Section totals: each declared section subtotal must equal the sum of its
+  // priced line extensions.
+  for (const sub of subtotalRows) {
+    const summed = round2(sectionSums.get(sub.section) ?? 0);
+    const delta = Math.abs(round2(sub.declared - summed));
+    if (delta > tol) {
+      findings.push({
+        lineRef: sub.lineRef,
+        description: sub.description,
+        quantity: null,
+        unitRate: null,
+        extension: sub.declared,
+        computedExtension: summed,
+        checkType: "section_total",
+        finding: `Declared section total ${sub.declared} for "${sub.section}" does not equal the sum of its line extensions (${summed}); difference ${round2(
+          sub.declared - summed,
+        )}.`,
+        severity: "likely_fatal",
+        status: "flagged",
+      });
+    }
+  }
 
   if (typeof grandTotal === "number" && Number.isFinite(grandTotal)) {
     const delta = Math.abs(round2(grandTotal - computedGrandTotal));
