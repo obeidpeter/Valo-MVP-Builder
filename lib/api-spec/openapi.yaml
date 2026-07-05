@@ -668,6 +668,22 @@ paths:
           description: Deleted
         "403":
           $ref: "#/components/responses/Forbidden"
+  /documents/{id}/extract:
+    post:
+      operationId: extractDocument
+      tags: [Documents]
+      summary: (Re-)run text extraction for a document, asynchronously
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "202":
+          description: Extraction started; poll the document for extractionStatus
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /documents/{id}/verify:
     post:
       operationId: verifyDocument
@@ -1029,6 +1045,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RiskAssessment"
+    delete:
+      operationId: clearRiskOverride
+      tags: [Risk]
+      summary: Clear a reviewer risk override, reverting to the computed band
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Risk assessment after clearing the override
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RiskAssessment"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /projects/{id}/reports:
     get:
       operationId: listReports
@@ -1684,7 +1715,7 @@ components:
         extractedChars: { type: integer, nullable: true }
         extractionStatus:
           type: string
-          enum: [pending, extracted, failed, skipped]
+          enum: [pending, extracting, extracted, failed, skipped]
           nullable: true
         createdAt: { type: string }
     DocumentCreate:
@@ -1921,6 +1952,7 @@ components:
         status:
           type: string
           enum: [open, remediated, waived, suggested]
+        suggested: { type: boolean }
     BoqCheck:
       type: object
       required: [id, projectId, checkType, finding, severity, status, createdAt]

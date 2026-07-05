@@ -295,7 +295,13 @@ export function toCsv(rows: Record<string, unknown>[]): string {
   if (rows.length === 0) return "";
   const headers = Object.keys(rows[0]);
   const escape = (v: unknown) => {
-    const s = v == null ? "" : String(v);
+    let s = v == null ? "" : String(v);
+    // CSV formula-injection defense: requirement text / evidence excerpts are
+    // verbatim untrusted tender content. A leading =, +, -, @, tab or CR makes
+    // a spreadsheet treat the cell as a formula on open (e.g. =IMPORTXML(...)),
+    // which for confidential exports is a data-exfiltration vector. Prefix a
+    // single quote so the cell is always treated as literal text.
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return [headers.join(","), ...rows.map((r) => headers.map((h) => escape(r[h])).join(","))].join("\n");

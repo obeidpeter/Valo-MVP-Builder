@@ -241,7 +241,7 @@ export default function ClientDetails() {
         <div className="lg:col-span-3 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-serif tracking-tight font-medium">Projects for {client.name}</h2>
-            <Link href={`/projects/new?clientId=${client.id}`}>
+            <Link href={`/projects?clientId=${client.id}`}>
               <Button size="sm" variant="outline">
                 <Briefcase className="w-4 h-4 mr-2" />
                 New Project

@@ -2729,6 +2729,76 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getDeleteDocumentMutationOptions(options));
     }
 
+export const getExtractDocumentUrl = (id: string,) => {
+
+
+
+
+  return `/api/documents/${id}/extract`
+}
+
+/**
+ * @summary (Re-)run text extraction for a document, asynchronously
+ */
+export const extractDocument = async (id: string, options?: RequestInit): Promise<Document> => {
+
+  return customFetch<Document>(getExtractDocumentUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getExtractDocumentMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof extractDocument>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof extractDocument>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['extractDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof extractDocument>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  extractDocument(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExtractDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof extractDocument>>>
+
+    export type ExtractDocumentMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary (Re-)run text extraction for a document, asynchronously
+ */
+export const useExtractDocument = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof extractDocument>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof extractDocument>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getExtractDocumentMutationOptions(options));
+    }
+
 export const getVerifyDocumentUrl = (id: string,) => {
 
 
@@ -4320,6 +4390,76 @@ export const useOverrideRisk = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getOverrideRiskMutationOptions(options));
+    }
+
+export const getClearRiskOverrideUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/risk/override`
+}
+
+/**
+ * @summary Clear a reviewer risk override, reverting to the computed band
+ */
+export const clearRiskOverride = async (id: string, options?: RequestInit): Promise<RiskAssessment> => {
+
+  return customFetch<RiskAssessment>(getClearRiskOverrideUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getClearRiskOverrideMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearRiskOverride>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof clearRiskOverride>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['clearRiskOverride'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof clearRiskOverride>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  clearRiskOverride(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClearRiskOverrideMutationResult = NonNullable<Awaited<ReturnType<typeof clearRiskOverride>>>
+
+    export type ClearRiskOverrideMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Clear a reviewer risk override, reverting to the computed band
+ */
+export const useClearRiskOverride = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearRiskOverride>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof clearRiskOverride>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getClearRiskOverrideMutationOptions(options));
     }
 
 export const getListReportsUrl = (id: string,) => {

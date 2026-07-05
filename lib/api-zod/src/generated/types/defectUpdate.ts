@@ -19,4 +19,5 @@ export interface DefectUpdate {
   remediation?: string;
   owner?: string;
   status?: DefectUpdateStatus;
+  suggested?: boolean;
 }

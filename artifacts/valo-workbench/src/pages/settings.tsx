@@ -1,25 +1,27 @@
-import { useListUsers, useUpdateUser } from "@workspace/api-client-react";
+import { useListUsers, useUpdateUser, getListUsersQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Shield, Info } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { UserUpdateRole, UserUpdateStatus } from "@workspace/api-client-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Settings() {
   const { data: users, isLoading } = useListUsers();
   const updateUser = useUpdateUser();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
+  const onError = () => toast({ variant: "destructive", title: "Could not update user" });
 
   const handleRoleChange = (id: string, role: UserUpdateRole) => {
-    updateUser.mutate({ id, data: { role } }, {
-      onSuccess: () => {
-        // Query invalidation would happen here typically, but wouter doesn't have a built-in query client to call globally without hook.
-        // Wait, we can use the mutate hook's onSuccess to invalidate the list query key.
-      }
-    });
+    updateUser.mutate({ id, data: { role } }, { onSuccess: refresh, onError });
   };
 
   const handleStatusChange = (id: string, status: UserUpdateStatus) => {
-    updateUser.mutate({ id, data: { status } });
+    updateUser.mutate({ id, data: { status } }, { onSuccess: refresh, onError });
   };
 
   return (

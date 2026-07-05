@@ -72,7 +72,13 @@ router.patch("/clients/:id", requireMember, async (req: Request, res: Response) 
     objectType: "client",
     objectId: updated.id,
   });
-  res.json(serializeClient(updated));
+  // Recompute projectCount so the response doesn't clobber cached list/detail
+  // views with a null count.
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(projects)
+    .where(eq(projects.clientId, updated.id));
+  res.json(serializeClient(updated, Number(count)));
 });
 
 export default router;

@@ -142,27 +142,10 @@ router.post(
       })
       .returning();
 
-    // Best-effort text extraction from the downloaded buffer.
-    const extraction: ExtractionResult = await extractDocumentTextFromBuffer(
-      buffer,
-      created.contentType,
-      {
-        projectId: created.projectId,
-        filename: created.filename,
-      },
-    );
-    const [updated] = await db
-      .update(documents)
-      .set({
-        contentText: extraction.text,
-        extractedChars: extraction.text ? extraction.text.length : null,
-        extractionStatus: extraction.status,
-      })
-      .where(eq(documents.id, created.id))
-      .returning();
-
     // Intake manifest: filename, SHA-256, measured size, received-at all live
     // in the audit chain so the record is tamper-evident from intake onward.
+    // (Hashing is synchronous and fail-closed above; only the slow text
+    // extraction is deferred so a large scanned PDF cannot time out intake.)
     await writeAudit({
       user,
       projectId,
@@ -171,9 +154,83 @@ router.post(
       objectId: created.id,
       details: `${created.type}: ${created.filename} | sha256=${sha256} | size=${buffer.length}B`,
     });
-    res.status(201).json(serializeDocument(updated, user?.name));
+
+    // Kick off text extraction OFF the request path. The row is already
+    // persisted with extractionStatus "pending"; the UI polls until it flips.
+    void runExtraction(created.id, buffer, created.contentType, created.projectId, created.filename, req);
+
+    res.status(201).json(serializeDocument(created, user?.name));
   },
 );
+
+/**
+ * Run (or re-run) text extraction for a stored document and persist the
+ * result. Fire-and-forget: never rejects, so a slow or failing extraction can
+ * never crash the request that scheduled it. Marks the row "extracting" while
+ * in flight so the UI can show progress.
+ */
+async function runExtraction(
+  documentId: string,
+  buffer: Buffer,
+  contentType: string | null,
+  projectId: string,
+  filename: string,
+  req: Request,
+): Promise<void> {
+  try {
+    await db
+      .update(documents)
+      .set({ extractionStatus: "extracting" })
+      .where(eq(documents.id, documentId));
+    const extraction: ExtractionResult = await extractDocumentTextFromBuffer(buffer, contentType, {
+      projectId,
+      filename,
+    });
+    await db
+      .update(documents)
+      .set({
+        contentText: extraction.text,
+        extractedChars: extraction.text ? extraction.text.length : null,
+        extractionStatus: extraction.status,
+      })
+      .where(eq(documents.id, documentId));
+  } catch (error) {
+    req.log.error({ err: error, documentId }, "async extraction failed");
+    await db
+      .update(documents)
+      .set({ extractionStatus: "failed" })
+      .where(eq(documents.id, documentId))
+      .catch(() => {});
+  }
+}
+
+router.post("/documents/:id/extract", requireMember, async (req: Request, res: Response) => {
+  const [doc] = await db.select().from(documents).where(eq(documents.id, String(req.params.id)));
+  if (!doc) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  let buffer: Buffer;
+  try {
+    buffer = await downloadDocumentBuffer(doc.objectPath);
+  } catch (error) {
+    req.log.error({ err: error, objectPath: doc.objectPath }, "re-extract: object unreadable");
+    await db.update(documents).set({ extractionStatus: "failed" }).where(eq(documents.id, doc.id));
+    res.status(404).json({ error: "Stored object could not be read" });
+    return;
+  }
+  await db.update(documents).set({ extractionStatus: "pending" }).where(eq(documents.id, doc.id));
+  await writeAudit({
+    user: getLocalUser(req),
+    projectId: doc.projectId,
+    eventType: "document.reextract",
+    objectType: "document",
+    objectId: doc.id,
+    details: doc.filename,
+  });
+  void runExtraction(doc.id, buffer, doc.contentType, doc.projectId, doc.filename, req);
+  res.status(202).json(serializeDocument({ ...doc, extractionStatus: "pending" }));
+});
 
 router.post(
   "/documents/:id/verify",

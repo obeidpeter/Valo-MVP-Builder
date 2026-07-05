@@ -747,6 +747,7 @@ export type DocumentExtractionStatus = typeof DocumentExtractionStatus[keyof typ
 
 export const DocumentExtractionStatus = {
   pending: 'pending',
+  extracting: 'extracting',
   extracted: 'extracted',
   failed: 'failed',
   skipped: 'skipped',
@@ -1200,6 +1201,7 @@ export interface DefectUpdate {
   remediation?: string;
   owner?: string;
   status?: DefectUpdateStatus;
+  suggested?: boolean;
 }
 
 export type BoqCheckCheckType = typeof BoqCheckCheckType[keyof typeof BoqCheckCheckType];
