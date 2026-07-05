@@ -395,3 +395,31 @@ export function computeRisk(input: RiskInput): RiskResult {
 
   return { score, band, explanation: parts.join(" "), distribution };
 }
+
+/**
+ * Severities that block reviewer sign-off while unresolved. A "likely_fatal"
+ * defect is treated as disqualifying for sign-off purposes exactly like a
+ * "fatal" one — the doctrine does not let a named reviewer attest to a package
+ * that still carries an open showstopper.
+ */
+export const SIGN_OFF_BLOCKING_SEVERITIES: ReadonlySet<Severity> = new Set([
+  "fatal",
+  "likely_fatal",
+]);
+
+/**
+ * Fatal-block invariant (the "process warranty" in code): a report may not be
+ * signed off while any confirmed-live fatal or likely-fatal defect remains
+ * open. Only defects with status "open" count — "suggested" (unconfirmed AI),
+ * "remediated" and "waived" defects never block — mirroring the live-defect
+ * semantics `computeRisk` uses so the two deterministic checks can never
+ * disagree about what "open" means. Returns the blocking defects (empty when
+ * sign-off is permitted); the caller enforces the block with no override path.
+ */
+export function blockingSignOffDefects<
+  T extends { severity: Severity; status: string },
+>(defects: T[]): T[] {
+  return defects.filter(
+    (d) => d.status === "open" && SIGN_OFF_BLOCKING_SEVERITIES.has(d.severity),
+  );
+}

@@ -20,7 +20,7 @@ import { requireMember, requireRoles, getLocalUser } from "../middlewares/auth";
 import { serializeReport } from "../lib/serializers";
 import { writeAudit } from "../lib/audit";
 import { buildReportDocx, DOCX_MIME, ENGINE_VERSION, type ReportData } from "../lib/docx";
-import { computeRisk, type Severity } from "../lib/deterministic";
+import { computeRisk, blockingSignOffDefects, type Severity } from "../lib/deterministic";
 import { ObjectStorageService } from "../lib/objectStorage";
 
 const router: IRouter = Router();
@@ -173,6 +173,48 @@ router.post(
       return;
     }
     const user = getLocalUser(req);
+    const [report] = await db
+      .select()
+      .from(reports)
+      .where(eq(reports.id, String(req.params.id)));
+    if (!report) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    // Fatal-block invariant: a report cannot be signed off while any open
+    // fatal or likely-fatal defect remains on the project. This is the
+    // "process warranty" enforced in code — there is deliberately no override
+    // path. The reviewer must resolve (remediate/waive) or downgrade the
+    // defect first, which is itself an audited action.
+    const projectDefects = await db
+      .select()
+      .from(defects)
+      .where(eq(defects.projectId, report.projectId));
+    const blocking = blockingSignOffDefects(
+      projectDefects.map((d) => ({ ...d, severity: d.severity as Severity })),
+    );
+    if (blocking.length > 0) {
+      await writeAudit({
+        user,
+        projectId: report.projectId,
+        eventType: "report.sign_off_denied",
+        objectType: "report",
+        objectId: report.id,
+        details: `Sign-off blocked: ${blocking.length} open fatal/likely-fatal defect(s) must be resolved first.`,
+      });
+      res.status(409).json({
+        error:
+          "Report cannot be signed off while fatal or likely-fatal defects remain open. Resolve or downgrade them first.",
+        blockingDefects: blocking.map((d) => ({
+          id: d.id,
+          severity: d.severity,
+          description: d.description,
+        })),
+      });
+      return;
+    }
+
     const reviewerName = user?.name || user?.email || "Unknown reviewer";
     const [updated] = await db
       .update(reports)
@@ -183,7 +225,7 @@ router.post(
         reviewerId: user?.id ?? null,
         signedOffAt: new Date(),
       })
-      .where(eq(reports.id, String(req.params.id)))
+      .where(eq(reports.id, report.id))
       .returning();
     if (!updated) {
       res.status(404).json({ error: "Not found" });

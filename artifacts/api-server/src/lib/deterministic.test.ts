@@ -4,6 +4,7 @@ import {
   runBoqChecks,
   computeRisk,
   wordsToNumber,
+  blockingSignOffDefects,
   type BoqRow,
   type BoqCheckType,
   type RiskInput,
@@ -436,5 +437,71 @@ describe("computeRisk - evidence penalty (mandatory-only, deduplicated)", () => 
     });
     assert.equal(r.score, 30);
     assert.equal(r.band, "medium");
+  });
+});
+
+describe("blockingSignOffDefects - fatal-block invariant", () => {
+  test("an open fatal defect blocks sign-off", () => {
+    const blocking = blockingSignOffDefects([
+      { severity: "fatal", status: "open" },
+    ]);
+    assert.equal(blocking.length, 1);
+  });
+
+  test("an open likely-fatal defect blocks sign-off", () => {
+    const blocking = blockingSignOffDefects([
+      { severity: "likely_fatal", status: "open" },
+    ]);
+    assert.equal(blocking.length, 1);
+  });
+
+  test("open scoring-risk and cosmetic defects never block sign-off", () => {
+    const blocking = blockingSignOffDefects([
+      { severity: "scoring_risk", status: "open" },
+      { severity: "cosmetic", status: "open" },
+    ]);
+    assert.deepEqual(blocking, []);
+  });
+
+  test("resolved fatal defects (remediated/waived) do not block sign-off", () => {
+    const blocking = blockingSignOffDefects([
+      { severity: "fatal", status: "remediated" },
+      { severity: "likely_fatal", status: "waived" },
+    ]);
+    assert.deepEqual(blocking, []);
+  });
+
+  test("an unconfirmed (suggested) fatal defect does not block sign-off", () => {
+    // A raw AI suggestion is not a confirmed-live defect; it must be reviewer-
+    // confirmed to "open" before it can hold up a sign-off. This mirrors the
+    // live-defect semantics computeRisk uses.
+    const blocking = blockingSignOffDefects([
+      { severity: "fatal", status: "suggested" },
+    ]);
+    assert.deepEqual(blocking, []);
+  });
+
+  test("returns every blocking defect, preserving the caller's row shape", () => {
+    const blocking = blockingSignOffDefects([
+      { id: "d1", severity: "fatal", status: "open" },
+      { id: "d2", severity: "likely_fatal", status: "open" },
+      { id: "d3", severity: "cosmetic", status: "open" },
+      { id: "d4", severity: "fatal", status: "remediated" },
+    ]);
+    assert.deepEqual(
+      blocking.map((d) => d.id),
+      ["d1", "d2"],
+    );
+  });
+
+  test("what blocks sign-off is exactly what forces critical risk, for the fatal case", () => {
+    // Consistency guard: an open fatal defect both blocks sign-off AND forces a
+    // critical band, so the two deterministic checks can never disagree.
+    const defs = [{ severity: "fatal" as Severity, status: "open" }];
+    assert.equal(blockingSignOffDefects(defs).length, 1);
+    assert.equal(
+      computeRisk({ defects: defs, requirements: [], evidence: [] }).band,
+      "critical",
+    );
   });
 });
