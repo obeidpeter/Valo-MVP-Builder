@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ClerkProvider, SignedIn, SignedOut } from "@clerk/clerk-react";
 import NotFound from "@/pages/not-found";
 import SignInPage from "@/pages/sign-in";
+import LandingPage from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import Clients from "@/pages/clients";
 import ClientDetails from "@/pages/client-details";
@@ -69,7 +70,13 @@ function App() {
             </WouterRouter>
           </SignedIn>
           <SignedOut>
-            <SignInPage />
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <Switch>
+                <Route path="/sign-in" component={SignInPage} />
+                <Route path="/" component={LandingPage} />
+                <Route component={LandingPage} />
+              </Switch>
+            </WouterRouter>
           </SignedOut>
           <Toaster />
         </TooltipProvider>
