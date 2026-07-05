@@ -139,21 +139,54 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
     children.push(subheading("Limitations"), para(project.limitations));
   }
 
+  // Split each register into reviewer-confirmed items (which drive the risk
+  // score and form the signed report body) and unconfirmed AI suggestions,
+  // which are segregated so nothing counts until a named human confirms it.
+  const confirmedReqs = requirements.filter((r) => r.reviewStatus !== "suggested");
+  const suggestedReqs = requirements.filter((r) => r.reviewStatus === "suggested");
+  const confirmedDefects = defects.filter((d) => !d.suggested);
+  const suggestedDefects = defects.filter((d) => d.suggested);
+
+  const requirementRow = (r: any) => [
+    r.text,
+    r.category,
+    r.isMandatory ? "Yes" : "No",
+    [r.sourceDocName, r.clauseRef, r.pageRef].filter(Boolean).join(" · ") || "—",
+    r.reviewStatus,
+  ];
+  const defectRow = (d: any) => [
+    d.description,
+    d.type,
+    d.severity,
+    d.status,
+    d.remediation ?? "—",
+  ];
+
   // B. Requirement matrix
   children.push(heading("B. Requirement Matrix"));
-  if (requirements.length === 0) {
-    children.push(para("No requirements recorded.", { italics: true }));
+  if (confirmedReqs.length === 0) {
+    children.push(para("No reviewer-confirmed requirements recorded.", { italics: true }));
   } else {
     children.push(
       makeTable(
         ["Requirement", "Category", "Mandatory", "Source", "Status"],
-        requirements.map((r) => [
-          r.text,
-          r.category,
-          r.isMandatory ? "Yes" : "No",
-          [r.sourceDocName, r.clauseRef, r.pageRef].filter(Boolean).join(" · ") || "—",
-          r.reviewStatus,
-        ]),
+        confirmedReqs.map(requirementRow),
+        [42, 15, 10, 20, 13],
+      ),
+    );
+  }
+  if (suggestedReqs.length > 0) {
+    children.push(subheading("Suggested requirements — pending named-reviewer confirmation"));
+    children.push(
+      para(
+        `${suggestedReqs.length} AI-suggested requirement(s) below are not yet confirmed and do not contribute to the risk score.`,
+        { italics: true, color: GREY },
+      ),
+    );
+    children.push(
+      makeTable(
+        ["Requirement", "Category", "Mandatory", "Source", "Status"],
+        suggestedReqs.map(requirementRow),
         [42, 15, 10, 20, 13],
       ),
     );
@@ -161,13 +194,29 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
 
   // C. Defect register
   children.push(heading("C. Defect Register"));
-  if (defects.length === 0) {
-    children.push(para("No defects recorded.", { italics: true }));
+  if (confirmedDefects.length === 0) {
+    children.push(para("No reviewer-confirmed defects recorded.", { italics: true }));
   } else {
     children.push(
       makeTable(
         ["Description", "Type", "Severity", "Status", "Remediation"],
-        defects.map((d) => [d.description, d.type, d.severity, d.status, d.remediation ?? "—"]),
+        confirmedDefects.map(defectRow),
+        [34, 13, 13, 12, 28],
+      ),
+    );
+  }
+  if (suggestedDefects.length > 0) {
+    children.push(subheading("Suggested defects — pending named-reviewer confirmation"));
+    children.push(
+      para(
+        `${suggestedDefects.length} AI-suggested defect(s) below are not yet confirmed and do not contribute to the risk score.`,
+        { italics: true, color: GREY },
+      ),
+    );
+    children.push(
+      makeTable(
+        ["Description", "Type", "Severity", "Status", "Remediation"],
+        suggestedDefects.map(defectRow),
         [34, 13, 13, 12, 28],
       ),
     );
@@ -217,7 +266,7 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
 
   // G. Remediation plan
   children.push(heading("G. Remediation Plan"));
-  const remediable = defects.filter((d) => d.status !== "waived");
+  const remediable = confirmedDefects.filter((d) => d.status !== "waived");
   if (remediable.length === 0) {
     children.push(para("No outstanding remediation items.", { italics: true }));
   } else {
