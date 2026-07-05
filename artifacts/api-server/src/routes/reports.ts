@@ -26,11 +26,12 @@ import { ObjectStorageService } from "../lib/objectStorage";
 const router: IRouter = Router();
 const objectStorage = new ObjectStorageService();
 
+// archiver@8 dropped the classic default `archiver(format, options)` factory and
+// now only exports named classes, so we construct a `ZipArchive` directly.
 const nodeRequire = createRequire(import.meta.url);
-const archiver = nodeRequire("archiver") as (
-  format: string,
-  options?: ArchiverOptions,
-) => Archiver;
+const { ZipArchive } = nodeRequire("archiver") as {
+  ZipArchive: new (options?: ArchiverOptions) => Archiver;
+};
 
 async function gatherReportData(projectId: string): Promise<ReportData | null> {
   const [row] = await db
@@ -306,7 +307,7 @@ router.get(
       `attachment; filename="project-export-${projectId}.zip"`,
     );
 
-    const archive = archiver("zip", { zlib: { level: 9 } });
+    const archive = new ZipArchive({ zlib: { level: 9 } });
     archive.on("error", (err: ArchiverError) => {
       req.log.error({ err }, "export archive error");
       res.status(500).end();

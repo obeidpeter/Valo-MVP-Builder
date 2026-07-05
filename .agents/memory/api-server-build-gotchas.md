@@ -5,7 +5,7 @@ description: Non-obvious typecheck/build issues in artifacts/api-server (esbuild
 
 The api-server bundles with esbuild (`build.mjs`) and typechecks with strict tsc. A few dependencies do not have straightforward type shapes:
 
-- **archiver**: `@types/archiver@8` exposes no callable/default/`create` export. Import the runtime value via `createRequire(import.meta.url)("archiver")` and import the shapes separately with `import type { Archiver, ArchiverError, ArchiverOptions } from "archiver"`. A plain `import archiver from "archiver"` will not typecheck.
+- **archiver**: `archiver@8` is ESM-only (`type: module`, no `exports` map) and **removed the classic default `archiver("zip", opts)` factory** — it now only exports named classes (`ZipArchive`, `TarArchive`, `JsonArchive`, `Archiver`). Construct via `const { ZipArchive } = createRequire(import.meta.url)("archiver"); new ZipArchive(opts)`. `@types/archiver@8` likewise exposes no callable/default export. Import the shapes separately with `import type { Archiver, ArchiverError, ArchiverOptions } from "archiver"`. A plain `import archiver from "archiver"` will not typecheck, and calling the required module as a function throws `archiver is not a function` at runtime.
 - **Express 5**: `req.params.<name>` is typed as `string | string[]`, not `string`. Wrap every param use in `String(req.params.id)` before passing to drizzle `eq(...)` or zod.
 - **pdf-parse**: import the implementation from its subpath and silence the missing-types with `@ts-expect-error` on the import line.
 
