@@ -287,10 +287,27 @@ router.get(
     });
     archive.pipe(res);
 
+    // Flag review state so recipients can tell reviewer-confirmed findings from
+    // raw AI suggestions, mirroring how the signed DOCX report segregates them.
+    // A requirement is confirmed unless its reviewStatus is still "suggested";
+    // evidence and defects carry an explicit `suggested` boolean.
+    const reqsCsv = reqs.map((r) => ({
+      review_state: r.reviewStatus === "suggested" ? "suggested" : "confirmed",
+      ...r,
+    }));
+    const evCsv = ev.map((e) => ({
+      review_state: e.suggested ? "suggested" : "confirmed",
+      ...e,
+    }));
+    const defsCsv = defs.map((d) => ({
+      review_state: d.suggested ? "suggested" : "confirmed",
+      ...d,
+    }));
+
     archive.append(JSON.stringify(project, null, 2), { name: "project.json" });
-    archive.append(toCsv(reqs), { name: "requirements.csv" });
-    archive.append(toCsv(ev), { name: "evidence.csv" });
-    archive.append(toCsv(defs), { name: "defects.csv" });
+    archive.append(toCsv(reqsCsv), { name: "requirements.csv" });
+    archive.append(toCsv(evCsv), { name: "evidence.csv" });
+    archive.append(toCsv(defsCsv), { name: "defects.csv" });
     archive.append(toCsv(boqs), { name: "boq_checks.csv" });
     archive.append(toCsv(audits), { name: "audit_events.csv" });
 
