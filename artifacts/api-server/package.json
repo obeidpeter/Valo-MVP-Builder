@@ -8,7 +8,9 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --import tsx --test 'src/**/*.test.ts'"
+    "test": "node --import tsx --test 'src/**/*.test.ts'",
+    "prove:doctrine": "node ./scripts/run-proof.mjs",
+    "prove:doctrine:offline": "node ./scripts/run-proof.mjs --offline"
   },
   "dependencies": {
     "@clerk/express": "^2.1.35",

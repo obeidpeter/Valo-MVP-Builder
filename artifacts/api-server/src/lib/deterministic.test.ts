@@ -350,21 +350,21 @@ describe("computeRisk - fatal forces critical", () => {
 });
 
 describe("computeRisk - live defect filtering", () => {
-  test("only open and suggested defects contribute", () => {
+  test("only open defects contribute; suggested/waived/remediated are excluded", () => {
     const r = computeRisk({
       defects: defects([
         { severity: "fatal", status: "waived" },
         { severity: "fatal", status: "remediated" },
-        { severity: "scoring_risk", status: "suggested" }, // 10 counts
+        { severity: "scoring_risk", status: "suggested" }, // excluded: unconfirmed AI suggestion
         { severity: "cosmetic", status: "open" }, // 3 counts
       ]),
       requirements: [],
       evidence: [],
     });
-    assert.equal(r.score, 13);
+    assert.equal(r.score, 3);
     assert.equal(r.band, "low");
     assert.equal(r.distribution.fatal, 0);
-    assert.equal(r.distribution.scoring_risk, 1);
+    assert.equal(r.distribution.scoring_risk, 0);
     assert.equal(r.distribution.cosmetic, 1);
   });
 });
@@ -378,8 +378,8 @@ describe("computeRisk - evidence penalty (mandatory-only, deduplicated)", () => 
         { id: "r2", isMandatory: true, reviewStatus: "pending" },
       ],
       evidence: [
-        { requirementId: "r1", evidenceStatus: "missing" },
-        { requirementId: "r2", evidenceStatus: "expired" },
+        { requirementId: "r1", evidenceStatus: "missing", suggested: false },
+        { requirementId: "r2", evidenceStatus: "expired", suggested: false },
       ],
     });
     assert.equal(r.score, 10);
@@ -391,7 +391,7 @@ describe("computeRisk - evidence penalty (mandatory-only, deduplicated)", () => 
     const r = computeRisk({
       defects: [],
       requirements: [{ id: "r1", isMandatory: false, reviewStatus: "pending" }],
-      evidence: [{ requirementId: "r1", evidenceStatus: "missing" }],
+      evidence: [{ requirementId: "r1", evidenceStatus: "missing", suggested: false }],
     });
     assert.equal(r.score, 0);
     assert.equal(r.band, "low");
@@ -401,7 +401,7 @@ describe("computeRisk - evidence penalty (mandatory-only, deduplicated)", () => 
     const r = computeRisk({
       defects: [],
       requirements: [{ id: "r1", isMandatory: true, reviewStatus: "pending" }],
-      evidence: [{ requirementId: "r1", evidenceStatus: "present" }],
+      evidence: [{ requirementId: "r1", evidenceStatus: "present", suggested: false }],
     });
     assert.equal(r.score, 0);
   });
@@ -411,9 +411,9 @@ describe("computeRisk - evidence penalty (mandatory-only, deduplicated)", () => 
       defects: [],
       requirements: [{ id: "r1", isMandatory: true, reviewStatus: "pending" }],
       evidence: [
-        { requirementId: "r1", evidenceStatus: "missing" },
-        { requirementId: "r1", evidenceStatus: "expired" },
-        { requirementId: "r1", evidenceStatus: "missing" },
+        { requirementId: "r1", evidenceStatus: "missing", suggested: false },
+        { requirementId: "r1", evidenceStatus: "expired", suggested: false },
+        { requirementId: "r1", evidenceStatus: "missing", suggested: false },
       ],
     });
     assert.equal(r.score, 5);
@@ -423,7 +423,7 @@ describe("computeRisk - evidence penalty (mandatory-only, deduplicated)", () => 
     const r = computeRisk({
       defects: [],
       requirements: [{ id: "r1", isMandatory: true, reviewStatus: "pending" }],
-      evidence: [{ requirementId: "ghost", evidenceStatus: "missing" }],
+      evidence: [{ requirementId: "ghost", evidenceStatus: "missing", suggested: false }],
     });
     assert.equal(r.score, 0);
   });
@@ -432,7 +432,7 @@ describe("computeRisk - evidence penalty (mandatory-only, deduplicated)", () => 
     const r = computeRisk({
       defects: defects([{ severity: "likely_fatal", status: "open" }]), // 25
       requirements: [{ id: "r1", isMandatory: true, reviewStatus: "pending" }],
-      evidence: [{ requirementId: "r1", evidenceStatus: "expired" }], // +5 => 30
+      evidence: [{ requirementId: "r1", evidenceStatus: "expired", suggested: false }], // +5 => 30
     });
     assert.equal(r.score, 30);
     assert.equal(r.band, "medium");

@@ -53,7 +53,11 @@ async function gatherReportData(projectId: string): Promise<ReportData | null> {
       isMandatory: r.isMandatory,
       reviewStatus: r.reviewStatus,
     })),
-    evidence: ev.map((e) => ({ requirementId: e.requirementId, evidenceStatus: e.evidenceStatus })),
+    evidence: ev.map((e) => ({
+      requirementId: e.requirementId,
+      evidenceStatus: e.evidenceStatus,
+      suggested: e.suggested,
+    })),
   });
 
   return {

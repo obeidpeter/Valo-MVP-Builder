@@ -295,8 +295,18 @@ export function runBoqChecks(
 export interface RiskInput {
   defects: { severity: Severity; status: string }[];
   requirements: { id: string; isMandatory: boolean; reviewStatus: string }[];
-  evidence: { requirementId: string; evidenceStatus: string }[];
+  evidence: { requirementId: string; evidenceStatus: string; suggested: boolean }[];
 }
+
+/**
+ * Requirement review states that must NOT drive the risk score: "suggested" is
+ * a raw, unconfirmed AI suggestion, and "rejected" was explicitly dismissed by
+ * a reviewer. Per the doctrine ("everything is suggested until a named human
+ * confirms"), a mandatory requirement in either state never contributes the
+ * missing-evidence penalty on its own. Reviewer-owned states (confirmed,
+ * edited, pending) count as normal.
+ */
+const UNCOUNTED_REVIEW_STATUSES = new Set(["suggested", "rejected"]);
 
 export interface RiskResult {
   score: number;
@@ -315,11 +325,16 @@ const SEVERITY_WEIGHTS: Record<Severity, number> = {
 const MISSING_EVIDENCE_WEIGHT = 5;
 
 /**
- * Deterministic disqualification-risk score. Only defects that are still
- * live (open or suggested) contribute; remediated/waived defects are excluded.
- * A mandatory requirement whose evidence is missing or expired adds a fixed
- * penalty. Bands: critical if any live fatal defect or score >= 70,
- * high >= 40, medium >= 15, otherwise low.
+ * Deterministic disqualification-risk score. Per the doctrine, only items a
+ * named human reviewer has confirmed contribute — unconfirmed AI suggestions
+ * never move the score on their own:
+ *  - Defects: only confirmed-live defects (status "open") count; "suggested"
+ *    (unconfirmed), "remediated" and "waived" defects are excluded.
+ *  - Missing/expired-evidence penalty applies only to confirmed evidence rows
+ *    (suggested === false) on mandatory requirements that are not raw AI
+ *    suggestions or rejected (see UNCOUNTED_REVIEW_STATUSES).
+ * Bands: critical if any confirmed fatal defect or score >= 70, high >= 40,
+ * medium >= 15, otherwise low.
  */
 export function computeRisk(input: RiskInput): RiskResult {
   const distribution: Record<Severity, number> = {
@@ -329,9 +344,7 @@ export function computeRisk(input: RiskInput): RiskResult {
     cosmetic: 0,
   };
 
-  const liveDefects = input.defects.filter(
-    (d) => d.status === "open" || d.status === "suggested",
-  );
+  const liveDefects = input.defects.filter((d) => d.status === "open");
 
   let score = 0;
   let hasFatal = false;
@@ -343,11 +356,14 @@ export function computeRisk(input: RiskInput): RiskResult {
   }
 
   const mandatoryReqIds = new Set(
-    input.requirements.filter((r) => r.isMandatory).map((r) => r.id),
+    input.requirements
+      .filter((r) => r.isMandatory && !UNCOUNTED_REVIEW_STATUSES.has(r.reviewStatus))
+      .map((r) => r.id),
   );
   const penalisedReqIds = new Set<string>();
   for (const e of input.evidence) {
     if (
+      !e.suggested &&
       (e.evidenceStatus === "missing" || e.evidenceStatus === "expired") &&
       mandatoryReqIds.has(e.requirementId)
     ) {
