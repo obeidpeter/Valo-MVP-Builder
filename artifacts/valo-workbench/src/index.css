@@ -148,8 +148,8 @@
   --sidebar-ring: 222.2 84% 4.9%;
 
   --app-font-sans: 'Inter', sans-serif;
-  --app-font-serif: Georgia, serif;
-  --app-font-mono: Menlo, monospace;
+  --app-font-serif: 'Source Serif 4', Georgia, serif;
+  --app-font-mono: 'JetBrains Mono', Menlo, monospace;
   --radius: 0.375rem; 
 
   --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00);

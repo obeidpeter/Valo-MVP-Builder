@@ -1,14 +1,7 @@
-import { SignIn } from "@clerk/clerk-react";
-
 /**
- * SignInPage — "The Sealed Dossier".
- *
- * Unauthenticated landing for the Valo Bid Autopsy Workbench. Reads as the
- * cover of a confidential case file: registrar's seal, legal-stationery
- * masthead with hairline double rules, a classification strip, and the Clerk
- * sign-in card mounted as Exhibit A with registration corner marks. All
- * color comes from theme tokens so dark mode holds; the only accent is the
- * emerald audit tick in the provenance footer.
+ * MOCKUP of the Valo sign-in landing ("The Sealed Dossier" — synthesized).
+ * Mirror of artifacts/valo-workbench/src/pages/sign-in.tsx with the Clerk
+ * widget replaced by a static stand-in card so it renders in the sandbox.
  */
 
 /** Faint engineering-ledger grid over the whole page (both themes via currentColor). */
@@ -108,7 +101,36 @@ function DoubleRule({ className = "" }: { className?: string }) {
   );
 }
 
-export default function SignInPage() {
+/** Static stand-in for the Clerk <SignIn /> card (sandbox only). */
+function ClerkCardStandIn() {
+  return (
+    <div className="w-full max-w-[400px] rounded-lg bg-card p-8">
+      <h2 className="text-center font-serif text-xl text-foreground">Sign in to Valo Workbench</h2>
+      <p className="mt-1 text-center text-sm text-muted-foreground">
+        Welcome back! Please sign in to continue
+      </p>
+      <div className="mt-6 space-y-3">
+        <div className="flex h-9 items-center justify-center rounded-md border border-border text-sm text-foreground">
+          Continue with Google
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="h-px flex-1 bg-border" />
+          <span className="text-xs text-muted-foreground">or</span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+        <div>
+          <p className="mb-1 text-sm text-foreground">Email address</p>
+          <div className="h-9 rounded-md border border-border bg-background" />
+        </div>
+        <div className="flex h-9 items-center justify-center rounded-md bg-primary text-sm text-primary-foreground">
+          Continue
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function SignInLanding() {
   return (
     <div className="relative flex min-h-screen flex-col bg-background text-foreground">
       <LedgerGrid />
@@ -123,7 +145,9 @@ export default function SignInPage() {
       {/* ── Dossier cover ────────────────────────────────────────────────── */}
       <main className="relative mx-auto flex w-full max-w-md flex-1 flex-col items-center px-4 py-10 sm:max-w-lg sm:py-12">
         {/* Seal + masthead */}
-        <section className="flex w-full flex-col items-center text-center animate-in fade-in slide-in-from-bottom-4 fill-mode-both duration-700">
+        <section
+          className="flex w-full flex-col items-center text-center animate-in fade-in slide-in-from-bottom-4 fill-mode-both duration-700"
+        >
           <RegistrarSeal />
 
           <DoubleRule className="mt-8 w-full" />
@@ -168,28 +192,7 @@ export default function SignInPage() {
             </p>
 
             <div className="flex justify-center px-4 py-8 sm:px-6">
-              <SignIn
-                appearance={{
-                  elements: {
-                    rootBox: "w-full flex justify-center",
-                    cardBox: "w-full flex justify-center shadow-none",
-                    card: "w-full bg-card border-0 shadow-none",
-                    header: "text-center",
-                    headerTitle: "font-serif text-foreground",
-                    headerSubtitle: "text-muted-foreground",
-                    formButtonPrimary:
-                      "bg-primary text-primary-foreground hover:bg-primary/90 shadow-none",
-                    formFieldLabel: "text-foreground",
-                    formFieldInput: "bg-background border-border text-foreground",
-                    socialButtonsBlockButton: "border-border text-foreground hover:bg-muted",
-                    dividerLine: "bg-border",
-                    dividerText: "text-muted-foreground",
-                    identityPreview: "bg-muted border-border",
-                    footerActionText: "text-muted-foreground",
-                    footerActionLink: "text-primary hover:text-primary/80",
-                  },
-                }}
-              />
+              <ClerkCardStandIn />
             </div>
           </div>
 
