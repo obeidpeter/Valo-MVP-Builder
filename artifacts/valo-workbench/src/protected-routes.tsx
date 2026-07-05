@@ -8,6 +8,7 @@ import ProjectDetails from "@/pages/project-details";
 import SbdCorpus from "@/pages/sbd";
 import SbdDetails from "@/pages/sbd-details";
 import Settings from "@/pages/settings";
+import RequireAdmin from "@/components/require-admin";
 
 export default function ProtectedRoutes() {
   return (
@@ -19,7 +20,11 @@ export default function ProtectedRoutes() {
       <Route path="/projects/:id" component={ProjectDetails} />
       <Route path="/sbd" component={SbdCorpus} />
       <Route path="/sbd/:id" component={SbdDetails} />
-      <Route path="/settings" component={Settings} />
+      <Route path="/settings">
+        <RequireAdmin>
+          <Settings />
+        </RequireAdmin>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );

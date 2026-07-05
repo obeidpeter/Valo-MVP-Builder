@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import Layout from "./components/layout";
+import RequireAdmin from "./components/require-admin";
 
 type MeResult = {
   data?: unknown;
@@ -98,5 +99,39 @@ describe("access gating in Layout", () => {
     renderLayout();
     expect(screen.getByText(/dashboard/i)).toBeInTheDocument();
     expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("RequireAdmin route guard for the settings page", () => {
+  beforeEach(() => {
+    meResult = { data: undefined, isLoading: true };
+  });
+
+  it("blocks an approved reviewer from the settings route with access denied", () => {
+    meResult = {
+      data: { id: "u6", email: "reviewer@example.com", name: "Reviewer User", role: "reviewer", status: "active" },
+      isLoading: false,
+    };
+    render(
+      <RequireAdmin>
+        <div data-testid="settings-admin-controls">Personnel Management</div>
+      </RequireAdmin>,
+    );
+    expect(screen.getByText(/access denied/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("settings-admin-controls")).not.toBeInTheDocument();
+  });
+
+  it("renders the settings admin controls for an approved admin", () => {
+    meResult = {
+      data: { id: "u7", email: "admin@example.com", name: "Admin User", role: "admin", status: "active" },
+      isLoading: false,
+    };
+    render(
+      <RequireAdmin>
+        <div data-testid="settings-admin-controls">Personnel Management</div>
+      </RequireAdmin>,
+    );
+    expect(screen.getByTestId("settings-admin-controls")).toBeInTheDocument();
+    expect(screen.queryByText(/access denied/i)).not.toBeInTheDocument();
   });
 });
