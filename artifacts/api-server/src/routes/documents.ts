@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, desc } from "drizzle-orm";
-import { db, documents, users } from "@workspace/db";
+import { db, documents, users, projects, clients } from "@workspace/db";
 import { CreateDocumentBody, UpdateDocumentBody } from "@workspace/api-zod";
 import { requireMember, requireRoles, getLocalUser } from "../middlewares/auth";
 import { serializeDocument } from "../lib/serializers";
@@ -35,6 +35,28 @@ router.post(
       res.status(400).json({ error: "Invalid request" });
       return;
     }
+
+    // NDA gate: documents cannot be uploaded until the client's NDA position
+    // is recorded (signed or explicitly not required). Pending/declined blocks.
+    const [gate] = await db
+      .select({ ndaStatus: clients.ndaStatus })
+      .from(projects)
+      .leftJoin(clients, eq(projects.clientId, clients.id))
+      .where(eq(projects.id, String(req.params.id)));
+    if (!gate) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+    const NDA_ALLOWED = new Set(["signed", "not_required"]);
+    if (!gate.ndaStatus || !NDA_ALLOWED.has(gate.ndaStatus)) {
+      res.status(403).json({
+        error:
+          "NDA not cleared for this client. Record the NDA as signed or not required before uploading documents.",
+        ndaStatus: gate.ndaStatus ?? "unknown",
+      });
+      return;
+    }
+
     const user = getLocalUser(req);
     const [created] = await db
       .insert(documents)

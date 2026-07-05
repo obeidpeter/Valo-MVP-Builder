@@ -139,7 +139,7 @@ export default function ProjectDetails() {
             </div>
           </TabsContent>
           <TabsContent value="documents" className="m-0">
-             <DocumentsTab projectId={id} />
+             <DocumentsTab projectId={id} ndaStatus={project.ndaStatus} />
           </TabsContent>
           <TabsContent value="requirements" className="m-0">
              <RequirementsTab projectId={id} />

@@ -10,10 +10,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileText, Loader2, Upload, Trash2 } from "lucide-react";
+import { FileText, Loader2, Upload, Trash2, Lock } from "lucide-react";
 import { useState, useRef } from "react";
 
-export function DocumentsTab({ projectId }: { projectId: string }) {
+const NDA_ALLOWED = new Set(["signed", "not_required"]);
+
+export function DocumentsTab({
+  projectId,
+  ndaStatus,
+}: {
+  projectId: string;
+  ndaStatus?: string | null;
+}) {
+  const ndaCleared = !!ndaStatus && NDA_ALLOWED.has(ndaStatus);
   const { data: documents, isLoading } = useListDocuments(projectId);
   const deleteDocument = useDeleteDocument();
   const requestUploadUrl = useRequestUploadUrl();
@@ -87,11 +96,28 @@ export function DocumentsTab({ projectId }: { projectId: string }) {
           className="hidden" 
           onChange={handleFileChange}
         />
-        <Button onClick={handleUploadClick} disabled={isUploading}>
-          {isUploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+        <Button onClick={handleUploadClick} disabled={isUploading || !ndaCleared}>
+          {isUploading ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : !ndaCleared ? (
+            <Lock className="w-4 h-4 mr-2" />
+          ) : (
+            <Upload className="w-4 h-4 mr-2" />
+          )}
           Upload Document
         </Button>
       </div>
+
+      {!ndaCleared && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+          <Lock className="w-4 h-4 mt-0.5 shrink-0" />
+          <p>
+            Uploads are locked until this client's NDA position is recorded.
+            Set the client's NDA status to <strong>signed</strong> or{" "}
+            <strong>not required</strong> to enable document uploads.
+          </p>
+        </div>
+      )}
 
       <div className="bg-card border border-border rounded-lg shadow-xs overflow-hidden">
         {isLoading ? (
