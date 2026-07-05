@@ -1,0 +1,2 @@
+- [api-server build gotchas](api-server-build-gotchas.md) — esbuild+@types quirks: archiver, Express 5 params, pdf-parse subpath that bite on typecheck.
+- [Valo doctrine decisions](valo-doctrine-decisions.md) — reviewer identity is server-derived; no per-user project isolation by design; risk penalties only for mandatory reqs.

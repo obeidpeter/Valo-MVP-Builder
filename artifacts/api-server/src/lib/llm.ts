@@ -1,0 +1,274 @@
+import { createHash } from "node:crypto";
+import { openai } from "@workspace/integrations-openai-ai-server";
+import { db, llmRuns } from "@workspace/db";
+
+const MODEL = "gpt-5.4";
+const PROMPT_VERSION = "gate0-v1";
+const MAX_INPUT_CHARS = 60000;
+
+function truncate(text: string, limit = MAX_INPUT_CHARS): string {
+  if (text.length <= limit) return text;
+  return text.slice(0, limit) + "\n\n[...truncated...]";
+}
+
+async function logRun(params: {
+  projectId?: string | null;
+  task: string;
+  input: string;
+  output?: unknown;
+  error?: string;
+}): Promise<void> {
+  try {
+    await db.insert(llmRuns).values({
+      projectId: params.projectId ?? null,
+      task: params.task,
+      model: MODEL,
+      promptVersion: PROMPT_VERSION,
+      inputHash: createHash("sha256").update(params.input).digest("hex").slice(0, 32),
+      outputSummary: params.output
+        ? JSON.stringify(params.output).slice(0, 2000)
+        : null,
+      error: params.error ?? null,
+    });
+  } catch {
+    // Never let telemetry break the primary path.
+  }
+}
+
+const GUARDRAILS =
+  "You are a forensic tender-review assistant. You must NEVER fabricate facts, clauses, quantities, or evidence. " +
+  "Only report what is present in the supplied text. If something is not present or is unclear, say so explicitly. " +
+  "Every output is a SUGGESTION for a named human reviewer to confirm — never a final determination. " +
+  "Cite the source (document name, and page/clause reference when available) for every item. " +
+  "Respond ONLY with valid JSON matching the requested shape.";
+
+async function callJson(
+  system: string,
+  user: string,
+): Promise<any> {
+  const completion = await openai.chat.completions.create({
+    model: MODEL,
+    max_completion_tokens: 8192,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+  });
+  const content = completion.choices[0]?.message?.content ?? "{}";
+  return JSON.parse(content);
+}
+
+export interface DocForLlm {
+  id: string;
+  filename: string;
+  type: string;
+  contentText: string | null;
+}
+
+export interface ExtractedRequirement {
+  text: string;
+  category: "eligibility" | "administrative" | "technical" | "financial_format" | "other";
+  expectedEvidence?: string | null;
+  isMandatory: boolean;
+  confidence?: "high" | "medium" | "low" | "unclear";
+  pageRef?: string | null;
+  clauseRef?: string | null;
+  sourceDocId?: string | null;
+}
+
+export async function extractRequirements(
+  projectId: string,
+  docs: DocForLlm[],
+): Promise<{ requirements: ExtractedRequirement[]; model: string }> {
+  const corpus = docs
+    .map(
+      (d) =>
+        `=== DOCUMENT [${d.id}] "${d.filename}" (type: ${d.type}) ===\n${truncate(
+          d.contentText ?? "",
+          Math.floor(MAX_INPUT_CHARS / Math.max(docs.length, 1)),
+        )}`,
+    )
+    .join("\n\n");
+
+  const system =
+    GUARDRAILS +
+    " Task: extract discrete, checkable submission requirements from the tender document(s). " +
+    "Return JSON of shape {\"requirements\": [{\"text\": string, \"category\": one of " +
+    "[eligibility, administrative, technical, financial_format, other], \"expectedEvidence\": string, " +
+    "\"isMandatory\": boolean, \"confidence\": one of [high, medium, low, unclear], \"pageRef\": string, " +
+    "\"clauseRef\": string, \"sourceDocId\": the DOCUMENT id the requirement came from}]}. " +
+    "One requirement per obligation. Do not invent requirements that are not stated.";
+
+  const input = truncate(corpus);
+  try {
+    const parsed = await callJson(system, `Documents:\n\n${input}`);
+    const requirements: ExtractedRequirement[] = Array.isArray(parsed?.requirements)
+      ? parsed.requirements
+      : [];
+    await logRun({ projectId, task: "extract_requirements", input, output: { count: requirements.length } });
+    return { requirements, model: MODEL };
+  } catch (error) {
+    await logRun({
+      projectId,
+      task: "extract_requirements",
+      input,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+}
+
+export interface MappedEvidence {
+  requirementId: string;
+  documentId?: string | null;
+  evidenceStatus: "present" | "missing" | "expired" | "unclear" | "not_applicable" | "pending";
+  excerpt?: string | null;
+  notes?: string | null;
+}
+
+export async function mapEvidence(
+  projectId: string,
+  requirements: { id: string; text: string; expectedEvidence: string | null }[],
+  docs: DocForLlm[],
+): Promise<{ items: MappedEvidence[]; model: string }> {
+  const reqList = requirements
+    .map((r) => `[${r.id}] ${r.text}${r.expectedEvidence ? ` (expected: ${r.expectedEvidence})` : ""}`)
+    .join("\n");
+  const corpus = docs
+    .map(
+      (d) =>
+        `=== DOCUMENT [${d.id}] "${d.filename}" ===\n${truncate(
+          d.contentText ?? "",
+          Math.floor(MAX_INPUT_CHARS / Math.max(docs.length + 1, 1)),
+        )}`,
+    )
+    .join("\n\n");
+
+  const system =
+    GUARDRAILS +
+    " Task: for each requirement, find whether the bid documents contain supporting evidence. " +
+    "Return JSON {\"items\": [{\"requirementId\": string (must match a supplied requirement id), " +
+    "\"documentId\": the DOCUMENT id where evidence was found or null, \"evidenceStatus\": one of " +
+    "[present, missing, expired, unclear, not_applicable, pending], \"excerpt\": a short verbatim quote " +
+    "supporting the status or null, \"notes\": short reviewer note}]}. Mark missing if no evidence found. " +
+    "Mark expired only if a date in the document shows the evidence is out of date.";
+
+  const input = truncate(`Requirements:\n${reqList}\n\nBid documents:\n${corpus}`);
+  try {
+    const parsed = await callJson(system, input);
+    const validIds = new Set(requirements.map((r) => r.id));
+    const items: MappedEvidence[] = (Array.isArray(parsed?.items) ? parsed.items : []).filter(
+      (i: MappedEvidence) => validIds.has(i.requirementId),
+    );
+    await logRun({ projectId, task: "map_evidence", input, output: { count: items.length } });
+    return { items, model: MODEL };
+  } catch (error) {
+    await logRun({
+      projectId,
+      task: "map_evidence",
+      input,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+}
+
+export interface SuggestedDefect {
+  requirementId?: string | null;
+  type:
+    | "omission"
+    | "expiry"
+    | "arithmetic"
+    | "formatting"
+    | "responsiveness"
+    | "eligibility"
+    | "unsupported_claim"
+    | "validity";
+  severity: "fatal" | "likely_fatal" | "scoring_risk" | "cosmetic";
+  description: string;
+  remediation?: string | null;
+}
+
+export async function suggestDefects(
+  projectId: string,
+  requirements: { id: string; text: string; isMandatory: boolean }[],
+  evidence: { requirementId: string; evidenceStatus: string; notes: string | null }[],
+): Promise<{ defects: SuggestedDefect[]; model: string }> {
+  const reqList = requirements
+    .map((r) => `[${r.id}]${r.isMandatory ? " (MANDATORY)" : ""} ${r.text}`)
+    .join("\n");
+  const evList = evidence
+    .map((e) => `req ${e.requirementId}: ${e.evidenceStatus}${e.notes ? ` — ${e.notes}` : ""}`)
+    .join("\n");
+
+  const system =
+    GUARDRAILS +
+    " Task: propose likely bid defects from the requirement matrix and evidence map. " +
+    "Return JSON {\"defects\": [{\"requirementId\": related requirement id or null, \"type\": one of " +
+    "[omission, expiry, arithmetic, formatting, responsiveness, eligibility, unsupported_claim, validity], " +
+    "\"severity\": one of [fatal, likely_fatal, scoring_risk, cosmetic], \"description\": clear statement of the " +
+    "defect grounded in the evidence, \"remediation\": concrete fix}]}. A missing mandatory requirement is " +
+    "typically fatal or likely_fatal. Do not invent defects that the evidence does not support.";
+
+  const input = truncate(`Requirements:\n${reqList}\n\nEvidence:\n${evList}`);
+  try {
+    const parsed = await callJson(system, input);
+    const validIds = new Set(requirements.map((r) => r.id));
+    const defects: SuggestedDefect[] = (Array.isArray(parsed?.defects) ? parsed.defects : []).map(
+      (d: SuggestedDefect) => ({
+        ...d,
+        requirementId: d.requirementId && validIds.has(d.requirementId) ? d.requirementId : null,
+      }),
+    );
+    await logRun({ projectId, task: "suggest_defects", input, output: { count: defects.length } });
+    return { defects, model: MODEL };
+  } catch (error) {
+    await logRun({
+      projectId,
+      task: "suggest_defects",
+      input,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+}
+
+export async function responsivenessReview(
+  projectId: string,
+  context: {
+    tenderTitle: string;
+    requirements: { text: string; isMandatory: boolean }[];
+    defects: { type: string; severity: string; description: string }[];
+  },
+): Promise<{ review: string; model: string }> {
+  const system =
+    GUARDRAILS +
+    " Task: write a concise responsiveness review narrative (3-6 short paragraphs) assessing whether the bid, " +
+    "as reviewed, is likely responsive to the tender's mandatory requirements. Return JSON {\"review\": string}. " +
+    "Ground every statement in the supplied requirements and defects. State clearly that this is a suggested " +
+    "narrative pending named-reviewer confirmation.";
+
+  const input = truncate(
+    `Tender: ${context.tenderTitle}\n\nMandatory requirements:\n${context.requirements
+      .filter((r) => r.isMandatory)
+      .map((r) => `- ${r.text}`)
+      .join("\n")}\n\nDefects:\n${context.defects
+      .map((d) => `- [${d.severity}/${d.type}] ${d.description}`)
+      .join("\n")}`,
+  );
+  try {
+    const parsed = await callJson(system, input);
+    const review = typeof parsed?.review === "string" ? parsed.review : "";
+    await logRun({ projectId, task: "responsiveness_review", input, output: { chars: review.length } });
+    return { review, model: MODEL };
+  } catch (error) {
+    await logRun({
+      projectId,
+      task: "responsiveness_review",
+      input,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+}

@@ -1,0 +1,273 @@
+import {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  HeadingLevel,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType,
+  AlignmentType,
+  BorderStyle,
+  Footer,
+  PageNumber,
+} from "docx";
+
+export const DOCX_MIME =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+export const ENGINE_VERSION = "valo-autopsy-engine/gate0-v1";
+
+export const PROCESS_WARRANTY =
+  "Valo does not warrant contract award, evaluator behaviour, or acceptance of the package. Valo warrants the reviewed process applied to the materials provided: requirement extraction, deterministic verification, and named human review.";
+
+const NAVY = "1E3A5F";
+const GREY = "666666";
+
+export interface ReportData {
+  project: any;
+  client: any;
+  reviewerName: string | null;
+  requirements: any[];
+  evidence: any[];
+  defects: any[];
+  boqChecks: any[];
+  risk: { score: number; band: string; explanation: string; overrideBand?: string | null; overrideNote?: string | null; overrideBy?: string | null };
+  version: number;
+  generatedByName: string | null;
+}
+
+function heading(text: string): Paragraph {
+  return new Paragraph({
+    heading: HeadingLevel.HEADING_1,
+    spacing: { before: 320, after: 160 },
+    children: [new TextRun({ text, bold: true, color: NAVY })],
+  });
+}
+
+function subheading(text: string): Paragraph {
+  return new Paragraph({
+    heading: HeadingLevel.HEADING_2,
+    spacing: { before: 200, after: 100 },
+    children: [new TextRun({ text, bold: true, color: NAVY })],
+  });
+}
+
+function para(text: string, opts: { italics?: boolean; bold?: boolean; color?: string } = {}): Paragraph {
+  return new Paragraph({
+    spacing: { after: 120 },
+    children: [new TextRun({ text, italics: opts.italics, bold: opts.bold, color: opts.color })],
+  });
+}
+
+function cell(text: string, opts: { bold?: boolean; width?: number } = {}): TableCell {
+  return new TableCell({
+    width: opts.width ? { size: opts.width, type: WidthType.PERCENTAGE } : undefined,
+    margins: { top: 60, bottom: 60, left: 80, right: 80 },
+    children: [
+      new Paragraph({
+        children: [new TextRun({ text: text || "—", bold: opts.bold, size: 18 })],
+      }),
+    ],
+  });
+}
+
+function makeTable(headers: string[], rows: string[][], widths?: number[]): Table {
+  const border = { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" };
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: { top: border, bottom: border, left: border, right: border, insideHorizontal: border, insideVertical: border },
+    rows: [
+      new TableRow({
+        tableHeader: true,
+        children: headers.map((h, i) => cell(h, { bold: true, width: widths?.[i] })),
+      }),
+      ...rows.map(
+        (r) =>
+          new TableRow({
+            children: r.map((c, i) => cell(c, { width: widths?.[i] })),
+          }),
+      ),
+    ],
+  });
+}
+
+export async function buildReportDocx(data: ReportData): Promise<Buffer> {
+  const { project, client, requirements, evidence, defects, boqChecks, risk } = data;
+
+  const children: (Paragraph | Table)[] = [];
+
+  // Title block
+  children.push(
+    new Paragraph({
+      spacing: { after: 60 },
+      children: [new TextRun({ text: "VALO", bold: true, size: 40, color: NAVY })],
+    }),
+    new Paragraph({
+      spacing: { after: 40 },
+      children: [new TextRun({ text: "Bid Autopsy Report", bold: true, size: 32, color: NAVY })],
+    }),
+    para(`${project.tenderTitle}`, { bold: true }),
+    para(`Client: ${client?.name ?? "—"}   |   Version ${data.version}   |   Generated ${new Date().toLocaleString()}`, { color: GREY }),
+    para("CONFIDENTIAL — Prepared for internal review. Not for external distribution.", { italics: true, color: GREY }),
+  );
+
+  // A. Engagement summary
+  children.push(heading("A. Engagement Summary"));
+  children.push(
+    makeTable(
+      ["Field", "Value"],
+      [
+        ["Client", client?.name ?? "—"],
+        ["NDA status", client?.ndaStatus ?? "—"],
+        ["Issuing entity", project.issuingEntity ?? "—"],
+        ["Tender reference", project.tenderRef ?? "—"],
+        ["Segment", project.segment ?? "—"],
+        ["Deadline", project.deadline ?? "—"],
+        ["Value band", project.valueBand ?? "—"],
+        ["Reviewer", data.reviewerName ?? "—"],
+        ["Status", project.status],
+      ],
+      [30, 70],
+    ),
+  );
+  if (project.scope) {
+    children.push(subheading("Scope"), para(project.scope));
+  }
+  if (project.limitations) {
+    children.push(subheading("Limitations"), para(project.limitations));
+  }
+
+  // B. Requirement matrix
+  children.push(heading("B. Requirement Matrix"));
+  if (requirements.length === 0) {
+    children.push(para("No requirements recorded.", { italics: true }));
+  } else {
+    children.push(
+      makeTable(
+        ["Requirement", "Category", "Mandatory", "Source", "Status"],
+        requirements.map((r) => [
+          r.text,
+          r.category,
+          r.isMandatory ? "Yes" : "No",
+          [r.sourceDocName, r.clauseRef, r.pageRef].filter(Boolean).join(" · ") || "—",
+          r.reviewStatus,
+        ]),
+        [42, 15, 10, 20, 13],
+      ),
+    );
+  }
+
+  // C. Defect register
+  children.push(heading("C. Defect Register"));
+  if (defects.length === 0) {
+    children.push(para("No defects recorded.", { italics: true }));
+  } else {
+    children.push(
+      makeTable(
+        ["Description", "Type", "Severity", "Status", "Remediation"],
+        defects.map((d) => [d.description, d.type, d.severity, d.status, d.remediation ?? "—"]),
+        [34, 13, 13, 12, 28],
+      ),
+    );
+  }
+
+  // D. Disqualification-risk score
+  children.push(heading("D. Disqualification-Risk Score"));
+  children.push(
+    para(`Score: ${risk.score} / 100    Band: ${risk.band.toUpperCase()}`, { bold: true }),
+  );
+  if (risk.overrideBand) {
+    children.push(
+      para(
+        `Named-reviewer override: ${risk.overrideBand.toUpperCase()} by ${risk.overrideBy ?? "—"}. Note: ${risk.overrideNote ?? "—"}`,
+        { color: GREY },
+      ),
+    );
+  }
+  children.push(para(risk.explanation));
+
+  // E. Responsiveness review
+  children.push(heading("E. Responsiveness Review"));
+  if (project.responsivenessReview) {
+    if (project.responsivenessSuggested) {
+      children.push(para("Suggested narrative — pending named-reviewer confirmation.", { italics: true, color: GREY }));
+    }
+    for (const block of String(project.responsivenessReview).split("\n\n")) {
+      if (block.trim()) children.push(para(block.trim()));
+    }
+  } else {
+    children.push(para("No responsiveness review recorded.", { italics: true }));
+  }
+
+  // F. BOQ verification annex
+  children.push(heading("F. BOQ Verification Annex"));
+  if (boqChecks.length === 0) {
+    children.push(para("No BOQ checks recorded.", { italics: true }));
+  } else {
+    children.push(
+      makeTable(
+        ["Line", "Check", "Finding", "Severity", "Status"],
+        boqChecks.map((b) => [b.lineRef ?? "—", b.checkType, b.finding, b.severity, b.status]),
+        [10, 18, 42, 15, 15],
+      ),
+    );
+  }
+
+  // G. Remediation plan
+  children.push(heading("G. Remediation Plan"));
+  const remediable = defects.filter((d) => d.status !== "waived");
+  if (remediable.length === 0) {
+    children.push(para("No outstanding remediation items.", { italics: true }));
+  } else {
+    children.push(
+      makeTable(
+        ["Defect", "Severity", "Owner", "Remediation", "Status"],
+        remediable.map((d) => [d.description, d.severity, d.owner ?? "—", d.remediation ?? "—", d.status]),
+        [30, 13, 15, 30, 12],
+      ),
+    );
+  }
+
+  // H. Sign-off page
+  children.push(heading("H. Sign-Off"));
+  children.push(
+    para("This report is a DRAFT until a named reviewer signs off below. Export is blocked until sign-off is recorded.", { italics: true }),
+    new Paragraph({ spacing: { before: 200 }, children: [new TextRun({ text: "Reviewer name: ______________________________", size: 22 })] }),
+    new Paragraph({ spacing: { before: 120 }, children: [new TextRun({ text: "Attestation: ________________________________", size: 22 })] }),
+    new Paragraph({ spacing: { before: 120 }, children: [new TextRun({ text: "Date: _______________________________________", size: 22 })] }),
+  );
+
+  children.push(
+    new Paragraph({ spacing: { before: 320 }, children: [new TextRun({ text: "Process Warranty", bold: true, color: NAVY })] }),
+    para(PROCESS_WARRANTY, { italics: true }),
+    para(`Engine: ${ENGINE_VERSION}`, { color: GREY }),
+  );
+
+  const doc = new Document({
+    creator: "Valo Bid Autopsy Workbench",
+    title: `Bid Autopsy Report — ${project.tenderTitle}`,
+    sections: [
+      {
+        properties: {},
+        footers: {
+          default: new Footer({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({ text: "CONFIDENTIAL — Valo Bid Autopsy Report — Page ", size: 16, color: GREY }),
+                  new TextRun({ children: [PageNumber.CURRENT], size: 16, color: GREY }),
+                ],
+              }),
+            ],
+          }),
+        },
+        children,
+      },
+    ],
+  });
+
+  return Packer.toBuffer(doc);
+}

@@ -2,40 +2,75 @@ import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ClerkProvider, SignedIn, SignedOut } from "@clerk/clerk-react";
 import NotFound from "@/pages/not-found";
+import SignInPage from "@/pages/sign-in";
+import Dashboard from "@/pages/dashboard";
+import Clients from "@/pages/clients";
+import ClientDetails from "@/pages/client-details";
+import Projects from "@/pages/projects";
+import ProjectDetails from "@/pages/project-details";
+import Settings from "@/pages/settings";
+import Layout from "@/components/layout";
+import { useAuthSync } from "@/hooks/use-auth-sync";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
-function Home() {
+const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+function ProtectedRoutes() {
+  useAuthSync();
+  
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Replit Agent is building...</h1>
-        <p className="mt-2 text-sm text-gray-600">Your app will appear here once it's ready.</p>
-      </div>
-    </div>
-  );
-}
-
-function Router() {
-  return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route component={NotFound} />
-    </Switch>
+    <Layout>
+      <Switch>
+        <Route path="/" component={Dashboard} />
+        <Route path="/clients" component={Clients} />
+        <Route path="/clients/:id" component={ClientDetails} />
+        <Route path="/projects" component={Projects} />
+        <Route path="/projects/:id" component={ProjectDetails} />
+        <Route path="/settings" component={Settings} />
+        <Route component={NotFound} />
+      </Switch>
+    </Layout>
   );
 }
 
 function App() {
+  if (!CLERK_PUBLISHABLE_KEY) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4 text-center">
+        <div className="max-w-md space-y-4">
+          <h1 className="text-xl font-bold text-destructive">Missing Clerk Configuration</h1>
+          <p className="text-muted-foreground">VITE_CLERK_PUBLISHABLE_KEY is not set in your environment variables.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <SignedIn>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <ProtectedRoutes />
+            </WouterRouter>
+          </SignedIn>
+          <SignedOut>
+            <SignInPage />
+          </SignedOut>
+          <Toaster />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ClerkProvider>
   );
 }
 

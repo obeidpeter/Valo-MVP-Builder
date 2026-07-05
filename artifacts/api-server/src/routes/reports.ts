@@ -1,0 +1,289 @@
+import { Router, type IRouter, type Request, type Response } from "express";
+import { Readable } from "node:stream";
+import { createRequire } from "node:module";
+import type { Archiver, ArchiverError, ArchiverOptions } from "archiver";
+import { eq, desc, sql } from "drizzle-orm";
+import {
+  db,
+  reports,
+  projects,
+  clients,
+  users,
+  requirements,
+  evidenceItems,
+  defects,
+  boqChecks,
+  auditEvents,
+} from "@workspace/db";
+import { SignOffReportBody } from "@workspace/api-zod";
+import { requireMember, requireRoles, getLocalUser } from "../middlewares/auth";
+import { serializeReport } from "../lib/serializers";
+import { writeAudit } from "../lib/audit";
+import { buildReportDocx, DOCX_MIME, ENGINE_VERSION, type ReportData } from "../lib/docx";
+import { computeRisk, type Severity } from "../lib/deterministic";
+import { ObjectStorageService } from "../lib/objectStorage";
+
+const router: IRouter = Router();
+const objectStorage = new ObjectStorageService();
+
+const nodeRequire = createRequire(import.meta.url);
+const archiver = nodeRequire("archiver") as (
+  format: string,
+  options?: ArchiverOptions,
+) => Archiver;
+
+async function gatherReportData(projectId: string): Promise<ReportData | null> {
+  const [row] = await db
+    .select({ project: projects, client: clients, reviewerName: users.name })
+    .from(projects)
+    .leftJoin(clients, eq(projects.clientId, clients.id))
+    .leftJoin(users, eq(projects.reviewerId, users.id))
+    .where(eq(projects.id, projectId));
+  if (!row) return null;
+
+  const reqs = await db.select().from(requirements).where(eq(requirements.projectId, projectId));
+  const ev = await db.select().from(evidenceItems).where(eq(evidenceItems.projectId, projectId));
+  const defs = await db.select().from(defects).where(eq(defects.projectId, projectId));
+  const boqs = await db.select().from(boqChecks).where(eq(boqChecks.projectId, projectId));
+
+  const risk = computeRisk({
+    defects: defs.map((d) => ({ severity: d.severity as Severity, status: d.status })),
+    requirements: reqs.map((r) => ({
+      id: r.id,
+      isMandatory: r.isMandatory,
+      reviewStatus: r.reviewStatus,
+    })),
+    evidence: ev.map((e) => ({ requirementId: e.requirementId, evidenceStatus: e.evidenceStatus })),
+  });
+
+  return {
+    project: row.project,
+    client: row.client,
+    reviewerName: row.reviewerName ?? null,
+    requirements: reqs,
+    evidence: ev,
+    defects: defs,
+    boqChecks: boqs,
+    risk: {
+      score: risk.score,
+      band: row.project.riskOverrideBand || risk.band,
+      explanation: risk.explanation,
+      overrideBand: row.project.riskOverrideBand,
+      overrideNote: row.project.riskOverrideNote,
+      overrideBy: row.project.riskOverrideBy,
+    },
+    version: 1,
+    generatedByName: null,
+  };
+}
+
+router.get("/projects/:id/reports", requireMember, async (req: Request, res: Response) => {
+  const rows = await db
+    .select({ report: reports, generatedByName: users.name })
+    .from(reports)
+    .leftJoin(users, eq(reports.generatedBy, users.id))
+    .where(eq(reports.projectId, String(req.params.id)))
+    .orderBy(desc(reports.version));
+  res.json(rows.map((r) => serializeReport(r.report, r.generatedByName)));
+});
+
+router.post(
+  "/projects/:id/generate-report",
+  requireMember,
+  async (req: Request, res: Response) => {
+    const data = await gatherReportData(String(req.params.id));
+    if (!data) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const user = getLocalUser(req);
+    const [{ maxVersion }] = await db
+      .select({ maxVersion: sql<number>`coalesce(max(${reports.version}), 0)::int` })
+      .from(reports)
+      .where(eq(reports.projectId, String(req.params.id)));
+    const version = Number(maxVersion) + 1;
+    data.version = version;
+    data.generatedByName = user?.name ?? null;
+
+    let docxPath: string | null = null;
+    try {
+      const buffer = await buildReportDocx(data);
+      const uploadURL = await objectStorage.getObjectEntityUploadURL();
+      const putRes = await fetch(uploadURL, {
+        method: "PUT",
+        headers: { "Content-Type": DOCX_MIME },
+        body: buffer,
+      });
+      if (!putRes.ok) throw new Error(`Upload failed: ${putRes.status}`);
+      docxPath = objectStorage.normalizeObjectEntityPath(uploadURL);
+    } catch (error) {
+      req.log.error({ err: error }, "report generation failed");
+      res.status(500).json({ error: "Report generation failed" });
+      return;
+    }
+
+    const [created] = await db
+      .insert(reports)
+      .values({
+        projectId: String(req.params.id),
+        version,
+        status: "draft",
+        docxPath,
+        engineVersion: ENGINE_VERSION,
+        generatedBy: user?.id ?? null,
+      })
+      .returning();
+
+    if (data.project.status === "defects" || data.project.status === "review") {
+      await db.update(projects).set({ status: "reporting" }).where(eq(projects.id, String(req.params.id)));
+    }
+    await writeAudit({
+      user,
+      projectId: String(req.params.id),
+      eventType: "report.generated",
+      objectType: "report",
+      objectId: created.id,
+      details: `v${version}`,
+    });
+    res.status(201).json(serializeReport(created, user?.name));
+  },
+);
+
+router.post(
+  "/reports/:id/sign-off",
+  requireRoles("admin", "reviewer"),
+  async (req: Request, res: Response) => {
+    const parsed = SignOffReportBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request" });
+      return;
+    }
+    const user = getLocalUser(req);
+    const reviewerName = user?.name || user?.email || "Unknown reviewer";
+    const [updated] = await db
+      .update(reports)
+      .set({
+        status: "signed_off",
+        reviewerName,
+        attestation: parsed.data.attestation,
+        reviewerId: user?.id ?? null,
+        signedOffAt: new Date(),
+      })
+      .where(eq(reports.id, String(req.params.id)))
+      .returning();
+    if (!updated) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    await db.update(projects).set({ status: "signed_off" }).where(eq(projects.id, updated.projectId));
+    await writeAudit({
+      user,
+      projectId: updated.projectId,
+      eventType: "report.signed_off",
+      objectType: "report",
+      objectId: updated.id,
+      details: `by ${reviewerName}`,
+    });
+    res.json(serializeReport(updated, user?.name));
+  },
+);
+
+router.get("/reports/:id/download", requireMember, async (req: Request, res: Response) => {
+  const [report] = await db.select().from(reports).where(eq(reports.id, String(req.params.id)));
+  if (!report || !report.docxPath) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  try {
+    const file = await objectStorage.getObjectEntityFile(report.docxPath);
+    const [buffer] = await file.download();
+    res.setHeader("Content-Type", DOCX_MIME);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="bid-autopsy-report-v${report.version}.docx"`,
+    );
+    res.send(buffer);
+  } catch (error) {
+    req.log.error({ err: error }, "report download failed");
+    res.status(404).json({ error: "Report file not found" });
+  }
+});
+
+function toCsv(rows: Record<string, unknown>[]): string {
+  if (rows.length === 0) return "";
+  const headers = Object.keys(rows[0]);
+  const escape = (v: unknown) => {
+    const s = v == null ? "" : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  return [headers.join(","), ...rows.map((r) => headers.map((h) => escape(r[h])).join(","))].join("\n");
+}
+
+router.get(
+  "/projects/:id/export",
+  requireRoles("admin"),
+  async (req: Request, res: Response) => {
+    const projectId = String(req.params.id);
+    const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
+    if (!project) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const reqs = await db.select().from(requirements).where(eq(requirements.projectId, projectId));
+    const ev = await db.select().from(evidenceItems).where(eq(evidenceItems.projectId, projectId));
+    const defs = await db.select().from(defects).where(eq(defects.projectId, projectId));
+    const boqs = await db.select().from(boqChecks).where(eq(boqChecks.projectId, projectId));
+    const audits = await db.select().from(auditEvents).where(eq(auditEvents.projectId, projectId));
+    const signedReports = await db
+      .select()
+      .from(reports)
+      .where(eq(reports.projectId, projectId))
+      .orderBy(desc(reports.version));
+
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="project-export-${projectId}.zip"`,
+    );
+
+    const archive = archiver("zip", { zlib: { level: 9 } });
+    archive.on("error", (err: ArchiverError) => {
+      req.log.error({ err }, "export archive error");
+      res.status(500).end();
+    });
+    archive.pipe(res);
+
+    archive.append(JSON.stringify(project, null, 2), { name: "project.json" });
+    archive.append(toCsv(reqs), { name: "requirements.csv" });
+    archive.append(toCsv(ev), { name: "evidence.csv" });
+    archive.append(toCsv(defs), { name: "defects.csv" });
+    archive.append(toCsv(boqs), { name: "boq_checks.csv" });
+    archive.append(toCsv(audits), { name: "audit_events.csv" });
+
+    const latestSigned = signedReports.find((r) => r.status === "signed_off" && r.docxPath);
+    if (latestSigned?.docxPath) {
+      try {
+        const file = await objectStorage.getObjectEntityFile(latestSigned.docxPath);
+        const [buffer] = await file.download();
+        archive.append(buffer, { name: `bid-autopsy-report-v${latestSigned.version}.docx` });
+      } catch (error) {
+        req.log.warn({ err: error }, "could not attach report to export");
+      }
+    }
+
+    await writeAudit({
+      user: getLocalUser(req),
+      projectId,
+      eventType: "project.exported",
+      objectType: "project",
+      objectId: projectId,
+    });
+    if (project.status === "signed_off") {
+      await db.update(projects).set({ status: "exported" }).where(eq(projects.id, projectId));
+    }
+
+    await archive.finalize();
+  },
+);
+
+export default router;

@@ -3,13 +3,39 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Valo Bid Autopsy Workbench API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: Auth
+    description: Current-user and user administration
+  - name: Clients
+    description: Client profiles and NDA status
+  - name: Projects
+    description: Tender/bid autopsy projects
+  - name: Dashboard
+    description: Dashboard aggregates and Gate 0 metrics
+  - name: Documents
+    description: Document intake and classification
+  - name: Requirements
+    description: Requirement matrix
+  - name: Evidence
+    description: Evidence mapping
+  - name: Defects
+    description: Defect register
+  - name: BOQ
+    description: BOQ Lite arithmetic checks
+  - name: Risk
+    description: Disqualification-risk scoring
+  - name: Reports
+    description: DOCX report generation and sign-off
+  - name: Audit
+    description: Audit trail
+  - name: Storage
+    description: Object storage upload and serving endpoints.
 paths:
   /healthz:
     get:
@@ -24,7 +50,809 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /me:
+    get:
+      operationId: getMe
+      tags: [Auth]
+      summary: Get the current authenticated user (JIT provisioned)
+      responses:
+        "200":
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /users:
+    get:
+      operationId: listUsers
+      tags: [Auth]
+      summary: List internal users (admin only)
+      responses:
+        "200":
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /users/{id}:
+    patch:
+      operationId: updateUser
+      tags: [Auth]
+      summary: Update a user's role or status (admin only)
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /clients:
+    get:
+      operationId: listClients
+      tags: [Clients]
+      summary: List clients
+      responses:
+        "200":
+          description: Clients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Client"
+    post:
+      operationId: createClient
+      tags: [Clients]
+      summary: Create a client
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientCreate"
+      responses:
+        "201":
+          description: Created client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /clients/{id}:
+    get:
+      operationId: getClient
+      tags: [Clients]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateClient
+      tags: [Clients]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientUpdate"
+      responses:
+        "200":
+          description: Updated client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [Projects]
+      summary: List projects with dashboard aggregates
+      parameters:
+        - name: clientId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectSummary"
+    post:
+      operationId: createProject
+      tags: [Projects]
+      summary: Create a tender project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectCreate"
+      responses:
+        "201":
+          description: Created project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /projects/{id}:
+    get:
+      operationId: getProject
+      tags: [Projects]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateProject
+      tags: [Projects]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectUpdate"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteProject
+      tags: [Projects]
+      summary: Delete a project and its documents (admin only)
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /dashboard/metrics:
+    get:
+      operationId: getDashboardMetrics
+      tags: [Dashboard]
+      summary: Gate 0 metrics and portfolio aggregates
+      responses:
+        "200":
+          description: Metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardMetrics"
+  /projects/{id}/documents:
+    get:
+      operationId: listDocuments
+      tags: [Documents]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Documents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Document"
+    post:
+      operationId: createDocument
+      tags: [Documents]
+      summary: Register an uploaded document (after object-storage upload)
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentCreate"
+      responses:
+        "201":
+          description: Created document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /documents/{id}:
+    get:
+      operationId: getDocument
+      tags: [Documents]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Document with extracted text
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateDocument
+      tags: [Documents]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentUpdate"
+      responses:
+        "200":
+          description: Updated document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+    delete:
+      operationId: deleteDocument
+      tags: [Documents]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /projects/{id}/extract-requirements:
+    post:
+      operationId: extractRequirements
+      tags: [Requirements]
+      summary: Run LLM extraction of candidate requirements from tender documents
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExtractRequest"
+      responses:
+        "200":
+          description: Extraction result (suggested requirements)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExtractResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /projects/{id}/requirements:
+    get:
+      operationId: listRequirements
+      tags: [Requirements]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Requirements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Requirement"
+    post:
+      operationId: createRequirement
+      tags: [Requirements]
+      summary: Manually add a requirement
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequirementCreate"
+      responses:
+        "201":
+          description: Created requirement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Requirement"
+  /requirements/{id}:
+    patch:
+      operationId: updateRequirement
+      tags: [Requirements]
+      summary: Approve, edit, merge, reject, or annotate a requirement
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequirementUpdate"
+      responses:
+        "200":
+          description: Updated requirement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Requirement"
+    delete:
+      operationId: deleteRequirement
+      tags: [Requirements]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+  /projects/{id}/evidence:
+    get:
+      operationId: listEvidence
+      tags: [Evidence]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Evidence items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EvidenceItem"
+  /projects/{id}/map-evidence:
+    post:
+      operationId: mapEvidence
+      tags: [Evidence]
+      summary: Run LLM evidence mapping against confirmed requirements
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Mapping result (suggested evidence items)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceMapResult"
+  /evidence:
+    post:
+      operationId: createEvidence
+      tags: [Evidence]
+      summary: Manually create an evidence item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvidenceCreate"
+      responses:
+        "201":
+          description: Created evidence item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceItem"
+  /evidence/{id}:
+    patch:
+      operationId: updateEvidence
+      tags: [Evidence]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvidenceUpdate"
+      responses:
+        "200":
+          description: Updated evidence item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceItem"
+    delete:
+      operationId: deleteEvidence
+      tags: [Evidence]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+  /projects/{id}/defects:
+    get:
+      operationId: listDefects
+      tags: [Defects]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Defects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Defect"
+  /projects/{id}/suggest-defects:
+    post:
+      operationId: suggestDefects
+      tags: [Defects]
+      summary: Run LLM defect suggestions from requirement matrix + evidence
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Suggested defects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DefectSuggestResult"
+  /defects:
+    post:
+      operationId: createDefect
+      tags: [Defects]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DefectCreate"
+      responses:
+        "201":
+          description: Created defect
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Defect"
+  /defects/{id}:
+    patch:
+      operationId: updateDefect
+      tags: [Defects]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DefectUpdate"
+      responses:
+        "200":
+          description: Updated defect
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Defect"
+    delete:
+      operationId: deleteDefect
+      tags: [Defects]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+  /projects/{id}/boq-checks:
+    get:
+      operationId: listBoqChecks
+      tags: [BOQ]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: BOQ checks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BoqCheck"
+  /projects/{id}/run-boq-checks:
+    post:
+      operationId: runBoqChecks
+      tags: [BOQ]
+      summary: Run deterministic BOQ Lite arithmetic and consistency checks
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BoqRunRequest"
+      responses:
+        "200":
+          description: BOQ check result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoqRunResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /boq-checks/{id}/to-defect:
+    post:
+      operationId: boqCheckToDefect
+      tags: [BOQ]
+      summary: Push a BOQ finding into the defect register
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "201":
+          description: Created defect from BOQ finding
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Defect"
+  /projects/{id}/responsiveness-review:
+    post:
+      operationId: runResponsivenessReview
+      tags: [Projects]
+      summary: Run LLM responsiveness review (suggested narrative)
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Responsiveness review result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResponsivenessResult"
+  /projects/{id}/risk:
+    get:
+      operationId: getRisk
+      tags: [Risk]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Computed risk assessment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RiskAssessment"
+  /projects/{id}/risk/override:
+    post:
+      operationId: overrideRisk
+      tags: [Risk]
+      summary: Named-reviewer override of the computed risk band
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RiskOverride"
+      responses:
+        "200":
+          description: Updated risk assessment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RiskAssessment"
+  /projects/{id}/reports:
+    get:
+      operationId: listReports
+      tags: [Reports]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Report"
+  /projects/{id}/generate-report:
+    post:
+      operationId: generateReport
+      tags: [Reports]
+      summary: Generate a new draft DOCX Bid Autopsy Report version
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "201":
+          description: Generated report version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+  /reports/{id}/sign-off:
+    post:
+      operationId: signOffReport
+      tags: [Reports]
+      summary: Named-reviewer sign-off that unlocks export
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignOffRequest"
+      responses:
+        "200":
+          description: Signed-off report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+  /reports/{id}/download:
+    get:
+      operationId: downloadReport
+      tags: [Reports]
+      summary: Download the generated DOCX
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: DOCX binary
+          content:
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /projects/{id}/export:
+    get:
+      operationId: exportProject
+      tags: [Reports]
+      summary: Export project data as a ZIP (admin only)
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: ZIP archive
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /projects/{id}/audit:
+    get:
+      operationId: listAudit
+      tags: [Audit]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Audit events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditEvent"
+  /storage/uploads/request-url:
+    post:
+      tags: [Storage]
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for file upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadUrlRequest'
+      responses:
+        '200':
+          description: Presigned upload URL generated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadUrlResponse'
+        '400':
+          $ref: "#/components/responses/BadRequest"
+        '500':
+          description: Failed to generate upload URL.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /storage/objects/{objectPath}:
+    get:
+      tags: [Storage]
+      operationId: getStorageObject
+      summary: Serve an object entity from PRIVATE_OBJECT_DIR
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Object content streamed with correct Content-Type.
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: "#/components/responses/NotFound"
 components:
+  parameters:
+    IdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Unauthorized:
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Forbidden:
+      description: Insufficient role
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +861,623 @@ components:
           type: string
       required:
         - status
-
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    User:
+      type: object
+      required: [id, email, role, status]
+      properties:
+        id: { type: string }
+        email: { type: string }
+        name: { type: string, nullable: true }
+        role:
+          type: string
+          enum: [admin, reviewer, analyst, none]
+        status:
+          type: string
+          enum: [active, disabled]
+        lastLoginAt: { type: string, nullable: true }
+        createdAt: { type: string }
+    UserUpdate:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [admin, reviewer, analyst, none]
+        status:
+          type: string
+          enum: [active, disabled]
+    Client:
+      type: object
+      required: [id, name, ndaStatus, createdAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        sector: { type: string, nullable: true }
+        segment:
+          type: string
+          enum: [federal, nipex_ncdmb, donor, other]
+          nullable: true
+        contactName: { type: string, nullable: true }
+        contactEmail: { type: string, nullable: true }
+        ndaStatus:
+          type: string
+          enum: [pending, signed, not_required, declined]
+        notes: { type: string, nullable: true }
+        projectCount: { type: integer, nullable: true }
+        createdAt: { type: string }
+    ClientCreate:
+      type: object
+      required: [name, ndaStatus]
+      properties:
+        name: { type: string, minLength: 1 }
+        sector: { type: string }
+        segment:
+          type: string
+          enum: [federal, nipex_ncdmb, donor, other]
+        contactName: { type: string }
+        contactEmail: { type: string }
+        ndaStatus:
+          type: string
+          enum: [pending, signed, not_required, declined]
+        notes: { type: string }
+    ClientUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        sector: { type: string }
+        segment:
+          type: string
+          enum: [federal, nipex_ncdmb, donor, other]
+        contactName: { type: string }
+        contactEmail: { type: string }
+        ndaStatus:
+          type: string
+          enum: [pending, signed, not_required, declined]
+        notes: { type: string }
+    Project:
+      type: object
+      required: [id, clientId, tenderTitle, status, createdAt]
+      properties:
+        id: { type: string }
+        clientId: { type: string }
+        clientName: { type: string, nullable: true }
+        ndaStatus: { type: string, nullable: true }
+        tenderTitle: { type: string }
+        issuingEntity: { type: string, nullable: true }
+        tenderRef: { type: string, nullable: true }
+        deadline: { type: string, nullable: true }
+        valueBand: { type: string, nullable: true }
+        segment:
+          type: string
+          enum: [federal, nipex_ncdmb, donor, other]
+          nullable: true
+        submissionStatus: { type: string, nullable: true }
+        status:
+          type: string
+          enum: [intake, extraction, review, defects, reporting, signed_off, exported, archived]
+        reviewerId: { type: string, nullable: true }
+        reviewerName: { type: string, nullable: true }
+        riskScore: { type: number, nullable: true }
+        riskBand:
+          type: string
+          enum: [low, medium, high, critical]
+          nullable: true
+        riskOverrideBand:
+          type: string
+          enum: [low, medium, high, critical]
+          nullable: true
+        riskOverrideNote: { type: string, nullable: true }
+        riskOverrideBy: { type: string, nullable: true }
+        outcome:
+          type: string
+          enum: [none, free_autopsy, paid_autopsy, assisted_bid_offer, retainer_offer, paid_mandate, lost, no_response]
+        scope: { type: string, nullable: true }
+        limitations: { type: string, nullable: true }
+        responsivenessReview: { type: string, nullable: true }
+        responsivenessSuggested: { type: boolean, nullable: true }
+        createdAt: { type: string }
+    ProjectSummary:
+      type: object
+      required: [id, clientId, tenderTitle, status, createdAt]
+      properties:
+        id: { type: string }
+        clientId: { type: string }
+        clientName: { type: string, nullable: true }
+        tenderTitle: { type: string }
+        issuingEntity: { type: string, nullable: true }
+        deadline: { type: string, nullable: true }
+        segment:
+          type: string
+          enum: [federal, nipex_ncdmb, donor, other]
+          nullable: true
+        status:
+          type: string
+          enum: [intake, extraction, review, defects, reporting, signed_off, exported, archived]
+        reviewerName: { type: string, nullable: true }
+        riskScore: { type: number, nullable: true }
+        riskBand:
+          type: string
+          enum: [low, medium, high, critical]
+          nullable: true
+        outcome:
+          type: string
+          enum: [none, free_autopsy, paid_autopsy, assisted_bid_offer, retainer_offer, paid_mandate, lost, no_response]
+        nextAction: { type: string, nullable: true }
+        defectCount: { type: integer }
+        fatalDefectCount: { type: integer }
+        requirementCount: { type: integer }
+        createdAt: { type: string }
+    ProjectCreate:
+      type: object
+      required: [clientId, tenderTitle]
+      properties:
+        clientId: { type: string }
+        tenderTitle: { type: string, minLength: 1 }
+        issuingEntity: { type: string }
+        tenderRef: { type: string }
+        deadline: { type: string }
+        valueBand: { type: string }
+        segment:
+          type: string
+          enum: [federal, nipex_ncdmb, donor, other]
+        submissionStatus: { type: string }
+        reviewerId: { type: string }
+        scope: { type: string }
+        limitations: { type: string }
+    ProjectUpdate:
+      type: object
+      properties:
+        tenderTitle: { type: string, minLength: 1 }
+        issuingEntity: { type: string }
+        tenderRef: { type: string }
+        deadline: { type: string }
+        valueBand: { type: string }
+        segment:
+          type: string
+          enum: [federal, nipex_ncdmb, donor, other]
+        submissionStatus: { type: string }
+        status:
+          type: string
+          enum: [intake, extraction, review, defects, reporting, signed_off, exported, archived]
+        reviewerId: { type: string }
+        outcome:
+          type: string
+          enum: [none, free_autopsy, paid_autopsy, assisted_bid_offer, retainer_offer, paid_mandate, lost, no_response]
+        scope: { type: string }
+        limitations: { type: string }
+        responsivenessReview: { type: string }
+    DashboardMetrics:
+      type: object
+      required: [totalProjects, openProjects, paidMandates, packagesShared, materialDefectRate]
+      properties:
+        totalProjects: { type: integer }
+        openProjects: { type: integer }
+        signedOffReports: { type: integer }
+        paidMandates: { type: integer }
+        packagesShared: { type: integer }
+        materialDefectRate: { type: number }
+        materialDefectPackages: { type: integer }
+        auditedPackages: { type: integer }
+        statusBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/CountBucket"
+        outcomeBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/CountBucket"
+        segmentBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/CountBucket"
+    CountBucket:
+      type: object
+      required: [key, count]
+      properties:
+        key: { type: string }
+        count: { type: integer }
+    Document:
+      type: object
+      required: [id, projectId, type, filename, objectPath, redactionStatus, createdAt]
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        type:
+          type: string
+          enum: [tender, bid, certificate, boq, evidence, other]
+        filename: { type: string }
+        objectPath: { type: string }
+        contentType: { type: string, nullable: true }
+        size: { type: integer, nullable: true }
+        source: { type: string, nullable: true }
+        dateReceived: { type: string, nullable: true }
+        redactionStatus:
+          type: string
+          enum: [excluded, redacted, included]
+        uploadedBy: { type: string, nullable: true }
+        uploadedByName: { type: string, nullable: true }
+        contentText: { type: string, nullable: true }
+        extractedChars: { type: integer, nullable: true }
+        extractionStatus:
+          type: string
+          enum: [pending, extracted, failed, skipped]
+          nullable: true
+        createdAt: { type: string }
+    DocumentCreate:
+      type: object
+      required: [type, filename, objectPath, redactionStatus]
+      properties:
+        type:
+          type: string
+          enum: [tender, bid, certificate, boq, evidence, other]
+        filename: { type: string, minLength: 1 }
+        objectPath: { type: string, minLength: 1 }
+        contentType: { type: string }
+        size: { type: integer }
+        source: { type: string }
+        dateReceived: { type: string }
+        redactionStatus:
+          type: string
+          enum: [excluded, redacted, included]
+    DocumentUpdate:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [tender, bid, certificate, boq, evidence, other]
+        source: { type: string }
+        dateReceived: { type: string }
+        redactionStatus:
+          type: string
+          enum: [excluded, redacted, included]
+    ExtractRequest:
+      type: object
+      properties:
+        documentIds:
+          type: array
+          items: { type: string }
+    ExtractResult:
+      type: object
+      required: [created, requirements]
+      properties:
+        created: { type: integer }
+        model: { type: string }
+        requirements:
+          type: array
+          items:
+            $ref: "#/components/schemas/Requirement"
+    Requirement:
+      type: object
+      required: [id, projectId, text, category, isMandatory, reviewStatus, createdAt]
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        sourceDocId: { type: string, nullable: true }
+        sourceDocName: { type: string, nullable: true }
+        pageRef: { type: string, nullable: true }
+        clauseRef: { type: string, nullable: true }
+        text: { type: string }
+        category:
+          type: string
+          enum: [eligibility, administrative, technical, financial_format, other]
+        expectedEvidence: { type: string, nullable: true }
+        isMandatory: { type: boolean }
+        confidence:
+          type: string
+          enum: [high, medium, low, unclear]
+          nullable: true
+        reviewStatus:
+          type: string
+          enum: [suggested, confirmed, edited, rejected, pending]
+        reviewerNotes: { type: string, nullable: true }
+        createdAt: { type: string }
+    RequirementCreate:
+      type: object
+      required: [text, category]
+      properties:
+        sourceDocId: { type: string }
+        pageRef: { type: string }
+        clauseRef: { type: string }
+        text: { type: string, minLength: 1 }
+        category:
+          type: string
+          enum: [eligibility, administrative, technical, financial_format, other]
+        expectedEvidence: { type: string }
+        isMandatory: { type: boolean }
+    RequirementUpdate:
+      type: object
+      properties:
+        pageRef: { type: string }
+        clauseRef: { type: string }
+        text: { type: string, minLength: 1 }
+        category:
+          type: string
+          enum: [eligibility, administrative, technical, financial_format, other]
+        expectedEvidence: { type: string }
+        isMandatory: { type: boolean }
+        confidence:
+          type: string
+          enum: [high, medium, low, unclear]
+        reviewStatus:
+          type: string
+          enum: [suggested, confirmed, edited, rejected, pending]
+        reviewerNotes: { type: string }
+    EvidenceItem:
+      type: object
+      required: [id, projectId, requirementId, evidenceStatus, createdAt]
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        requirementId: { type: string }
+        requirementText: { type: string, nullable: true }
+        documentId: { type: string, nullable: true }
+        documentName: { type: string, nullable: true }
+        evidenceStatus:
+          type: string
+          enum: [present, missing, expired, unclear, not_applicable, pending]
+        excerpt: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        suggested: { type: boolean }
+        confirmedBy: { type: string, nullable: true }
+        createdAt: { type: string }
+    EvidenceMapResult:
+      type: object
+      required: [created, items]
+      properties:
+        created: { type: integer }
+        model: { type: string }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/EvidenceItem"
+    EvidenceCreate:
+      type: object
+      required: [projectId, requirementId, evidenceStatus]
+      properties:
+        projectId: { type: string }
+        requirementId: { type: string }
+        documentId: { type: string }
+        evidenceStatus:
+          type: string
+          enum: [present, missing, expired, unclear, not_applicable, pending]
+        excerpt: { type: string }
+        notes: { type: string }
+    EvidenceUpdate:
+      type: object
+      properties:
+        documentId: { type: string }
+        evidenceStatus:
+          type: string
+          enum: [present, missing, expired, unclear, not_applicable, pending]
+        excerpt: { type: string }
+        notes: { type: string }
+        suggested: { type: boolean }
+    Defect:
+      type: object
+      required: [id, projectId, type, severity, description, status, createdAt]
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        requirementId: { type: string, nullable: true }
+        requirementText: { type: string, nullable: true }
+        type:
+          type: string
+          enum: [omission, expiry, arithmetic, formatting, responsiveness, eligibility, unsupported_claim, validity]
+        severity:
+          type: string
+          enum: [fatal, likely_fatal, scoring_risk, cosmetic]
+        description: { type: string }
+        evidenceSnapshot: { type: string, nullable: true }
+        remediation: { type: string, nullable: true }
+        owner: { type: string, nullable: true }
+        status:
+          type: string
+          enum: [open, remediated, waived, suggested]
+        suggested: { type: boolean }
+        createdAt: { type: string }
+    DefectSuggestResult:
+      type: object
+      required: [created, defects]
+      properties:
+        created: { type: integer }
+        model: { type: string }
+        defects:
+          type: array
+          items:
+            $ref: "#/components/schemas/Defect"
+    DefectCreate:
+      type: object
+      required: [projectId, type, severity, description]
+      properties:
+        projectId: { type: string }
+        requirementId: { type: string }
+        type:
+          type: string
+          enum: [omission, expiry, arithmetic, formatting, responsiveness, eligibility, unsupported_claim, validity]
+        severity:
+          type: string
+          enum: [fatal, likely_fatal, scoring_risk, cosmetic]
+        description: { type: string, minLength: 1 }
+        evidenceSnapshot: { type: string }
+        remediation: { type: string }
+        owner: { type: string }
+        status:
+          type: string
+          enum: [open, remediated, waived, suggested]
+    DefectUpdate:
+      type: object
+      properties:
+        requirementId: { type: string }
+        type:
+          type: string
+          enum: [omission, expiry, arithmetic, formatting, responsiveness, eligibility, unsupported_claim, validity]
+        severity:
+          type: string
+          enum: [fatal, likely_fatal, scoring_risk, cosmetic]
+        description: { type: string, minLength: 1 }
+        evidenceSnapshot: { type: string }
+        remediation: { type: string }
+        owner: { type: string }
+        status:
+          type: string
+          enum: [open, remediated, waived, suggested]
+    BoqCheck:
+      type: object
+      required: [id, projectId, checkType, finding, severity, status, createdAt]
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        sourceDocId: { type: string, nullable: true }
+        lineRef: { type: string, nullable: true }
+        description: { type: string, nullable: true }
+        quantity: { type: number, nullable: true }
+        unitRate: { type: number, nullable: true }
+        extension: { type: number, nullable: true }
+        computedExtension: { type: number, nullable: true }
+        checkType:
+          type: string
+          enum: [extension_mismatch, section_total, grand_total, words_vs_figures, blank_line, suspicious_zero]
+        finding: { type: string }
+        severity:
+          type: string
+          enum: [fatal, likely_fatal, scoring_risk, cosmetic]
+        status:
+          type: string
+          enum: [ok, flagged, pushed_to_defect]
+        createdAt: { type: string }
+    BoqRow:
+      type: object
+      properties:
+        lineRef: { type: string }
+        description: { type: string }
+        quantity: { type: number, nullable: true }
+        unitRate: { type: number, nullable: true }
+        extension: { type: number, nullable: true }
+        amountInWords: { type: string, nullable: true }
+        section: { type: string, nullable: true }
+    BoqRunRequest:
+      type: object
+      required: [rows]
+      properties:
+        sourceDocId: { type: string }
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/BoqRow"
+        grandTotal: { type: number }
+        tolerance: { type: number }
+    BoqRunResult:
+      type: object
+      required: [total, flagged, checks]
+      properties:
+        total: { type: integer }
+        flagged: { type: integer }
+        computedGrandTotal: { type: number }
+        checks:
+          type: array
+          items:
+            $ref: "#/components/schemas/BoqCheck"
+    ResponsivenessResult:
+      type: object
+      required: [review]
+      properties:
+        review: { type: string }
+        model: { type: string }
+    RiskAssessment:
+      type: object
+      required: [score, band, distribution]
+      properties:
+        score: { type: number }
+        band:
+          type: string
+          enum: [low, medium, high, critical]
+        computedBand:
+          type: string
+          enum: [low, medium, high, critical]
+        overrideBand:
+          type: string
+          enum: [low, medium, high, critical]
+          nullable: true
+        overrideNote: { type: string, nullable: true }
+        overrideBy: { type: string, nullable: true }
+        explanation: { type: string }
+        distribution:
+          type: array
+          items:
+            $ref: "#/components/schemas/CountBucket"
+    RiskOverride:
+      type: object
+      required: [band, note, reviewerName]
+      properties:
+        band:
+          type: string
+          enum: [low, medium, high, critical]
+        note: { type: string, minLength: 1 }
+        reviewerName: { type: string, minLength: 1 }
+    Report:
+      type: object
+      required: [id, projectId, version, status, createdAt]
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        version: { type: integer }
+        status:
+          type: string
+          enum: [draft, signed_off]
+        docxPath: { type: string, nullable: true }
+        reviewerId: { type: string, nullable: true }
+        reviewerName: { type: string, nullable: true }
+        attestation: { type: string, nullable: true }
+        engineVersion: { type: string, nullable: true }
+        signedOffAt: { type: string, nullable: true }
+        generatedBy: { type: string, nullable: true }
+        generatedByName: { type: string, nullable: true }
+        createdAt: { type: string }
+    SignOffRequest:
+      type: object
+      required: [reviewerName, attestation]
+      properties:
+        reviewerName: { type: string, minLength: 1 }
+        attestation: { type: string, minLength: 1 }
+    AuditEvent:
+      type: object
+      required: [id, eventType, createdAt]
+      properties:
+        id: { type: string }
+        userId: { type: string, nullable: true }
+        userName: { type: string, nullable: true }
+        projectId: { type: string, nullable: true }
+        eventType: { type: string }
+        objectType: { type: string, nullable: true }
+        objectId: { type: string, nullable: true }
+        details: { type: string, nullable: true }
+        createdAt: { type: string }
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        size:
+          type: integer
+          minimum: 1
+        contentType:
+          type: string
+          minLength: 1
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+          format: uri
+        objectPath:
+          type: string
+        metadata:
+          $ref: '#/components/schemas/UploadUrlRequest'
