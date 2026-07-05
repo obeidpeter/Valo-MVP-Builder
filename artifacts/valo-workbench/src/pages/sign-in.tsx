@@ -1,4 +1,6 @@
 import { SignIn } from "@clerk/clerk-react";
+import { Link } from "wouter";
+import { ArrowLeft } from "lucide-react";
 
 /**
  * SignInPage — "The Sealed Dossier".
@@ -122,6 +124,15 @@ export default function SignInPage() {
 
       {/* ── Dossier cover ────────────────────────────────────────────────── */}
       <main className="relative mx-auto flex w-full max-w-md flex-1 flex-col items-center px-4 py-10 sm:max-w-lg sm:py-12">
+        <Link
+          href="/"
+          className="mb-6 inline-flex items-center gap-2 self-start font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground"
+          data-testid="link-back-home"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back to home
+        </Link>
+
         {/* Seal + masthead */}
         <section className="flex w-full flex-col items-center text-center animate-in fade-in slide-in-from-bottom-4 fill-mode-both duration-700">
           <RegistrarSeal />

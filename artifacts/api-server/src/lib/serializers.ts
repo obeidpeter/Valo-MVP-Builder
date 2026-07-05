@@ -228,6 +228,36 @@ export function serializeCapabilityItem(c: any, evidenceDocName?: string | null)
   };
 }
 
+export function serializeSbdTemplate(
+  t: any,
+  extra: { annotationCount?: number } = {},
+) {
+  return {
+    id: t.id,
+    code: t.code,
+    title: t.title,
+    category: t.category,
+    version: t.version,
+    status: t.status,
+    issuingCircular: t.issuingCircular ?? null,
+    summary: t.summary ?? null,
+    annotationCount: extra.annotationCount ?? null,
+    createdAt: iso(t.createdAt) ?? new Date(0).toISOString(),
+  };
+}
+
+export function serializeSbdAnnotation(a: any) {
+  return {
+    id: a.id,
+    templateId: a.templateId,
+    agency: a.agency ?? null,
+    section: a.section ?? null,
+    kind: a.kind,
+    quirk: a.quirk,
+    createdAt: iso(a.createdAt) ?? new Date(0).toISOString(),
+  };
+}
+
 export function serializeAudit(a: any) {
   return {
     id: a.id,

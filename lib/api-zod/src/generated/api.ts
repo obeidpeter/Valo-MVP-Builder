@@ -558,6 +558,176 @@ export const DeleteCapabilityItemResponse = zod.void()
 
 
 /**
+ * @summary Standard Bidding Document corpus, all versions
+ */
+export const ListSbdTemplatesResponseItem = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "title": zod.string(),
+  "category": zod.enum(['goods', 'works', 'consultancy', 'non_consultancy', 'special']),
+  "version": zod.number(),
+  "status": zod.enum(['draft', 'active', 'superseded']),
+  "issuingCircular": zod.string().nullish(),
+  "summary": zod.string().nullish(),
+  "annotationCount": zod.number().nullish(),
+  "createdAt": zod.string()
+})
+export const ListSbdTemplatesResponse = zod.array(ListSbdTemplatesResponseItem)
+
+
+
+
+
+
+export const CreateSbdTemplateBody = zod.object({
+  "code": zod.string().min(1),
+  "title": zod.string().min(1),
+  "category": zod.enum(['goods', 'works', 'consultancy', 'non_consultancy', 'special']).optional(),
+  "status": zod.enum(['draft', 'active', 'superseded']).optional(),
+  "issuingCircular": zod.string().optional(),
+  "summary": zod.string().optional()
+})
+
+export const CreateSbdTemplateResponse = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "title": zod.string(),
+  "category": zod.enum(['goods', 'works', 'consultancy', 'non_consultancy', 'special']),
+  "version": zod.number(),
+  "status": zod.enum(['draft', 'active', 'superseded']),
+  "issuingCircular": zod.string().nullish(),
+  "summary": zod.string().nullish(),
+  "annotationCount": zod.number().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary One SBD template with its structured annotations
+ */
+export const GetSbdTemplateParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetSbdTemplateResponse = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "title": zod.string(),
+  "category": zod.enum(['goods', 'works', 'consultancy', 'non_consultancy', 'special']),
+  "version": zod.number(),
+  "status": zod.enum(['draft', 'active', 'superseded']),
+  "issuingCircular": zod.string().nullish(),
+  "summary": zod.string().nullish(),
+  "annotationCount": zod.number().nullish(),
+  "createdAt": zod.string()
+}).and(zod.object({
+  "annotations": zod.array(zod.object({
+  "id": zod.string(),
+  "templateId": zod.string(),
+  "agency": zod.string().nullish(),
+  "section": zod.string().nullish(),
+  "kind": zod.enum(['format', 'deviation', 'mandatory', 'note']),
+  "quirk": zod.string(),
+  "createdAt": zod.string()
+}))
+}))
+
+
+export const UpdateSbdTemplateParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+
+
+export const UpdateSbdTemplateBody = zod.object({
+  "code": zod.string().min(1).optional(),
+  "title": zod.string().min(1).optional(),
+  "category": zod.enum(['goods', 'works', 'consultancy', 'non_consultancy', 'special']).optional(),
+  "status": zod.enum(['draft', 'active', 'superseded']).optional(),
+  "issuingCircular": zod.string().nullish(),
+  "summary": zod.string().nullish()
+})
+
+export const UpdateSbdTemplateResponse = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "title": zod.string(),
+  "category": zod.enum(['goods', 'works', 'consultancy', 'non_consultancy', 'special']),
+  "version": zod.number(),
+  "status": zod.enum(['draft', 'active', 'superseded']),
+  "issuingCircular": zod.string().nullish(),
+  "summary": zod.string().nullish(),
+  "annotationCount": zod.number().nullish(),
+  "createdAt": zod.string()
+})
+
+
+export const DeleteSbdTemplateParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteSbdTemplateResponse = zod.void()
+
+
+/**
+ * @summary Clone a template as the next draft version (supersedes source if active)
+ */
+export const CreateSbdTemplateVersionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const CreateSbdTemplateVersionResponse = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "title": zod.string(),
+  "category": zod.enum(['goods', 'works', 'consultancy', 'non_consultancy', 'special']),
+  "version": zod.number(),
+  "status": zod.enum(['draft', 'active', 'superseded']),
+  "issuingCircular": zod.string().nullish(),
+  "summary": zod.string().nullish(),
+  "annotationCount": zod.number().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Add an agency-format quirk annotation to a template
+ */
+export const CreateSbdAnnotationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+
+export const CreateSbdAnnotationBody = zod.object({
+  "agency": zod.string().optional(),
+  "section": zod.string().optional(),
+  "kind": zod.enum(['format', 'deviation', 'mandatory', 'note']).optional(),
+  "quirk": zod.string().min(1)
+})
+
+export const CreateSbdAnnotationResponse = zod.object({
+  "id": zod.string(),
+  "templateId": zod.string(),
+  "agency": zod.string().nullish(),
+  "section": zod.string().nullish(),
+  "kind": zod.enum(['format', 'deviation', 'mandatory', 'note']),
+  "quirk": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+export const DeleteSbdAnnotationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteSbdAnnotationResponse = zod.void()
+
+
+/**
  * @summary Gate 0 metrics and portfolio aggregates
  */
 export const GetDashboardMetricsResponse = zod.object({

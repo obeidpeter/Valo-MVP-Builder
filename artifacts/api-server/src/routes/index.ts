@@ -16,6 +16,7 @@ import reportsRouter from "./reports";
 import auditRouter from "./audit";
 import vaultRouter from "./vault";
 import capabilityRouter from "./capability";
+import sbdRouter from "./sbd";
 import { attachUser } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -41,6 +42,7 @@ router.use(reportsRouter);
 router.use(auditRouter);
 router.use(vaultRouter);
 router.use(capabilityRouter);
+router.use(sbdRouter);
 router.use(storageRouter);
 
 export default router;

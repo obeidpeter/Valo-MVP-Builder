@@ -1,16 +1,10 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ClerkProvider, SignedIn, SignedOut } from "@clerk/clerk-react";
-import NotFound from "@/pages/not-found";
-import SignInPage from "@/pages/sign-in";
-import Dashboard from "@/pages/dashboard";
-import Clients from "@/pages/clients";
-import ClientDetails from "@/pages/client-details";
-import Projects from "@/pages/projects";
-import ProjectDetails from "@/pages/project-details";
-import Settings from "@/pages/settings";
+import SignedOutRoutes from "@/signed-out-routes";
+import ProtectedRoutes from "@/protected-routes";
 import Layout from "@/components/layout";
 import { useAuthSync } from "@/hooks/use-auth-sync";
 
@@ -25,20 +19,12 @@ const queryClient = new QueryClient({
 
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-function ProtectedRoutes() {
+function ProtectedApp() {
   useAuthSync();
-  
+
   return (
     <Layout>
-      <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/clients" component={Clients} />
-        <Route path="/clients/:id" component={ClientDetails} />
-        <Route path="/projects" component={Projects} />
-        <Route path="/projects/:id" component={ProjectDetails} />
-        <Route path="/settings" component={Settings} />
-        <Route component={NotFound} />
-      </Switch>
+      <ProtectedRoutes />
     </Layout>
   );
 }
@@ -61,11 +47,13 @@ function App() {
         <TooltipProvider>
           <SignedIn>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <ProtectedRoutes />
+              <ProtectedApp />
             </WouterRouter>
           </SignedIn>
           <SignedOut>
-            <SignInPage />
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <SignedOutRoutes />
+            </WouterRouter>
           </SignedOut>
           <Toaster />
         </TooltipProvider>
