@@ -5,6 +5,7 @@ import {
   computeRisk,
   wordsToNumber,
   blockingSignOffDefects,
+  computeExpiry,
   type BoqRow,
   type BoqCheckType,
   type RiskInput,
@@ -437,6 +438,70 @@ describe("computeRisk - evidence penalty (mandatory-only, deduplicated)", () => 
     });
     assert.equal(r.score, 30);
     assert.equal(r.band, "medium");
+  });
+});
+
+describe("computeExpiry - certificate expiry telemetry", () => {
+  const TODAY = "2026-07-05";
+
+  test("no or unparseable expiry date -> unknown", () => {
+    assert.deepEqual(computeExpiry(null, TODAY), { band: "unknown", daysToExpiry: null });
+    assert.deepEqual(computeExpiry(undefined, TODAY), { band: "unknown", daysToExpiry: null });
+    assert.deepEqual(computeExpiry("", TODAY), { band: "unknown", daysToExpiry: null });
+    assert.deepEqual(computeExpiry("not-a-date", TODAY), { band: "unknown", daysToExpiry: null });
+  });
+
+  test("past dates are expired with negative days", () => {
+    assert.deepEqual(computeExpiry("2026-07-04", TODAY), { band: "expired", daysToExpiry: -1 });
+    assert.deepEqual(computeExpiry("2026-01-10", TODAY), { band: "expired", daysToExpiry: -176 });
+  });
+
+  test("expiring today is critical (day 0), not expired", () => {
+    assert.deepEqual(computeExpiry("2026-07-05", TODAY), { band: "critical", daysToExpiry: 0 });
+  });
+
+  test("T-3 boundary: 3 days out is critical, 4 is warning", () => {
+    assert.equal(computeExpiry("2026-07-08", TODAY).band, "critical");
+    assert.equal(computeExpiry("2026-07-09", TODAY).band, "warning");
+  });
+
+  test("T-14 boundary: 14 days out is warning, 15 is upcoming", () => {
+    assert.equal(computeExpiry("2026-07-19", TODAY).band, "warning");
+    assert.equal(computeExpiry("2026-07-20", TODAY).band, "upcoming");
+  });
+
+  test("T-30 boundary: 30 days out is upcoming, 31 is ok", () => {
+    assert.equal(computeExpiry("2026-08-04", TODAY).band, "upcoming");
+    assert.equal(computeExpiry("2026-08-05", TODAY).band, "ok");
+  });
+
+  test("a long renewal lead time widens the upcoming window", () => {
+    // 45 days out: ok by default, but upcoming for an artefact that takes
+    // 60 days to renew.
+    const d = "2026-08-19";
+    assert.equal(computeExpiry(d, TODAY).band, "ok");
+    assert.equal(computeExpiry(d, TODAY, 60).band, "upcoming");
+    // Lead time never narrows the window below 30 days.
+    assert.equal(computeExpiry("2026-08-04", TODAY, 7).band, "upcoming");
+  });
+
+  test("lead time does not change the critical/warning ladder", () => {
+    assert.equal(computeExpiry("2026-07-08", TODAY, 90).band, "critical");
+    assert.equal(computeExpiry("2026-07-15", TODAY, 90).band, "warning");
+  });
+
+  test("accepts a Date object for today and datetime strings for expiry", () => {
+    const today = new Date("2026-07-05T09:30:00Z");
+    assert.deepEqual(computeExpiry("2026-07-06T23:59:00Z", today), {
+      band: "critical",
+      daysToExpiry: 1,
+    });
+  });
+
+  test("deterministic: same inputs, same output", () => {
+    const a = computeExpiry("2026-09-01", TODAY, 45);
+    const b = computeExpiry("2026-09-01", TODAY, 45);
+    assert.deepEqual(a, b);
   });
 });
 

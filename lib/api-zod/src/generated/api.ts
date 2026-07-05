@@ -340,6 +340,133 @@ export const DeleteProjectResponse = zod.void()
 
 
 /**
+ * @summary Certificate Vault artefacts for a client, with expiry telemetry
+ */
+export const ListVaultItemsParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ListVaultItemsResponseItem = zod.object({
+  "id": zod.string(),
+  "clientId": zod.string(),
+  "artefactType": zod.string(),
+  "issuer": zod.string().nullish(),
+  "issueDate": zod.string().nullish(),
+  "expiryDate": zod.string().nullish(),
+  "renewalLeadDays": zod.number().nullish(),
+  "status": zod.string(),
+  "expiryBand": zod.enum(['expired', 'critical', 'warning', 'upcoming', 'ok', 'unknown']),
+  "daysToExpiry": zod.number().nullish(),
+  "createdAt": zod.string()
+})
+export const ListVaultItemsResponse = zod.array(ListVaultItemsResponseItem)
+
+
+/**
+ * @summary Register a certificate/compliance artefact for a client
+ */
+export const CreateVaultItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+export const createVaultItemBodyRenewalLeadDaysMin = 0;
+
+
+
+export const CreateVaultItemBody = zod.object({
+  "artefactType": zod.string().min(1),
+  "issuer": zod.string().optional(),
+  "issueDate": zod.string().optional(),
+  "expiryDate": zod.string().optional(),
+  "renewalLeadDays": zod.number().min(createVaultItemBodyRenewalLeadDaysMin).optional(),
+  "status": zod.string().optional()
+})
+
+export const CreateVaultItemResponse = zod.object({
+  "id": zod.string(),
+  "clientId": zod.string(),
+  "artefactType": zod.string(),
+  "issuer": zod.string().nullish(),
+  "issueDate": zod.string().nullish(),
+  "expiryDate": zod.string().nullish(),
+  "renewalLeadDays": zod.number().nullish(),
+  "status": zod.string(),
+  "expiryBand": zod.enum(['expired', 'critical', 'warning', 'upcoming', 'ok', 'unknown']),
+  "daysToExpiry": zod.number().nullish(),
+  "createdAt": zod.string()
+})
+
+
+export const UpdateVaultItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+export const updateVaultItemBodyRenewalLeadDaysMin = 0;
+
+
+
+export const UpdateVaultItemBody = zod.object({
+  "artefactType": zod.string().min(1).optional(),
+  "issuer": zod.string().optional(),
+  "issueDate": zod.string().optional(),
+  "expiryDate": zod.string().optional(),
+  "renewalLeadDays": zod.number().min(updateVaultItemBodyRenewalLeadDaysMin).optional(),
+  "status": zod.string().optional()
+})
+
+export const UpdateVaultItemResponse = zod.object({
+  "id": zod.string(),
+  "clientId": zod.string(),
+  "artefactType": zod.string(),
+  "issuer": zod.string().nullish(),
+  "issueDate": zod.string().nullish(),
+  "expiryDate": zod.string().nullish(),
+  "renewalLeadDays": zod.number().nullish(),
+  "status": zod.string(),
+  "expiryBand": zod.enum(['expired', 'critical', 'warning', 'upcoming', 'ok', 'unknown']),
+  "daysToExpiry": zod.number().nullish(),
+  "createdAt": zod.string()
+})
+
+
+export const DeleteVaultItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteVaultItemResponse = zod.void()
+
+
+/**
+ * @summary Cross-client expiry telemetry (renewal radar)
+ */
+export const GetVaultExpiringResponse = zod.object({
+  "buckets": zod.object({
+  "expired": zod.number(),
+  "critical": zod.number(),
+  "warning": zod.number(),
+  "upcoming": zod.number()
+}),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "clientId": zod.string(),
+  "artefactType": zod.string(),
+  "issuer": zod.string().nullish(),
+  "issueDate": zod.string().nullish(),
+  "expiryDate": zod.string().nullish(),
+  "renewalLeadDays": zod.number().nullish(),
+  "status": zod.string(),
+  "expiryBand": zod.enum(['expired', 'critical', 'warning', 'upcoming', 'ok', 'unknown']),
+  "daysToExpiry": zod.number().nullish(),
+  "createdAt": zod.string()
+}).and(zod.object({
+  "clientName": zod.string().nullable()
+})))
+})
+
+
+/**
  * @summary Gate 0 metrics and portfolio aggregates
  */
 export const GetDashboardMetricsResponse = zod.object({

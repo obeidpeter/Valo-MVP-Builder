@@ -186,6 +186,27 @@ export function serializeReport(
   };
 }
 
+export function serializeVaultItem(
+  v: any,
+  telemetry: { band: string; daysToExpiry: number | null },
+  clientName?: string | null,
+) {
+  const base = {
+    id: v.id,
+    clientId: v.clientId,
+    artefactType: v.artefactType,
+    issuer: v.issuer ?? null,
+    issueDate: v.issueDate ?? null,
+    expiryDate: v.expiryDate ?? null,
+    renewalLeadDays: v.renewalLeadDays ?? null,
+    status: v.status,
+    expiryBand: telemetry.band,
+    daysToExpiry: telemetry.daysToExpiry,
+    createdAt: iso(v.createdAt) ?? new Date(0).toISOString(),
+  };
+  return clientName === undefined ? base : { ...base, clientName: clientName ?? null };
+}
+
 export function serializeAudit(a: any) {
   return {
     id: a.id,

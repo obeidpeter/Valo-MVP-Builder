@@ -159,6 +159,70 @@ export interface ClientUpdate {
   notes?: string;
 }
 
+export type VaultItemExpiryBand = typeof VaultItemExpiryBand[keyof typeof VaultItemExpiryBand];
+
+
+export const VaultItemExpiryBand = {
+  expired: 'expired',
+  critical: 'critical',
+  warning: 'warning',
+  upcoming: 'upcoming',
+  ok: 'ok',
+  unknown: 'unknown',
+} as const;
+
+export interface VaultItem {
+  id: string;
+  clientId: string;
+  artefactType: string;
+  issuer?: string | null;
+  issueDate?: string | null;
+  expiryDate?: string | null;
+  renewalLeadDays?: number | null;
+  status: string;
+  expiryBand: VaultItemExpiryBand;
+  daysToExpiry?: number | null;
+  createdAt: string;
+}
+
+export interface VaultItemCreate {
+  /** @minLength 1 */
+  artefactType: string;
+  issuer?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  /** @minimum 0 */
+  renewalLeadDays?: number;
+  status?: string;
+}
+
+export interface VaultItemUpdate {
+  /** @minLength 1 */
+  artefactType?: string;
+  issuer?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  /** @minimum 0 */
+  renewalLeadDays?: number;
+  status?: string;
+}
+
+export type VaultExpiringItem = VaultItem & ({
+  clientName: string | null;
+});
+
+export type VaultExpiringBuckets = {
+  expired: number;
+  critical: number;
+  warning: number;
+  upcoming: number;
+};
+
+export interface VaultExpiring {
+  buckets: VaultExpiringBuckets;
+  items: VaultExpiringItem[];
+}
+
 export type ProjectSegment = typeof ProjectSegment[keyof typeof ProjectSegment] | null;
 
 

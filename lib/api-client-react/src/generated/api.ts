@@ -65,7 +65,11 @@ import type {
   UploadUrlRequest,
   UploadUrlResponse,
   User,
-  UserUpdate
+  UserUpdate,
+  VaultExpiring,
+  VaultItem,
+  VaultItemCreate,
+  VaultItemUpdate
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1040,6 +1044,360 @@ export const useDeleteProject = <TError = ErrorType<ForbiddenResponse>,
       > => {
       return useMutation(getDeleteProjectMutationOptions(options));
     }
+
+export const getListVaultItemsUrl = (id: string,) => {
+
+
+
+
+  return `/api/clients/${id}/vault-items`
+}
+
+/**
+ * @summary Certificate Vault artefacts for a client, with expiry telemetry
+ */
+export const listVaultItems = async (id: string, options?: RequestInit): Promise<VaultItem[]> => {
+
+  return customFetch<VaultItem[]>(getListVaultItemsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListVaultItemsQueryKey = (id: string,) => {
+    return [
+    `/api/clients/${id}/vault-items`
+    ] as const;
+    }
+
+
+export const getListVaultItemsQueryOptions = <TData = Awaited<ReturnType<typeof listVaultItems>>, TError = ErrorType<NotFoundResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listVaultItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListVaultItemsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listVaultItems>>> = ({ signal }) => listVaultItems(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listVaultItems>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListVaultItemsQueryResult = NonNullable<Awaited<ReturnType<typeof listVaultItems>>>
+export type ListVaultItemsQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary Certificate Vault artefacts for a client, with expiry telemetry
+ */
+
+export function useListVaultItems<TData = Awaited<ReturnType<typeof listVaultItems>>, TError = ErrorType<NotFoundResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listVaultItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListVaultItemsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateVaultItemUrl = (id: string,) => {
+
+
+
+
+  return `/api/clients/${id}/vault-items`
+}
+
+/**
+ * @summary Register a certificate/compliance artefact for a client
+ */
+export const createVaultItem = async (id: string,
+    vaultItemCreate: VaultItemCreate, options?: RequestInit): Promise<VaultItem> => {
+
+  return customFetch<VaultItem>(getCreateVaultItemUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(vaultItemCreate)
+  }
+);}
+
+
+
+
+export const getCreateVaultItemMutationOptions = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createVaultItem>>, TError,{id: string;data: BodyType<VaultItemCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createVaultItem>>, TError,{id: string;data: BodyType<VaultItemCreate>}, TContext> => {
+
+const mutationKey = ['createVaultItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createVaultItem>>, {id: string;data: BodyType<VaultItemCreate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createVaultItem(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateVaultItemMutationResult = NonNullable<Awaited<ReturnType<typeof createVaultItem>>>
+    export type CreateVaultItemMutationBody = BodyType<VaultItemCreate>
+    export type CreateVaultItemMutationError = ErrorType<BadRequestResponse | NotFoundResponse>
+
+    /**
+ * @summary Register a certificate/compliance artefact for a client
+ */
+export const useCreateVaultItem = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createVaultItem>>, TError,{id: string;data: BodyType<VaultItemCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createVaultItem>>,
+        TError,
+        {id: string;data: BodyType<VaultItemCreate>},
+        TContext
+      > => {
+      return useMutation(getCreateVaultItemMutationOptions(options));
+    }
+
+export const getUpdateVaultItemUrl = (id: string,) => {
+
+
+
+
+  return `/api/vault-items/${id}`
+}
+
+export const updateVaultItem = async (id: string,
+    vaultItemUpdate: VaultItemUpdate, options?: RequestInit): Promise<VaultItem> => {
+
+  return customFetch<VaultItem>(getUpdateVaultItemUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(vaultItemUpdate)
+  }
+);}
+
+
+
+
+export const getUpdateVaultItemMutationOptions = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVaultItem>>, TError,{id: string;data: BodyType<VaultItemUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateVaultItem>>, TError,{id: string;data: BodyType<VaultItemUpdate>}, TContext> => {
+
+const mutationKey = ['updateVaultItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateVaultItem>>, {id: string;data: BodyType<VaultItemUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateVaultItem(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateVaultItemMutationResult = NonNullable<Awaited<ReturnType<typeof updateVaultItem>>>
+    export type UpdateVaultItemMutationBody = BodyType<VaultItemUpdate>
+    export type UpdateVaultItemMutationError = ErrorType<BadRequestResponse | NotFoundResponse>
+
+    export const useUpdateVaultItem = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVaultItem>>, TError,{id: string;data: BodyType<VaultItemUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateVaultItem>>,
+        TError,
+        {id: string;data: BodyType<VaultItemUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateVaultItemMutationOptions(options));
+    }
+
+export const getDeleteVaultItemUrl = (id: string,) => {
+
+
+
+
+  return `/api/vault-items/${id}`
+}
+
+export const deleteVaultItem = async (id: string, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteVaultItemUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteVaultItemMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVaultItem>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteVaultItem>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteVaultItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteVaultItem>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteVaultItem(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteVaultItemMutationResult = NonNullable<Awaited<ReturnType<typeof deleteVaultItem>>>
+
+    export type DeleteVaultItemMutationError = ErrorType<NotFoundResponse>
+
+    export const useDeleteVaultItem = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVaultItem>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteVaultItem>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteVaultItemMutationOptions(options));
+    }
+
+export const getGetVaultExpiringUrl = () => {
+
+
+
+
+  return `/api/vault/expiring`
+}
+
+/**
+ * @summary Cross-client expiry telemetry (renewal radar)
+ */
+export const getVaultExpiring = async ( options?: RequestInit): Promise<VaultExpiring> => {
+
+  return customFetch<VaultExpiring>(getGetVaultExpiringUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetVaultExpiringQueryKey = () => {
+    return [
+    `/api/vault/expiring`
+    ] as const;
+    }
+
+
+export const getGetVaultExpiringQueryOptions = <TData = Awaited<ReturnType<typeof getVaultExpiring>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVaultExpiring>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetVaultExpiringQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getVaultExpiring>>> = ({ signal }) => getVaultExpiring({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getVaultExpiring>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetVaultExpiringQueryResult = NonNullable<Awaited<ReturnType<typeof getVaultExpiring>>>
+export type GetVaultExpiringQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Cross-client expiry telemetry (renewal radar)
+ */
+
+export function useGetVaultExpiring<TData = Awaited<ReturnType<typeof getVaultExpiring>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVaultExpiring>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetVaultExpiringQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetDashboardMetricsUrl = () => {
 

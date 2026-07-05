@@ -255,6 +255,92 @@ paths:
           description: Deleted
         "403":
           $ref: "#/components/responses/Forbidden"
+  /clients/{id}/vault-items:
+    get:
+      operationId: listVaultItems
+      tags: [Vault]
+      summary: Certificate Vault artefacts for a client, with expiry telemetry
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Vault items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VaultItem"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: createVaultItem
+      tags: [Vault]
+      summary: Register a certificate/compliance artefact for a client
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VaultItemCreate"
+      responses:
+        "201":
+          description: Created vault item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /vault-items/{id}:
+    patch:
+      operationId: updateVaultItem
+      tags: [Vault]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VaultItemUpdate"
+      responses:
+        "200":
+          description: Updated vault item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteVaultItem
+      tags: [Vault]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /vault/expiring:
+    get:
+      operationId: getVaultExpiring
+      tags: [Vault]
+      summary: Cross-client expiry telemetry (renewal radar)
+      responses:
+        "200":
+          description: Items in or approaching their renewal window
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultExpiring"
   /dashboard/metrics:
     get:
       operationId: getDashboardMetrics
@@ -975,6 +1061,66 @@ components:
           type: string
           enum: [pending, signed, not_required, declined]
         notes: { type: string }
+    VaultItem:
+      type: object
+      required: [id, clientId, artefactType, status, expiryBand, createdAt]
+      properties:
+        id: { type: string }
+        clientId: { type: string }
+        artefactType: { type: string }
+        issuer: { type: string, nullable: true }
+        issueDate: { type: string, nullable: true }
+        expiryDate: { type: string, nullable: true }
+        renewalLeadDays: { type: integer, nullable: true }
+        status: { type: string }
+        expiryBand:
+          type: string
+          enum: [expired, critical, warning, upcoming, ok, unknown]
+        daysToExpiry: { type: integer, nullable: true }
+        createdAt: { type: string }
+    VaultItemCreate:
+      type: object
+      required: [artefactType]
+      properties:
+        artefactType: { type: string, minLength: 1 }
+        issuer: { type: string }
+        issueDate: { type: string }
+        expiryDate: { type: string }
+        renewalLeadDays: { type: integer, minimum: 0 }
+        status: { type: string }
+    VaultItemUpdate:
+      type: object
+      properties:
+        artefactType: { type: string, minLength: 1 }
+        issuer: { type: string }
+        issueDate: { type: string }
+        expiryDate: { type: string }
+        renewalLeadDays: { type: integer, minimum: 0 }
+        status: { type: string }
+    VaultExpiringItem:
+      allOf:
+        - $ref: "#/components/schemas/VaultItem"
+        - type: object
+          required: [clientName]
+          properties:
+            clientName: { type: string, nullable: true }
+    VaultExpiring:
+      type: object
+      required: [buckets, items]
+      properties:
+        buckets:
+          type: object
+          required: [expired, critical, warning, upcoming]
+          properties:
+            expired: { type: integer }
+            critical: { type: integer }
+            warning: { type: integer }
+            upcoming: { type: integer }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/VaultExpiringItem"
+
     Project:
       type: object
       required: [id, clientId, tenderTitle, status, createdAt]

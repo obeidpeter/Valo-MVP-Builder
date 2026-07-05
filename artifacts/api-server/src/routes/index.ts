@@ -14,6 +14,7 @@ import boqRouter from "./boq";
 import riskRouter from "./risk";
 import reportsRouter from "./reports";
 import auditRouter from "./audit";
+import vaultRouter from "./vault";
 import { attachUser } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -37,6 +38,7 @@ router.use(boqRouter);
 router.use(riskRouter);
 router.use(reportsRouter);
 router.use(auditRouter);
+router.use(vaultRouter);
 router.use(storageRouter);
 
 export default router;

@@ -1,13 +1,15 @@
-import { useGetDashboardMetrics, useListProjects } from "@workspace/api-client-react";
+import { useGetDashboardMetrics, useListProjects, useGetVaultExpiring } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
-import { ArrowRight, Loader2, AlertTriangle, FileText, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Loader2, AlertTriangle, FileText, CheckCircle2, ShieldAlert } from "lucide-react";
 import { format } from "date-fns";
+import { ExpiryBadge } from "@/components/client-vault";
 
 export default function Dashboard() {
   const { data: metrics, isLoading: loadingMetrics } = useGetDashboardMetrics();
   const { data: projects, isLoading: loadingProjects } = useListProjects();
+  const { data: expiring } = useGetVaultExpiring();
 
   if (loadingMetrics || loadingProjects) {
     return (
@@ -69,6 +71,52 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {expiring && expiring.items.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="w-5 h-5 text-amber-600" />
+            <h2 className="text-xl font-serif tracking-tight font-medium">Certificate Renewal Radar</h2>
+            <div className="flex gap-2 ml-2">
+              {expiring.buckets.expired > 0 && (
+                <Badge variant="destructive" className="text-[10px]">{expiring.buckets.expired} expired</Badge>
+              )}
+              {expiring.buckets.critical > 0 && (
+                <Badge variant="destructive" className="text-[10px]">{expiring.buckets.critical} ≤3d</Badge>
+              )}
+              {expiring.buckets.warning > 0 && (
+                <Badge variant="secondary" className="text-[10px] text-amber-700 bg-amber-100 border-amber-200">
+                  {expiring.buckets.warning} ≤14d
+                </Badge>
+              )}
+              {expiring.buckets.upcoming > 0 && (
+                <Badge variant="outline" className="text-[10px]">{expiring.buckets.upcoming} upcoming</Badge>
+              )}
+            </div>
+          </div>
+          <div className="bg-card border border-border rounded-lg shadow-xs overflow-hidden divide-y divide-border">
+            {expiring.items.slice(0, 6).map((item) => (
+              <Link key={item.id} href={`/clients/${item.clientId}`}>
+                <div className="p-3 px-4 hover:bg-muted/50 transition-colors cursor-pointer flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="font-medium text-sm">{item.artefactType}</span>
+                    <span className="text-sm text-muted-foreground">{item.clientName ?? "Unknown client"}</span>
+                    {item.expiryDate && (
+                      <span className="text-xs text-muted-foreground font-mono">exp. {item.expiryDate}</span>
+                    )}
+                  </div>
+                  <ExpiryBadge item={item} />
+                </div>
+              </Link>
+            ))}
+            {expiring.items.length > 6 && (
+              <div className="p-2 px-4 text-xs text-muted-foreground">
+                +{expiring.items.length - 6} more artefact(s) in the renewal window
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="space-y-4">
         <div className="flex items-center justify-between">
