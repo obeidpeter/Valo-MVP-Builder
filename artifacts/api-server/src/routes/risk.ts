@@ -97,4 +97,31 @@ router.post(
   },
 );
 
+router.delete(
+  "/projects/:id/risk/override",
+  requireRoles("admin", "reviewer"),
+  async (req: Request, res: Response) => {
+    const user = getLocalUser(req);
+    const [updated] = await db
+      .update(projects)
+      .set({ riskOverrideBand: null, riskOverrideNote: null, riskOverrideBy: null })
+      .where(eq(projects.id, String(req.params.id)))
+      .returning();
+    if (!updated) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    await writeAudit({
+      user,
+      projectId: updated.id,
+      eventType: "risk.override_cleared",
+      objectType: "project",
+      objectId: updated.id,
+      details: `Cleared by ${user?.name || user?.email || "Unknown reviewer"}`,
+    });
+    const assessment = await computeAndPersist(String(req.params.id));
+    res.json(assessment);
+  },
+);
+
 export default router;

@@ -1,24 +1,30 @@
-import { 
-  useGetRisk, 
+import {
+  useGetRisk,
   useOverrideRisk,
+  useClearRiskOverride,
   getGetRiskQueryKey
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ShieldAlert, Target } from "lucide-react";
+import { Loader2, ShieldAlert, Target, Undo2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { RiskOverrideBand } from "@workspace/api-client-react";
+import { useToast } from "@/hooks/use-toast";
 
 export function RiskTab({ projectId }: { projectId: string }) {
   const { data: risk, isLoading } = useGetRisk(projectId);
   const overrideRisk = useOverrideRisk();
+  const clearOverride = useClearRiskOverride();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const [band, setBand] = useState<RiskOverrideBand | "none">("none");
   const [note, setNote] = useState("");
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: getGetRiskQueryKey(projectId) });
 
   const handleOverride = () => {
     if (band === "none") return;
@@ -26,8 +32,16 @@ export function RiskTab({ projectId }: { projectId: string }) {
       onSuccess: () => {
         setBand("none");
         setNote("");
-        queryClient.invalidateQueries({ queryKey: getGetRiskQueryKey(projectId) });
-      }
+        refresh();
+      },
+      onError: () => toast({ variant: "destructive", title: "Could not apply override" }),
+    });
+  };
+
+  const handleClear = () => {
+    clearOverride.mutate({ id: projectId }, {
+      onSuccess: refresh,
+      onError: () => toast({ variant: "destructive", title: "Could not clear override" }),
     });
   };
 
@@ -74,6 +88,16 @@ export function RiskTab({ projectId }: { projectId: string }) {
               {risk.overrideBy && (
                 <p className="text-xs text-muted-foreground mt-2">— {risk.overrideBy}</p>
               )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-2 h-7 px-2 text-xs"
+                onClick={handleClear}
+                disabled={clearOverride.isPending}
+              >
+                {clearOverride.isPending ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Undo2 className="w-3.5 h-3.5 mr-1" />}
+                Clear override
+              </Button>
             </div>
           )}
         </div>

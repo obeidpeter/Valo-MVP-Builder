@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { sql, eq, inArray } from "drizzle-orm";
+import { sql, eq, and, inArray } from "drizzle-orm";
 import { db, projects, defects, reports } from "@workspace/db";
 import { requireMember } from "../middlewares/auth";
 
@@ -31,12 +31,25 @@ router.get(
     let materialDefectPackages = 0;
     let auditedPackages = 0;
     if (projectIds.length > 0) {
+      // Material-defect rate counts only OPEN fatal/likely-fatal defects, to
+      // match the deterministic risk core (which excludes suggested/remediated/
+      // waived). Counting unconfirmed suggestions here would overstate the KPI
+      // and contradict per-project risk on the same data.
       const withMaterial = await db
         .selectDistinct({ projectId: defects.projectId })
         .from(defects)
-        .where(inArray(defects.severity, ["fatal", "likely_fatal"]));
+        .where(
+          and(
+            inArray(defects.severity, ["fatal", "likely_fatal"]),
+            eq(defects.status, "open"),
+          ),
+        );
       materialDefectPackages = withMaterial.length;
-      const withAny = await db.selectDistinct({ projectId: defects.projectId }).from(defects);
+      // Denominator: packages with at least one confirmed-live defect.
+      const withAny = await db
+        .selectDistinct({ projectId: defects.projectId })
+        .from(defects)
+        .where(eq(defects.status, "open"));
       auditedPackages = withAny.length;
     }
     const materialDefectRate = auditedPackages > 0 ? materialDefectPackages / auditedPackages : 0;

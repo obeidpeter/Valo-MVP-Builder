@@ -1,8 +1,9 @@
-import { 
-  useListReports, 
+import {
+  useListReports,
   useGenerateReport,
   useSignOffReport,
-  getListReportsQueryKey
+  getListReportsQueryKey,
+  getGetProjectQueryKey
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -28,9 +29,18 @@ export function ReportsTab({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: getListReportsQueryKey(projectId) });
+    // The project header badge reflects status (reporting -> signed_off), so
+    // refresh the project too after generate/sign-off flips it.
+    queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) });
+  };
+
   const handleGenerate = () => {
     generateReport.mutate({ id: projectId }, {
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: getListReportsQueryKey(projectId) })
+      onSuccess: invalidateAll,
+      onError: (err) =>
+        toast({ variant: "destructive", title: "Report generation failed", description: errorMessage(err, "") }),
     });
   };
 
@@ -44,7 +54,7 @@ export function ReportsTab({ projectId }: { projectId: string }) {
         },
       },
       {
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: getListReportsQueryKey(projectId) }),
+        onSuccess: invalidateAll,
         onError: (err) =>
           toast({
             variant: "destructive",

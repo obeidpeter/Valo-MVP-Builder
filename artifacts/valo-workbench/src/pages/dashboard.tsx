@@ -178,7 +178,7 @@ export default function Dashboard() {
             <div className="p-8 text-center text-muted-foreground flex flex-col items-center">
               <FileText className="w-12 h-12 mb-3 text-muted" />
               <p>No active projects found.</p>
-              <Link href="/projects/new">
+              <Link href="/projects">
                 <div className="mt-4 text-primary hover:underline cursor-pointer text-sm font-medium">Create a project</div>
               </Link>
             </div>
