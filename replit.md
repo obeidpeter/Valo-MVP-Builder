@@ -1,6 +1,6 @@
-# [Project name]
+# Valo Bid Autopsy Workbench
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Private internal workbench for Valo's bid-compliance service: turns a tender document and a submitted bid into a reviewer-confirmed requirement matrix, defect register, disqualification-risk score, and signed Bid Autopsy Report (DOCX). Doctrine: deterministic core, LLM shell, named-human sign-off.
 
 ## Run & Operate
 
@@ -9,6 +9,9 @@ _Replace the heading above with the project's name, and this line with one sente
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
+- `pnpm --filter @workspace/api-server run test` — unit + route tests (route tests need `DATABASE_URL`; the lib suites are pure)
+- `pnpm --filter @workspace/api-server run verify:audit` — verify the tamper-evident audit chain (prints the head to record externally)
+- `pnpm --filter @workspace/api-server run prove:doctrine[:offline]` — AI-doctrine proof harness
 - Required env: `DATABASE_URL` — Postgres connection string
 
 ## Stack
@@ -22,23 +25,35 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `lib/db/src/schema/index.ts` — DB schema (single source of truth)
+- `lib/api-spec/openapi.yaml` — API contract; codegen writes `lib/api-client-react` (React hooks) and `lib/api-zod` (request schemas)
+- `artifacts/api-server/src/routes/*` — one router per resource; registered in `routes/index.ts`
+- `artifacts/api-server/src/lib/deterministic.ts` — the deterministic core: exact-kobo BOQ arithmetic, risk scoring, fatal-block invariant, expiry telemetry, words-to-kobo parsing (unit tests alongside)
+- `artifacts/api-server/src/lib/` — `auditChain.ts` (hash-chain rules), `scorecard.ts` (Gate 0 recall), `sanitizeLlm.ts` (LLM output containment), `llm.ts` (prompt pack), `provenance.ts` (engine/prompt/model ids), `docx.ts` (report assembly)
+- `artifacts/valo-workbench/` — React app; project tabs in `src/pages/project-tabs/`, client sections in `src/components/client-*.tsx`
+- `.agents/memory/` — non-obvious decisions and build gotchas; read `valo-doctrine-decisions.md` before touching risk, sign-off, audit, intake, BOQ, or LLM code
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Everything AI-produced is a suggestion until a named human confirms it; reviewer identity is always server-derived, never client-supplied.
+- Deterministic checks (risk, BOQ, expiry, sign-off gating, scorecard) are pure functions with the reference date/inputs as parameters — no DB or clock inside.
+- The audit log is a tamper-evident hash chain; never insert into `audit_events` except through `writeAudit`.
+- Money paths use exact integer-kobo BigInt arithmetic with zero default tolerance — no floats.
+- No per-user project isolation by design (small internal tool); "isolation" means per-project/per-client data scoping, which every query enforces.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Clients → tender projects → NDA-gated document intake (SHA-256 manifests) → AI requirement extraction with a human verification queue (Gate 0 scorecard tracks engine recall) → evidence mapping → defect register → exact-kobo BOQ verification (CSV/XLSX upload) → explainable risk score with reviewer override → sign-off-gated DOCX report (provenance-stamped, fatal-block enforced) → ZIP export with reproducible scorecard. Per client: Certificate Vault with expiry telemetry (dashboard renewal radar) and an evidence-linked Capability Library (claims are unusable until evidenced and approved).
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Follow the Valo doctrine documents (Business Plan, Build Brief, TRD, Product Roadmap in `attached_assets/` and the docs the founder shares) — commercial gates govern build sequencing; do not build ahead of the gate (no portal, billing, drafting engine until Phase 1 exit).
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- See `.agents/memory/api-server-build-gotchas.md` (archiver@8 ESM shape, Express 5 param typing, pdf-parse subpath) and `valo-doctrine-decisions.md` (doctrine seams that must not be regressed).
+- Route test files import `@workspace/db` and fail fast without `DATABASE_URL`; the `src/lib/*.test.ts` suites are pure and always runnable.
+- After editing `openapi.yaml`, always run codegen before typechecking the frontend.
 
 ## Pointers
 
