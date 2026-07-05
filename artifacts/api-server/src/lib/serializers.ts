@@ -74,6 +74,7 @@ export function serializeDocument(d: any, uploadedByName?: string | null) {
     objectPath: d.objectPath,
     contentType: d.contentType ?? null,
     size: d.size ?? null,
+    sha256: d.sha256 ?? null,
     source: d.source ?? null,
     dateReceived: d.dateReceived ?? null,
     redactionStatus: d.redactionStatus,
@@ -101,6 +102,10 @@ export function serializeRequirement(r: any, sourceDocName?: string | null) {
     confidence: r.confidence ?? null,
     reviewStatus: r.reviewStatus,
     reviewerNotes: r.reviewerNotes ?? null,
+    origin: r.origin ?? null,
+    engineText: r.engineText ?? null,
+    reviewedByName: r.reviewedByName ?? null,
+    reviewedAt: iso(r.reviewedAt),
     createdAt: iso(r.createdAt) ?? new Date(0).toISOString(),
   };
 }
@@ -176,10 +181,50 @@ export function serializeReport(
     reviewerName: r.reviewerName ?? null,
     attestation: r.attestation ?? null,
     engineVersion: r.engineVersion ?? null,
+    promptPackVersion: r.promptPackVersion ?? null,
+    modelId: r.modelId ?? null,
     signedOffAt: iso(r.signedOffAt),
     generatedBy: r.generatedBy ?? null,
     generatedByName: generatedByName ?? null,
     createdAt: iso(r.createdAt) ?? new Date(0).toISOString(),
+  };
+}
+
+export function serializeVaultItem(
+  v: any,
+  telemetry: { band: string; daysToExpiry: number | null },
+  clientName?: string | null,
+) {
+  const base = {
+    id: v.id,
+    clientId: v.clientId,
+    artefactType: v.artefactType,
+    issuer: v.issuer ?? null,
+    issueDate: v.issueDate ?? null,
+    expiryDate: v.expiryDate ?? null,
+    renewalLeadDays: v.renewalLeadDays ?? null,
+    status: v.status,
+    expiryBand: telemetry.band,
+    daysToExpiry: telemetry.daysToExpiry,
+    createdAt: iso(v.createdAt) ?? new Date(0).toISOString(),
+  };
+  return clientName === undefined ? base : { ...base, clientName: clientName ?? null };
+}
+
+export function serializeCapabilityItem(c: any, evidenceDocName?: string | null) {
+  return {
+    id: c.id,
+    clientId: c.clientId,
+    claimType: c.claimType,
+    description: c.description ?? null,
+    evidenceDocId: c.evidenceDocId ?? null,
+    evidenceDocName: evidenceDocName ?? null,
+    approvedStatus: c.approvedStatus,
+    // The anti-fabrication doctrine (TRD I4): a capability claim is only
+    // usable in drafts when it is BOTH evidence-linked and approved by a
+    // named human. Derived, never stored.
+    claimable: c.evidenceDocId != null && c.approvedStatus === "approved",
+    createdAt: iso(c.createdAt) ?? new Date(0).toISOString(),
   };
 }
 

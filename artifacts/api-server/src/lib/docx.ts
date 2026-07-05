@@ -14,10 +14,12 @@ import {
   PageNumber,
 } from "docx";
 
+import { ENGINE_VERSION, PROMPT_PACK_VERSION, MODEL_ID } from "./provenance";
+
 export const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-export const ENGINE_VERSION = "valo-autopsy-engine/gate0-v1";
+export { ENGINE_VERSION };
 
 export const PROCESS_WARRANTY =
   "Valo does not warrant contract award, evaluator behaviour, or acceptance of the package. Valo warrants the reviewed process applied to the materials provided: requirement extraction, deterministic verification, and named human review.";
@@ -291,7 +293,12 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
   children.push(
     new Paragraph({ spacing: { before: 320 }, children: [new TextRun({ text: "Process Warranty", bold: true, color: NAVY })] }),
     para(PROCESS_WARRANTY, { italics: true }),
-    para(`Engine: ${ENGINE_VERSION}`, { color: GREY }),
+    // Full provenance stamp (NFR-AUD-01): the signed deliverable names the
+    // exact engine, prompt pack, and model configuration that produced it.
+    para(
+      `Engine: ${ENGINE_VERSION} · Prompt pack: ${PROMPT_PACK_VERSION} · Model: ${MODEL_ID}`,
+      { color: GREY },
+    ),
   );
 
   const doc = new Document({

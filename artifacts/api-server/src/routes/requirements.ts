@@ -10,6 +10,7 @@ import { requireMember, getLocalUser } from "../middlewares/auth";
 import { serializeRequirement } from "../lib/serializers";
 import { writeAudit } from "../lib/audit";
 import { extractRequirements } from "../lib/llm";
+import { computeScorecard } from "../lib/scorecard";
 
 const router: IRouter = Router();
 
@@ -64,6 +65,10 @@ router.post(
                 isMandatory: r.isMandatory ?? true,
                 confidence: r.confidence ?? null,
                 reviewStatus: "suggested",
+                // Scorecard provenance (FR-EXT-04): engine-surfaced, with the
+                // proposal frozen so later human edits stay diffable.
+                origin: "engine",
+                engineText: r.text,
               })),
             )
             .returning()
@@ -111,6 +116,7 @@ router.post(
       res.status(400).json({ error: "Invalid request" });
       return;
     }
+    const user = getLocalUser(req);
     const [created] = await db
       .insert(requirements)
       .values({
@@ -118,10 +124,16 @@ router.post(
         projectId: String(req.params.id),
         reviewStatus: "confirmed",
         isMandatory: parsed.data.isMandatory ?? true,
+        // A manual addition is by definition an engine miss (FR-EXT-04); the
+        // creator is the named reviewer who verified it.
+        origin: "manual",
+        reviewedBy: user?.id ?? null,
+        reviewedByName: user?.name ?? user?.email ?? null,
+        reviewedAt: new Date(),
       })
       .returning();
     await writeAudit({
-      user: getLocalUser(req),
+      user,
       projectId: String(req.params.id),
       eventType: "requirement.created",
       objectType: "requirement",
@@ -137,9 +149,20 @@ router.patch("/requirements/:id", requireMember, async (req: Request, res: Respo
     res.status(400).json({ error: "Invalid request" });
     return;
   }
+  const user = getLocalUser(req);
+  // A review action (status ruling or a content edit) stamps the acting
+  // reviewer server-side (FR-EXT-03) — identity is never client-supplied.
+  const isReviewAction = parsed.data.reviewStatus !== undefined || parsed.data.text !== undefined;
+  const reviewerStamp = isReviewAction
+    ? {
+        reviewedBy: user?.id ?? null,
+        reviewedByName: user?.name ?? user?.email ?? null,
+        reviewedAt: new Date(),
+      }
+    : {};
   const [updated] = await db
     .update(requirements)
-    .set({ ...parsed.data })
+    .set({ ...parsed.data, ...reviewerStamp })
     .where(eq(requirements.id, String(req.params.id)))
     .returning();
   if (!updated) {
@@ -147,7 +170,7 @@ router.patch("/requirements/:id", requireMember, async (req: Request, res: Respo
     return;
   }
   await writeAudit({
-    user: getLocalUser(req),
+    user,
     projectId: updated.projectId,
     eventType: "requirement.updated",
     objectType: "requirement",
@@ -156,6 +179,38 @@ router.patch("/requirements/:id", requireMember, async (req: Request, res: Respo
   });
   res.json(serializeRequirement(updated));
 });
+
+router.get(
+  "/projects/:id/scorecard",
+  requireMember,
+  async (req: Request, res: Response) => {
+    const projectId = String(req.params.id);
+    const rows = await db
+      .select({
+        sourceDocId: requirements.sourceDocId,
+        origin: requirements.origin,
+        isMandatory: requirements.isMandatory,
+        reviewStatus: requirements.reviewStatus,
+      })
+      .from(requirements)
+      .where(eq(requirements.projectId, projectId));
+    const scorecard = computeScorecard(rows);
+
+    // Attach filenames so the per-document breakdown is readable.
+    const docs = await db
+      .select({ id: documents.id, filename: documents.filename })
+      .from(documents)
+      .where(eq(documents.projectId, projectId));
+    const names = new Map(docs.map((d) => [d.id, d.filename]));
+    res.json({
+      ...scorecard,
+      perDocument: scorecard.perDocument.map((d) => ({
+        ...d,
+        documentName: d.documentId ? (names.get(d.documentId) ?? null) : null,
+      })),
+    });
+  },
+);
 
 router.delete("/requirements/:id", requireMember, async (req: Request, res: Response) => {
   const [deleted] = await db

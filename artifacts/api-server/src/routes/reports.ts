@@ -14,13 +14,16 @@ import {
   defects,
   boqChecks,
   auditEvents,
+  documents,
 } from "@workspace/db";
 import { SignOffReportBody } from "@workspace/api-zod";
 import { requireMember, requireRoles, getLocalUser } from "../middlewares/auth";
 import { serializeReport } from "../lib/serializers";
 import { writeAudit } from "../lib/audit";
-import { buildReportDocx, DOCX_MIME, ENGINE_VERSION, type ReportData } from "../lib/docx";
-import { computeRisk, type Severity } from "../lib/deterministic";
+import { buildReportDocx, DOCX_MIME, type ReportData } from "../lib/docx";
+import { ENGINE_VERSION, PROMPT_PACK_VERSION, MODEL_ID } from "../lib/provenance";
+import { computeRisk, blockingSignOffDefects, type Severity } from "../lib/deterministic";
+import { computeScorecard } from "../lib/scorecard";
 import { ObjectStorageService } from "../lib/objectStorage";
 
 const router: IRouter = Router();
@@ -144,6 +147,8 @@ router.post(
         status: "draft",
         docxPath,
         engineVersion: ENGINE_VERSION,
+        promptPackVersion: PROMPT_PACK_VERSION,
+        modelId: MODEL_ID,
         generatedBy: user?.id ?? null,
       })
       .returning();
@@ -173,6 +178,48 @@ router.post(
       return;
     }
     const user = getLocalUser(req);
+    const [report] = await db
+      .select()
+      .from(reports)
+      .where(eq(reports.id, String(req.params.id)));
+    if (!report) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    // Fatal-block invariant: a report cannot be signed off while any open
+    // fatal or likely-fatal defect remains on the project. This is the
+    // "process warranty" enforced in code — there is deliberately no override
+    // path. The reviewer must resolve (remediate/waive) or downgrade the
+    // defect first, which is itself an audited action.
+    const projectDefects = await db
+      .select()
+      .from(defects)
+      .where(eq(defects.projectId, report.projectId));
+    const blocking = blockingSignOffDefects(
+      projectDefects.map((d) => ({ ...d, severity: d.severity as Severity })),
+    );
+    if (blocking.length > 0) {
+      await writeAudit({
+        user,
+        projectId: report.projectId,
+        eventType: "report.sign_off_denied",
+        objectType: "report",
+        objectId: report.id,
+        details: `Sign-off blocked: ${blocking.length} open fatal/likely-fatal defect(s) must be resolved first.`,
+      });
+      res.status(409).json({
+        error:
+          "Report cannot be signed off while fatal or likely-fatal defects remain open. Resolve or downgrade them first.",
+        blockingDefects: blocking.map((d) => ({
+          id: d.id,
+          severity: d.severity,
+          description: d.description,
+        })),
+      });
+      return;
+    }
+
     const reviewerName = user?.name || user?.email || "Unknown reviewer";
     const [updated] = await db
       .update(reports)
@@ -183,7 +230,7 @@ router.post(
         reviewerId: user?.id ?? null,
         signedOffAt: new Date(),
       })
-      .where(eq(reports.id, String(req.params.id)))
+      .where(eq(reports.id, report.id))
       .returning();
     if (!updated) {
       res.status(404).json({ error: "Not found" });
@@ -295,6 +342,26 @@ router.get(
     const defs = await db.select().from(defects).where(eq(defects.projectId, projectId));
     const boqs = await db.select().from(boqChecks).where(eq(boqChecks.projectId, projectId));
     const audits = await db.select().from(auditEvents).where(eq(auditEvents.projectId, projectId));
+    // Document manifest for the export: intake metadata + SHA-256 so the
+    // recipient can independently verify file integrity. Deliberately excludes
+    // contentText (bulky, and the files themselves are the source of truth).
+    const docManifest = await db
+      .select({
+        id: documents.id,
+        type: documents.type,
+        filename: documents.filename,
+        objectPath: documents.objectPath,
+        contentType: documents.contentType,
+        size: documents.size,
+        sha256: documents.sha256,
+        source: documents.source,
+        dateReceived: documents.dateReceived,
+        redactionStatus: documents.redactionStatus,
+        extractionStatus: documents.extractionStatus,
+        createdAt: documents.createdAt,
+      })
+      .from(documents)
+      .where(eq(documents.projectId, projectId));
     const signedReports = await db
       .select()
       .from(reports)
@@ -349,6 +416,25 @@ router.get(
     archive.append(toCsv(defsCsv), { name: "defects.csv" });
     archive.append(toCsv(boqs), { name: "boq_checks.csv" });
     archive.append(toCsv(audits), { name: "audit_events.csv" });
+    archive.append(toCsv(docManifest), { name: "documents_manifest.csv" });
+    // Exportable Gate 0 Technical Scorecard (FR-EXT-04): the engine-vs-human
+    // diff and mandatory recall, recomputed from the stored records at export
+    // time so the figures are independently reproducible.
+    archive.append(
+      JSON.stringify(
+        computeScorecard(
+          reqs.map((r) => ({
+            sourceDocId: r.sourceDocId,
+            origin: r.origin,
+            isMandatory: r.isMandatory,
+            reviewStatus: r.reviewStatus,
+          })),
+        ),
+        null,
+        2,
+      ),
+      { name: "scorecard.json" },
+    );
 
     if (reportDocx) {
       archive.append(reportDocx.buffer, { name: reportDocx.name });

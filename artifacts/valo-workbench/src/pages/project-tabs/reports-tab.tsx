@@ -9,12 +9,24 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, FileBarChart, Download, FileSignature } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+/** Pull the server's human-readable error message off a failed mutation. */
+function errorMessage(err: unknown, fallback: string): string {
+  const data = (err as { data?: unknown })?.data;
+  const serverError =
+    data && typeof data === "object" && typeof (data as { error?: unknown }).error === "string"
+      ? (data as { error: string }).error
+      : undefined;
+  return serverError ?? (err instanceof Error ? err.message : fallback);
+}
 
 export function ReportsTab({ projectId }: { projectId: string }) {
   const { data: reports, isLoading } = useListReports(projectId);
   const generateReport = useGenerateReport();
   const signOffReport = useSignOffReport();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const handleGenerate = () => {
     generateReport.mutate({ id: projectId }, {
@@ -33,6 +45,15 @@ export function ReportsTab({ projectId }: { projectId: string }) {
       },
       {
         onSuccess: () => queryClient.invalidateQueries({ queryKey: getListReportsQueryKey(projectId) }),
+        onError: (err) =>
+          toast({
+            variant: "destructive",
+            title: "Sign-off blocked",
+            description: errorMessage(
+              err,
+              "The report could not be signed off. Resolve any open fatal defects and try again.",
+            ),
+          }),
       },
     );
   };

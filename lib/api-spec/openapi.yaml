@@ -255,6 +255,185 @@ paths:
           description: Deleted
         "403":
           $ref: "#/components/responses/Forbidden"
+  /clients/{id}/vault-items:
+    get:
+      operationId: listVaultItems
+      tags: [Vault]
+      summary: Certificate Vault artefacts for a client, with expiry telemetry
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Vault items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VaultItem"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: createVaultItem
+      tags: [Vault]
+      summary: Register a certificate/compliance artefact for a client
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VaultItemCreate"
+      responses:
+        "201":
+          description: Created vault item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /vault-items/{id}:
+    patch:
+      operationId: updateVaultItem
+      tags: [Vault]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VaultItemUpdate"
+      responses:
+        "200":
+          description: Updated vault item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteVaultItem
+      tags: [Vault]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /vault/expiring:
+    get:
+      operationId: getVaultExpiring
+      tags: [Vault]
+      summary: Cross-client expiry telemetry (renewal radar)
+      responses:
+        "200":
+          description: Items in or approaching their renewal window
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultExpiring"
+  /clients/{id}/documents:
+    get:
+      operationId: listClientDocuments
+      tags: [Capability]
+      summary: Documents across all of a client's projects (evidence pool)
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Client document summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClientDocumentSummary"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /clients/{id}/capability-items:
+    get:
+      operationId: listCapabilityItems
+      tags: [Capability]
+      summary: Evidence-linked capability claims for a client
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Capability items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CapabilityItem"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: createCapabilityItem
+      tags: [Capability]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CapabilityItemCreate"
+      responses:
+        "201":
+          description: Created capability item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CapabilityItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /capability-items/{id}:
+    patch:
+      operationId: updateCapabilityItem
+      tags: [Capability]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CapabilityItemUpdate"
+      responses:
+        "200":
+          description: Updated capability item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CapabilityItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    delete:
+      operationId: deleteCapabilityItem
+      tags: [Capability]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
   /dashboard/metrics:
     get:
       operationId: getDashboardMetrics
@@ -303,6 +482,18 @@ paths:
                 $ref: "#/components/schemas/Document"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "403":
+          description: NDA not cleared for this client (intake denied and audited)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422":
+          description: Uploaded object unreadable in storage; no intake hash could be recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /documents/{id}:
     get:
       operationId: getDocument
@@ -346,6 +537,24 @@ paths:
           description: Deleted
         "403":
           $ref: "#/components/responses/Forbidden"
+  /documents/{id}/verify:
+    post:
+      operationId: verifyDocument
+      tags: [Documents]
+      summary: Re-hash the stored object and compare against the intake SHA-256
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Integrity verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentIntegrity"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /projects/{id}/extract-requirements:
     post:
       operationId: extractRequirements
@@ -368,6 +577,20 @@ paths:
                 $ref: "#/components/schemas/ExtractResult"
         "400":
           $ref: "#/components/responses/BadRequest"
+  /projects/{id}/scorecard:
+    get:
+      operationId: getProjectScorecard
+      tags: [Requirements]
+      summary: Gate 0 Technical Scorecard — engine-vs-human diff and mandatory recall
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Scorecard recomputed live from stored requirement records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scorecard"
   /projects/{id}/requirements:
     get:
       operationId: listRequirements
@@ -853,6 +1076,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorEnvelope"
+    Conflict:
+      description: Request conflicts with current resource state
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
   schemas:
     HealthStatus:
       type: object
@@ -939,6 +1168,145 @@ components:
           type: string
           enum: [pending, signed, not_required, declined]
         notes: { type: string }
+    ScorecardCounts:
+      type: object
+      required:
+        [engineConfirmed, engineEdited, engineRejected, engineUnreviewed,
+         manualVerified, mandatoryEngineVerified, mandatoryVerifiedTotal]
+      properties:
+        engineConfirmed: { type: integer }
+        engineEdited: { type: integer }
+        engineRejected: { type: integer }
+        engineUnreviewed: { type: integer }
+        manualVerified: { type: integer }
+        mandatoryEngineVerified: { type: integer }
+        mandatoryVerifiedTotal: { type: integer }
+        mandatoryRecall: { type: number, nullable: true }
+    DocumentScorecard:
+      allOf:
+        - $ref: "#/components/schemas/ScorecardCounts"
+        - type: object
+          properties:
+            documentId: { type: string, nullable: true }
+            documentName: { type: string, nullable: true }
+    Scorecard:
+      type: object
+      required: [totals, perDocument, legacyRows]
+      properties:
+        totals:
+          $ref: "#/components/schemas/ScorecardCounts"
+        perDocument:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentScorecard"
+        legacyRows: { type: integer }
+
+    ClientDocumentSummary:
+      type: object
+      required: [id, projectId, filename, type]
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        filename: { type: string }
+        type: { type: string }
+    CapabilityItem:
+      type: object
+      required: [id, clientId, claimType, approvedStatus, claimable, createdAt]
+      properties:
+        id: { type: string }
+        clientId: { type: string }
+        claimType:
+          type: string
+          enum: [project, personnel, equipment, certification, past_performance, other]
+        description: { type: string, nullable: true }
+        evidenceDocId: { type: string, nullable: true }
+        evidenceDocName: { type: string, nullable: true }
+        approvedStatus:
+          type: string
+          enum: [pending, approved, rejected]
+        claimable: { type: boolean }
+        createdAt: { type: string }
+    CapabilityItemCreate:
+      type: object
+      required: [claimType]
+      properties:
+        claimType:
+          type: string
+          enum: [project, personnel, equipment, certification, past_performance, other]
+        description: { type: string }
+        evidenceDocId: { type: string }
+    CapabilityItemUpdate:
+      type: object
+      properties:
+        claimType:
+          type: string
+          enum: [project, personnel, equipment, certification, past_performance, other]
+        description: { type: string }
+        evidenceDocId: { type: string, nullable: true }
+        approvedStatus:
+          type: string
+          enum: [pending, approved, rejected]
+
+    VaultItem:
+      type: object
+      required: [id, clientId, artefactType, status, expiryBand, createdAt]
+      properties:
+        id: { type: string }
+        clientId: { type: string }
+        artefactType: { type: string }
+        issuer: { type: string, nullable: true }
+        issueDate: { type: string, nullable: true }
+        expiryDate: { type: string, nullable: true }
+        renewalLeadDays: { type: integer, nullable: true }
+        status: { type: string }
+        expiryBand:
+          type: string
+          enum: [expired, critical, warning, upcoming, ok, unknown]
+        daysToExpiry: { type: integer, nullable: true }
+        createdAt: { type: string }
+    VaultItemCreate:
+      type: object
+      required: [artefactType]
+      properties:
+        artefactType: { type: string, minLength: 1 }
+        issuer: { type: string }
+        issueDate: { type: string }
+        expiryDate: { type: string }
+        renewalLeadDays: { type: integer, minimum: 0 }
+        status: { type: string }
+    VaultItemUpdate:
+      type: object
+      properties:
+        artefactType: { type: string, minLength: 1 }
+        issuer: { type: string }
+        issueDate: { type: string }
+        expiryDate: { type: string }
+        renewalLeadDays: { type: integer, minimum: 0 }
+        status: { type: string }
+    VaultExpiringItem:
+      allOf:
+        - $ref: "#/components/schemas/VaultItem"
+        - type: object
+          required: [clientName]
+          properties:
+            clientName: { type: string, nullable: true }
+    VaultExpiring:
+      type: object
+      required: [buckets, items]
+      properties:
+        buckets:
+          type: object
+          required: [expired, critical, warning, upcoming]
+          properties:
+            expired: { type: integer }
+            critical: { type: integer }
+            warning: { type: integer }
+            upcoming: { type: integer }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/VaultExpiringItem"
+
     Project:
       type: object
       required: [id, clientId, tenderTitle, status, createdAt]
@@ -1094,6 +1462,7 @@ components:
         objectPath: { type: string }
         contentType: { type: string, nullable: true }
         size: { type: integer, nullable: true }
+        sha256: { type: string, nullable: true }
         source: { type: string, nullable: true }
         dateReceived: { type: string, nullable: true }
         redactionStatus:
@@ -1151,6 +1520,15 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Requirement"
+    DocumentIntegrity:
+      type: object
+      required: [documentId, ok, expectedSha256]
+      properties:
+        documentId: { type: string }
+        ok: { type: boolean }
+        expectedSha256: { type: string }
+        actualSha256: { type: string, nullable: true }
+
     Requirement:
       type: object
       required: [id, projectId, text, category, isMandatory, reviewStatus, createdAt]
@@ -1175,6 +1553,13 @@ components:
           type: string
           enum: [suggested, confirmed, edited, rejected, pending]
         reviewerNotes: { type: string, nullable: true }
+        origin:
+          type: string
+          enum: [engine, manual]
+          nullable: true
+        engineText: { type: string, nullable: true }
+        reviewedByName: { type: string, nullable: true }
+        reviewedAt: { type: string, nullable: true }
         createdAt: { type: string }
     RequirementCreate:
       type: object
@@ -1433,6 +1818,8 @@ components:
         reviewerName: { type: string, nullable: true }
         attestation: { type: string, nullable: true }
         engineVersion: { type: string, nullable: true }
+        promptPackVersion: { type: string, nullable: true }
+        modelId: { type: string, nullable: true }
         signedOffAt: { type: string, nullable: true }
         generatedBy: { type: string, nullable: true }
         generatedByName: { type: string, nullable: true }

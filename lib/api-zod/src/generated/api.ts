@@ -340,6 +340,224 @@ export const DeleteProjectResponse = zod.void()
 
 
 /**
+ * @summary Certificate Vault artefacts for a client, with expiry telemetry
+ */
+export const ListVaultItemsParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ListVaultItemsResponseItem = zod.object({
+  "id": zod.string(),
+  "clientId": zod.string(),
+  "artefactType": zod.string(),
+  "issuer": zod.string().nullish(),
+  "issueDate": zod.string().nullish(),
+  "expiryDate": zod.string().nullish(),
+  "renewalLeadDays": zod.number().nullish(),
+  "status": zod.string(),
+  "expiryBand": zod.enum(['expired', 'critical', 'warning', 'upcoming', 'ok', 'unknown']),
+  "daysToExpiry": zod.number().nullish(),
+  "createdAt": zod.string()
+})
+export const ListVaultItemsResponse = zod.array(ListVaultItemsResponseItem)
+
+
+/**
+ * @summary Register a certificate/compliance artefact for a client
+ */
+export const CreateVaultItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+export const createVaultItemBodyRenewalLeadDaysMin = 0;
+
+
+
+export const CreateVaultItemBody = zod.object({
+  "artefactType": zod.string().min(1),
+  "issuer": zod.string().optional(),
+  "issueDate": zod.string().optional(),
+  "expiryDate": zod.string().optional(),
+  "renewalLeadDays": zod.number().min(createVaultItemBodyRenewalLeadDaysMin).optional(),
+  "status": zod.string().optional()
+})
+
+export const CreateVaultItemResponse = zod.object({
+  "id": zod.string(),
+  "clientId": zod.string(),
+  "artefactType": zod.string(),
+  "issuer": zod.string().nullish(),
+  "issueDate": zod.string().nullish(),
+  "expiryDate": zod.string().nullish(),
+  "renewalLeadDays": zod.number().nullish(),
+  "status": zod.string(),
+  "expiryBand": zod.enum(['expired', 'critical', 'warning', 'upcoming', 'ok', 'unknown']),
+  "daysToExpiry": zod.number().nullish(),
+  "createdAt": zod.string()
+})
+
+
+export const UpdateVaultItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+export const updateVaultItemBodyRenewalLeadDaysMin = 0;
+
+
+
+export const UpdateVaultItemBody = zod.object({
+  "artefactType": zod.string().min(1).optional(),
+  "issuer": zod.string().optional(),
+  "issueDate": zod.string().optional(),
+  "expiryDate": zod.string().optional(),
+  "renewalLeadDays": zod.number().min(updateVaultItemBodyRenewalLeadDaysMin).optional(),
+  "status": zod.string().optional()
+})
+
+export const UpdateVaultItemResponse = zod.object({
+  "id": zod.string(),
+  "clientId": zod.string(),
+  "artefactType": zod.string(),
+  "issuer": zod.string().nullish(),
+  "issueDate": zod.string().nullish(),
+  "expiryDate": zod.string().nullish(),
+  "renewalLeadDays": zod.number().nullish(),
+  "status": zod.string(),
+  "expiryBand": zod.enum(['expired', 'critical', 'warning', 'upcoming', 'ok', 'unknown']),
+  "daysToExpiry": zod.number().nullish(),
+  "createdAt": zod.string()
+})
+
+
+export const DeleteVaultItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteVaultItemResponse = zod.void()
+
+
+/**
+ * @summary Cross-client expiry telemetry (renewal radar)
+ */
+export const GetVaultExpiringResponse = zod.object({
+  "buckets": zod.object({
+  "expired": zod.number(),
+  "critical": zod.number(),
+  "warning": zod.number(),
+  "upcoming": zod.number()
+}),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "clientId": zod.string(),
+  "artefactType": zod.string(),
+  "issuer": zod.string().nullish(),
+  "issueDate": zod.string().nullish(),
+  "expiryDate": zod.string().nullish(),
+  "renewalLeadDays": zod.number().nullish(),
+  "status": zod.string(),
+  "expiryBand": zod.enum(['expired', 'critical', 'warning', 'upcoming', 'ok', 'unknown']),
+  "daysToExpiry": zod.number().nullish(),
+  "createdAt": zod.string()
+}).and(zod.object({
+  "clientName": zod.string().nullable()
+})))
+})
+
+
+/**
+ * @summary Documents across all of a client's projects (evidence pool)
+ */
+export const ListClientDocumentsParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ListClientDocumentsResponseItem = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "filename": zod.string(),
+  "type": zod.string()
+})
+export const ListClientDocumentsResponse = zod.array(ListClientDocumentsResponseItem)
+
+
+/**
+ * @summary Evidence-linked capability claims for a client
+ */
+export const ListCapabilityItemsParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ListCapabilityItemsResponseItem = zod.object({
+  "id": zod.string(),
+  "clientId": zod.string(),
+  "claimType": zod.enum(['project', 'personnel', 'equipment', 'certification', 'past_performance', 'other']),
+  "description": zod.string().nullish(),
+  "evidenceDocId": zod.string().nullish(),
+  "evidenceDocName": zod.string().nullish(),
+  "approvedStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "claimable": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const ListCapabilityItemsResponse = zod.array(ListCapabilityItemsResponseItem)
+
+
+export const CreateCapabilityItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const CreateCapabilityItemBody = zod.object({
+  "claimType": zod.enum(['project', 'personnel', 'equipment', 'certification', 'past_performance', 'other']),
+  "description": zod.string().optional(),
+  "evidenceDocId": zod.string().optional()
+})
+
+export const CreateCapabilityItemResponse = zod.object({
+  "id": zod.string(),
+  "clientId": zod.string(),
+  "claimType": zod.enum(['project', 'personnel', 'equipment', 'certification', 'past_performance', 'other']),
+  "description": zod.string().nullish(),
+  "evidenceDocId": zod.string().nullish(),
+  "evidenceDocName": zod.string().nullish(),
+  "approvedStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "claimable": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+export const UpdateCapabilityItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateCapabilityItemBody = zod.object({
+  "claimType": zod.enum(['project', 'personnel', 'equipment', 'certification', 'past_performance', 'other']).optional(),
+  "description": zod.string().optional(),
+  "evidenceDocId": zod.string().nullish(),
+  "approvedStatus": zod.enum(['pending', 'approved', 'rejected']).optional()
+})
+
+export const UpdateCapabilityItemResponse = zod.object({
+  "id": zod.string(),
+  "clientId": zod.string(),
+  "claimType": zod.enum(['project', 'personnel', 'equipment', 'certification', 'past_performance', 'other']),
+  "description": zod.string().nullish(),
+  "evidenceDocId": zod.string().nullish(),
+  "evidenceDocName": zod.string().nullish(),
+  "approvedStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "claimable": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+export const DeleteCapabilityItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteCapabilityItemResponse = zod.void()
+
+
+/**
  * @summary Gate 0 metrics and portfolio aggregates
  */
 export const GetDashboardMetricsResponse = zod.object({
@@ -378,6 +596,7 @@ export const ListDocumentsResponseItem = zod.object({
   "objectPath": zod.string(),
   "contentType": zod.string().nullish(),
   "size": zod.number().nullish(),
+  "sha256": zod.string().nullish(),
   "source": zod.string().nullish(),
   "dateReceived": zod.string().nullish(),
   "redactionStatus": zod.enum(['excluded', 'redacted', 'included']),
@@ -421,6 +640,7 @@ export const CreateDocumentResponse = zod.object({
   "objectPath": zod.string(),
   "contentType": zod.string().nullish(),
   "size": zod.number().nullish(),
+  "sha256": zod.string().nullish(),
   "source": zod.string().nullish(),
   "dateReceived": zod.string().nullish(),
   "redactionStatus": zod.enum(['excluded', 'redacted', 'included']),
@@ -445,6 +665,7 @@ export const GetDocumentResponse = zod.object({
   "objectPath": zod.string(),
   "contentType": zod.string().nullish(),
   "size": zod.number().nullish(),
+  "sha256": zod.string().nullish(),
   "source": zod.string().nullish(),
   "dateReceived": zod.string().nullish(),
   "redactionStatus": zod.enum(['excluded', 'redacted', 'included']),
@@ -476,6 +697,7 @@ export const UpdateDocumentResponse = zod.object({
   "objectPath": zod.string(),
   "contentType": zod.string().nullish(),
   "size": zod.number().nullish(),
+  "sha256": zod.string().nullish(),
   "source": zod.string().nullish(),
   "dateReceived": zod.string().nullish(),
   "redactionStatus": zod.enum(['excluded', 'redacted', 'included']),
@@ -493,6 +715,21 @@ export const DeleteDocumentParams = zod.object({
 })
 
 export const DeleteDocumentResponse = zod.void()
+
+
+/**
+ * @summary Re-hash the stored object and compare against the intake SHA-256
+ */
+export const VerifyDocumentParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const VerifyDocumentResponse = zod.object({
+  "documentId": zod.string(),
+  "ok": zod.boolean(),
+  "expectedSha256": zod.string(),
+  "actualSha256": zod.string().nullish()
+})
 
 
 /**
@@ -523,8 +760,47 @@ export const ExtractRequirementsResponse = zod.object({
   "confidence": zod.enum(['high', 'medium', 'low', 'unclear']).nullish(),
   "reviewStatus": zod.enum(['suggested', 'confirmed', 'edited', 'rejected', 'pending']),
   "reviewerNotes": zod.string().nullish(),
+  "origin": zod.enum(['engine', 'manual']).nullish(),
+  "engineText": zod.string().nullish(),
+  "reviewedByName": zod.string().nullish(),
+  "reviewedAt": zod.string().nullish(),
   "createdAt": zod.string()
 }))
+})
+
+
+/**
+ * @summary Gate 0 Technical Scorecard — engine-vs-human diff and mandatory recall
+ */
+export const GetProjectScorecardParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetProjectScorecardResponse = zod.object({
+  "totals": zod.object({
+  "engineConfirmed": zod.number(),
+  "engineEdited": zod.number(),
+  "engineRejected": zod.number(),
+  "engineUnreviewed": zod.number(),
+  "manualVerified": zod.number(),
+  "mandatoryEngineVerified": zod.number(),
+  "mandatoryVerifiedTotal": zod.number(),
+  "mandatoryRecall": zod.number().nullish()
+}),
+  "perDocument": zod.array(zod.object({
+  "engineConfirmed": zod.number(),
+  "engineEdited": zod.number(),
+  "engineRejected": zod.number(),
+  "engineUnreviewed": zod.number(),
+  "manualVerified": zod.number(),
+  "mandatoryEngineVerified": zod.number(),
+  "mandatoryVerifiedTotal": zod.number(),
+  "mandatoryRecall": zod.number().nullish()
+}).and(zod.object({
+  "documentId": zod.string().nullish(),
+  "documentName": zod.string().nullish()
+}))),
+  "legacyRows": zod.number()
 })
 
 
@@ -546,6 +822,10 @@ export const ListRequirementsResponseItem = zod.object({
   "confidence": zod.enum(['high', 'medium', 'low', 'unclear']).nullish(),
   "reviewStatus": zod.enum(['suggested', 'confirmed', 'edited', 'rejected', 'pending']),
   "reviewerNotes": zod.string().nullish(),
+  "origin": zod.enum(['engine', 'manual']).nullish(),
+  "engineText": zod.string().nullish(),
+  "reviewedByName": zod.string().nullish(),
+  "reviewedAt": zod.string().nullish(),
   "createdAt": zod.string()
 })
 export const ListRequirementsResponse = zod.array(ListRequirementsResponseItem)
@@ -585,6 +865,10 @@ export const CreateRequirementResponse = zod.object({
   "confidence": zod.enum(['high', 'medium', 'low', 'unclear']).nullish(),
   "reviewStatus": zod.enum(['suggested', 'confirmed', 'edited', 'rejected', 'pending']),
   "reviewerNotes": zod.string().nullish(),
+  "origin": zod.enum(['engine', 'manual']).nullish(),
+  "engineText": zod.string().nullish(),
+  "reviewedByName": zod.string().nullish(),
+  "reviewedAt": zod.string().nullish(),
   "createdAt": zod.string()
 })
 
@@ -625,6 +909,10 @@ export const UpdateRequirementResponse = zod.object({
   "confidence": zod.enum(['high', 'medium', 'low', 'unclear']).nullish(),
   "reviewStatus": zod.enum(['suggested', 'confirmed', 'edited', 'rejected', 'pending']),
   "reviewerNotes": zod.string().nullish(),
+  "origin": zod.enum(['engine', 'manual']).nullish(),
+  "engineText": zod.string().nullish(),
+  "reviewedByName": zod.string().nullish(),
+  "reviewedAt": zod.string().nullish(),
   "createdAt": zod.string()
 })
 
@@ -1039,6 +1327,8 @@ export const ListReportsResponseItem = zod.object({
   "reviewerName": zod.string().nullish(),
   "attestation": zod.string().nullish(),
   "engineVersion": zod.string().nullish(),
+  "promptPackVersion": zod.string().nullish(),
+  "modelId": zod.string().nullish(),
   "signedOffAt": zod.string().nullish(),
   "generatedBy": zod.string().nullish(),
   "generatedByName": zod.string().nullish(),
@@ -1064,6 +1354,8 @@ export const GenerateReportResponse = zod.object({
   "reviewerName": zod.string().nullish(),
   "attestation": zod.string().nullish(),
   "engineVersion": zod.string().nullish(),
+  "promptPackVersion": zod.string().nullish(),
+  "modelId": zod.string().nullish(),
   "signedOffAt": zod.string().nullish(),
   "generatedBy": zod.string().nullish(),
   "generatedByName": zod.string().nullish(),
@@ -1095,6 +1387,8 @@ export const SignOffReportResponse = zod.object({
   "reviewerName": zod.string().nullish(),
   "attestation": zod.string().nullish(),
   "engineVersion": zod.string().nullish(),
+  "promptPackVersion": zod.string().nullish(),
+  "modelId": zod.string().nullish(),
   "signedOffAt": zod.string().nullish(),
   "generatedBy": zod.string().nullish(),
   "generatedByName": zod.string().nullish(),

@@ -32,7 +32,9 @@ router.post(
       return;
     }
     const { rows, grandTotal, tolerance, sourceDocId } = parsed.data;
-    const { findings, computedGrandTotal } = runBoqChecks(rows, grandTotal, tolerance ?? 0.5);
+    // Zero tolerance by default (FR-BOQ-01): one kobo of drift is a finding
+    // unless the operator explicitly grants slack.
+    const { findings, computedGrandTotal } = runBoqChecks(rows, grandTotal, tolerance ?? 0);
 
     const inserted = findings.length
       ? await db

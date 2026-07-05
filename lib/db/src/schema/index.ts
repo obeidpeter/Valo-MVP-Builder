@@ -2,10 +2,12 @@ import {
   pgTable,
   text,
   integer,
+  bigserial,
   boolean,
   doublePrecision,
   timestamp,
   uuid,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 const createdAt = () =>
@@ -75,6 +77,9 @@ export const documents = pgTable("documents", {
   objectPath: text("object_path").notNull(),
   contentType: text("content_type"),
   size: integer("size"),
+  // SHA-256 of the stored object, computed server-side at intake (FR-INT-02).
+  // Null only for legacy rows or when the object could not be read at intake.
+  sha256: text("sha256"),
   source: text("source"),
   dateReceived: text("date_received"),
   redactionStatus: text("redaction_status").notNull().default("excluded"),
@@ -104,6 +109,16 @@ export const requirements = pgTable("requirements", {
   confidence: text("confidence"),
   reviewStatus: text("review_status").notNull().default("suggested"),
   reviewerNotes: text("reviewer_notes"),
+  // Gate 0 Technical Scorecard fields (FR-EXT-03/04): who surfaced the row
+  // ("engine" | "manual"; null = legacy), the frozen engine proposal so edits
+  // stay diffable, and the server-derived reviewer stamp on review actions.
+  origin: text("origin"),
+  engineText: text("engine_text"),
+  reviewedBy: uuid("reviewed_by").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  reviewedByName: text("reviewed_by_name"),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
   createdAt: createdAt(),
 });
 
@@ -210,6 +225,10 @@ export const reports = pgTable("reports", {
   reviewerName: text("reviewer_name"),
   attestation: text("attestation"),
   engineVersion: text("engine_version"),
+  // Full provenance stamp (NFR-AUD-01): which prompt pack and model were in
+  // service when this report version was generated.
+  promptPackVersion: text("prompt_pack_version"),
+  modelId: text("model_id"),
   signedOffAt: timestamp("signed_off_at", { withTimezone: true }),
   generatedBy: uuid("generated_by").references(() => users.id, {
     onDelete: "set null",
@@ -217,17 +236,34 @@ export const reports = pgTable("reports", {
   createdAt: createdAt(),
 });
 
-export const auditEvents = pgTable("audit_events", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
-  userName: text("user_name"),
-  projectId: uuid("project_id"),
-  eventType: text("event_type").notNull(),
-  objectType: text("object_type"),
-  objectId: text("object_id"),
-  details: text("details"),
-  createdAt: createdAt(),
-});
+export const auditEvents = pgTable(
+  "audit_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    userName: text("user_name"),
+    projectId: uuid("project_id"),
+    eventType: text("event_type").notNull(),
+    objectType: text("object_type"),
+    objectId: text("object_id"),
+    details: text("details"),
+    // Tamper-evident hash chain (FR-WFM-02). `seq` is a contiguous 1-based
+    // position assigned under an advisory lock; `hash` = SHA-256 over the
+    // previous event's hash plus this event's canonical payload. Null on rows
+    // that predate the chain (legacy prefix). The unique index is a backstop:
+    // if serialisation ever fails, the fork errors out instead of silently
+    // corrupting the chain.
+    seq: integer("seq"),
+    prevHash: text("prev_hash"),
+    hash: text("hash"),
+    // DB-assigned monotonic ordinal (cannot be backdated by a plain INSERT the
+    // way created_at can); the verifier uses it to spot unchained rows written
+    // after the chain started.
+    rowNo: bigserial("row_no", { mode: "number" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("audit_events_seq_unique").on(t.seq)],
+);
 
 export const llmRuns = pgTable("llm_runs", {
   id: uuid("id").primaryKey().defaultRandom(),

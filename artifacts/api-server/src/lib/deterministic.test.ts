@@ -4,6 +4,11 @@ import {
   runBoqChecks,
   computeRisk,
   wordsToNumber,
+  wordsToKobo,
+  toKobo,
+  mulToKobo,
+  blockingSignOffDefects,
+  computeExpiry,
   type BoqRow,
   type BoqCheckType,
   type RiskInput,
@@ -29,8 +34,11 @@ describe("wordsToNumber", () => {
     assert.equal(wordsToNumber("one thousand two hundred and thirty four dollars"), 1234);
   });
 
-  test("stops at a bare 'cents' token so a trailing fraction is dropped", () => {
-    // The whole-unit value before 'cents' is retained; the 'cents' token halts parsing.
+  test("drops a spelled-out fractional part instead of absorbing it (FR-BOQ-02 fix)", () => {
+    // Historical bug: "…and fifty cents" used to return 150 because the tens
+    // group was consumed as whole units. The kobo-aware parser fixes it.
+    assert.equal(wordsToNumber("one hundred dollars and fifty cents"), 100);
+    assert.equal(wordsToNumber("one hundred naira fifty kobo"), 100);
     assert.equal(wordsToNumber("one hundred dollars cents twenty"), 100);
   });
 
@@ -40,6 +48,59 @@ describe("wordsToNumber", () => {
     assert.equal(wordsToNumber(""), null);
     assert.equal(wordsToNumber("   "), null);
     assert.equal(wordsToNumber("R1,234.00"), null);
+  });
+});
+
+describe("wordsToKobo - kobo-aware amount parsing", () => {
+  test("whole-unit amounts scale to kobo", () => {
+    assert.equal(wordsToKobo("one hundred"), 10000n);
+    assert.equal(wordsToKobo("one thousand two hundred and thirty four naira"), 123400n);
+    assert.equal(wordsToKobo("two million naira only"), 200000000n);
+  });
+
+  test("naira-and-kobo forms parse the fraction exactly", () => {
+    assert.equal(wordsToKobo("one hundred naira and fifty kobo"), 10050n);
+    assert.equal(wordsToKobo("one hundred naira fifty kobo only"), 10050n);
+    assert.equal(wordsToKobo("seven hundred and fifty thousand naira and five kobo"), 75000005n);
+    assert.equal(wordsToKobo("one hundred dollars and fifty cents"), 10050n);
+  });
+
+  test("compound fractional groups (tens + units) are honoured", () => {
+    assert.equal(wordsToKobo("ten naira and ninety nine kobo"), 1099n);
+    assert.equal(wordsToKobo("ten naira and fifty five kobo"), 1055n);
+  });
+
+  test("a bare fractional amount parses with a zero whole part", () => {
+    assert.equal(wordsToKobo("fifty kobo"), 50n);
+    assert.equal(wordsToKobo("fifty kobo only"), 50n);
+  });
+
+  test("returns null when nothing parseable is present", () => {
+    assert.equal(wordsToKobo("kobo"), null);
+    assert.equal(wordsToKobo("naira only"), null);
+    assert.equal(wordsToKobo(""), null);
+    assert.equal(wordsToKobo(null), null);
+  });
+});
+
+describe("exact kobo arithmetic (FR-BOQ-01)", () => {
+  test("toKobo parses the decimal string form, not the float bits", () => {
+    assert.equal(toKobo(0.1), 10n);
+    assert.equal(toKobo(0.3), 30n);
+    assert.equal(toKobo(1234.56), 123456n);
+    // 1.005 as a float is 1.00499999…; the decimal view is authoritative and
+    // rounds half away from zero.
+    assert.equal(toKobo(1.005), 101n);
+    assert.equal(toKobo(-1.005), -101n);
+    assert.equal(toKobo(1e3), 100000n);
+  });
+
+  test("mulToKobo multiplies exactly then rounds half away from zero", () => {
+    assert.equal(mulToKobo(0.1, 3), 30n); // float would give 0.30000000000000004
+    assert.equal(mulToKobo(10, 5), 5000n);
+    assert.equal(mulToKobo(19.99, 3), 5997n);
+    assert.equal(mulToKobo(2.5, 0.333), 83n); // 0.8325 → 83.25k → 83
+    assert.equal(mulToKobo(1234567.89, 1000), 123456789000n);
   });
 });
 
@@ -62,14 +123,22 @@ describe("runBoqChecks - extension_mismatch", () => {
     assert.deepEqual(checkTypes(rows), []);
   });
 
-  test("respects the tolerance band on both edges", () => {
-    // default tolerance 0.5: a delta exactly at tolerance is NOT flagged (> tol)
+  test("default tolerance is ZERO: one kobo of drift is a finding", () => {
+    const oneKoboOff: BoqRow[] = [{ quantity: 1, unitRate: 100, extension: 100.01 }];
+    assert.deepEqual(checkTypes(oneKoboOff), ["extension_mismatch"]);
+
+    const exact: BoqRow[] = [{ quantity: 1, unitRate: 100, extension: 100.0 }];
+    assert.deepEqual(checkTypes(exact), []);
+  });
+
+  test("an explicit tolerance band is respected on both edges", () => {
+    // delta exactly at tolerance is NOT flagged (strictly greater flags)
     const atTol: BoqRow[] = [{ quantity: 1, unitRate: 100, extension: 100.5 }];
-    assert.deepEqual(checkTypes(atTol), []);
+    assert.deepEqual(checkTypes(atTol, null, 0.5), []);
 
     // just beyond tolerance IS flagged
     const beyondTol: BoqRow[] = [{ quantity: 1, unitRate: 100, extension: 100.51 }];
-    assert.deepEqual(checkTypes(beyondTol), ["extension_mismatch"]);
+    assert.deepEqual(checkTypes(beyondTol, null, 0.5), ["extension_mismatch"]);
 
     // custom larger tolerance suppresses a small mismatch
     const custom: BoqRow[] = [{ quantity: 1, unitRate: 100, extension: 102 }];
@@ -77,10 +146,19 @@ describe("runBoqChecks - extension_mismatch", () => {
     assert.deepEqual(checkTypes(custom, null, 1), ["extension_mismatch"]);
   });
 
-  test("uses rounded arithmetic to avoid float noise", () => {
-    // 0.1 * 3 = 0.30000000000000004; round2 keeps it clean, no false flag
+  test("exact decimal arithmetic: no float-noise false flags at zero tolerance", () => {
+    // 0.1 * 3 = 0.30000000000000004 in floats; exact kobo arithmetic sees 0.30.
     const rows: BoqRow[] = [{ quantity: 0.1, unitRate: 3, extension: 0.3 }];
     assert.deepEqual(checkTypes(rows), []);
+    // Accumulated sums stay exact too: ten lines of 0.1 × 1 total exactly 1.00.
+    const many: BoqRow[] = Array.from({ length: 10 }, () => ({
+      quantity: 0.1,
+      unitRate: 1,
+      extension: 0.1,
+    }));
+    const res = runBoqChecks(many, 1.0);
+    assert.deepEqual(res.findings, []);
+    assert.equal(res.computedGrandTotal, 1);
   });
 });
 
@@ -436,5 +514,135 @@ describe("computeRisk - evidence penalty (mandatory-only, deduplicated)", () => 
     });
     assert.equal(r.score, 30);
     assert.equal(r.band, "medium");
+  });
+});
+
+describe("computeExpiry - certificate expiry telemetry", () => {
+  const TODAY = "2026-07-05";
+
+  test("no or unparseable expiry date -> unknown", () => {
+    assert.deepEqual(computeExpiry(null, TODAY), { band: "unknown", daysToExpiry: null });
+    assert.deepEqual(computeExpiry(undefined, TODAY), { band: "unknown", daysToExpiry: null });
+    assert.deepEqual(computeExpiry("", TODAY), { band: "unknown", daysToExpiry: null });
+    assert.deepEqual(computeExpiry("not-a-date", TODAY), { band: "unknown", daysToExpiry: null });
+  });
+
+  test("past dates are expired with negative days", () => {
+    assert.deepEqual(computeExpiry("2026-07-04", TODAY), { band: "expired", daysToExpiry: -1 });
+    assert.deepEqual(computeExpiry("2026-01-10", TODAY), { band: "expired", daysToExpiry: -176 });
+  });
+
+  test("expiring today is critical (day 0), not expired", () => {
+    assert.deepEqual(computeExpiry("2026-07-05", TODAY), { band: "critical", daysToExpiry: 0 });
+  });
+
+  test("T-3 boundary: 3 days out is critical, 4 is warning", () => {
+    assert.equal(computeExpiry("2026-07-08", TODAY).band, "critical");
+    assert.equal(computeExpiry("2026-07-09", TODAY).band, "warning");
+  });
+
+  test("T-14 boundary: 14 days out is warning, 15 is upcoming", () => {
+    assert.equal(computeExpiry("2026-07-19", TODAY).band, "warning");
+    assert.equal(computeExpiry("2026-07-20", TODAY).band, "upcoming");
+  });
+
+  test("T-30 boundary: 30 days out is upcoming, 31 is ok", () => {
+    assert.equal(computeExpiry("2026-08-04", TODAY).band, "upcoming");
+    assert.equal(computeExpiry("2026-08-05", TODAY).band, "ok");
+  });
+
+  test("a long renewal lead time widens the upcoming window", () => {
+    // 45 days out: ok by default, but upcoming for an artefact that takes
+    // 60 days to renew.
+    const d = "2026-08-19";
+    assert.equal(computeExpiry(d, TODAY).band, "ok");
+    assert.equal(computeExpiry(d, TODAY, 60).band, "upcoming");
+    // Lead time never narrows the window below 30 days.
+    assert.equal(computeExpiry("2026-08-04", TODAY, 7).band, "upcoming");
+  });
+
+  test("lead time does not change the critical/warning ladder", () => {
+    assert.equal(computeExpiry("2026-07-08", TODAY, 90).band, "critical");
+    assert.equal(computeExpiry("2026-07-15", TODAY, 90).band, "warning");
+  });
+
+  test("accepts a Date object for today and datetime strings for expiry", () => {
+    const today = new Date("2026-07-05T09:30:00Z");
+    assert.deepEqual(computeExpiry("2026-07-06T23:59:00Z", today), {
+      band: "critical",
+      daysToExpiry: 1,
+    });
+  });
+
+  test("deterministic: same inputs, same output", () => {
+    const a = computeExpiry("2026-09-01", TODAY, 45);
+    const b = computeExpiry("2026-09-01", TODAY, 45);
+    assert.deepEqual(a, b);
+  });
+});
+
+describe("blockingSignOffDefects - fatal-block invariant", () => {
+  test("an open fatal defect blocks sign-off", () => {
+    const blocking = blockingSignOffDefects([
+      { severity: "fatal", status: "open" },
+    ]);
+    assert.equal(blocking.length, 1);
+  });
+
+  test("an open likely-fatal defect blocks sign-off", () => {
+    const blocking = blockingSignOffDefects([
+      { severity: "likely_fatal", status: "open" },
+    ]);
+    assert.equal(blocking.length, 1);
+  });
+
+  test("open scoring-risk and cosmetic defects never block sign-off", () => {
+    const blocking = blockingSignOffDefects([
+      { severity: "scoring_risk", status: "open" },
+      { severity: "cosmetic", status: "open" },
+    ]);
+    assert.deepEqual(blocking, []);
+  });
+
+  test("resolved fatal defects (remediated/waived) do not block sign-off", () => {
+    const blocking = blockingSignOffDefects([
+      { severity: "fatal", status: "remediated" },
+      { severity: "likely_fatal", status: "waived" },
+    ]);
+    assert.deepEqual(blocking, []);
+  });
+
+  test("an unconfirmed (suggested) fatal defect does not block sign-off", () => {
+    // A raw AI suggestion is not a confirmed-live defect; it must be reviewer-
+    // confirmed to "open" before it can hold up a sign-off. This mirrors the
+    // live-defect semantics computeRisk uses.
+    const blocking = blockingSignOffDefects([
+      { severity: "fatal", status: "suggested" },
+    ]);
+    assert.deepEqual(blocking, []);
+  });
+
+  test("returns every blocking defect, preserving the caller's row shape", () => {
+    const blocking = blockingSignOffDefects([
+      { id: "d1", severity: "fatal", status: "open" },
+      { id: "d2", severity: "likely_fatal", status: "open" },
+      { id: "d3", severity: "cosmetic", status: "open" },
+      { id: "d4", severity: "fatal", status: "remediated" },
+    ]);
+    assert.deepEqual(
+      blocking.map((d) => d.id),
+      ["d1", "d2"],
+    );
+  });
+
+  test("what blocks sign-off is exactly what forces critical risk, for the fatal case", () => {
+    // Consistency guard: an open fatal defect both blocks sign-off AND forces a
+    // critical band, so the two deterministic checks can never disagree.
+    const defs = [{ severity: "fatal" as Severity, status: "open" }];
+    assert.equal(blockingSignOffDefects(defs).length, 1);
+    assert.equal(
+      computeRisk({ defects: defs, requirements: [], evidence: [] }).band,
+      "critical",
+    );
   });
 });

@@ -159,6 +159,178 @@ export interface ClientUpdate {
   notes?: string;
 }
 
+export interface ScorecardCounts {
+  engineConfirmed: number;
+  engineEdited: number;
+  engineRejected: number;
+  engineUnreviewed: number;
+  manualVerified: number;
+  mandatoryEngineVerified: number;
+  mandatoryVerifiedTotal: number;
+  mandatoryRecall?: number | null;
+}
+
+export type DocumentScorecard = ScorecardCounts & ({
+  documentId?: string | null;
+  documentName?: string | null;
+});
+
+export interface Scorecard {
+  totals: ScorecardCounts;
+  perDocument: DocumentScorecard[];
+  legacyRows: number;
+}
+
+export interface ClientDocumentSummary {
+  id: string;
+  projectId: string;
+  filename: string;
+  type: string;
+}
+
+export type CapabilityItemClaimType = typeof CapabilityItemClaimType[keyof typeof CapabilityItemClaimType];
+
+
+export const CapabilityItemClaimType = {
+  project: 'project',
+  personnel: 'personnel',
+  equipment: 'equipment',
+  certification: 'certification',
+  past_performance: 'past_performance',
+  other: 'other',
+} as const;
+
+export type CapabilityItemApprovedStatus = typeof CapabilityItemApprovedStatus[keyof typeof CapabilityItemApprovedStatus];
+
+
+export const CapabilityItemApprovedStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface CapabilityItem {
+  id: string;
+  clientId: string;
+  claimType: CapabilityItemClaimType;
+  description?: string | null;
+  evidenceDocId?: string | null;
+  evidenceDocName?: string | null;
+  approvedStatus: CapabilityItemApprovedStatus;
+  claimable: boolean;
+  createdAt: string;
+}
+
+export type CapabilityItemCreateClaimType = typeof CapabilityItemCreateClaimType[keyof typeof CapabilityItemCreateClaimType];
+
+
+export const CapabilityItemCreateClaimType = {
+  project: 'project',
+  personnel: 'personnel',
+  equipment: 'equipment',
+  certification: 'certification',
+  past_performance: 'past_performance',
+  other: 'other',
+} as const;
+
+export interface CapabilityItemCreate {
+  claimType: CapabilityItemCreateClaimType;
+  description?: string;
+  evidenceDocId?: string;
+}
+
+export type CapabilityItemUpdateClaimType = typeof CapabilityItemUpdateClaimType[keyof typeof CapabilityItemUpdateClaimType];
+
+
+export const CapabilityItemUpdateClaimType = {
+  project: 'project',
+  personnel: 'personnel',
+  equipment: 'equipment',
+  certification: 'certification',
+  past_performance: 'past_performance',
+  other: 'other',
+} as const;
+
+export type CapabilityItemUpdateApprovedStatus = typeof CapabilityItemUpdateApprovedStatus[keyof typeof CapabilityItemUpdateApprovedStatus];
+
+
+export const CapabilityItemUpdateApprovedStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface CapabilityItemUpdate {
+  claimType?: CapabilityItemUpdateClaimType;
+  description?: string;
+  evidenceDocId?: string | null;
+  approvedStatus?: CapabilityItemUpdateApprovedStatus;
+}
+
+export type VaultItemExpiryBand = typeof VaultItemExpiryBand[keyof typeof VaultItemExpiryBand];
+
+
+export const VaultItemExpiryBand = {
+  expired: 'expired',
+  critical: 'critical',
+  warning: 'warning',
+  upcoming: 'upcoming',
+  ok: 'ok',
+  unknown: 'unknown',
+} as const;
+
+export interface VaultItem {
+  id: string;
+  clientId: string;
+  artefactType: string;
+  issuer?: string | null;
+  issueDate?: string | null;
+  expiryDate?: string | null;
+  renewalLeadDays?: number | null;
+  status: string;
+  expiryBand: VaultItemExpiryBand;
+  daysToExpiry?: number | null;
+  createdAt: string;
+}
+
+export interface VaultItemCreate {
+  /** @minLength 1 */
+  artefactType: string;
+  issuer?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  /** @minimum 0 */
+  renewalLeadDays?: number;
+  status?: string;
+}
+
+export interface VaultItemUpdate {
+  /** @minLength 1 */
+  artefactType?: string;
+  issuer?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  /** @minimum 0 */
+  renewalLeadDays?: number;
+  status?: string;
+}
+
+export type VaultExpiringItem = VaultItem & ({
+  clientName: string | null;
+});
+
+export type VaultExpiringBuckets = {
+  expired: number;
+  critical: number;
+  warning: number;
+  upcoming: number;
+};
+
+export interface VaultExpiring {
+  buckets: VaultExpiringBuckets;
+  items: VaultExpiringItem[];
+}
+
 export type ProjectSegment = typeof ProjectSegment[keyof typeof ProjectSegment] | null;
 
 
@@ -451,6 +623,7 @@ export interface Document {
   objectPath: string;
   contentType?: string | null;
   size?: number | null;
+  sha256?: string | null;
   source?: string | null;
   dateReceived?: string | null;
   redactionStatus: DocumentRedactionStatus;
@@ -560,6 +733,14 @@ export const RequirementReviewStatus = {
   pending: 'pending',
 } as const;
 
+export type RequirementOrigin = typeof RequirementOrigin[keyof typeof RequirementOrigin] | null;
+
+
+export const RequirementOrigin = {
+  engine: 'engine',
+  manual: 'manual',
+} as const;
+
 export interface Requirement {
   id: string;
   projectId: string;
@@ -574,6 +755,10 @@ export interface Requirement {
   confidence?: RequirementConfidence;
   reviewStatus: RequirementReviewStatus;
   reviewerNotes?: string | null;
+  origin?: RequirementOrigin;
+  engineText?: string | null;
+  reviewedByName?: string | null;
+  reviewedAt?: string | null;
   createdAt: string;
 }
 
@@ -581,6 +766,13 @@ export interface ExtractResult {
   created: number;
   model?: string;
   requirements: Requirement[];
+}
+
+export interface DocumentIntegrity {
+  documentId: string;
+  ok: boolean;
+  expectedSha256: string;
+  actualSha256?: string | null;
 }
 
 export type RequirementCreateCategory = typeof RequirementCreateCategory[keyof typeof RequirementCreateCategory];
@@ -1025,6 +1217,8 @@ export interface Report {
   reviewerName?: string | null;
   attestation?: string | null;
   engineVersion?: string | null;
+  promptPackVersion?: string | null;
+  modelId?: string | null;
   signedOffAt?: string | null;
   generatedBy?: string | null;
   generatedByName?: string | null;
@@ -1082,6 +1276,11 @@ export type ForbiddenResponse = ErrorEnvelope;
  * Not found
  */
 export type NotFoundResponse = ErrorEnvelope;
+
+/**
+ * Request conflicts with current resource state
+ */
+export type ConflictResponse = ErrorEnvelope;
 
 export type ListProjectsParams = {
 clientId?: string;

@@ -17,6 +17,7 @@ export interface Document {
   objectPath: string;
   contentType?: string | null;
   size?: number | null;
+  sha256?: string | null;
   source?: string | null;
   dateReceived?: string | null;
   redactionStatus: DocumentRedactionStatus;

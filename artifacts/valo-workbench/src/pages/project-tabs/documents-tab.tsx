@@ -1,17 +1,29 @@
-import { 
-  useListDocuments, 
-  useCreateDocument, 
-  useDeleteDocument, 
+import {
+  useListDocuments,
+  useCreateDocument,
+  useDeleteDocument,
   useRequestUploadUrl,
-  getListDocumentsQueryKey 
+  useVerifyDocument,
+  getListDocumentsQueryKey
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileText, Loader2, Upload, Trash2, Lock } from "lucide-react";
+import { FileText, Loader2, Upload, Trash2, Lock, ShieldCheck, ShieldAlert, ShieldQuestion } from "lucide-react";
 import { useState, useRef } from "react";
+import { useToast } from "@/hooks/use-toast";
+
+/** Pull the server's human-readable error message off a failed request. */
+function errorMessage(err: unknown, fallback: string): string {
+  const data = (err as { data?: unknown })?.data;
+  const serverError =
+    data && typeof data === "object" && typeof (data as { error?: unknown }).error === "string"
+      ? (data as { error: string }).error
+      : undefined;
+  return serverError ?? (err instanceof Error ? err.message : fallback);
+}
 
 const NDA_ALLOWED = new Set(["signed", "not_required"]);
 
@@ -27,9 +39,14 @@ export function DocumentsTab({
   const deleteDocument = useDeleteDocument();
   const requestUploadUrl = useRequestUploadUrl();
   const createDocument = useCreateDocument();
+  const verifyDocument = useVerifyDocument();
   const queryClient = useQueryClient();
-  
+  const { toast } = useToast();
+
   const [isUploading, setIsUploading] = useState(false);
+  // documentId -> integrity verdict from the last verify run this session.
+  const [integrity, setIntegrity] = useState<Record<string, "ok" | "failed">>({});
+  const [verifyingIds, setVerifyingIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleUploadClick = () => {
@@ -74,6 +91,11 @@ export function DocumentsTab({
       queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey(projectId) });
     } catch (err) {
       console.error("Upload failed", err);
+      toast({
+        variant: "destructive",
+        title: "Upload failed",
+        description: errorMessage(err, "The document could not be uploaded."),
+      });
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -84,6 +106,44 @@ export function DocumentsTab({
     deleteDocument.mutate({ id }, {
       onSuccess: () => queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey(projectId) })
     });
+  };
+
+  const handleVerify = async (id: string, filename: string) => {
+    setVerifyingIds((prev) => new Set(prev).add(id));
+    try {
+      const result = await verifyDocument.mutateAsync({ id });
+      if (result.ok) {
+        setIntegrity((prev) => ({ ...prev, [id]: "ok" }));
+        toast({ title: "Integrity verified", description: `${filename} matches its intake SHA-256.` });
+      } else if (result.actualSha256 == null) {
+        // The stored object could not be read — an availability problem, NOT
+        // evidence of tampering. Don't pin a FAILED badge for it.
+        toast({
+          variant: "destructive",
+          title: "Verification unavailable",
+          description: `${filename}: the stored object could not be read — try again; if this persists, contact an administrator.`,
+        });
+      } else {
+        setIntegrity((prev) => ({ ...prev, [id]: "failed" }));
+        toast({
+          variant: "destructive",
+          title: "Integrity check FAILED",
+          description: `${filename} does not match its intake SHA-256 — the stored file has changed.`,
+        });
+      }
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Verification unavailable",
+        description: errorMessage(err, "This document could not be verified."),
+      });
+    } finally {
+      setVerifyingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
   };
 
   return (
@@ -131,6 +191,7 @@ export function DocumentsTab({
                 <TableHead>Filename</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Redaction</TableHead>
+                <TableHead>Integrity</TableHead>
                 <TableHead>Uploaded</TableHead>
                 <TableHead className="w-[80px]"></TableHead>
               </TableRow>
@@ -149,6 +210,39 @@ export function DocumentsTab({
                   </TableCell>
                   <TableCell>
                     <Badge variant="secondary" className="capitalize">{doc.redactionStatus}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    {doc.sha256 ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2"
+                        onClick={() => handleVerify(doc.id, doc.filename)}
+                        disabled={verifyingIds.has(doc.id)}
+                        title={`Intake SHA-256: ${doc.sha256}`}
+                      >
+                        {verifyingIds.has(doc.id) ? (
+                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        ) : integrity[doc.id] === "ok" ? (
+                          <ShieldCheck className="w-4 h-4 mr-1 text-emerald-600" />
+                        ) : integrity[doc.id] === "failed" ? (
+                          <ShieldAlert className="w-4 h-4 mr-1 text-destructive" />
+                        ) : (
+                          <ShieldQuestion className="w-4 h-4 mr-1 text-muted-foreground" />
+                        )}
+                        <span className="text-xs">
+                          {integrity[doc.id] === "ok"
+                            ? "Verified"
+                            : integrity[doc.id] === "failed"
+                              ? "FAILED"
+                              : "Verify"}
+                        </span>
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-muted-foreground" title="Uploaded before integrity manifests — no intake hash on record.">
+                        No hash
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {new Date(doc.createdAt).toLocaleDateString()}
