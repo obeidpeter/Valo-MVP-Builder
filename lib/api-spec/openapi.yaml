@@ -434,6 +434,137 @@ paths:
           description: Deleted
         "404":
           $ref: "#/components/responses/NotFound"
+  /sbd-templates:
+    get:
+      operationId: listSbdTemplates
+      tags: [Sbd]
+      summary: Standard Bidding Document corpus, all versions
+      responses:
+        "200":
+          description: SBD templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SbdTemplate"
+    post:
+      operationId: createSbdTemplate
+      tags: [Sbd]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SbdTemplateCreate"
+      responses:
+        "201":
+          description: Created SBD template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SbdTemplate"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /sbd-templates/{id}:
+    get:
+      operationId: getSbdTemplate
+      tags: [Sbd]
+      summary: One SBD template with its structured annotations
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: SBD template detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SbdTemplateDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateSbdTemplate
+      tags: [Sbd]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SbdTemplateUpdate"
+      responses:
+        "200":
+          description: Updated SBD template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SbdTemplate"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteSbdTemplate
+      tags: [Sbd]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /sbd-templates/{id}/versions:
+    post:
+      operationId: createSbdTemplateVersion
+      tags: [Sbd]
+      summary: Clone a template as the next draft version (supersedes source if active)
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "201":
+          description: New draft version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SbdTemplate"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /sbd-templates/{id}/annotations:
+    post:
+      operationId: createSbdAnnotation
+      tags: [Sbd]
+      summary: Add an agency-format quirk annotation to a template
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SbdAnnotationCreate"
+      responses:
+        "201":
+          description: Created annotation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SbdAnnotation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /sbd-annotations/{id}:
+    delete:
+      operationId: deleteSbdAnnotation
+      tags: [Sbd]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
   /dashboard/metrics:
     get:
       operationId: getDashboardMetrics
@@ -1306,6 +1437,85 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/VaultExpiringItem"
+
+    SbdTemplate:
+      type: object
+      required: [id, code, title, category, version, status, createdAt]
+      properties:
+        id: { type: string }
+        code: { type: string }
+        title: { type: string }
+        category:
+          type: string
+          enum: [goods, works, consultancy, non_consultancy, special]
+        version: { type: integer }
+        status:
+          type: string
+          enum: [draft, active, superseded]
+        issuingCircular: { type: string, nullable: true }
+        summary: { type: string, nullable: true }
+        annotationCount: { type: integer, nullable: true }
+        createdAt: { type: string }
+    SbdTemplateDetail:
+      allOf:
+        - $ref: "#/components/schemas/SbdTemplate"
+        - type: object
+          required: [annotations]
+          properties:
+            annotations:
+              type: array
+              items:
+                $ref: "#/components/schemas/SbdAnnotation"
+    SbdTemplateCreate:
+      type: object
+      required: [code, title]
+      properties:
+        code: { type: string, minLength: 1 }
+        title: { type: string, minLength: 1 }
+        category:
+          type: string
+          enum: [goods, works, consultancy, non_consultancy, special]
+        status:
+          type: string
+          enum: [draft, active, superseded]
+        issuingCircular: { type: string }
+        summary: { type: string }
+    SbdTemplateUpdate:
+      type: object
+      properties:
+        code: { type: string, minLength: 1 }
+        title: { type: string, minLength: 1 }
+        category:
+          type: string
+          enum: [goods, works, consultancy, non_consultancy, special]
+        status:
+          type: string
+          enum: [draft, active, superseded]
+        issuingCircular: { type: string, nullable: true }
+        summary: { type: string, nullable: true }
+    SbdAnnotation:
+      type: object
+      required: [id, templateId, kind, quirk, createdAt]
+      properties:
+        id: { type: string }
+        templateId: { type: string }
+        agency: { type: string, nullable: true }
+        section: { type: string, nullable: true }
+        kind:
+          type: string
+          enum: [format, deviation, mandatory, note]
+        quirk: { type: string }
+        createdAt: { type: string }
+    SbdAnnotationCreate:
+      type: object
+      required: [quirk]
+      properties:
+        agency: { type: string }
+        section: { type: string }
+        kind:
+          type: string
+          enum: [format, deviation, mandatory, note]
+        quirk: { type: string, minLength: 1 }
 
     Project:
       type: object

@@ -64,6 +64,12 @@ import type {
   ResponsivenessResult,
   RiskAssessment,
   RiskOverride,
+  SbdAnnotation,
+  SbdAnnotationCreate,
+  SbdTemplate,
+  SbdTemplateCreate,
+  SbdTemplateDetail,
+  SbdTemplateUpdate,
   Scorecard,
   SignOffRequest,
   UnauthorizedResponse,
@@ -1750,6 +1756,558 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getDeleteCapabilityItemMutationOptions(options));
+    }
+
+export const getListSbdTemplatesUrl = () => {
+
+
+
+
+  return `/api/sbd-templates`
+}
+
+/**
+ * @summary Standard Bidding Document corpus, all versions
+ */
+export const listSbdTemplates = async ( options?: RequestInit): Promise<SbdTemplate[]> => {
+
+  return customFetch<SbdTemplate[]>(getListSbdTemplatesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSbdTemplatesQueryKey = () => {
+    return [
+    `/api/sbd-templates`
+    ] as const;
+    }
+
+
+export const getListSbdTemplatesQueryOptions = <TData = Awaited<ReturnType<typeof listSbdTemplates>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSbdTemplates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSbdTemplatesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSbdTemplates>>> = ({ signal }) => listSbdTemplates({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSbdTemplates>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSbdTemplatesQueryResult = NonNullable<Awaited<ReturnType<typeof listSbdTemplates>>>
+export type ListSbdTemplatesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Standard Bidding Document corpus, all versions
+ */
+
+export function useListSbdTemplates<TData = Awaited<ReturnType<typeof listSbdTemplates>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSbdTemplates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSbdTemplatesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSbdTemplateUrl = () => {
+
+
+
+
+  return `/api/sbd-templates`
+}
+
+export const createSbdTemplate = async (sbdTemplateCreate: SbdTemplateCreate, options?: RequestInit): Promise<SbdTemplate> => {
+
+  return customFetch<SbdTemplate>(getCreateSbdTemplateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(sbdTemplateCreate)
+  }
+);}
+
+
+
+
+export const getCreateSbdTemplateMutationOptions = <TError = ErrorType<BadRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSbdTemplate>>, TError,{data: BodyType<SbdTemplateCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSbdTemplate>>, TError,{data: BodyType<SbdTemplateCreate>}, TContext> => {
+
+const mutationKey = ['createSbdTemplate'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSbdTemplate>>, {data: BodyType<SbdTemplateCreate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSbdTemplate(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSbdTemplateMutationResult = NonNullable<Awaited<ReturnType<typeof createSbdTemplate>>>
+    export type CreateSbdTemplateMutationBody = BodyType<SbdTemplateCreate>
+    export type CreateSbdTemplateMutationError = ErrorType<BadRequestResponse>
+
+    export const useCreateSbdTemplate = <TError = ErrorType<BadRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSbdTemplate>>, TError,{data: BodyType<SbdTemplateCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSbdTemplate>>,
+        TError,
+        {data: BodyType<SbdTemplateCreate>},
+        TContext
+      > => {
+      return useMutation(getCreateSbdTemplateMutationOptions(options));
+    }
+
+export const getGetSbdTemplateUrl = (id: string,) => {
+
+
+
+
+  return `/api/sbd-templates/${id}`
+}
+
+/**
+ * @summary One SBD template with its structured annotations
+ */
+export const getSbdTemplate = async (id: string, options?: RequestInit): Promise<SbdTemplateDetail> => {
+
+  return customFetch<SbdTemplateDetail>(getGetSbdTemplateUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSbdTemplateQueryKey = (id: string,) => {
+    return [
+    `/api/sbd-templates/${id}`
+    ] as const;
+    }
+
+
+export const getGetSbdTemplateQueryOptions = <TData = Awaited<ReturnType<typeof getSbdTemplate>>, TError = ErrorType<NotFoundResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSbdTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSbdTemplateQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSbdTemplate>>> = ({ signal }) => getSbdTemplate(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSbdTemplate>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSbdTemplateQueryResult = NonNullable<Awaited<ReturnType<typeof getSbdTemplate>>>
+export type GetSbdTemplateQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary One SBD template with its structured annotations
+ */
+
+export function useGetSbdTemplate<TData = Awaited<ReturnType<typeof getSbdTemplate>>, TError = ErrorType<NotFoundResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSbdTemplate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSbdTemplateQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateSbdTemplateUrl = (id: string,) => {
+
+
+
+
+  return `/api/sbd-templates/${id}`
+}
+
+export const updateSbdTemplate = async (id: string,
+    sbdTemplateUpdate: SbdTemplateUpdate, options?: RequestInit): Promise<SbdTemplate> => {
+
+  return customFetch<SbdTemplate>(getUpdateSbdTemplateUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(sbdTemplateUpdate)
+  }
+);}
+
+
+
+
+export const getUpdateSbdTemplateMutationOptions = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSbdTemplate>>, TError,{id: string;data: BodyType<SbdTemplateUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSbdTemplate>>, TError,{id: string;data: BodyType<SbdTemplateUpdate>}, TContext> => {
+
+const mutationKey = ['updateSbdTemplate'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSbdTemplate>>, {id: string;data: BodyType<SbdTemplateUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateSbdTemplate(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSbdTemplateMutationResult = NonNullable<Awaited<ReturnType<typeof updateSbdTemplate>>>
+    export type UpdateSbdTemplateMutationBody = BodyType<SbdTemplateUpdate>
+    export type UpdateSbdTemplateMutationError = ErrorType<BadRequestResponse | NotFoundResponse>
+
+    export const useUpdateSbdTemplate = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSbdTemplate>>, TError,{id: string;data: BodyType<SbdTemplateUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSbdTemplate>>,
+        TError,
+        {id: string;data: BodyType<SbdTemplateUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateSbdTemplateMutationOptions(options));
+    }
+
+export const getDeleteSbdTemplateUrl = (id: string,) => {
+
+
+
+
+  return `/api/sbd-templates/${id}`
+}
+
+export const deleteSbdTemplate = async (id: string, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteSbdTemplateUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteSbdTemplateMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSbdTemplate>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSbdTemplate>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteSbdTemplate'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSbdTemplate>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteSbdTemplate(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteSbdTemplateMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSbdTemplate>>>
+
+    export type DeleteSbdTemplateMutationError = ErrorType<NotFoundResponse>
+
+    export const useDeleteSbdTemplate = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSbdTemplate>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteSbdTemplate>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteSbdTemplateMutationOptions(options));
+    }
+
+export const getCreateSbdTemplateVersionUrl = (id: string,) => {
+
+
+
+
+  return `/api/sbd-templates/${id}/versions`
+}
+
+/**
+ * @summary Clone a template as the next draft version (supersedes source if active)
+ */
+export const createSbdTemplateVersion = async (id: string, options?: RequestInit): Promise<SbdTemplate> => {
+
+  return customFetch<SbdTemplate>(getCreateSbdTemplateVersionUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getCreateSbdTemplateVersionMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSbdTemplateVersion>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSbdTemplateVersion>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['createSbdTemplateVersion'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSbdTemplateVersion>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  createSbdTemplateVersion(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSbdTemplateVersionMutationResult = NonNullable<Awaited<ReturnType<typeof createSbdTemplateVersion>>>
+
+    export type CreateSbdTemplateVersionMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Clone a template as the next draft version (supersedes source if active)
+ */
+export const useCreateSbdTemplateVersion = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSbdTemplateVersion>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSbdTemplateVersion>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getCreateSbdTemplateVersionMutationOptions(options));
+    }
+
+export const getCreateSbdAnnotationUrl = (id: string,) => {
+
+
+
+
+  return `/api/sbd-templates/${id}/annotations`
+}
+
+/**
+ * @summary Add an agency-format quirk annotation to a template
+ */
+export const createSbdAnnotation = async (id: string,
+    sbdAnnotationCreate: SbdAnnotationCreate, options?: RequestInit): Promise<SbdAnnotation> => {
+
+  return customFetch<SbdAnnotation>(getCreateSbdAnnotationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(sbdAnnotationCreate)
+  }
+);}
+
+
+
+
+export const getCreateSbdAnnotationMutationOptions = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSbdAnnotation>>, TError,{id: string;data: BodyType<SbdAnnotationCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSbdAnnotation>>, TError,{id: string;data: BodyType<SbdAnnotationCreate>}, TContext> => {
+
+const mutationKey = ['createSbdAnnotation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSbdAnnotation>>, {id: string;data: BodyType<SbdAnnotationCreate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createSbdAnnotation(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSbdAnnotationMutationResult = NonNullable<Awaited<ReturnType<typeof createSbdAnnotation>>>
+    export type CreateSbdAnnotationMutationBody = BodyType<SbdAnnotationCreate>
+    export type CreateSbdAnnotationMutationError = ErrorType<BadRequestResponse | NotFoundResponse>
+
+    /**
+ * @summary Add an agency-format quirk annotation to a template
+ */
+export const useCreateSbdAnnotation = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSbdAnnotation>>, TError,{id: string;data: BodyType<SbdAnnotationCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSbdAnnotation>>,
+        TError,
+        {id: string;data: BodyType<SbdAnnotationCreate>},
+        TContext
+      > => {
+      return useMutation(getCreateSbdAnnotationMutationOptions(options));
+    }
+
+export const getDeleteSbdAnnotationUrl = (id: string,) => {
+
+
+
+
+  return `/api/sbd-annotations/${id}`
+}
+
+export const deleteSbdAnnotation = async (id: string, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteSbdAnnotationUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteSbdAnnotationMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSbdAnnotation>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSbdAnnotation>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteSbdAnnotation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSbdAnnotation>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteSbdAnnotation(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteSbdAnnotationMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSbdAnnotation>>>
+
+    export type DeleteSbdAnnotationMutationError = ErrorType<NotFoundResponse>
+
+    export const useDeleteSbdAnnotation = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSbdAnnotation>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteSbdAnnotation>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteSbdAnnotationMutationOptions(options));
     }
 
 export const getGetDashboardMetricsUrl = () => {

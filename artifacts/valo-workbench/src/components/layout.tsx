@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useAuth, UserButton } from "@clerk/clerk-react";
 import { useGetMe } from "@workspace/api-client-react";
-import { Loader2, Briefcase, Users, LayoutDashboard, Settings, FileSearch, CheckCircle } from "lucide-react";
+import { Loader2, Briefcase, Users, LayoutDashboard, Settings, FileSearch, CheckCircle, Library } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -52,6 +52,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/clients", label: "Clients", icon: Users },
     { href: "/projects", label: "Projects", icon: Briefcase },
+    { href: "/sbd", label: "SBD Corpus", icon: Library },
     ...(user.role === "admin" ? [{ href: "/settings", label: "Settings", icon: Settings }] : []),
   ];
 

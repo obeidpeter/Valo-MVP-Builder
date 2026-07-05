@@ -211,6 +211,30 @@ export const capabilityItems = pgTable("capability_items", {
   createdAt: createdAt(),
 });
 
+export const sbdTemplates = pgTable("sbd_templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  code: text("code").notNull(),
+  title: text("title").notNull(),
+  category: text("category").notNull().default("goods"),
+  version: integer("version").notNull().default(1),
+  status: text("status").notNull().default("draft"),
+  issuingCircular: text("issuing_circular"),
+  summary: text("summary"),
+  createdAt: createdAt(),
+});
+
+export const sbdAnnotations = pgTable("sbd_annotations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  templateId: uuid("template_id")
+    .notNull()
+    .references(() => sbdTemplates.id, { onDelete: "cascade" }),
+  agency: text("agency"),
+  section: text("section"),
+  kind: text("kind").notNull().default("format"),
+  quirk: text("quirk").notNull(),
+  createdAt: createdAt(),
+});
+
 export const reports = pgTable("reports", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id")

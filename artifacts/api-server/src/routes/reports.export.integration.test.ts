@@ -375,14 +375,16 @@ describe("GET /projects/:id/export (live route)", () => {
       const zip = await JSZip.loadAsync(buffer);
       const files = Object.keys(zip.files).sort();
 
-      // Exactly the six data files, and crucially no partial/failed DOCX entry.
+      // Exactly the data files, and crucially no partial/failed DOCX entry.
       assert.deepEqual(files, [
         "audit_events.csv",
         "boq_checks.csv",
         "defects.csv",
+        "documents_manifest.csv",
         "evidence.csv",
         "project.json",
         "requirements.csv",
+        "scorecard.json",
       ]);
       assert.ok(!files.some((f) => f.endsWith(".docx")), "no DOCX attached on storage failure");
       currentUser = null;
@@ -529,16 +531,19 @@ describe("object-storage-backed report attach & download", () => {
     const zip = await JSZip.loadAsync(buffer);
     const files = Object.keys(zip.files).sort();
 
-    // The six data files PLUS the signed report .docx (versioned filename from
-    // the latest signed-off report that has a docxPath, i.e. v2 not the draft v3).
+    // The data files (CSV registers, documents manifest, scorecard, project
+    // JSON) PLUS the signed report .docx (versioned filename from the latest
+    // signed-off report that has a docxPath, i.e. v2 not the draft v3).
     assert.deepEqual(files, [
       "audit_events.csv",
       "bid-autopsy-report-v2.docx",
       "boq_checks.csv",
       "defects.csv",
+      "documents_manifest.csv",
       "evidence.csv",
       "project.json",
       "requirements.csv",
+      "scorecard.json",
     ]);
 
     // The attached .docx must be the exact bytes returned by object storage.

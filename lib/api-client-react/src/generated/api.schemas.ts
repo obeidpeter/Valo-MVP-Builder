@@ -331,6 +331,143 @@ export interface VaultExpiring {
   items: VaultExpiringItem[];
 }
 
+export type SbdTemplateCategory = typeof SbdTemplateCategory[keyof typeof SbdTemplateCategory];
+
+
+export const SbdTemplateCategory = {
+  goods: 'goods',
+  works: 'works',
+  consultancy: 'consultancy',
+  non_consultancy: 'non_consultancy',
+  special: 'special',
+} as const;
+
+export type SbdTemplateStatus = typeof SbdTemplateStatus[keyof typeof SbdTemplateStatus];
+
+
+export const SbdTemplateStatus = {
+  draft: 'draft',
+  active: 'active',
+  superseded: 'superseded',
+} as const;
+
+export interface SbdTemplate {
+  id: string;
+  code: string;
+  title: string;
+  category: SbdTemplateCategory;
+  version: number;
+  status: SbdTemplateStatus;
+  issuingCircular?: string | null;
+  summary?: string | null;
+  annotationCount?: number | null;
+  createdAt: string;
+}
+
+export type SbdAnnotationKind = typeof SbdAnnotationKind[keyof typeof SbdAnnotationKind];
+
+
+export const SbdAnnotationKind = {
+  format: 'format',
+  deviation: 'deviation',
+  mandatory: 'mandatory',
+  note: 'note',
+} as const;
+
+export interface SbdAnnotation {
+  id: string;
+  templateId: string;
+  agency?: string | null;
+  section?: string | null;
+  kind: SbdAnnotationKind;
+  quirk: string;
+  createdAt: string;
+}
+
+export type SbdTemplateDetail = SbdTemplate & {
+  annotations: SbdAnnotation[];
+};
+
+export type SbdTemplateCreateCategory = typeof SbdTemplateCreateCategory[keyof typeof SbdTemplateCreateCategory];
+
+
+export const SbdTemplateCreateCategory = {
+  goods: 'goods',
+  works: 'works',
+  consultancy: 'consultancy',
+  non_consultancy: 'non_consultancy',
+  special: 'special',
+} as const;
+
+export type SbdTemplateCreateStatus = typeof SbdTemplateCreateStatus[keyof typeof SbdTemplateCreateStatus];
+
+
+export const SbdTemplateCreateStatus = {
+  draft: 'draft',
+  active: 'active',
+  superseded: 'superseded',
+} as const;
+
+export interface SbdTemplateCreate {
+  /** @minLength 1 */
+  code: string;
+  /** @minLength 1 */
+  title: string;
+  category?: SbdTemplateCreateCategory;
+  status?: SbdTemplateCreateStatus;
+  issuingCircular?: string;
+  summary?: string;
+}
+
+export type SbdTemplateUpdateCategory = typeof SbdTemplateUpdateCategory[keyof typeof SbdTemplateUpdateCategory];
+
+
+export const SbdTemplateUpdateCategory = {
+  goods: 'goods',
+  works: 'works',
+  consultancy: 'consultancy',
+  non_consultancy: 'non_consultancy',
+  special: 'special',
+} as const;
+
+export type SbdTemplateUpdateStatus = typeof SbdTemplateUpdateStatus[keyof typeof SbdTemplateUpdateStatus];
+
+
+export const SbdTemplateUpdateStatus = {
+  draft: 'draft',
+  active: 'active',
+  superseded: 'superseded',
+} as const;
+
+export interface SbdTemplateUpdate {
+  /** @minLength 1 */
+  code?: string;
+  /** @minLength 1 */
+  title?: string;
+  category?: SbdTemplateUpdateCategory;
+  status?: SbdTemplateUpdateStatus;
+  issuingCircular?: string | null;
+  summary?: string | null;
+}
+
+export type SbdAnnotationCreateKind = typeof SbdAnnotationCreateKind[keyof typeof SbdAnnotationCreateKind];
+
+
+export const SbdAnnotationCreateKind = {
+  format: 'format',
+  deviation: 'deviation',
+  mandatory: 'mandatory',
+  note: 'note',
+} as const;
+
+export interface SbdAnnotationCreate {
+  agency?: string;
+  section?: string;
+  kind?: SbdAnnotationCreateKind;
+  /** @minLength 1 */
+  quirk: string;
+}
+
 export type ProjectSegment = typeof ProjectSegment[keyof typeof ProjectSegment] | null;
 
 

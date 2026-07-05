@@ -12,6 +12,7 @@ import {
   BorderStyle,
   Footer,
   PageNumber,
+  TableOfContents,
 } from "docx";
 
 import { ENGINE_VERSION, PROMPT_PACK_VERSION, MODEL_ID } from "./provenance";
@@ -113,6 +114,41 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
     para(`${project.tenderTitle}`, { bold: true }),
     para(`Client: ${client?.name ?? "—"}   |   Version ${data.version}   |   Generated ${new Date().toLocaleString()}`, { color: GREY }),
     para("CONFIDENTIAL — Prepared for internal review. Not for external distribution.", { italics: true, color: GREY }),
+  );
+
+  // Document control block — a cross-reference header the reviewer and the
+  // recipient can use to confirm they hold the correct, complete version.
+  children.push(subheading("Document Control"));
+  children.push(
+    makeTable(
+      ["Field", "Value"],
+      [
+        ["Document", `Bid Autopsy Report — ${project.tenderTitle}`],
+        ["Report version", `v${data.version}`],
+        ["Generated", new Date().toLocaleString()],
+        ["Prepared by", data.generatedByName ?? "—"],
+        ["Named reviewer", data.reviewerName ?? "—"],
+        ["Engine / prompt pack / model", `${ENGINE_VERSION} · ${PROMPT_PACK_VERSION} · ${MODEL_ID}`],
+        ["Classification", "CONFIDENTIAL — internal review only"],
+      ],
+      [30, 70],
+    ),
+  );
+
+  // Table of contents. Word renders page numbers on first open / field
+  // update; the heading styles below (HEADING_1/2) drive the entries.
+  children.push(heading("Contents"));
+  children.push(
+    new TableOfContents("Contents", {
+      hyperlink: true,
+      headingStyleRange: "1-2",
+    }),
+  );
+  children.push(
+    para("Right-click the contents above and choose “Update Field” to refresh page numbers.", {
+      italics: true,
+      color: GREY,
+    }),
   );
 
   // A. Engagement summary
@@ -281,8 +317,58 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
     );
   }
 
-  // H. Sign-off page
-  children.push(heading("H. Sign-Off"));
+  // H. Copies manifest — the physical-submission control sheet. Nigerian
+  // tenders are typically submitted as one clearly-marked Original plus a set
+  // of copies; a missing or mislabelled copy is a common disqualifier, so the
+  // package ships with an explicit tick-sheet.
+  children.push(heading("H. Copies Manifest"));
+  children.push(
+    para(
+      "Confirm each required hard copy is produced, correctly labelled, bound, and sealed before dispatch. Mark the number of copies against the tender instructions to bidders (ITB).",
+      { italics: true, color: GREY },
+    ),
+  );
+  const CHECK = "\u2610"; // ballot box
+  children.push(
+    makeTable(
+      ["Copy", "Label on cover", "Bound", "Sealed", "Included"],
+      [
+        ["Original", "ORIGINAL", CHECK, CHECK, CHECK],
+        ["Copy 1", "COPY", CHECK, CHECK, CHECK],
+        ["Copy 2", "COPY", CHECK, CHECK, CHECK],
+        ["Soft copy (if required)", "USB / CD — as ITB", CHECK, CHECK, CHECK],
+      ],
+      [26, 34, 13, 13, 14],
+    ),
+  );
+
+  // I. Signature & seal checklist — the points across the package that a
+  // named authorised signatory must sign and/or seal. Cross-references the
+  // report sections above (see § letters) so the reviewer can trace each item.
+  children.push(heading("I. Signature & Seal Checklist"));
+  children.push(
+    para(
+      "Every point below must be signed and, where indicated, stamped with the company seal by an authorised signatory before submission.",
+      { italics: true, color: GREY },
+    ),
+  );
+  children.push(
+    makeTable(
+      ["Point", "Location / cross-reference", "Signed", "Sealed"],
+      [
+        ["Form of Tender / Bid submission sheet", "Tender document — Form of Tender", CHECK, CHECK],
+        ["Price schedule / BOQ summary", "See § F. BOQ Verification Annex", CHECK, CHECK],
+        ["Declaration of eligibility & non-collusion", "Tender document — Declarations", CHECK, CHECK],
+        ["CAC & compliance certificate copies", "Certificate Vault artefacts", CHECK, CHECK],
+        ["Each page initialled by signatory", "Full package", CHECK, "—"],
+        ["Bid security / bank guarantee (if required)", "Tender document — Bid Security", CHECK, CHECK],
+      ],
+      [34, 34, 16, 16],
+    ),
+  );
+
+  // J. Sign-off page
+  children.push(heading("J. Sign-Off"));
   children.push(
     para("This report is a DRAFT until a named reviewer signs off below. Export is blocked until sign-off is recorded.", { italics: true }),
     new Paragraph({ spacing: { before: 200 }, children: [new TextRun({ text: "Reviewer name: ______________________________", size: 22 })] }),
