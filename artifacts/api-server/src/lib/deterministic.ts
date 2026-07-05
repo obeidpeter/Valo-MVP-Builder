@@ -37,7 +37,77 @@ export interface BoqRunResult {
   computedGrandTotal: number;
 }
 
-const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
+// ---------------------------------------------------------------------------
+// Exact money arithmetic (FR-BOQ-01): no binary floating point in money paths.
+// Values arrive as JSON numbers; we treat their decimal string form as the
+// authoritative figure, parse it into a scaled BigInt, and do all comparison
+// and summation in integer kobo. Zero tolerance by default: one kobo off is a
+// finding.
+// ---------------------------------------------------------------------------
+
+interface ScaledDecimal {
+  /** All significant digits as an integer (sign included). */
+  digits: bigint;
+  /** Number of decimal places `digits` is scaled by. */
+  scale: number;
+}
+
+const DECIMAL_RE = /^(-?)(\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/;
+
+/** Parse a finite JS number's decimal string form exactly. */
+function parseScaled(value: number): ScaledDecimal | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  const m = DECIMAL_RE.exec(String(value));
+  if (!m) return null;
+  const [, sign, intPart, fracPart = "", expPart] = m;
+  let digits = BigInt(intPart + fracPart);
+  let scale = fracPart.length;
+  const exp = expPart ? Number(expPart) : 0;
+  if (exp > 0) {
+    if (exp >= scale) {
+      digits *= 10n ** BigInt(exp - scale);
+      scale = 0;
+    } else {
+      scale -= exp;
+    }
+  } else if (exp < 0) {
+    scale += -exp;
+  }
+  return { digits: sign === "-" ? -digits : digits, scale };
+}
+
+/** Rescale to `scale` decimal places, rounding half away from zero. */
+function rescale(d: ScaledDecimal, scale: number): bigint {
+  if (d.scale === scale) return d.digits;
+  if (d.scale < scale) return d.digits * 10n ** BigInt(scale - d.scale);
+  const divisor = 10n ** BigInt(d.scale - scale);
+  const quotient = d.digits / divisor;
+  const remainder = d.digits % divisor;
+  const half = divisor / 2n;
+  if (remainder >= half) return quotient + 1n;
+  if (-remainder >= half) return quotient - 1n;
+  return quotient;
+}
+
+/** A currency amount as integer kobo (half-away-from-zero at 2dp). */
+export function toKobo(value: number): bigint | null {
+  const scaled = parseScaled(value);
+  return scaled === null ? null : rescale(scaled, 2);
+}
+
+/** Exact product of two decimal figures, rounded half away from zero to kobo. */
+export function mulToKobo(a: number, b: number): bigint | null {
+  const sa = parseScaled(a);
+  const sb = parseScaled(b);
+  if (sa === null || sb === null) return null;
+  return rescale({ digits: sa.digits * sb.digits, scale: sa.scale + sb.scale }, 2);
+}
+
+/** Kobo back to a display number (exact for any realistic BOQ magnitude). */
+export const koboToNumber = (kobo: bigint): number => Number(kobo) / 100;
+
+const koboAbs = (k: bigint): bigint => (k < 0n ? -k : k);
+const koboDisplay = (kobo: bigint): string => koboToNumber(kobo).toFixed(2);
 
 const WORD_UNITS: Record<string, number> = {
   zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
@@ -53,22 +123,19 @@ const WORD_SCALES: Record<string, number> = {
   thousand: 1000, million: 1_000_000, billion: 1_000_000_000,
 };
 
-/**
- * Parse an English amount-in-words into its whole-number value, ignoring
- * currency and filler words ("dollars", "rand", "only", "and"). Fractional
- * parts ("... and fifty cents", ".../100") are intentionally dropped — BOQ
- * lines are compared on whole currency units. Returns null when nothing
- * parseable is found so callers can skip rather than flag falsely.
- */
-export function wordsToNumber(input: string | null | undefined): number | null {
-  if (!input) return null;
-  const tokens = input
+const FRACTION_MARKERS = new Set(["kobo", "cent", "cents", "centime", "centimes"]);
+
+function tokenizeAmountWords(input: string): string[] {
+  return input
     .toLowerCase()
     .replace(/[.,]/g, " ")
     .split(/[\s-]+/)
     .map((t) => t.trim())
     .filter((t) => t.length > 0 && t !== "and");
+}
 
+/** Accumulate a group of number words into a value; null if none matched. */
+function parseWordGroup(tokens: string[]): number | null {
   let current = 0;
   let total = 0;
   let matched = false;
@@ -86,42 +153,93 @@ export function wordsToNumber(input: string | null | undefined): number | null {
       total += (current || 1) * WORD_SCALES[tok];
       current = 0;
       matched = true;
-    } else if (tok === "cent" || tok === "cents") {
-      break; // stop at the fractional part
     }
     // any other token (currency name, "only", etc.) is ignored
   }
-  if (!matched) return null;
-  return total + current;
+  return matched ? total + current : null;
+}
+
+/**
+ * Parse an English amount-in-words into integer kobo (FR-BOQ-02), handling
+ * the fractional part properly: "one hundred naira and fifty kobo" → 10050n.
+ * The fractional group is the run of unit/tens words immediately before the
+ * kobo/cents marker; everything before that is whole currency units. Returns
+ * null when nothing parseable is found so callers can skip rather than flag
+ * falsely.
+ */
+export function wordsToKobo(input: string | null | undefined): bigint | null {
+  if (!input) return null;
+  const tokens = tokenizeAmountWords(input);
+
+  // Locate the first fraction marker and carve out the fractional word group
+  // (tens/units only, < 100) that immediately precedes it.
+  const markerIdx = tokens.findIndex((t) => FRACTION_MARKERS.has(t));
+  let wholeTokens = tokens;
+  let fraction = 0;
+  if (markerIdx >= 0) {
+    let start = markerIdx;
+    let value = 0;
+    while (start > 0) {
+      const tok = tokens[start - 1];
+      const tokValue =
+        tok in WORD_UNITS ? WORD_UNITS[tok] : tok in WORD_TENS ? WORD_TENS[tok] : null;
+      if (tokValue === null || value + tokValue >= 100) break;
+      value += tokValue;
+      start--;
+    }
+    fraction = value;
+    wholeTokens = tokens.slice(0, start);
+    // Tokens after the marker are ignored ("only", currency names, …).
+  }
+
+  const whole = parseWordGroup(wholeTokens);
+  if (whole === null && (markerIdx < 0 || fraction === 0)) return null;
+  return BigInt(whole ?? 0) * 100n + BigInt(fraction);
+}
+
+/**
+ * Parse an English amount-in-words into its whole-number value, ignoring
+ * currency and filler words ("dollars", "rand", "only", "and"). Fractional
+ * parts ("... and fifty kobo/cents") are dropped — this is the whole-unit
+ * view of `wordsToKobo`. Returns null when nothing parseable is found.
+ */
+export function wordsToNumber(input: string | null | undefined): number | null {
+  const kobo = wordsToKobo(input);
+  if (kobo === null) return null;
+  // Truncate toward zero to whole currency units.
+  return Number(kobo / 100n);
 }
 
 /**
  * Deterministic Bill of Quantities arithmetic verification.
  * All findings are exact, reproducible, and require no LLM. Rows that pass
- * every check produce no finding. `tolerance` is the absolute currency amount
- * a computed value may differ from the submitted value before it is flagged.
+ * every check produce no finding. All money comparison and summation runs in
+ * integer kobo (FR-BOQ-01) — no binary floating point in money paths — and
+ * `tolerance` (an absolute currency amount) defaults to ZERO: one kobo of
+ * drift is a finding unless the caller explicitly allows slack.
  */
 export function runBoqChecks(
   rows: BoqRow[],
   grandTotal?: number | null,
-  tolerance = 0.5,
+  tolerance = 0,
 ): BoqRunResult {
   const findings: BoqFinding[] = [];
-  const tol = Math.max(0, tolerance);
-  let computedGrandTotal = 0;
+  const tolKobo = toKobo(Math.max(0, tolerance)) ?? 0n;
+  let grandTotalKobo = 0n;
 
-  // Sum of computed line extensions per section, plus any declared section
-  // subtotal rows, used for the section_total check after the row loop.
-  const sectionSums = new Map<string, number>();
+  // Sum of computed line extensions per section (in kobo), plus any declared
+  // section subtotal rows, used for the section_total check after the loop.
+  const sectionSums = new Map<string, bigint>();
   const subtotalRows: {
     lineRef: string | null;
     description: string | null;
     section: string;
     declared: number;
+    declaredKobo: bigint;
   }[] = [];
-  const addToSection = (section: string | null | undefined, amount: number) => {
+  const addToSection = (section: string | null | undefined, amountKobo: bigint) => {
     if (section == null || section === "") return;
-    sectionSums.set(section, round2((sectionSums.get(section) ?? 0) + amount));
+    sectionSums.set(section, (sectionSums.get(section) ?? 0n) + amountKobo);
   };
 
   for (const row of rows) {
@@ -150,6 +268,7 @@ export function runBoqChecks(
         description,
         section: row.section as string,
         declared: extension as number,
+        declaredKobo: toKobo(extension as number) ?? 0n,
       });
       continue;
     }
@@ -173,13 +292,16 @@ export function runBoqChecks(
 
     let computedExtension: number | null = null;
     if (hasQty && hasRate) {
-      computedExtension = round2(quantity * unitRate);
-      computedGrandTotal += computedExtension;
-      addToSection(row.section, computedExtension);
+      // Exact product of the submitted decimals, rounded half-away to kobo.
+      const computedKobo = mulToKobo(quantity, unitRate) ?? 0n;
+      computedExtension = koboToNumber(computedKobo);
+      grandTotalKobo += computedKobo;
+      addToSection(row.section, computedKobo);
 
       if (hasExt) {
-        const delta = Math.abs(round2(extension - computedExtension));
-        if (delta > tol) {
+        const extKobo = toKobo(extension) ?? 0n;
+        const deltaKobo = extKobo - computedKobo;
+        if (koboAbs(deltaKobo) > tolKobo) {
           findings.push({
             lineRef,
             description,
@@ -188,17 +310,18 @@ export function runBoqChecks(
             extension,
             computedExtension,
             checkType: "extension_mismatch",
-            finding: `Extension ${extension} does not equal quantity × rate (${computedExtension}); difference ${round2(
-              extension - computedExtension,
-            )}.`,
+            finding: `Extension ${extension} does not equal quantity × rate (${koboDisplay(
+              computedKobo,
+            )}); difference ${koboDisplay(deltaKobo)}.`,
             severity: "likely_fatal",
             status: "flagged",
           });
         }
       }
     } else if (hasExt) {
-      computedGrandTotal += extension;
-      addToSection(row.section, extension);
+      const extKobo = toKobo(extension) ?? 0n;
+      grandTotalKobo += extKobo;
+      addToSection(row.section, extKobo);
     }
 
     // Suspicious zero: priced line with a description but zero/blank rate.
@@ -217,14 +340,16 @@ export function runBoqChecks(
       });
     }
 
-    // Words-vs-figures: the amount-in-words must equal the line figure.
+    // Words-vs-figures: the amount-in-words must equal the line figure,
+    // compared in integer kobo so spelled-out kobo are honoured exactly.
     if (row.amountInWords && row.amountInWords.trim().length > 0) {
       const figure = hasExt ? extension : computedExtension;
-      const parsedWords = wordsToNumber(row.amountInWords);
+      const figureKobo = figure != null ? toKobo(figure) : null;
+      const wordsKobo = wordsToKobo(row.amountInWords);
       if (
-        figure != null &&
-        parsedWords != null &&
-        Math.abs(round2(figure - parsedWords)) > tol
+        figureKobo != null &&
+        wordsKobo != null &&
+        koboAbs(figureKobo - wordsKobo) > tolKobo
       ) {
         findings.push({
           lineRef,
@@ -234,8 +359,10 @@ export function runBoqChecks(
           extension,
           computedExtension,
           checkType: "words_vs_figures",
-          finding: `Amount in words ("${row.amountInWords.trim()}" = ${parsedWords}) does not match the figure ${figure}; difference ${round2(
-            figure - parsedWords,
+          finding: `Amount in words ("${row.amountInWords.trim()}" = ${koboDisplay(
+            wordsKobo,
+          )}) does not match the figure ${figure}; difference ${koboDisplay(
+            figureKobo - wordsKobo,
           )}.`,
           severity: "likely_fatal",
           status: "flagged",
@@ -244,25 +371,25 @@ export function runBoqChecks(
     }
   }
 
-  computedGrandTotal = round2(computedGrandTotal);
+  const computedGrandTotal = koboToNumber(grandTotalKobo);
 
   // Section totals: each declared section subtotal must equal the sum of its
   // priced line extensions.
   for (const sub of subtotalRows) {
-    const summed = round2(sectionSums.get(sub.section) ?? 0);
-    const delta = Math.abs(round2(sub.declared - summed));
-    if (delta > tol) {
+    const summedKobo = sectionSums.get(sub.section) ?? 0n;
+    const deltaKobo = sub.declaredKobo - summedKobo;
+    if (koboAbs(deltaKobo) > tolKobo) {
       findings.push({
         lineRef: sub.lineRef,
         description: sub.description,
         quantity: null,
         unitRate: null,
         extension: sub.declared,
-        computedExtension: summed,
+        computedExtension: koboToNumber(summedKobo),
         checkType: "section_total",
-        finding: `Declared section total ${sub.declared} for "${sub.section}" does not equal the sum of its line extensions (${summed}); difference ${round2(
-          sub.declared - summed,
-        )}.`,
+        finding: `Declared section total ${sub.declared} for "${sub.section}" does not equal the sum of its line extensions (${koboDisplay(
+          summedKobo,
+        )}); difference ${koboDisplay(deltaKobo)}.`,
         severity: "likely_fatal",
         status: "flagged",
       });
@@ -270,8 +397,9 @@ export function runBoqChecks(
   }
 
   if (typeof grandTotal === "number" && Number.isFinite(grandTotal)) {
-    const delta = Math.abs(round2(grandTotal - computedGrandTotal));
-    if (delta > tol) {
+    const declaredKobo = toKobo(grandTotal) ?? 0n;
+    const deltaKobo = declaredKobo - grandTotalKobo;
+    if (koboAbs(deltaKobo) > tolKobo) {
       findings.push({
         lineRef: null,
         description: "Grand total",
@@ -280,9 +408,9 @@ export function runBoqChecks(
         extension: grandTotal,
         computedExtension: computedGrandTotal,
         checkType: "grand_total",
-        finding: `Submitted grand total ${grandTotal} does not equal the sum of line extensions (${computedGrandTotal}); difference ${round2(
-          grandTotal - computedGrandTotal,
-        )}.`,
+        finding: `Submitted grand total ${grandTotal} does not equal the sum of line extensions (${koboDisplay(
+          grandTotalKobo,
+        )}); difference ${koboDisplay(deltaKobo)}.`,
         severity: "fatal",
         status: "flagged",
       });

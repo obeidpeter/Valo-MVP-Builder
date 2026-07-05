@@ -4,6 +4,9 @@ import {
   runBoqChecks,
   computeRisk,
   wordsToNumber,
+  wordsToKobo,
+  toKobo,
+  mulToKobo,
   blockingSignOffDefects,
   computeExpiry,
   type BoqRow,
@@ -31,8 +34,11 @@ describe("wordsToNumber", () => {
     assert.equal(wordsToNumber("one thousand two hundred and thirty four dollars"), 1234);
   });
 
-  test("stops at a bare 'cents' token so a trailing fraction is dropped", () => {
-    // The whole-unit value before 'cents' is retained; the 'cents' token halts parsing.
+  test("drops a spelled-out fractional part instead of absorbing it (FR-BOQ-02 fix)", () => {
+    // Historical bug: "…and fifty cents" used to return 150 because the tens
+    // group was consumed as whole units. The kobo-aware parser fixes it.
+    assert.equal(wordsToNumber("one hundred dollars and fifty cents"), 100);
+    assert.equal(wordsToNumber("one hundred naira fifty kobo"), 100);
     assert.equal(wordsToNumber("one hundred dollars cents twenty"), 100);
   });
 
@@ -42,6 +48,59 @@ describe("wordsToNumber", () => {
     assert.equal(wordsToNumber(""), null);
     assert.equal(wordsToNumber("   "), null);
     assert.equal(wordsToNumber("R1,234.00"), null);
+  });
+});
+
+describe("wordsToKobo - kobo-aware amount parsing", () => {
+  test("whole-unit amounts scale to kobo", () => {
+    assert.equal(wordsToKobo("one hundred"), 10000n);
+    assert.equal(wordsToKobo("one thousand two hundred and thirty four naira"), 123400n);
+    assert.equal(wordsToKobo("two million naira only"), 200000000n);
+  });
+
+  test("naira-and-kobo forms parse the fraction exactly", () => {
+    assert.equal(wordsToKobo("one hundred naira and fifty kobo"), 10050n);
+    assert.equal(wordsToKobo("one hundred naira fifty kobo only"), 10050n);
+    assert.equal(wordsToKobo("seven hundred and fifty thousand naira and five kobo"), 75000005n);
+    assert.equal(wordsToKobo("one hundred dollars and fifty cents"), 10050n);
+  });
+
+  test("compound fractional groups (tens + units) are honoured", () => {
+    assert.equal(wordsToKobo("ten naira and ninety nine kobo"), 1099n);
+    assert.equal(wordsToKobo("ten naira and fifty five kobo"), 1055n);
+  });
+
+  test("a bare fractional amount parses with a zero whole part", () => {
+    assert.equal(wordsToKobo("fifty kobo"), 50n);
+    assert.equal(wordsToKobo("fifty kobo only"), 50n);
+  });
+
+  test("returns null when nothing parseable is present", () => {
+    assert.equal(wordsToKobo("kobo"), null);
+    assert.equal(wordsToKobo("naira only"), null);
+    assert.equal(wordsToKobo(""), null);
+    assert.equal(wordsToKobo(null), null);
+  });
+});
+
+describe("exact kobo arithmetic (FR-BOQ-01)", () => {
+  test("toKobo parses the decimal string form, not the float bits", () => {
+    assert.equal(toKobo(0.1), 10n);
+    assert.equal(toKobo(0.3), 30n);
+    assert.equal(toKobo(1234.56), 123456n);
+    // 1.005 as a float is 1.00499999…; the decimal view is authoritative and
+    // rounds half away from zero.
+    assert.equal(toKobo(1.005), 101n);
+    assert.equal(toKobo(-1.005), -101n);
+    assert.equal(toKobo(1e3), 100000n);
+  });
+
+  test("mulToKobo multiplies exactly then rounds half away from zero", () => {
+    assert.equal(mulToKobo(0.1, 3), 30n); // float would give 0.30000000000000004
+    assert.equal(mulToKobo(10, 5), 5000n);
+    assert.equal(mulToKobo(19.99, 3), 5997n);
+    assert.equal(mulToKobo(2.5, 0.333), 83n); // 0.8325 → 83.25k → 83
+    assert.equal(mulToKobo(1234567.89, 1000), 123456789000n);
   });
 });
 
@@ -64,14 +123,22 @@ describe("runBoqChecks - extension_mismatch", () => {
     assert.deepEqual(checkTypes(rows), []);
   });
 
-  test("respects the tolerance band on both edges", () => {
-    // default tolerance 0.5: a delta exactly at tolerance is NOT flagged (> tol)
+  test("default tolerance is ZERO: one kobo of drift is a finding", () => {
+    const oneKoboOff: BoqRow[] = [{ quantity: 1, unitRate: 100, extension: 100.01 }];
+    assert.deepEqual(checkTypes(oneKoboOff), ["extension_mismatch"]);
+
+    const exact: BoqRow[] = [{ quantity: 1, unitRate: 100, extension: 100.0 }];
+    assert.deepEqual(checkTypes(exact), []);
+  });
+
+  test("an explicit tolerance band is respected on both edges", () => {
+    // delta exactly at tolerance is NOT flagged (strictly greater flags)
     const atTol: BoqRow[] = [{ quantity: 1, unitRate: 100, extension: 100.5 }];
-    assert.deepEqual(checkTypes(atTol), []);
+    assert.deepEqual(checkTypes(atTol, null, 0.5), []);
 
     // just beyond tolerance IS flagged
     const beyondTol: BoqRow[] = [{ quantity: 1, unitRate: 100, extension: 100.51 }];
-    assert.deepEqual(checkTypes(beyondTol), ["extension_mismatch"]);
+    assert.deepEqual(checkTypes(beyondTol, null, 0.5), ["extension_mismatch"]);
 
     // custom larger tolerance suppresses a small mismatch
     const custom: BoqRow[] = [{ quantity: 1, unitRate: 100, extension: 102 }];
@@ -79,10 +146,19 @@ describe("runBoqChecks - extension_mismatch", () => {
     assert.deepEqual(checkTypes(custom, null, 1), ["extension_mismatch"]);
   });
 
-  test("uses rounded arithmetic to avoid float noise", () => {
-    // 0.1 * 3 = 0.30000000000000004; round2 keeps it clean, no false flag
+  test("exact decimal arithmetic: no float-noise false flags at zero tolerance", () => {
+    // 0.1 * 3 = 0.30000000000000004 in floats; exact kobo arithmetic sees 0.30.
     const rows: BoqRow[] = [{ quantity: 0.1, unitRate: 3, extension: 0.3 }];
     assert.deepEqual(checkTypes(rows), []);
+    // Accumulated sums stay exact too: ten lines of 0.1 × 1 total exactly 1.00.
+    const many: BoqRow[] = Array.from({ length: 10 }, () => ({
+      quantity: 0.1,
+      unitRate: 1,
+      extension: 0.1,
+    }));
+    const res = runBoqChecks(many, 1.0);
+    assert.deepEqual(res.findings, []);
+    assert.equal(res.computedGrandTotal, 1);
   });
 });
 
