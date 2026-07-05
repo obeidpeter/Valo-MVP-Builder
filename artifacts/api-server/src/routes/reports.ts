@@ -301,6 +301,30 @@ router.get(
       .where(eq(reports.projectId, projectId))
       .orderBy(desc(reports.version));
 
+    // Fetch the signed DOCX *before* committing to the response stream. This is
+    // the only fallible, mid-stream I/O in the export, and once we've flushed
+    // 200 + zip headers we can no longer turn a failure into a real error
+    // status. Downloading it up front means a fatal fetch failure produces a
+    // clean non-200, and the archive is only ever streamed from in-memory data.
+    // A missing DOCX stays non-fatal (the export is still useful without it).
+    const latestSigned = signedReports.find((r) => r.status === "signed_off" && r.docxPath);
+    let reportDocx: { name: string; buffer: Buffer } | null = null;
+    if (latestSigned?.docxPath) {
+      try {
+        const file = await objectStorage.getObjectEntityFile(latestSigned.docxPath);
+        const [buffer] = await file.download();
+        reportDocx = { name: `bid-autopsy-report-v${latestSigned.version}.docx`, buffer };
+      } catch (error) {
+        req.log.warn({ err: error }, "could not attach report to export");
+      }
+    }
+
+    // Flag review state so recipients can tell reviewer-confirmed findings from
+    // raw AI suggestions, mirroring how the signed DOCX report segregates them.
+    const reqsCsv = withReviewState(reqs, requirementReviewState);
+    const evCsv = withReviewState(ev, suggestedFlagReviewState);
+    const defsCsv = withReviewState(defs, suggestedFlagReviewState);
+
     res.setHeader("Content-Type", "application/zip");
     res.setHeader(
       "Content-Disposition",
@@ -310,15 +334,14 @@ router.get(
     const archive = new ZipArchive({ zlib: { level: 9 } });
     archive.on("error", (err: ArchiverError) => {
       req.log.error({ err }, "export archive error");
-      res.status(500).end();
+      // Headers are already flushed by the time we're streaming, so the status
+      // code can no longer be changed to signal failure. Ending the response
+      // cleanly would hand the client a 200 with a truncated, corrupt ZIP that
+      // looks successful. Destroy the socket instead so the client sees an
+      // aborted/incomplete download and can detect the truncation.
+      res.destroy(err);
     });
     archive.pipe(res);
-
-    // Flag review state so recipients can tell reviewer-confirmed findings from
-    // raw AI suggestions, mirroring how the signed DOCX report segregates them.
-    const reqsCsv = withReviewState(reqs, requirementReviewState);
-    const evCsv = withReviewState(ev, suggestedFlagReviewState);
-    const defsCsv = withReviewState(defs, suggestedFlagReviewState);
 
     archive.append(JSON.stringify(project, null, 2), { name: "project.json" });
     archive.append(toCsv(reqsCsv), { name: "requirements.csv" });
@@ -327,15 +350,8 @@ router.get(
     archive.append(toCsv(boqs), { name: "boq_checks.csv" });
     archive.append(toCsv(audits), { name: "audit_events.csv" });
 
-    const latestSigned = signedReports.find((r) => r.status === "signed_off" && r.docxPath);
-    if (latestSigned?.docxPath) {
-      try {
-        const file = await objectStorage.getObjectEntityFile(latestSigned.docxPath);
-        const [buffer] = await file.download();
-        archive.append(buffer, { name: `bid-autopsy-report-v${latestSigned.version}.docx` });
-      } catch (error) {
-        req.log.warn({ err: error }, "could not attach report to export");
-      }
+    if (reportDocx) {
+      archive.append(reportDocx.buffer, { name: reportDocx.name });
     }
 
     await writeAudit({

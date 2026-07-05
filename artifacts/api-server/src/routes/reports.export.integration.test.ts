@@ -2,6 +2,8 @@ import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { createRequire } from "node:module";
+import type { Archiver, ArchiverOptions } from "archiver";
 import express, { type Request, type Response, type NextFunction } from "express";
 import JSZip from "jszip";
 import { eq } from "drizzle-orm";
@@ -325,5 +327,127 @@ describe("GET /projects/:id/export (live route)", () => {
     // And an audit trail of the export was recorded.
     const events = await db.select().from(auditEvents).where(eq(auditEvents.projectId, projectId));
     assert.ok(events.some((e) => e.eventType === "project.exported"));
+  });
+
+  // Regression guard for the export corruption bug: the signed DOCX is fetched
+  // from object storage *before* the response is committed to streaming, so a
+  // storage failure while attaching it can never surface as a truncated,
+  // corrupt-but-"successful" ZIP. A missing/failed DOCX stays non-fatal, so the
+  // client must still receive a complete, valid archive of the data files.
+  test("a storage failure attaching the signed report yields a complete, valid ZIP (never a corrupt 200)", async () => {
+    const stamp = new Date().toISOString();
+    const [proj] = await db
+      .insert(projects)
+      .values({
+        clientId,
+        tenderTitle: `Export storage-failure ${stamp}`,
+        status: "signed_off",
+        reviewerId: adminId,
+      })
+      .returning();
+
+    // A signed report whose docxPath points at an object that cannot be
+    // downloaded (it does not exist), forcing the object-storage fetch to throw.
+    await db.insert(reports).values({
+      projectId: proj.id,
+      version: 1,
+      status: "signed_off",
+      docxPath: `/objects/does-not-exist-${stamp}`,
+    });
+
+    try {
+      currentUser = { id: adminId, role: "admin", name: "Export Admin" } as LocalUser;
+      const res = await fetch(`${baseUrl}/projects/${proj.id}/export`);
+      assert.equal(res.status, 200);
+      assert.equal(res.headers.get("content-type"), "application/zip");
+
+      // The body must be a *complete, parseable* ZIP — not a truncated stream.
+      const buffer = Buffer.from(await res.arrayBuffer());
+      const zip = await JSZip.loadAsync(buffer);
+      const files = Object.keys(zip.files).sort();
+
+      // Exactly the six data files, and crucially no partial/failed DOCX entry.
+      assert.deepEqual(files, [
+        "audit_events.csv",
+        "boq_checks.csv",
+        "defects.csv",
+        "evidence.csv",
+        "project.json",
+        "requirements.csv",
+      ]);
+      assert.ok(!files.some((f) => f.endsWith(".docx")), "no DOCX attached on storage failure");
+      currentUser = null;
+    } finally {
+      await db.delete(auditEvents).where(eq(auditEvents.projectId, proj.id));
+      await db.delete(projects).where(eq(projects.id, proj.id)); // cascades reports
+    }
+  });
+});
+
+/**
+ * The export streams the archive to the client with a 200 + zip headers already
+ * flushed. If the archiver fails mid-stream, the status code can no longer be
+ * changed — ending the response cleanly would hand the client a 200 with a
+ * truncated, corrupt ZIP that *looks* successful. This test reproduces the
+ * route's exact streaming/error wiring (`archive.pipe(res)` +
+ * `archive.on("error", err => res.destroy(err))`) and forces a mid-stream
+ * archive error, asserting the client detects the truncation (its body read
+ * fails) rather than receiving a clean-but-corrupt download.
+ */
+describe("mid-stream archive failure aborts the download", () => {
+  const nodeRequire = createRequire(import.meta.url);
+  const { ZipArchive } = nodeRequire("archiver") as {
+    ZipArchive: new (options?: ArchiverOptions) => Archiver;
+  };
+
+  test("client cannot read a complete body when the archive errors after headers are sent", async () => {
+    const srv = createServer((_req, res) => {
+      res.setHeader("Content-Type", "application/zip");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="project-export-abort.zip"`,
+      );
+      const archive = new ZipArchive({ zlib: { level: 9 } });
+      // Same failure handling as the real route: abort the connection so the
+      // client sees an incomplete download instead of a clean, corrupt 200.
+      archive.on("error", (err) => {
+        res.destroy(err as Error);
+      });
+      archive.pipe(res);
+      // Enough data to flush headers + partial body before we fail.
+      archive.append(Buffer.alloc(300_000, 65), { name: "data.bin" });
+      void archive.finalize();
+      setTimeout(() => archive.emit("error", new Error("simulated mid-stream failure")), 2);
+    });
+
+    await new Promise<void>((resolve) => srv.listen(0, () => resolve()));
+    const { port } = srv.address() as AddressInfo;
+
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/`);
+      // Headers were already flushed, so the status looks like a success...
+      let bodyReadSucceeded = false;
+      let validZip = false;
+      try {
+        const buffer = Buffer.from(await res.arrayBuffer());
+        bodyReadSucceeded = true;
+        try {
+          await JSZip.loadAsync(buffer);
+          validZip = true;
+        } catch {
+          validZip = false;
+        }
+      } catch {
+        bodyReadSucceeded = false;
+      }
+
+      // ...but the client must NOT be able to read a complete body: the aborted
+      // connection surfaces as a read failure, so the truncation is detectable.
+      assert.equal(bodyReadSucceeded, false, "client body read must fail on a mid-stream abort");
+      // And it certainly must never be handed a valid-looking, complete ZIP.
+      assert.equal(validZip, false, "a mid-stream failure must never produce a valid ZIP");
+    } finally {
+      await new Promise<void>((resolve) => srv.close(() => resolve()));
+    }
   });
 });
