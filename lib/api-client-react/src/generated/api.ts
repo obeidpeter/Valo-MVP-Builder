@@ -25,8 +25,12 @@ import type {
   BoqCheck,
   BoqRunRequest,
   BoqRunResult,
+  CapabilityItem,
+  CapabilityItemCreate,
+  CapabilityItemUpdate,
   Client,
   ClientCreate,
+  ClientDocumentSummary,
   ClientUpdate,
   ConflictResponse,
   DashboardMetrics,
@@ -1399,6 +1403,354 @@ export function useGetVaultExpiring<TData = Awaited<ReturnType<typeof getVaultEx
 
 
 
+
+export const getListClientDocumentsUrl = (id: string,) => {
+
+
+
+
+  return `/api/clients/${id}/documents`
+}
+
+/**
+ * @summary Documents across all of a client's projects (evidence pool)
+ */
+export const listClientDocuments = async (id: string, options?: RequestInit): Promise<ClientDocumentSummary[]> => {
+
+  return customFetch<ClientDocumentSummary[]>(getListClientDocumentsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClientDocumentsQueryKey = (id: string,) => {
+    return [
+    `/api/clients/${id}/documents`
+    ] as const;
+    }
+
+
+export const getListClientDocumentsQueryOptions = <TData = Awaited<ReturnType<typeof listClientDocuments>>, TError = ErrorType<NotFoundResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClientDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClientDocumentsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientDocuments>>> = ({ signal }) => listClientDocuments(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClientDocuments>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListClientDocumentsQueryResult = NonNullable<Awaited<ReturnType<typeof listClientDocuments>>>
+export type ListClientDocumentsQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary Documents across all of a client's projects (evidence pool)
+ */
+
+export function useListClientDocuments<TData = Awaited<ReturnType<typeof listClientDocuments>>, TError = ErrorType<NotFoundResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClientDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListClientDocumentsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListCapabilityItemsUrl = (id: string,) => {
+
+
+
+
+  return `/api/clients/${id}/capability-items`
+}
+
+/**
+ * @summary Evidence-linked capability claims for a client
+ */
+export const listCapabilityItems = async (id: string, options?: RequestInit): Promise<CapabilityItem[]> => {
+
+  return customFetch<CapabilityItem[]>(getListCapabilityItemsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCapabilityItemsQueryKey = (id: string,) => {
+    return [
+    `/api/clients/${id}/capability-items`
+    ] as const;
+    }
+
+
+export const getListCapabilityItemsQueryOptions = <TData = Awaited<ReturnType<typeof listCapabilityItems>>, TError = ErrorType<NotFoundResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCapabilityItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCapabilityItemsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCapabilityItems>>> = ({ signal }) => listCapabilityItems(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCapabilityItems>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCapabilityItemsQueryResult = NonNullable<Awaited<ReturnType<typeof listCapabilityItems>>>
+export type ListCapabilityItemsQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary Evidence-linked capability claims for a client
+ */
+
+export function useListCapabilityItems<TData = Awaited<ReturnType<typeof listCapabilityItems>>, TError = ErrorType<NotFoundResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCapabilityItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCapabilityItemsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateCapabilityItemUrl = (id: string,) => {
+
+
+
+
+  return `/api/clients/${id}/capability-items`
+}
+
+export const createCapabilityItem = async (id: string,
+    capabilityItemCreate: CapabilityItemCreate, options?: RequestInit): Promise<CapabilityItem> => {
+
+  return customFetch<CapabilityItem>(getCreateCapabilityItemUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(capabilityItemCreate)
+  }
+);}
+
+
+
+
+export const getCreateCapabilityItemMutationOptions = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCapabilityItem>>, TError,{id: string;data: BodyType<CapabilityItemCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCapabilityItem>>, TError,{id: string;data: BodyType<CapabilityItemCreate>}, TContext> => {
+
+const mutationKey = ['createCapabilityItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCapabilityItem>>, {id: string;data: BodyType<CapabilityItemCreate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createCapabilityItem(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCapabilityItemMutationResult = NonNullable<Awaited<ReturnType<typeof createCapabilityItem>>>
+    export type CreateCapabilityItemMutationBody = BodyType<CapabilityItemCreate>
+    export type CreateCapabilityItemMutationError = ErrorType<BadRequestResponse | NotFoundResponse>
+
+    export const useCreateCapabilityItem = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCapabilityItem>>, TError,{id: string;data: BodyType<CapabilityItemCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCapabilityItem>>,
+        TError,
+        {id: string;data: BodyType<CapabilityItemCreate>},
+        TContext
+      > => {
+      return useMutation(getCreateCapabilityItemMutationOptions(options));
+    }
+
+export const getUpdateCapabilityItemUrl = (id: string,) => {
+
+
+
+
+  return `/api/capability-items/${id}`
+}
+
+export const updateCapabilityItem = async (id: string,
+    capabilityItemUpdate: CapabilityItemUpdate, options?: RequestInit): Promise<CapabilityItem> => {
+
+  return customFetch<CapabilityItem>(getUpdateCapabilityItemUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(capabilityItemUpdate)
+  }
+);}
+
+
+
+
+export const getUpdateCapabilityItemMutationOptions = <TError = ErrorType<BadRequestResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCapabilityItem>>, TError,{id: string;data: BodyType<CapabilityItemUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCapabilityItem>>, TError,{id: string;data: BodyType<CapabilityItemUpdate>}, TContext> => {
+
+const mutationKey = ['updateCapabilityItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCapabilityItem>>, {id: string;data: BodyType<CapabilityItemUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateCapabilityItem(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCapabilityItemMutationResult = NonNullable<Awaited<ReturnType<typeof updateCapabilityItem>>>
+    export type UpdateCapabilityItemMutationBody = BodyType<CapabilityItemUpdate>
+    export type UpdateCapabilityItemMutationError = ErrorType<BadRequestResponse | NotFoundResponse | ConflictResponse>
+
+    export const useUpdateCapabilityItem = <TError = ErrorType<BadRequestResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCapabilityItem>>, TError,{id: string;data: BodyType<CapabilityItemUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCapabilityItem>>,
+        TError,
+        {id: string;data: BodyType<CapabilityItemUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateCapabilityItemMutationOptions(options));
+    }
+
+export const getDeleteCapabilityItemUrl = (id: string,) => {
+
+
+
+
+  return `/api/capability-items/${id}`
+}
+
+export const deleteCapabilityItem = async (id: string, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteCapabilityItemUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteCapabilityItemMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCapabilityItem>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCapabilityItem>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteCapabilityItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCapabilityItem>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteCapabilityItem(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCapabilityItemMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCapabilityItem>>>
+
+    export type DeleteCapabilityItemMutationError = ErrorType<NotFoundResponse>
+
+    export const useDeleteCapabilityItem = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCapabilityItem>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCapabilityItem>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteCapabilityItemMutationOptions(options));
+    }
 
 export const getGetDashboardMetricsUrl = () => {
 

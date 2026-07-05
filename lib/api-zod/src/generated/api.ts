@@ -467,6 +467,97 @@ export const GetVaultExpiringResponse = zod.object({
 
 
 /**
+ * @summary Documents across all of a client's projects (evidence pool)
+ */
+export const ListClientDocumentsParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ListClientDocumentsResponseItem = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "filename": zod.string(),
+  "type": zod.string()
+})
+export const ListClientDocumentsResponse = zod.array(ListClientDocumentsResponseItem)
+
+
+/**
+ * @summary Evidence-linked capability claims for a client
+ */
+export const ListCapabilityItemsParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ListCapabilityItemsResponseItem = zod.object({
+  "id": zod.string(),
+  "clientId": zod.string(),
+  "claimType": zod.enum(['project', 'personnel', 'equipment', 'certification', 'past_performance', 'other']),
+  "description": zod.string().nullish(),
+  "evidenceDocId": zod.string().nullish(),
+  "evidenceDocName": zod.string().nullish(),
+  "approvedStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "claimable": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const ListCapabilityItemsResponse = zod.array(ListCapabilityItemsResponseItem)
+
+
+export const CreateCapabilityItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const CreateCapabilityItemBody = zod.object({
+  "claimType": zod.enum(['project', 'personnel', 'equipment', 'certification', 'past_performance', 'other']),
+  "description": zod.string().optional(),
+  "evidenceDocId": zod.string().optional()
+})
+
+export const CreateCapabilityItemResponse = zod.object({
+  "id": zod.string(),
+  "clientId": zod.string(),
+  "claimType": zod.enum(['project', 'personnel', 'equipment', 'certification', 'past_performance', 'other']),
+  "description": zod.string().nullish(),
+  "evidenceDocId": zod.string().nullish(),
+  "evidenceDocName": zod.string().nullish(),
+  "approvedStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "claimable": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+export const UpdateCapabilityItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateCapabilityItemBody = zod.object({
+  "claimType": zod.enum(['project', 'personnel', 'equipment', 'certification', 'past_performance', 'other']).optional(),
+  "description": zod.string().optional(),
+  "evidenceDocId": zod.string().nullish(),
+  "approvedStatus": zod.enum(['pending', 'approved', 'rejected']).optional()
+})
+
+export const UpdateCapabilityItemResponse = zod.object({
+  "id": zod.string(),
+  "clientId": zod.string(),
+  "claimType": zod.enum(['project', 'personnel', 'equipment', 'certification', 'past_performance', 'other']),
+  "description": zod.string().nullish(),
+  "evidenceDocId": zod.string().nullish(),
+  "evidenceDocName": zod.string().nullish(),
+  "approvedStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "claimable": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+export const DeleteCapabilityItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteCapabilityItemResponse = zod.void()
+
+
+/**
  * @summary Gate 0 metrics and portfolio aggregates
  */
 export const GetDashboardMetricsResponse = zod.object({

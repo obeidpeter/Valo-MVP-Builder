@@ -211,6 +211,23 @@ export function serializeVaultItem(
   return clientName === undefined ? base : { ...base, clientName: clientName ?? null };
 }
 
+export function serializeCapabilityItem(c: any, evidenceDocName?: string | null) {
+  return {
+    id: c.id,
+    clientId: c.clientId,
+    claimType: c.claimType,
+    description: c.description ?? null,
+    evidenceDocId: c.evidenceDocId ?? null,
+    evidenceDocName: evidenceDocName ?? null,
+    approvedStatus: c.approvedStatus,
+    // The anti-fabrication doctrine (TRD I4): a capability claim is only
+    // usable in drafts when it is BOTH evidence-linked and approved by a
+    // named human. Derived, never stored.
+    claimable: c.evidenceDocId != null && c.approvedStatus === "approved",
+    createdAt: iso(c.createdAt) ?? new Date(0).toISOString(),
+  };
+}
+
 export function serializeAudit(a: any) {
   return {
     id: a.id,

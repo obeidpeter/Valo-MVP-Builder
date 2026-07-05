@@ -341,6 +341,99 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/VaultExpiring"
+  /clients/{id}/documents:
+    get:
+      operationId: listClientDocuments
+      tags: [Capability]
+      summary: Documents across all of a client's projects (evidence pool)
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Client document summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClientDocumentSummary"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /clients/{id}/capability-items:
+    get:
+      operationId: listCapabilityItems
+      tags: [Capability]
+      summary: Evidence-linked capability claims for a client
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Capability items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CapabilityItem"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: createCapabilityItem
+      tags: [Capability]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CapabilityItemCreate"
+      responses:
+        "201":
+          description: Created capability item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CapabilityItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /capability-items/{id}:
+    patch:
+      operationId: updateCapabilityItem
+      tags: [Capability]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CapabilityItemUpdate"
+      responses:
+        "200":
+          description: Updated capability item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CapabilityItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    delete:
+      operationId: deleteCapabilityItem
+      tags: [Capability]
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
   /dashboard/metrics:
     get:
       operationId: getDashboardMetrics
@@ -1107,6 +1200,52 @@ components:
           items:
             $ref: "#/components/schemas/DocumentScorecard"
         legacyRows: { type: integer }
+
+    ClientDocumentSummary:
+      type: object
+      required: [id, projectId, filename, type]
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        filename: { type: string }
+        type: { type: string }
+    CapabilityItem:
+      type: object
+      required: [id, clientId, claimType, approvedStatus, claimable, createdAt]
+      properties:
+        id: { type: string }
+        clientId: { type: string }
+        claimType:
+          type: string
+          enum: [project, personnel, equipment, certification, past_performance, other]
+        description: { type: string, nullable: true }
+        evidenceDocId: { type: string, nullable: true }
+        evidenceDocName: { type: string, nullable: true }
+        approvedStatus:
+          type: string
+          enum: [pending, approved, rejected]
+        claimable: { type: boolean }
+        createdAt: { type: string }
+    CapabilityItemCreate:
+      type: object
+      required: [claimType]
+      properties:
+        claimType:
+          type: string
+          enum: [project, personnel, equipment, certification, past_performance, other]
+        description: { type: string }
+        evidenceDocId: { type: string }
+    CapabilityItemUpdate:
+      type: object
+      properties:
+        claimType:
+          type: string
+          enum: [project, personnel, equipment, certification, past_performance, other]
+        description: { type: string }
+        evidenceDocId: { type: string, nullable: true }
+        approvedStatus:
+          type: string
+          enum: [pending, approved, rejected]
 
     VaultItem:
       type: object

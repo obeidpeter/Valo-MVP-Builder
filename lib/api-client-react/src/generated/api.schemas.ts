@@ -181,6 +181,92 @@ export interface Scorecard {
   legacyRows: number;
 }
 
+export interface ClientDocumentSummary {
+  id: string;
+  projectId: string;
+  filename: string;
+  type: string;
+}
+
+export type CapabilityItemClaimType = typeof CapabilityItemClaimType[keyof typeof CapabilityItemClaimType];
+
+
+export const CapabilityItemClaimType = {
+  project: 'project',
+  personnel: 'personnel',
+  equipment: 'equipment',
+  certification: 'certification',
+  past_performance: 'past_performance',
+  other: 'other',
+} as const;
+
+export type CapabilityItemApprovedStatus = typeof CapabilityItemApprovedStatus[keyof typeof CapabilityItemApprovedStatus];
+
+
+export const CapabilityItemApprovedStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface CapabilityItem {
+  id: string;
+  clientId: string;
+  claimType: CapabilityItemClaimType;
+  description?: string | null;
+  evidenceDocId?: string | null;
+  evidenceDocName?: string | null;
+  approvedStatus: CapabilityItemApprovedStatus;
+  claimable: boolean;
+  createdAt: string;
+}
+
+export type CapabilityItemCreateClaimType = typeof CapabilityItemCreateClaimType[keyof typeof CapabilityItemCreateClaimType];
+
+
+export const CapabilityItemCreateClaimType = {
+  project: 'project',
+  personnel: 'personnel',
+  equipment: 'equipment',
+  certification: 'certification',
+  past_performance: 'past_performance',
+  other: 'other',
+} as const;
+
+export interface CapabilityItemCreate {
+  claimType: CapabilityItemCreateClaimType;
+  description?: string;
+  evidenceDocId?: string;
+}
+
+export type CapabilityItemUpdateClaimType = typeof CapabilityItemUpdateClaimType[keyof typeof CapabilityItemUpdateClaimType];
+
+
+export const CapabilityItemUpdateClaimType = {
+  project: 'project',
+  personnel: 'personnel',
+  equipment: 'equipment',
+  certification: 'certification',
+  past_performance: 'past_performance',
+  other: 'other',
+} as const;
+
+export type CapabilityItemUpdateApprovedStatus = typeof CapabilityItemUpdateApprovedStatus[keyof typeof CapabilityItemUpdateApprovedStatus];
+
+
+export const CapabilityItemUpdateApprovedStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface CapabilityItemUpdate {
+  claimType?: CapabilityItemUpdateClaimType;
+  description?: string;
+  evidenceDocId?: string | null;
+  approvedStatus?: CapabilityItemUpdateApprovedStatus;
+}
+
 export type VaultItemExpiryBand = typeof VaultItemExpiryBand[keyof typeof VaultItemExpiryBand];
 
 

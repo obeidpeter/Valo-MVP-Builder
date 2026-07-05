@@ -11,6 +11,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { ClientVault } from "@/components/client-vault";
+import { ClientCapability } from "@/components/client-capability";
 
 export default function ClientDetails() {
   const { id } = useParams<{ id: string }>();
@@ -231,6 +232,10 @@ export default function ClientDetails() {
 
         <div className="lg:col-span-3">
           <ClientVault clientId={client.id} />
+        </div>
+
+        <div className="lg:col-span-3">
+          <ClientCapability clientId={client.id} />
         </div>
 
         <div className="lg:col-span-3 space-y-4">
