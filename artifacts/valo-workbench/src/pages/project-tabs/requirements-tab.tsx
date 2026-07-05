@@ -1,44 +1,187 @@
+import { useState } from "react";
 import {
   useListRequirements,
   useExtractRequirements,
+  useCreateRequirement,
+  useUpdateRequirement,
   useGetProjectScorecard,
   getListRequirementsQueryKey,
-  getGetProjectScorecardQueryKey
+  getGetProjectScorecardQueryKey,
+  type Requirement,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Zap, CheckSquare, Target } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Zap, CheckSquare, Target, Check, X, Pencil, Plus, Bot, UserRound } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+const CATEGORIES = ["eligibility", "administrative", "technical", "financial_format", "other"] as const;
+
+interface EditForm {
+  text: string;
+  category: (typeof CATEGORIES)[number];
+  expectedEvidence: string;
+  isMandatory: boolean;
+  reviewerNotes: string;
+}
 
 export function RequirementsTab({ projectId }: { projectId: string }) {
   const { data: requirements, isLoading } = useListRequirements(projectId);
   const { data: scorecard } = useGetProjectScorecard(projectId);
   const extractReqs = useExtractRequirements();
+  const createReq = useCreateRequirement();
+  const updateReq = useUpdateRequirement();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const [editing, setEditing] = useState<Requirement | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState<EditForm>({
+    text: "",
+    category: "other",
+    expectedEvidence: "",
+    isMandatory: true,
+    reviewerNotes: "",
+  });
+  const [actingId, setActingId] = useState<string | null>(null);
+
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: getListRequirementsQueryKey(projectId) });
+    queryClient.invalidateQueries({ queryKey: getGetProjectScorecardQueryKey(projectId) });
+  };
 
   const handleExtract = () => {
-    extractReqs.mutate({ id: projectId }, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListRequirementsQueryKey(projectId) });
-        queryClient.invalidateQueries({ queryKey: getGetProjectScorecardQueryKey(projectId) });
-      }
+    extractReqs.mutate({ id: projectId }, { onSuccess: refresh });
+  };
+
+  const rule = (req: Requirement, reviewStatus: "confirmed" | "rejected") => {
+    setActingId(req.id);
+    updateReq.mutate(
+      { id: req.id, data: { reviewStatus } },
+      {
+        onSuccess: refresh,
+        onError: () =>
+          toast({ variant: "destructive", title: `Could not ${reviewStatus === "confirmed" ? "confirm" : "reject"} requirement` }),
+        onSettled: () => setActingId(null),
+      },
+    );
+  };
+
+  const openEdit = (req: Requirement) => {
+    setForm({
+      text: req.text,
+      category: req.category,
+      expectedEvidence: req.expectedEvidence ?? "",
+      isMandatory: req.isMandatory,
+      reviewerNotes: req.reviewerNotes ?? "",
     });
+    setEditing(req);
+  };
+
+  const openAdd = () => {
+    setForm({ text: "", category: "other", expectedEvidence: "", isMandatory: true, reviewerNotes: "" });
+    setAdding(true);
+  };
+
+  const closeDialog = () => {
+    setEditing(null);
+    setAdding(false);
+  };
+
+  const handleSave = () => {
+    if (!form.text.trim()) {
+      toast({ variant: "destructive", title: "Requirement text is required" });
+      return;
+    }
+    const common = {
+      onSuccess: () => {
+        closeDialog();
+        refresh();
+      },
+      onError: () => toast({ variant: "destructive", title: "Could not save requirement" }),
+    };
+    if (editing) {
+      // Saving an edit both applies the changes and rules the row "edited"
+      // (verified-with-changes) — the reviewer stamp is applied server-side.
+      updateReq.mutate(
+        {
+          id: editing.id,
+          data: {
+            text: form.text.trim(),
+            category: form.category,
+            expectedEvidence: form.expectedEvidence.trim() || undefined,
+            isMandatory: form.isMandatory,
+            reviewerNotes: form.reviewerNotes.trim() || undefined,
+            reviewStatus: form.text.trim() === editing.text && editing.reviewStatus !== "suggested"
+              ? undefined
+              : "edited",
+          },
+        },
+        common,
+      );
+    } else {
+      createReq.mutate(
+        {
+          id: projectId,
+          data: {
+            text: form.text.trim(),
+            category: form.category,
+            expectedEvidence: form.expectedEvidence.trim() || undefined,
+            isMandatory: form.isMandatory,
+          },
+        },
+        common,
+      );
+    }
   };
 
   const totals = scorecard?.totals;
   const reviewedAny =
     !!totals &&
     totals.engineConfirmed + totals.engineEdited + totals.engineRejected + totals.manualVerified > 0;
+  const saving = createReq.isPending || updateReq.isPending;
+
+  const statusBadge = (req: Requirement) => {
+    switch (req.reviewStatus) {
+      case "suggested":
+        return <Badge variant="outline" className="text-[10px] text-amber-700 border-amber-300 bg-amber-50">suggested</Badge>;
+      case "rejected":
+        return <Badge variant="outline" className="text-[10px] text-destructive border-destructive/30 bg-destructive/10">rejected</Badge>;
+      case "edited":
+        return <Badge variant="default" className="text-[10px]">edited</Badge>;
+      case "confirmed":
+        return <Badge variant="default" className="text-[10px]">confirmed</Badge>;
+      default:
+        return <Badge variant="secondary" className="text-[10px] capitalize">{req.reviewStatus}</Badge>;
+    }
+  };
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-serif font-medium">Requirement Matrix</h2>
-        <Button onClick={handleExtract} disabled={extractReqs.isPending} variant="secondary">
-          {extractReqs.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
-          AI Extraction
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={openAdd} variant="outline">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Requirement
+          </Button>
+          <Button onClick={handleExtract} disabled={extractReqs.isPending} variant="secondary">
+            {extractReqs.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
+            AI Extraction
+          </Button>
+        </div>
       </div>
 
       {reviewedAny && totals && (
@@ -81,19 +224,27 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30">
-                <TableHead className="w-[100px]">Status</TableHead>
+                <TableHead className="w-[110px]">Status</TableHead>
                 <TableHead>Requirement</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Confidence</TableHead>
+                <TableHead className="w-[130px] text-right">Review</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {requirements.map((req) => (
-                <TableRow key={req.id}>
+                <TableRow key={req.id} className={req.reviewStatus === "rejected" ? "opacity-50" : undefined}>
                   <TableCell>
-                    <Badge variant={req.reviewStatus === 'suggested' ? 'outline' : 'default'} className="capitalize text-[10px]">
-                      {req.reviewStatus}
-                    </Badge>
+                    <div className="flex flex-col gap-1 items-start">
+                      {statusBadge(req)}
+                      <span className="flex items-center gap-1 text-[10px] text-muted-foreground" title={req.origin === "manual" ? "Added by a reviewer" : req.origin === "engine" ? "AI-extracted" : "Pre-tracking row"}>
+                        {req.origin === "manual" ? (
+                          <><UserRound className="w-3 h-3" /> manual</>
+                        ) : req.origin === "engine" ? (
+                          <><Bot className="w-3 h-3" /> engine</>
+                        ) : null}
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <p className="text-sm font-medium leading-relaxed">{req.text}</p>
@@ -102,9 +253,25 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
                         Ref: {[req.pageRef, req.clauseRef].filter(Boolean).join(", ")}
                       </p>
                     )}
+                    {req.reviewStatus === "edited" && req.engineText && req.engineText !== req.text && (
+                      <p className="text-xs text-muted-foreground mt-1 italic" title="Original AI proposal, kept for the engine-vs-human diff.">
+                        Engine proposed: “{req.engineText}”
+                      </p>
+                    )}
+                    {req.reviewedByName && (
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Reviewed by {req.reviewedByName}
+                        {req.reviewedAt ? ` · ${new Date(req.reviewedAt).toLocaleString()}` : ""}
+                      </p>
+                    )}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className="capitalize text-[10px]">{req.category.replace('_', ' ')}</Badge>
+                    <div className="flex flex-col gap-1 items-start">
+                      <Badge variant="secondary" className="capitalize text-[10px]">{req.category.replace('_', ' ')}</Badge>
+                      {req.isMandatory && (
+                        <Badge variant="outline" className="text-[10px] uppercase tracking-wide">mandatory</Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     {req.confidence && (
@@ -116,6 +283,35 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
                         {req.confidence}
                       </Badge>
                     )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      {req.reviewStatus === "suggested" && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Confirm as-is"
+                            disabled={actingId === req.id}
+                            onClick={() => rule(req, "confirmed")}
+                          >
+                            <Check className="w-4 h-4 text-emerald-600" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Reject (false positive)"
+                            disabled={actingId === req.id}
+                            onClick={() => rule(req, "rejected")}
+                          >
+                            <X className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </>
+                      )}
+                      <Button variant="ghost" size="icon" title="Edit and confirm with changes" onClick={() => openEdit(req)}>
+                        <Pencil className="w-4 h-4 text-muted-foreground" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -131,6 +327,82 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
           </div>
         )}
       </div>
+
+      <Dialog open={!!editing || adding} onOpenChange={(open) => !open && closeDialog()}>
+        <DialogContent className="sm:max-w-[560px]">
+          <DialogHeader>
+            <DialogTitle className="font-serif">
+              {editing ? "Edit Requirement" : "Add Requirement"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {editing?.engineText && (
+              <div className="rounded-md bg-muted/40 border border-border px-3 py-2 text-xs text-muted-foreground">
+                <span className="font-medium">Engine proposal:</span> {editing.engineText}
+              </div>
+            )}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground uppercase">Requirement Text</label>
+              <Textarea
+                value={form.text}
+                onChange={(e) => setForm({ ...form, text: e.target.value })}
+                className="min-h-[90px]"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground uppercase">Category</label>
+                <Select
+                  value={form.category}
+                  onValueChange={(val) => setForm({ ...form, category: val as EditForm["category"] })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((c) => (
+                      <SelectItem key={c} value={c} className="capitalize">
+                        {c.replace("_", " ")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground uppercase">Expected Evidence</label>
+                <Input
+                  value={form.expectedEvidence}
+                  onChange={(e) => setForm({ ...form, expectedEvidence: e.target.value })}
+                  placeholder="e.g. FIRS tax clearance certificate"
+                />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={form.isMandatory}
+                onCheckedChange={(v) => setForm({ ...form, isMandatory: v === true })}
+              />
+              Mandatory requirement
+            </label>
+            {editing && (
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground uppercase">Reviewer Notes</label>
+                <Textarea
+                  value={form.reviewerNotes}
+                  onChange={(e) => setForm({ ...form, reviewerNotes: e.target.value })}
+                  className="min-h-[60px]"
+                  placeholder="Why the change was made"
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeDialog}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {editing ? "Save & Mark Edited" : "Add as Confirmed"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
