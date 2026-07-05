@@ -604,7 +604,7 @@ export const ListDocumentsResponseItem = zod.object({
   "uploadedByName": zod.string().nullish(),
   "contentText": zod.string().nullish(),
   "extractedChars": zod.number().nullish(),
-  "extractionStatus": zod.enum(['pending', 'extracted', 'failed', 'skipped']).nullish(),
+  "extractionStatus": zod.enum(['pending', 'extracting', 'extracted', 'failed', 'skipped']).nullish(),
   "createdAt": zod.string()
 })
 export const ListDocumentsResponse = zod.array(ListDocumentsResponseItem)
@@ -648,7 +648,7 @@ export const CreateDocumentResponse = zod.object({
   "uploadedByName": zod.string().nullish(),
   "contentText": zod.string().nullish(),
   "extractedChars": zod.number().nullish(),
-  "extractionStatus": zod.enum(['pending', 'extracted', 'failed', 'skipped']).nullish(),
+  "extractionStatus": zod.enum(['pending', 'extracting', 'extracted', 'failed', 'skipped']).nullish(),
   "createdAt": zod.string()
 })
 
@@ -673,7 +673,7 @@ export const GetDocumentResponse = zod.object({
   "uploadedByName": zod.string().nullish(),
   "contentText": zod.string().nullish(),
   "extractedChars": zod.number().nullish(),
-  "extractionStatus": zod.enum(['pending', 'extracted', 'failed', 'skipped']).nullish(),
+  "extractionStatus": zod.enum(['pending', 'extracting', 'extracted', 'failed', 'skipped']).nullish(),
   "createdAt": zod.string()
 })
 
@@ -705,7 +705,7 @@ export const UpdateDocumentResponse = zod.object({
   "uploadedByName": zod.string().nullish(),
   "contentText": zod.string().nullish(),
   "extractedChars": zod.number().nullish(),
-  "extractionStatus": zod.enum(['pending', 'extracted', 'failed', 'skipped']).nullish(),
+  "extractionStatus": zod.enum(['pending', 'extracting', 'extracted', 'failed', 'skipped']).nullish(),
   "createdAt": zod.string()
 })
 
@@ -715,6 +715,34 @@ export const DeleteDocumentParams = zod.object({
 })
 
 export const DeleteDocumentResponse = zod.void()
+
+
+/**
+ * @summary (Re-)run text extraction for a document, asynchronously
+ */
+export const ExtractDocumentParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ExtractDocumentResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "type": zod.enum(['tender', 'bid', 'certificate', 'boq', 'evidence', 'other']),
+  "filename": zod.string(),
+  "objectPath": zod.string(),
+  "contentType": zod.string().nullish(),
+  "size": zod.number().nullish(),
+  "sha256": zod.string().nullish(),
+  "source": zod.string().nullish(),
+  "dateReceived": zod.string().nullish(),
+  "redactionStatus": zod.enum(['excluded', 'redacted', 'included']),
+  "uploadedBy": zod.string().nullish(),
+  "uploadedByName": zod.string().nullish(),
+  "contentText": zod.string().nullish(),
+  "extractedChars": zod.number().nullish(),
+  "extractionStatus": zod.enum(['pending', 'extracting', 'extracted', 'failed', 'skipped']).nullish(),
+  "createdAt": zod.string()
+})
 
 
 /**
@@ -1132,7 +1160,8 @@ export const UpdateDefectBody = zod.object({
   "evidenceSnapshot": zod.string().optional(),
   "remediation": zod.string().optional(),
   "owner": zod.string().optional(),
-  "status": zod.enum(['open', 'remediated', 'waived', 'suggested']).optional()
+  "status": zod.enum(['open', 'remediated', 'waived', 'suggested']).optional(),
+  "suggested": zod.boolean().optional()
 })
 
 export const UpdateDefectResponse = zod.object({
@@ -1299,6 +1328,28 @@ export const OverrideRiskBody = zod.object({
 })
 
 export const OverrideRiskResponse = zod.object({
+  "score": zod.number(),
+  "band": zod.enum(['low', 'medium', 'high', 'critical']),
+  "computedBand": zod.enum(['low', 'medium', 'high', 'critical']).optional(),
+  "overrideBand": zod.enum(['low', 'medium', 'high', 'critical']).nullish(),
+  "overrideNote": zod.string().nullish(),
+  "overrideBy": zod.string().nullish(),
+  "explanation": zod.string().optional(),
+  "distribution": zod.array(zod.object({
+  "key": zod.string(),
+  "count": zod.number()
+}))
+})
+
+
+/**
+ * @summary Clear a reviewer risk override, reverting to the computed band
+ */
+export const ClearRiskOverrideParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ClearRiskOverrideResponse = zod.object({
   "score": zod.number(),
   "band": zod.enum(['low', 'medium', 'high', 'critical']),
   "computedBand": zod.enum(['low', 'medium', 'high', 'critical']).optional(),

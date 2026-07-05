@@ -11,6 +11,7 @@ export type DocumentExtractionStatus = typeof DocumentExtractionStatus[keyof typ
 
 export const DocumentExtractionStatus = {
   pending: 'pending',
+  extracting: 'extracting',
   extracted: 'extracted',
   failed: 'failed',
   skipped: 'skipped',
