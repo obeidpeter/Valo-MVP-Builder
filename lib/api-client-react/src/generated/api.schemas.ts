@@ -1005,8 +1005,6 @@ export interface RiskOverride {
   band: RiskOverrideBand;
   /** @minLength 1 */
   note: string;
-  /** @minLength 1 */
-  reviewerName: string;
 }
 
 export type ReportStatus = typeof ReportStatus[keyof typeof ReportStatus];
@@ -1034,8 +1032,6 @@ export interface Report {
 }
 
 export interface SignOffRequest {
-  /** @minLength 1 */
-  reviewerName: string;
   /** @minLength 1 */
   attestation: string;
 }

@@ -1,7 +1,6 @@
 import { 
   useGetRisk, 
   useOverrideRisk,
-  useGetMe,
   getGetRiskQueryKey
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -15,7 +14,6 @@ import { RiskOverrideBand } from "@workspace/api-client-react";
 
 export function RiskTab({ projectId }: { projectId: string }) {
   const { data: risk, isLoading } = useGetRisk(projectId);
-  const { data: user } = useGetMe();
   const overrideRisk = useOverrideRisk();
   const queryClient = useQueryClient();
 
@@ -24,11 +22,7 @@ export function RiskTab({ projectId }: { projectId: string }) {
 
   const handleOverride = () => {
     if (band === "none") return;
-    // The server derives the reviewer identity from the authenticated user and
-    // ignores this value; we send the current user's name only to satisfy the
-    // request schema.
-    const reviewerName = user?.name || user?.email || "";
-    overrideRisk.mutate({ id: projectId, data: { band, note, reviewerName } }, {
+    overrideRisk.mutate({ id: projectId, data: { band, note } }, {
       onSuccess: () => {
         setBand("none");
         setNote("");

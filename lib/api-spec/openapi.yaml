@@ -1412,13 +1412,12 @@ components:
             $ref: "#/components/schemas/CountBucket"
     RiskOverride:
       type: object
-      required: [band, note, reviewerName]
+      required: [band, note]
       properties:
         band:
           type: string
           enum: [low, medium, high, critical]
         note: { type: string, minLength: 1 }
-        reviewerName: { type: string, minLength: 1 }
     Report:
       type: object
       required: [id, projectId, version, status, createdAt]
@@ -1440,9 +1439,8 @@ components:
         createdAt: { type: string }
     SignOffRequest:
       type: object
-      required: [reviewerName, attestation]
+      required: [attestation]
       properties:
-        reviewerName: { type: string, minLength: 1 }
         attestation: { type: string, minLength: 1 }
     AuditEvent:
       type: object

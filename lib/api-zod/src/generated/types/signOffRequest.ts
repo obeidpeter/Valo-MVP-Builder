@@ -8,7 +8,5 @@
 
 export interface SignOffRequest {
   /** @minLength 1 */
-  reviewerName: string;
-  /** @minLength 1 */
   attestation: string;
 }

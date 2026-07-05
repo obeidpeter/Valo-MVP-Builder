@@ -11,6 +11,4 @@ export interface RiskOverride {
   band: RiskOverrideBand;
   /** @minLength 1 */
   note: string;
-  /** @minLength 1 */
-  reviewerName: string;
 }

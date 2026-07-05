@@ -1005,11 +1005,9 @@ export const OverrideRiskParams = zod.object({
 
 
 
-
 export const OverrideRiskBody = zod.object({
   "band": zod.enum(['low', 'medium', 'high', 'critical']),
-  "note": zod.string().min(1),
-  "reviewerName": zod.string().min(1)
+  "note": zod.string().min(1)
 })
 
 export const OverrideRiskResponse = zod.object({
@@ -1083,9 +1081,7 @@ export const SignOffReportParams = zod.object({
 
 
 
-
 export const SignOffReportBody = zod.object({
-  "reviewerName": zod.string().min(1),
   "attestation": zod.string().min(1)
 })
 
