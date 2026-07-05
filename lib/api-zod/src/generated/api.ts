@@ -378,6 +378,7 @@ export const ListDocumentsResponseItem = zod.object({
   "objectPath": zod.string(),
   "contentType": zod.string().nullish(),
   "size": zod.number().nullish(),
+  "sha256": zod.string().nullish(),
   "source": zod.string().nullish(),
   "dateReceived": zod.string().nullish(),
   "redactionStatus": zod.enum(['excluded', 'redacted', 'included']),
@@ -421,6 +422,7 @@ export const CreateDocumentResponse = zod.object({
   "objectPath": zod.string(),
   "contentType": zod.string().nullish(),
   "size": zod.number().nullish(),
+  "sha256": zod.string().nullish(),
   "source": zod.string().nullish(),
   "dateReceived": zod.string().nullish(),
   "redactionStatus": zod.enum(['excluded', 'redacted', 'included']),
@@ -445,6 +447,7 @@ export const GetDocumentResponse = zod.object({
   "objectPath": zod.string(),
   "contentType": zod.string().nullish(),
   "size": zod.number().nullish(),
+  "sha256": zod.string().nullish(),
   "source": zod.string().nullish(),
   "dateReceived": zod.string().nullish(),
   "redactionStatus": zod.enum(['excluded', 'redacted', 'included']),
@@ -476,6 +479,7 @@ export const UpdateDocumentResponse = zod.object({
   "objectPath": zod.string(),
   "contentType": zod.string().nullish(),
   "size": zod.number().nullish(),
+  "sha256": zod.string().nullish(),
   "source": zod.string().nullish(),
   "dateReceived": zod.string().nullish(),
   "redactionStatus": zod.enum(['excluded', 'redacted', 'included']),
@@ -493,6 +497,21 @@ export const DeleteDocumentParams = zod.object({
 })
 
 export const DeleteDocumentResponse = zod.void()
+
+
+/**
+ * @summary Re-hash the stored object and compare against the intake SHA-256
+ */
+export const VerifyDocumentParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const VerifyDocumentResponse = zod.object({
+  "documentId": zod.string(),
+  "ok": zod.boolean(),
+  "expectedSha256": zod.string(),
+  "actualSha256": zod.string().nullish()
+})
 
 
 /**
@@ -1039,6 +1058,8 @@ export const ListReportsResponseItem = zod.object({
   "reviewerName": zod.string().nullish(),
   "attestation": zod.string().nullish(),
   "engineVersion": zod.string().nullish(),
+  "promptPackVersion": zod.string().nullish(),
+  "modelId": zod.string().nullish(),
   "signedOffAt": zod.string().nullish(),
   "generatedBy": zod.string().nullish(),
   "generatedByName": zod.string().nullish(),
@@ -1064,6 +1085,8 @@ export const GenerateReportResponse = zod.object({
   "reviewerName": zod.string().nullish(),
   "attestation": zod.string().nullish(),
   "engineVersion": zod.string().nullish(),
+  "promptPackVersion": zod.string().nullish(),
+  "modelId": zod.string().nullish(),
   "signedOffAt": zod.string().nullish(),
   "generatedBy": zod.string().nullish(),
   "generatedByName": zod.string().nullish(),
@@ -1095,6 +1118,8 @@ export const SignOffReportResponse = zod.object({
   "reviewerName": zod.string().nullish(),
   "attestation": zod.string().nullish(),
   "engineVersion": zod.string().nullish(),
+  "promptPackVersion": zod.string().nullish(),
+  "modelId": zod.string().nullish(),
   "signedOffAt": zod.string().nullish(),
   "generatedBy": zod.string().nullish(),
   "generatedByName": zod.string().nullish(),

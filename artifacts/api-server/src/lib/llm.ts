@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { db, llmRuns } from "@workspace/db";
+import { MODEL_ID, PROMPT_PACK_VERSION } from "./provenance";
 
-const MODEL = "gpt-5.4";
-const PROMPT_VERSION = "gate0-v1";
+const MODEL = MODEL_ID;
+const PROMPT_VERSION = PROMPT_PACK_VERSION;
 const MAX_INPUT_CHARS = 60000;
 
 function truncate(text: string, limit = MAX_INPUT_CHARS): string {

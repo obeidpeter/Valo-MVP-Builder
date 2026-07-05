@@ -208,7 +208,7 @@ before(async () => {
   });
 
   // Signed report WITHOUT docxPath: exercises the branch that must not attach a
-  // DOCX (keeping the archive to the six data files) and avoids object storage.
+  // DOCX (keeping the archive to the data files only) and avoids object storage.
   await db.insert(reports).values({
     projectId: project.id,
     version: 1,
@@ -265,12 +265,13 @@ describe("GET /projects/:id/export (live route)", () => {
     const zip = await JSZip.loadAsync(buffer);
     const files = Object.keys(zip.files).sort();
 
-    // The archive must contain exactly the six data files (no DOCX: the signed
-    // report has no docxPath).
+    // The archive must contain exactly the seven data files (no DOCX: the
+    // signed report has no docxPath).
     assert.deepEqual(files, [
       "audit_events.csv",
       "boq_checks.csv",
       "defects.csv",
+      "documents_manifest.csv",
       "evidence.csv",
       "project.json",
       "requirements.csv",

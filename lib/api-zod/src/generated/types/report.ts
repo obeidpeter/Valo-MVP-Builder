@@ -17,6 +17,8 @@ export interface Report {
   reviewerName?: string | null;
   attestation?: string | null;
   engineVersion?: string | null;
+  promptPackVersion?: string | null;
+  modelId?: string | null;
   signedOffAt?: string | null;
   generatedBy?: string | null;
   generatedByName?: string | null;

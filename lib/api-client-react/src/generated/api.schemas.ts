@@ -451,6 +451,7 @@ export interface Document {
   objectPath: string;
   contentType?: string | null;
   size?: number | null;
+  sha256?: string | null;
   source?: string | null;
   dateReceived?: string | null;
   redactionStatus: DocumentRedactionStatus;
@@ -581,6 +582,13 @@ export interface ExtractResult {
   created: number;
   model?: string;
   requirements: Requirement[];
+}
+
+export interface DocumentIntegrity {
+  documentId: string;
+  ok: boolean;
+  expectedSha256: string;
+  actualSha256?: string | null;
 }
 
 export type RequirementCreateCategory = typeof RequirementCreateCategory[keyof typeof RequirementCreateCategory];
@@ -1025,6 +1033,8 @@ export interface Report {
   reviewerName?: string | null;
   attestation?: string | null;
   engineVersion?: string | null;
+  promptPackVersion?: string | null;
+  modelId?: string | null;
   signedOffAt?: string | null;
   generatedBy?: string | null;
   generatedByName?: string | null;
@@ -1082,6 +1092,11 @@ export type ForbiddenResponse = ErrorEnvelope;
  * Not found
  */
 export type NotFoundResponse = ErrorEnvelope;
+
+/**
+ * Request conflicts with current resource state
+ */
+export type ConflictResponse = ErrorEnvelope;
 
 export type ListProjectsParams = {
 clientId?: string;

@@ -10,7 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx --test 'src/**/*.test.ts'",
     "prove:doctrine": "node ./scripts/run-proof.mjs",
-    "prove:doctrine:offline": "node ./scripts/run-proof.mjs --offline"
+    "prove:doctrine:offline": "node ./scripts/run-proof.mjs --offline",
+    "verify:audit": "node --import tsx ./scripts/verify-audit-chain.ts"
   },
   "dependencies": {
     "@clerk/express": "^2.1.35",

@@ -28,6 +28,7 @@ import type {
   Client,
   ClientCreate,
   ClientUpdate,
+  ConflictResponse,
   DashboardMetrics,
   Defect,
   DefectCreate,
@@ -35,6 +36,7 @@ import type {
   DefectUpdate,
   Document,
   DocumentCreate,
+  DocumentIntegrity,
   DocumentUpdate,
   ErrorEnvelope,
   EvidenceCreate,
@@ -1213,7 +1215,7 @@ export const createDocument = async (id: string,
 
 
 
-export const getCreateDocumentMutationOptions = <TError = ErrorType<BadRequestResponse>,
+export const getCreateDocumentMutationOptions = <TError = ErrorType<BadRequestResponse | ErrorEnvelope>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDocument>>, TError,{id: string;data: BodyType<DocumentCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createDocument>>, TError,{id: string;data: BodyType<DocumentCreate>}, TContext> => {
 
@@ -1242,12 +1244,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CreateDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof createDocument>>>
     export type CreateDocumentMutationBody = BodyType<DocumentCreate>
-    export type CreateDocumentMutationError = ErrorType<BadRequestResponse>
+    export type CreateDocumentMutationError = ErrorType<BadRequestResponse | ErrorEnvelope>
 
     /**
  * @summary Register an uploaded document (after object-storage upload)
  */
-export const useCreateDocument = <TError = ErrorType<BadRequestResponse>,
+export const useCreateDocument = <TError = ErrorType<BadRequestResponse | ErrorEnvelope>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDocument>>, TError,{id: string;data: BodyType<DocumentCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createDocument>>,
@@ -1456,6 +1458,76 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getDeleteDocumentMutationOptions(options));
+    }
+
+export const getVerifyDocumentUrl = (id: string,) => {
+
+
+
+
+  return `/api/documents/${id}/verify`
+}
+
+/**
+ * @summary Re-hash the stored object and compare against the intake SHA-256
+ */
+export const verifyDocument = async (id: string, options?: RequestInit): Promise<DocumentIntegrity> => {
+
+  return customFetch<DocumentIntegrity>(getVerifyDocumentUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getVerifyDocumentMutationOptions = <TError = ErrorType<NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyDocument>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifyDocument>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['verifyDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyDocument>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  verifyDocument(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VerifyDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof verifyDocument>>>
+
+    export type VerifyDocumentMutationError = ErrorType<NotFoundResponse | ConflictResponse>
+
+    /**
+ * @summary Re-hash the stored object and compare against the intake SHA-256
+ */
+export const useVerifyDocument = <TError = ErrorType<NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyDocument>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof verifyDocument>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getVerifyDocumentMutationOptions(options));
     }
 
 export const getExtractRequirementsUrl = (id: string,) => {

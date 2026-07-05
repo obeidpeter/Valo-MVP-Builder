@@ -14,12 +14,14 @@ import {
   defects,
   boqChecks,
   auditEvents,
+  documents,
 } from "@workspace/db";
 import { SignOffReportBody } from "@workspace/api-zod";
 import { requireMember, requireRoles, getLocalUser } from "../middlewares/auth";
 import { serializeReport } from "../lib/serializers";
 import { writeAudit } from "../lib/audit";
-import { buildReportDocx, DOCX_MIME, ENGINE_VERSION, type ReportData } from "../lib/docx";
+import { buildReportDocx, DOCX_MIME, type ReportData } from "../lib/docx";
+import { ENGINE_VERSION, PROMPT_PACK_VERSION, MODEL_ID } from "../lib/provenance";
 import { computeRisk, blockingSignOffDefects, type Severity } from "../lib/deterministic";
 import { ObjectStorageService } from "../lib/objectStorage";
 
@@ -144,6 +146,8 @@ router.post(
         status: "draft",
         docxPath,
         engineVersion: ENGINE_VERSION,
+        promptPackVersion: PROMPT_PACK_VERSION,
+        modelId: MODEL_ID,
         generatedBy: user?.id ?? null,
       })
       .returning();
@@ -337,6 +341,26 @@ router.get(
     const defs = await db.select().from(defects).where(eq(defects.projectId, projectId));
     const boqs = await db.select().from(boqChecks).where(eq(boqChecks.projectId, projectId));
     const audits = await db.select().from(auditEvents).where(eq(auditEvents.projectId, projectId));
+    // Document manifest for the export: intake metadata + SHA-256 so the
+    // recipient can independently verify file integrity. Deliberately excludes
+    // contentText (bulky, and the files themselves are the source of truth).
+    const docManifest = await db
+      .select({
+        id: documents.id,
+        type: documents.type,
+        filename: documents.filename,
+        objectPath: documents.objectPath,
+        contentType: documents.contentType,
+        size: documents.size,
+        sha256: documents.sha256,
+        source: documents.source,
+        dateReceived: documents.dateReceived,
+        redactionStatus: documents.redactionStatus,
+        extractionStatus: documents.extractionStatus,
+        createdAt: documents.createdAt,
+      })
+      .from(documents)
+      .where(eq(documents.projectId, projectId));
     const signedReports = await db
       .select()
       .from(reports)
@@ -391,6 +415,7 @@ router.get(
     archive.append(toCsv(defsCsv), { name: "defects.csv" });
     archive.append(toCsv(boqs), { name: "boq_checks.csv" });
     archive.append(toCsv(audits), { name: "audit_events.csv" });
+    archive.append(toCsv(docManifest), { name: "documents_manifest.csv" });
 
     if (reportDocx) {
       archive.append(reportDocx.buffer, { name: reportDocx.name });

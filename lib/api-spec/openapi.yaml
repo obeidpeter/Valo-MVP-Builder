@@ -303,6 +303,18 @@ paths:
                 $ref: "#/components/schemas/Document"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "403":
+          description: NDA not cleared for this client (intake denied and audited)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422":
+          description: Uploaded object unreadable in storage; no intake hash could be recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /documents/{id}:
     get:
       operationId: getDocument
@@ -346,6 +358,24 @@ paths:
           description: Deleted
         "403":
           $ref: "#/components/responses/Forbidden"
+  /documents/{id}/verify:
+    post:
+      operationId: verifyDocument
+      tags: [Documents]
+      summary: Re-hash the stored object and compare against the intake SHA-256
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Integrity verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentIntegrity"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /projects/{id}/extract-requirements:
     post:
       operationId: extractRequirements
@@ -853,6 +883,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorEnvelope"
+    Conflict:
+      description: Request conflicts with current resource state
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
   schemas:
     HealthStatus:
       type: object
@@ -1094,6 +1130,7 @@ components:
         objectPath: { type: string }
         contentType: { type: string, nullable: true }
         size: { type: integer, nullable: true }
+        sha256: { type: string, nullable: true }
         source: { type: string, nullable: true }
         dateReceived: { type: string, nullable: true }
         redactionStatus:
@@ -1151,6 +1188,15 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Requirement"
+    DocumentIntegrity:
+      type: object
+      required: [documentId, ok, expectedSha256]
+      properties:
+        documentId: { type: string }
+        ok: { type: boolean }
+        expectedSha256: { type: string }
+        actualSha256: { type: string, nullable: true }
+
     Requirement:
       type: object
       required: [id, projectId, text, category, isMandatory, reviewStatus, createdAt]
@@ -1433,6 +1479,8 @@ components:
         reviewerName: { type: string, nullable: true }
         attestation: { type: string, nullable: true }
         engineVersion: { type: string, nullable: true }
+        promptPackVersion: { type: string, nullable: true }
+        modelId: { type: string, nullable: true }
         signedOffAt: { type: string, nullable: true }
         generatedBy: { type: string, nullable: true }
         generatedByName: { type: string, nullable: true }

@@ -507,15 +507,10 @@ async function seed() {
         .values(pkg.boq.map((b) => ({ ...b, projectId: project.id })));
     }
 
-    await db.insert(auditEvents).values({
-      projectId: project.id,
-      userName: "System Seed",
-      eventType: "project_created",
-      objectType: "project",
-      objectId: project.id,
-      details: `Seeded package: ${pkg.project.tenderTitle}`,
-    });
-
+    // Deliberately NO audit_events insert here: raw inserts would create
+    // unchained rows indistinguishable from pre-chain legacy data. Seeding
+    // leaves the audit table empty so the first real writeAudit starts a
+    // clean hash chain at seq 1.
     console.log(`  ✓ ${pkg.client.name} — ${pkg.project.tenderTitle}`);
   }
 
