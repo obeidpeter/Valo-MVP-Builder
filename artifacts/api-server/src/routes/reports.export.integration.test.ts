@@ -1,4 +1,4 @@
-import { test, describe, before, after } from "node:test";
+import { test, describe, before, after, mock } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -23,6 +23,8 @@ import {
 } from "@workspace/db";
 import reportsRouter from "./reports";
 import type { LocalUser } from "../middlewares/auth";
+import { ObjectStorageService } from "../lib/objectStorage";
+import { DOCX_MIME } from "../lib/docx";
 
 /**
  * End-to-end proof that the real `GET /projects/:id/export` HTTP route can't
@@ -45,6 +47,11 @@ let baseUrl: string;
 let clientId: string;
 let projectId: string;
 let adminId: string;
+
+// The bytes an object-storage download() is faked to return for the signed
+// report's .docx, so we can assert the exact payload lands in the ZIP / stream
+// without touching real object storage.
+const FAKE_DOCX_BYTES = Buffer.from("PK\u0003\u0004 valo signed report .docx payload", "utf8");
 const seeded = {
   reqs: [] as { id: string; reviewStatus: string; expected: string }[],
   evidence: [] as { id: string; suggested: boolean; expected: string }[],
@@ -449,5 +456,134 @@ describe("mid-stream archive failure aborts the download", () => {
     } finally {
       await new Promise<void>((resolve) => srv.close(() => resolve()));
     }
+  });
+});
+
+/**
+ * Pins the object-storage-backed branches that the CSV-only test above
+ * deliberately skips: attaching the latest signed-off report's .docx into the
+ * project export ZIP, and the `GET /reports/:id/download` endpoint. Both go
+ * through `ObjectStorageService.getObjectEntityFile(...).download()`, which we
+ * fake so a refactor that silently drops the signed report (recipients get CSVs
+ * but no report) or breaks the download route is caught.
+ *
+ * These run AFTER the CSV-only describe above so its "exactly six files, no
+ * DOCX" assertion sees the report-without-docxPath state; here we introduce
+ * reports WITH a docxPath.
+ */
+describe("object-storage-backed report attach & download", () => {
+  // Signed-off report v2 WITH a docxPath -> should be attached to the export and
+  // be downloadable. Draft report v3 WITH a docxPath -> download must be denied.
+  let signedReportId: string;
+  let draftReportId: string;
+
+  before(async () => {
+    // Fake the storage download so no real object storage is touched.
+    mock.method(
+      ObjectStorageService.prototype,
+      "getObjectEntityFile",
+      async (_objectPath: string) => {
+        return {
+          download: async () => [FAKE_DOCX_BYTES],
+        } as unknown as Awaited<
+          ReturnType<ObjectStorageService["getObjectEntityFile"]>
+        >;
+      },
+    );
+
+    const [signed] = await db
+      .insert(reports)
+      .values({
+        projectId,
+        version: 2,
+        status: "signed_off",
+        docxPath: "/objects/uploads/signed-report-v2",
+      })
+      .returning();
+    signedReportId = signed.id;
+
+    const [draft] = await db
+      .insert(reports)
+      .values({
+        projectId,
+        version: 3,
+        status: "draft",
+        docxPath: "/objects/uploads/draft-report-v3",
+      })
+      .returning();
+    draftReportId = draft.id;
+  });
+
+  after(() => {
+    mock.restoreAll();
+  });
+
+  test("export ZIP attaches the latest signed-off report's .docx with its bytes", async () => {
+    currentUser = { id: adminId, role: "admin", name: "Export Admin" } as LocalUser;
+    const res = await fetch(`${baseUrl}/projects/${projectId}/export`);
+    assert.equal(res.status, 200);
+
+    const buffer = Buffer.from(await res.arrayBuffer());
+    const zip = await JSZip.loadAsync(buffer);
+    const files = Object.keys(zip.files).sort();
+
+    // The six data files PLUS the signed report .docx (versioned filename from
+    // the latest signed-off report that has a docxPath, i.e. v2 not the draft v3).
+    assert.deepEqual(files, [
+      "audit_events.csv",
+      "bid-autopsy-report-v2.docx",
+      "boq_checks.csv",
+      "defects.csv",
+      "evidence.csv",
+      "project.json",
+      "requirements.csv",
+    ]);
+
+    // The attached .docx must be the exact bytes returned by object storage.
+    const docxBytes = await zip.file("bid-autopsy-report-v2.docx")!.async("nodebuffer");
+    assert.ok(docxBytes.equals(FAKE_DOCX_BYTES), "attached .docx bytes match storage payload");
+
+    currentUser = null;
+  });
+
+  test("download of a signed-off report streams the .docx bytes + filename", async () => {
+    currentUser = { id: adminId, role: "admin", name: "Export Admin" } as LocalUser;
+    const res = await fetch(`${baseUrl}/reports/${signedReportId}/download`);
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("content-type"), DOCX_MIME);
+    assert.equal(
+      res.headers.get("content-disposition"),
+      'attachment; filename="bid-autopsy-report-v2.docx"',
+    );
+
+    const body = Buffer.from(await res.arrayBuffer());
+    assert.ok(body.equals(FAKE_DOCX_BYTES), "downloaded bytes match storage payload");
+
+    // The successful export is audited.
+    const events = await db.select().from(auditEvents).where(eq(auditEvents.projectId, projectId));
+    assert.ok(
+      events.some(
+        (e) => e.eventType === "report.exported" && e.objectId === signedReportId,
+      ),
+      "report.exported audit event written",
+    );
+
+    currentUser = null;
+  });
+
+  test("download of a not-signed-off report is denied (403) and audited", async () => {
+    currentUser = { id: adminId, role: "admin", name: "Export Admin" } as LocalUser;
+    const res = await fetch(`${baseUrl}/reports/${draftReportId}/download`);
+    assert.equal(res.status, 403);
+
+    const events = await db.select().from(auditEvents).where(eq(auditEvents.projectId, projectId));
+    assert.ok(
+      events.some(
+        (e) => e.eventType === "report.export_denied" && e.objectId === draftReportId,
+      ),
+      "report.export_denied audit event written",
+    );
+
+    currentUser = null;
   });
 });
