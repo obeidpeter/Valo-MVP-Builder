@@ -189,9 +189,22 @@ router.post(
 );
 
 router.get("/reports/:id/download", requireMember, async (req: Request, res: Response) => {
+  const user = getLocalUser(req);
   const [report] = await db.select().from(reports).where(eq(reports.id, String(req.params.id)));
   if (!report || !report.docxPath) {
     res.status(404).json({ error: "Not found" });
+    return;
+  }
+  if (report.status !== "signed_off") {
+    await writeAudit({
+      user,
+      projectId: report.projectId,
+      eventType: "report.export_denied",
+      objectType: "report",
+      objectId: report.id,
+      details: `Export blocked: report is "${report.status}", not signed off.`,
+    });
+    res.status(403).json({ error: "Report must be signed off before it can be exported" });
     return;
   }
   try {
@@ -202,6 +215,14 @@ router.get("/reports/:id/download", requireMember, async (req: Request, res: Res
       "Content-Disposition",
       `attachment; filename="bid-autopsy-report-v${report.version}.docx"`,
     );
+    await writeAudit({
+      user,
+      projectId: report.projectId,
+      eventType: "report.exported",
+      objectType: "report",
+      objectId: report.id,
+      details: `Exported signed-off report v${report.version}.`,
+    });
     res.send(buffer);
   } catch (error) {
     req.log.error({ err: error }, "report download failed");

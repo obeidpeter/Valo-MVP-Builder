@@ -154,6 +154,19 @@ export class ObjectStorageService {
     return objectFile;
   }
 
+  async deleteObjectEntity(objectPath: string): Promise<boolean> {
+    try {
+      const file = await this.getObjectEntityFile(objectPath);
+      await file.delete({ ignoreNotFound: true });
+      return true;
+    } catch (error) {
+      if (error instanceof ObjectNotFoundError) {
+        return false;
+      }
+      throw error;
+    }
+  }
+
   normalizeObjectEntityPath(rawPath: string): string {
     if (!rawPath.startsWith("https://storage.googleapis.com/")) {
       return rawPath;

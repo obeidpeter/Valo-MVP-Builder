@@ -6,6 +6,9 @@ import { requireMember, requireRoles, getLocalUser } from "../middlewares/auth";
 import { serializeDocument } from "../lib/serializers";
 import { writeAudit } from "../lib/audit";
 import { extractDocumentText } from "../lib/extractText";
+import { ObjectStorageService } from "../lib/objectStorage";
+
+const objectStorage = new ObjectStorageService();
 
 const router: IRouter = Router();
 
@@ -117,13 +120,19 @@ router.delete(
       res.status(404).json({ error: "Not found" });
       return;
     }
+    let blobDeleted = false;
+    try {
+      blobDeleted = await objectStorage.deleteObjectEntity(deleted.objectPath);
+    } catch (error) {
+      req.log.error({ err: error, objectPath: deleted.objectPath }, "failed to delete document blob");
+    }
     await writeAudit({
       user: getLocalUser(req),
       projectId: deleted.projectId,
       eventType: "document.deleted",
       objectType: "document",
       objectId: deleted.id,
-      details: deleted.filename,
+      details: `${deleted.filename} (file ${blobDeleted ? "purged" : "not found"} in storage)`,
     });
     res.status(204).end();
   },

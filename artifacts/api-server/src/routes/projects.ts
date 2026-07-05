@@ -7,12 +7,17 @@ import {
   users,
   defects,
   requirements,
+  documents,
+  reports,
 } from "@workspace/db";
 import { CreateProjectBody, UpdateProjectBody } from "@workspace/api-zod";
 import { requireMember, requireRoles, getLocalUser } from "../middlewares/auth";
 import { serializeProject } from "../lib/serializers";
 import { writeAudit } from "../lib/audit";
 import { responsivenessReview } from "../lib/llm";
+import { ObjectStorageService } from "../lib/objectStorage";
+
+const objectStorage = new ObjectStorageService();
 
 const router: IRouter = Router();
 
@@ -186,20 +191,44 @@ router.delete(
   "/projects/:id",
   requireRoles("admin"),
   async (req: Request, res: Response) => {
-    const [deleted] = await db
-      .delete(projects)
-      .where(eq(projects.id, String(req.params.id)))
-      .returning();
-    if (!deleted) {
+    const projectId = String(req.params.id);
+    const user = getLocalUser(req);
+
+    const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
+    if (!project) {
       res.status(404).json({ error: "Not found" });
       return;
     }
+
+    // Collect every stored blob for this project before removing DB rows.
+    const docs = await db.select().from(documents).where(eq(documents.projectId, projectId));
+    const reps = await db.select().from(reports).where(eq(reports.projectId, projectId));
+    const blobPaths = [
+      ...docs.map((d) => d.objectPath),
+      ...reps.map((r) => r.docxPath).filter((p): p is string => !!p),
+    ];
+
+    let purged = 0;
+    for (const path of blobPaths) {
+      try {
+        if (await objectStorage.deleteObjectEntity(path)) purged++;
+      } catch (error) {
+        req.log.error({ err: error, objectPath: path }, "failed to purge project blob");
+      }
+    }
+
+    // Cascade-deletes documents/reports/requirements/etc. via FK onDelete.
+    const [deleted] = await db
+      .delete(projects)
+      .where(eq(projects.id, projectId))
+      .returning();
+
     await writeAudit({
-      user: getLocalUser(req),
+      user,
       eventType: "project.deleted",
       objectType: "project",
-      objectId: String(req.params.id),
-      details: deleted.tenderTitle,
+      objectId: projectId,
+      details: `${deleted.tenderTitle} — purged ${purged}/${blobPaths.length} stored file(s).`,
     });
     res.status(204).end();
   },
