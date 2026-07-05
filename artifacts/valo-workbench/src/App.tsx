@@ -4,8 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ClerkProvider, SignedIn, SignedOut } from "@clerk/clerk-react";
 import NotFound from "@/pages/not-found";
-import SignInPage from "@/pages/sign-in";
-import LandingPage from "@/pages/landing";
+import SignedOutRoutes from "@/signed-out-routes";
 import Dashboard from "@/pages/dashboard";
 import Clients from "@/pages/clients";
 import ClientDetails from "@/pages/client-details";
@@ -71,11 +70,7 @@ function App() {
           </SignedIn>
           <SignedOut>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <Switch>
-                <Route path="/sign-in" component={SignInPage} />
-                <Route path="/" component={LandingPage} />
-                <Route component={LandingPage} />
-              </Switch>
+              <SignedOutRoutes />
             </WouterRouter>
           </SignedOut>
           <Toaster />
