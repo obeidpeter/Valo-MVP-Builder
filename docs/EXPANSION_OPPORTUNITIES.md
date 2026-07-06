@@ -23,17 +23,17 @@ Audit of the codebase against the Valo Business Plan v1.1/v1.2, the Replit Build
 - **Project Readiness Gate** — reviewer-facing checklist across governance/intake/evidence/defects/BOQ/risk/report; gate logic extracted to a pure, unit-tested module aligned with the server's deterministic gates (dual payment confirmation; only OPEN material defects block).
 - **SBD Corpus v1** — templates + agency-quirk annotations; single-active-lineage enforced on activation, version cloning supersedes the source.
 - **DOCX report** — document control block, table of contents, requirement matrix with evidence-trace annex, defect register, risk score, responsiveness review (UI trigger in the Reports tab), BOQ annex, remediation plan, copies manifest, signature/seal checklist, process warranty.
-- **CI** (`.github/workflows/ci.yml`) — typecheck, unit + DB-backed integration tests (including the retention-purge and export end-to-end suites), offline doctrine + injection proofs, and both production builds on every push/PR.
+- **CI** (`.github/workflows/ci.yml`) — typecheck, unit + DB-backed integration tests (including the retention-purge and export end-to-end suites), offline doctrine + injection proofs, the offline eval-harness self-check, and both production builds on every push/PR.
+- **Eval harness v0** (FR-EXT-05, §9) — ≥10 hand-labelled tenders (`scripts/eval-corpus/`) run as a recall regression suite (`eval:harness`) that measures the engine against verified ground truth and fails below the 85% v0 target, naming the missed requirements per tender. The offline self-check (corpus well-formed + deterministic matcher consistent) runs in CI; the live recall measurement runs where the model key lives.
+- **Live pre-ship proof gate** — `prove:ship` runs the live doctrine, injection, and eval-harness proofs together (fail-fast) in the Replit environment where the model key lives; run it before shipping any model/prompt change (a `MODEL_ID`/`PROMPT_PACK_VERSION` bump). Runbook: `docs/PRE_SHIP_PROOFS.md`.
 
 ## Remaining — near-term (current gate)
 
-1. **Live injection + doctrine proofs in the deploy pipeline** — the offline halves run in CI; wire `prove:doctrine` and `prove:injection` (live modes) into the Replit deploy environment where `OPENAI_API_KEY` lives, and run them before shipping model/prompt changes.
-2. **Eval harness v0** (FR-EXT-05, §9) — ≥10 hand-labelled tenders as a recall regression suite; the scorecard measures production reviews, the harness measures the engine against ground truth.
-3. **Configurable scoring + real Settings** — severity weights and band cutoffs are hard-coded in `deterministic.ts`; the Settings screen (thresholds, report template details, retention defaults) is unbuilt. Keep engine-version stamping so historic sign-offs stay traceable.
-4. **PDF export** — reports are DOCX-only; brief says PDF follows once DOCX is stable (it is).
-5. **Requirement merge** — the review queue lacks merge for near-duplicate AI extractions (brief lists it; preserve both source citations).
-6. **Gate 0 founder metrics completeness** — decision-maker conversations count (≥8 threshold) and mandate-quality breakdown are still not tracked in-app.
-7. **Retention automation** (NFR-PRV-02, scheduled half) — the manual workflow with honest certificates exists; the 12-month clock that *opens* requests automatically does not. Needs a scheduler (cron/queue) in the deploy environment.
+1. **Configurable scoring + real Settings** — severity weights and band cutoffs are hard-coded in `deterministic.ts`; the Settings screen (thresholds, report template details, retention defaults) is unbuilt. Keep engine-version stamping so historic sign-offs stay traceable.
+2. **PDF export** — reports are DOCX-only; brief says PDF follows once DOCX is stable (it is).
+3. **Requirement merge** — the review queue lacks merge for near-duplicate AI extractions (brief lists it; preserve both source citations).
+4. **Gate 0 founder metrics completeness** — decision-maker conversations count (≥8 threshold) and mandate-quality breakdown are still not tracked in-app.
+5. **Retention automation** (NFR-PRV-02, scheduled half) — the manual workflow with honest certificates exists; the 12-month clock that *opens* requests automatically does not. Needs a scheduler (cron/queue) in the deploy environment.
 
 ## Remaining — v1.0 trio (gated on Phase 1 commercial exit; do not build early)
 

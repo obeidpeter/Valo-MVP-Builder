@@ -13,6 +13,9 @@
     "prove:doctrine:offline": "node ./scripts/run-proof.mjs --offline",
     "prove:injection": "node ./scripts/run-injection.mjs",
     "prove:injection:offline": "node ./scripts/run-injection.mjs --offline",
+    "eval:harness": "node ./scripts/run-eval.mjs",
+    "eval:harness:offline": "node ./scripts/run-eval.mjs --offline",
+    "prove:ship": "pnpm run prove:doctrine && pnpm run prove:injection && pnpm run eval:harness",
     "verify:audit": "node --import tsx ./scripts/verify-audit-chain.ts",
     "retention:scan": "node --import tsx ./scripts/run-retention-scan.ts"
   },
