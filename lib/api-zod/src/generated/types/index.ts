@@ -8,8 +8,11 @@
 
 export * from './accessReview';
 export * from './accessReviewRow';
+export * from './appConfig';
+export * from './appConfigUpdate';
 export * from './auditEvent';
 export * from './badRequestResponse';
+export * from './bandCutoffs';
 export * from './boqCheck';
 export * from './boqCheckCheckType';
 export * from './boqCheckSeverity';
@@ -155,6 +158,7 @@ export * from './sbdTemplateUpdateCategory';
 export * from './sbdTemplateUpdateStatus';
 export * from './scorecard';
 export * from './scorecardCounts';
+export * from './severityWeights';
 export * from './signOffRequest';
 export * from './unauthorizedResponse';
 export * from './uploadUrlRequest';

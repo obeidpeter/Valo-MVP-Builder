@@ -322,6 +322,30 @@ export const retentionRequests = pgTable("retention_requests", {
   createdAt: createdAt(),
 });
 
+// Global, admin-configurable settings (single-row table). Holds the scoring
+// parameters the deterministic risk engine reads at runtime, report-template
+// details, and retention defaults. The `id` is pinned to a fixed value so
+// there is exactly one active configuration; historic reports keep their own
+// engine-version stamp and are never rewritten when this changes.
+export const appConfig = pgTable("app_config", {
+  id: text("id").primaryKey().default("singleton"),
+  severityWeightFatal: integer("severity_weight_fatal").notNull().default(40),
+  severityWeightLikelyFatal: integer("severity_weight_likely_fatal").notNull().default(25),
+  severityWeightScoringRisk: integer("severity_weight_scoring_risk").notNull().default(10),
+  severityWeightCosmetic: integer("severity_weight_cosmetic").notNull().default(3),
+  missingEvidenceWeight: integer("missing_evidence_weight").notNull().default(5),
+  bandMediumCutoff: integer("band_medium_cutoff").notNull().default(15),
+  bandHighCutoff: integer("band_high_cutoff").notNull().default(40),
+  bandCriticalCutoff: integer("band_critical_cutoff").notNull().default(70),
+  firmName: text("firm_name").notNull().default("VALO"),
+  confidentialityLegend: text("confidentiality_legend")
+    .notNull()
+    .default("CONFIDENTIAL — Prepared for internal review. Not for external distribution."),
+  retentionDefaultDays: integer("retention_default_days").notNull().default(14),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+});
+
 export const sbdTemplates = pgTable("sbd_templates", {
   id: uuid("id").primaryKey().defaultRandom(),
   code: text("code").notNull(),

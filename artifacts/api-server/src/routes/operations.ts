@@ -31,6 +31,7 @@ import {
 } from "../lib/deterministic";
 import { ObjectStorageService } from "../lib/objectStorage";
 import { planProjectBlobPurge, purgeBlobs } from "../lib/purge";
+import { getActiveConfig } from "../lib/appConfig";
 
 const router: IRouter = Router();
 const objectStorage = new ObjectStorageService();
@@ -142,7 +143,8 @@ router.post("/projects/:id/retention-requests", requireMember, async (req: Reque
     return;
   }
   const now = Date.now();
-  let dueAt = new Date(now + 14 * 24 * 60 * 60 * 1000);
+  const { retentionDefaultDays } = await getActiveConfig();
+  let dueAt = new Date(now + retentionDefaultDays * 24 * 60 * 60 * 1000);
   if (parsed.data.dueAt !== undefined) {
     const requested = Date.parse(parsed.data.dueAt);
     if (Number.isNaN(requested)) {

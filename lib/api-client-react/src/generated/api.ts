@@ -21,6 +21,8 @@ import type {
 
 import type {
   AccessReview,
+  AppConfig,
+  AppConfigUpdate,
   AuditEvent,
   BadRequestResponse,
   BoqCheck,
@@ -1499,6 +1501,153 @@ export const useCompleteRetentionRequest = <TError = ErrorType<NotFoundResponse 
         TContext
       > => {
       return useMutation(getCompleteRetentionRequestMutationOptions(options));
+    }
+
+export const getGetAppConfigUrl = () => {
+
+
+
+
+  return `/api/config`
+}
+
+/**
+ * @summary Read the global scoring, template, and retention configuration
+ */
+export const getAppConfig = async ( options?: RequestInit): Promise<AppConfig> => {
+
+  return customFetch<AppConfig>(getGetAppConfigUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAppConfigQueryKey = () => {
+    return [
+    `/api/config`
+    ] as const;
+    }
+
+
+export const getGetAppConfigQueryOptions = <TData = Awaited<ReturnType<typeof getAppConfig>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAppConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAppConfigQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAppConfig>>> = ({ signal }) => getAppConfig({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAppConfig>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAppConfigQueryResult = NonNullable<Awaited<ReturnType<typeof getAppConfig>>>
+export type GetAppConfigQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Read the global scoring, template, and retention configuration
+ */
+
+export function useGetAppConfig<TData = Awaited<ReturnType<typeof getAppConfig>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAppConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAppConfigQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateAppConfigUrl = () => {
+
+
+
+
+  return `/api/config`
+}
+
+/**
+ * @summary Update the global configuration (admin only)
+ */
+export const updateAppConfig = async (appConfigUpdate: AppConfigUpdate, options?: RequestInit): Promise<AppConfig> => {
+
+  return customFetch<AppConfig>(getUpdateAppConfigUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(appConfigUpdate)
+  }
+);}
+
+
+
+
+export const getUpdateAppConfigMutationOptions = <TError = ErrorType<BadRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAppConfig>>, TError,{data: BodyType<AppConfigUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAppConfig>>, TError,{data: BodyType<AppConfigUpdate>}, TContext> => {
+
+const mutationKey = ['updateAppConfig'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAppConfig>>, {data: BodyType<AppConfigUpdate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAppConfig(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAppConfigMutationResult = NonNullable<Awaited<ReturnType<typeof updateAppConfig>>>
+    export type UpdateAppConfigMutationBody = BodyType<AppConfigUpdate>
+    export type UpdateAppConfigMutationError = ErrorType<BadRequestResponse>
+
+    /**
+ * @summary Update the global configuration (admin only)
+ */
+export const useUpdateAppConfig = <TError = ErrorType<BadRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAppConfig>>, TError,{data: BodyType<AppConfigUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAppConfig>>,
+        TError,
+        {data: BodyType<AppConfigUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateAppConfigMutationOptions(options));
     }
 
 export const getListVaultItemsUrl = (id: string,) => {

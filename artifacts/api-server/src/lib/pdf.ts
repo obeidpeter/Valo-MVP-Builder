@@ -44,11 +44,13 @@ class Layout {
   page!: PDFPage;
   y = 0;
   pageNumber = 0;
+  footerText: string;
   private pages: PDFPage[] = [];
 
-  constructor(doc: PDFDocument, fonts: Fonts) {
+  constructor(doc: PDFDocument, fonts: Fonts, footerText: string = FOOTER_TEXT) {
     this.doc = doc;
     this.fonts = fonts;
+    this.footerText = footerText;
     this.addPage();
   }
 
@@ -222,7 +224,7 @@ class Layout {
     // "Page N of M"-style running footer matches the DOCX confidential footer.
     for (let i = 0; i < this.pages.length; i++) {
       const p = this.pages[i];
-      const label = `${FOOTER_TEXT}${i + 1}`;
+      const label = `${this.footerText}${i + 1}`;
       const size = 7;
       const width = this.fonts.regular.widthOfTextAtSize(label, size);
       p.drawText(label, {
@@ -238,26 +240,31 @@ class Layout {
 
 export async function buildReportPdf(data: ReportData): Promise<Buffer> {
   const { project, client, requirements, evidence, defects, boqChecks, risk } = data;
+  const template = data.template ?? {
+    firmName: "VALO",
+    confidentialityLegend:
+      "CONFIDENTIAL — Prepared for internal review. Not for external distribution.",
+  };
 
   const doc = await PDFDocument.create();
   doc.setTitle(`Bid Autopsy Report — ${project.tenderTitle}`);
-  doc.setCreator("Valo Bid Autopsy Workbench");
+  doc.setCreator(`${template.firmName} Bid Autopsy Workbench`);
   const fonts: Fonts = {
     regular: await doc.embedFont(StandardFonts.Helvetica),
     bold: await doc.embedFont(StandardFonts.HelveticaBold),
     italic: await doc.embedFont(StandardFonts.HelveticaOblique),
   };
-  const L = new Layout(doc, fonts);
+  const L = new Layout(doc, fonts, `CONFIDENTIAL — ${template.firmName} Bid Autopsy Report — Page `);
 
   // Title block
-  L.text("VALO", { size: 22, font: fonts.bold, color: NAVY, after: 2 });
+  L.text(template.firmName, { size: 22, font: fonts.bold, color: NAVY, after: 2 });
   L.text("Bid Autopsy Report", { size: 17, font: fonts.bold, color: NAVY, after: 6 });
   L.text(project.tenderTitle, { size: 10, font: fonts.bold, after: 4 });
   L.text(
     `Client: ${client?.name ?? "—"}   |   Version ${data.version}   |   Generated ${new Date().toLocaleString()}`,
     { size: 9, color: GREY, after: 4 },
   );
-  L.text("CONFIDENTIAL — Prepared for internal review. Not for external distribution.", {
+  L.text(template.confidentialityLegend, {
     size: 9,
     font: fonts.italic,
     color: GREY,

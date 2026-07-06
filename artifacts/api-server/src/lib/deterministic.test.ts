@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {
   runBoqChecks,
   computeRisk,
+  DEFAULT_RISK_CONFIG,
+  type RiskConfig,
   wordsToNumber,
   wordsToKobo,
   toKobo,
@@ -518,6 +520,91 @@ describe("computeRisk - evidence penalty (mandatory-only, deduplicated)", () => 
     });
     assert.equal(r.score, 30);
     assert.equal(r.band, "medium");
+  });
+});
+
+describe("computeRisk - honours a custom RiskConfig", () => {
+  test("default config matches DEFAULT_RISK_CONFIG behaviour", () => {
+    const base = computeRisk({
+      defects: defects([{ severity: "likely_fatal", status: "open" }]),
+      requirements: [],
+      evidence: [],
+    });
+    const explicit = computeRisk(
+      {
+        defects: defects([{ severity: "likely_fatal", status: "open" }]),
+        requirements: [],
+        evidence: [],
+      },
+      DEFAULT_RISK_CONFIG,
+    );
+    assert.deepEqual(base.score, explicit.score);
+    assert.deepEqual(base.band, explicit.band);
+  });
+
+  test("custom severity weights change the score", () => {
+    const config: RiskConfig = {
+      severityWeights: { fatal: 50, likely_fatal: 30, scoring_risk: 20, cosmetic: 5 },
+      missingEvidenceWeight: 5,
+      bandCutoffs: { medium: 15, high: 40, critical: 70 },
+    };
+    const r = computeRisk(
+      {
+        defects: defects([{ severity: "scoring_risk", status: "open", n: 2 }]),
+        requirements: [],
+        evidence: [],
+      },
+      config,
+    );
+    assert.equal(r.score, 40); // 2 * 20
+    assert.equal(r.band, "high");
+  });
+
+  test("custom band cutoffs re-band the same score", () => {
+    const config: RiskConfig = {
+      ...DEFAULT_RISK_CONFIG,
+      bandCutoffs: { medium: 5, high: 8, critical: 12 },
+    };
+    // one scoring_risk = 10 -> high under these tighter cutoffs
+    const r = computeRisk(
+      {
+        defects: defects([{ severity: "scoring_risk", status: "open" }]),
+        requirements: [],
+        evidence: [],
+      },
+      config,
+    );
+    assert.equal(r.score, 10);
+    assert.equal(r.band, "high");
+  });
+
+  test("custom missing-evidence weight scales the penalty", () => {
+    const config: RiskConfig = { ...DEFAULT_RISK_CONFIG, missingEvidenceWeight: 12 };
+    const r = computeRisk(
+      {
+        defects: [],
+        requirements: [{ id: "r1", isMandatory: true, reviewStatus: "pending" }],
+        evidence: [{ requirementId: "r1", evidenceStatus: "missing", suggested: false }],
+      },
+      config,
+    );
+    assert.equal(r.score, 12);
+  });
+
+  test("a live fatal still forces critical regardless of cutoffs", () => {
+    const config: RiskConfig = {
+      ...DEFAULT_RISK_CONFIG,
+      bandCutoffs: { medium: 90, high: 95, critical: 99 },
+    };
+    const r = computeRisk(
+      {
+        defects: defects([{ severity: "fatal", status: "open" }]),
+        requirements: [],
+        evidence: [],
+      },
+      config,
+    );
+    assert.equal(r.band, "critical");
   });
 });
 

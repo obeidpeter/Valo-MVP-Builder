@@ -37,9 +37,16 @@ export interface ReportData {
   defects: any[];
   boqChecks: any[];
   risk: { score: number; band: string; explanation: string; overrideBand?: string | null; overrideNote?: string | null; overrideBy?: string | null };
+  template?: { firmName: string; confidentialityLegend: string };
   version: number;
   generatedByName: string | null;
 }
+
+const DEFAULT_TEMPLATE = {
+  firmName: "VALO",
+  confidentialityLegend:
+    "CONFIDENTIAL — Prepared for internal review. Not for external distribution.",
+};
 
 function heading(text: string): Paragraph {
   return new Paragraph({
@@ -98,6 +105,7 @@ function makeTable(headers: string[], rows: string[][], widths?: number[]): Tabl
 
 export async function buildReportDocx(data: ReportData): Promise<Buffer> {
   const { project, client, requirements, evidence, defects, boqChecks, risk } = data;
+  const template = data.template ?? DEFAULT_TEMPLATE;
 
   const children: (Paragraph | Table)[] = [];
 
@@ -105,7 +113,7 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
   children.push(
     new Paragraph({
       spacing: { after: 60 },
-      children: [new TextRun({ text: "VALO", bold: true, size: 40, color: NAVY })],
+      children: [new TextRun({ text: template.firmName, bold: true, size: 40, color: NAVY })],
     }),
     new Paragraph({
       spacing: { after: 40 },
@@ -113,7 +121,7 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
     }),
     para(`${project.tenderTitle}`, { bold: true }),
     para(`Client: ${client?.name ?? "—"}   |   Version ${data.version}   |   Generated ${new Date().toLocaleString()}`, { color: GREY }),
-    para("CONFIDENTIAL — Prepared for internal review. Not for external distribution.", { italics: true, color: GREY }),
+    para(template.confidentialityLegend, { italics: true, color: GREY }),
   );
 
   // Document control block — a cross-reference header the reviewer and the
@@ -439,7 +447,7 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
               new Paragraph({
                 alignment: AlignmentType.CENTER,
                 children: [
-                  new TextRun({ text: "CONFIDENTIAL — Valo Bid Autopsy Report — Page ", size: 16, color: GREY }),
+                  new TextRun({ text: `CONFIDENTIAL — ${template.firmName} Bid Autopsy Report — Page `, size: 16, color: GREY }),
                   new TextRun({ children: [PageNumber.CURRENT], size: 16, color: GREY }),
                 ],
               }),

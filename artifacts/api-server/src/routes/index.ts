@@ -18,6 +18,7 @@ import vaultRouter from "./vault";
 import capabilityRouter from "./capability";
 import sbdRouter from "./sbd";
 import operationsRouter from "./operations";
+import configRouter from "./config";
 import { attachUser } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -45,6 +46,7 @@ router.use(vaultRouter);
 router.use(capabilityRouter);
 router.use(sbdRouter);
 router.use(operationsRouter);
+router.use(configRouter);
 router.use(storageRouter);
 
 export default router;

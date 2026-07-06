@@ -312,6 +312,91 @@ export interface RetentionRequestCreate {
   dueAt?: string;
 }
 
+export interface SeverityWeights {
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  fatal: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  likely_fatal: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  scoring_risk: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  cosmetic: number;
+}
+
+export interface BandCutoffs {
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  medium: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  high: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  critical: number;
+}
+
+export interface AppConfig {
+  severityWeights: SeverityWeights;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  missingEvidenceWeight: number;
+  bandCutoffs: BandCutoffs;
+  firmName: string;
+  confidentialityLegend: string;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  retentionDefaultDays: number;
+  updatedAt: string;
+  updatedBy?: string | null;
+}
+
+export interface AppConfigUpdate {
+  severityWeights?: SeverityWeights;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  missingEvidenceWeight?: number;
+  bandCutoffs?: BandCutoffs;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  firmName?: string;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  confidentialityLegend?: string;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  retentionDefaultDays?: number;
+}
+
 export type PaymentConfirmationBodyRole = typeof PaymentConfirmationBodyRole[keyof typeof PaymentConfirmationBodyRole];
 
 

@@ -23,6 +23,7 @@ import { buildReportDocx, DOCX_MIME, type ReportData } from "../lib/docx";
 import { buildReportPdf, PDF_MIME } from "../lib/pdf";
 import { ENGINE_VERSION, PROMPT_PACK_VERSION, MODEL_ID } from "../lib/provenance";
 import { computeRisk, blockingSignOffDefects, type Severity } from "../lib/deterministic";
+import { getActiveConfig } from "../lib/appConfig";
 import { computeScorecard } from "../lib/scorecard";
 import { ObjectStorageService } from "../lib/objectStorage";
 
@@ -50,19 +51,23 @@ async function gatherReportData(projectId: string): Promise<ReportData | null> {
   const defs = await db.select().from(defects).where(eq(defects.projectId, projectId));
   const boqs = await db.select().from(boqChecks).where(eq(boqChecks.projectId, projectId));
 
-  const risk = computeRisk({
-    defects: defs.map((d) => ({ severity: d.severity as Severity, status: d.status })),
-    requirements: reqs.map((r) => ({
-      id: r.id,
-      isMandatory: r.isMandatory,
-      reviewStatus: r.reviewStatus,
-    })),
-    evidence: ev.map((e) => ({
-      requirementId: e.requirementId,
-      evidenceStatus: e.evidenceStatus,
-      suggested: e.suggested,
-    })),
-  });
+  const config = await getActiveConfig();
+  const risk = computeRisk(
+    {
+      defects: defs.map((d) => ({ severity: d.severity as Severity, status: d.status })),
+      requirements: reqs.map((r) => ({
+        id: r.id,
+        isMandatory: r.isMandatory,
+        reviewStatus: r.reviewStatus,
+      })),
+      evidence: ev.map((e) => ({
+        requirementId: e.requirementId,
+        evidenceStatus: e.evidenceStatus,
+        suggested: e.suggested,
+      })),
+    },
+    config.risk,
+  );
 
   return {
     project: row.project,
@@ -80,6 +85,7 @@ async function gatherReportData(projectId: string): Promise<ReportData | null> {
       overrideNote: row.project.riskOverrideNote,
       overrideBy: row.project.riskOverrideBy,
     },
+    template: config.template,
     version: 1,
     generatedByName: null,
   };

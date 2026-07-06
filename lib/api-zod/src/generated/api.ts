@@ -550,6 +550,151 @@ export const CompleteRetentionRequestResponse = zod.object({
 
 
 /**
+ * @summary Read the global scoring, template, and retention configuration
+ */
+export const getAppConfigResponseSeverityWeightsFatalMin = 0;
+export const getAppConfigResponseSeverityWeightsFatalMax = 100;
+
+export const getAppConfigResponseSeverityWeightsLikelyFatalMin = 0;
+export const getAppConfigResponseSeverityWeightsLikelyFatalMax = 100;
+
+export const getAppConfigResponseSeverityWeightsScoringRiskMin = 0;
+export const getAppConfigResponseSeverityWeightsScoringRiskMax = 100;
+
+export const getAppConfigResponseSeverityWeightsCosmeticMin = 0;
+export const getAppConfigResponseSeverityWeightsCosmeticMax = 100;
+
+export const getAppConfigResponseMissingEvidenceWeightMin = 0;
+export const getAppConfigResponseMissingEvidenceWeightMax = 100;
+
+export const getAppConfigResponseBandCutoffsMediumMax = 100;
+
+export const getAppConfigResponseBandCutoffsHighMax = 100;
+
+export const getAppConfigResponseBandCutoffsCriticalMax = 100;
+
+export const getAppConfigResponseRetentionDefaultDaysMax = 3650;
+
+
+
+export const GetAppConfigResponse = zod.object({
+  "severityWeights": zod.object({
+  "fatal": zod.number().min(getAppConfigResponseSeverityWeightsFatalMin).max(getAppConfigResponseSeverityWeightsFatalMax),
+  "likely_fatal": zod.number().min(getAppConfigResponseSeverityWeightsLikelyFatalMin).max(getAppConfigResponseSeverityWeightsLikelyFatalMax),
+  "scoring_risk": zod.number().min(getAppConfigResponseSeverityWeightsScoringRiskMin).max(getAppConfigResponseSeverityWeightsScoringRiskMax),
+  "cosmetic": zod.number().min(getAppConfigResponseSeverityWeightsCosmeticMin).max(getAppConfigResponseSeverityWeightsCosmeticMax)
+}),
+  "missingEvidenceWeight": zod.number().min(getAppConfigResponseMissingEvidenceWeightMin).max(getAppConfigResponseMissingEvidenceWeightMax),
+  "bandCutoffs": zod.object({
+  "medium": zod.number().min(1).max(getAppConfigResponseBandCutoffsMediumMax),
+  "high": zod.number().min(1).max(getAppConfigResponseBandCutoffsHighMax),
+  "critical": zod.number().min(1).max(getAppConfigResponseBandCutoffsCriticalMax)
+}),
+  "firmName": zod.string(),
+  "confidentialityLegend": zod.string(),
+  "retentionDefaultDays": zod.number().min(1).max(getAppConfigResponseRetentionDefaultDaysMax),
+  "updatedAt": zod.string(),
+  "updatedBy": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update the global configuration (admin only)
+ */
+export const updateAppConfigBodySeverityWeightsFatalMin = 0;
+export const updateAppConfigBodySeverityWeightsFatalMax = 100;
+
+export const updateAppConfigBodySeverityWeightsLikelyFatalMin = 0;
+export const updateAppConfigBodySeverityWeightsLikelyFatalMax = 100;
+
+export const updateAppConfigBodySeverityWeightsScoringRiskMin = 0;
+export const updateAppConfigBodySeverityWeightsScoringRiskMax = 100;
+
+export const updateAppConfigBodySeverityWeightsCosmeticMin = 0;
+export const updateAppConfigBodySeverityWeightsCosmeticMax = 100;
+
+export const updateAppConfigBodyMissingEvidenceWeightMin = 0;
+export const updateAppConfigBodyMissingEvidenceWeightMax = 100;
+
+export const updateAppConfigBodyBandCutoffsMediumMax = 100;
+
+export const updateAppConfigBodyBandCutoffsHighMax = 100;
+
+export const updateAppConfigBodyBandCutoffsCriticalMax = 100;
+
+export const updateAppConfigBodyFirmNameMax = 120;
+
+export const updateAppConfigBodyConfidentialityLegendMax = 500;
+
+export const updateAppConfigBodyRetentionDefaultDaysMax = 3650;
+
+
+
+export const UpdateAppConfigBody = zod.object({
+  "severityWeights": zod.object({
+  "fatal": zod.number().min(updateAppConfigBodySeverityWeightsFatalMin).max(updateAppConfigBodySeverityWeightsFatalMax),
+  "likely_fatal": zod.number().min(updateAppConfigBodySeverityWeightsLikelyFatalMin).max(updateAppConfigBodySeverityWeightsLikelyFatalMax),
+  "scoring_risk": zod.number().min(updateAppConfigBodySeverityWeightsScoringRiskMin).max(updateAppConfigBodySeverityWeightsScoringRiskMax),
+  "cosmetic": zod.number().min(updateAppConfigBodySeverityWeightsCosmeticMin).max(updateAppConfigBodySeverityWeightsCosmeticMax)
+}).optional(),
+  "missingEvidenceWeight": zod.number().min(updateAppConfigBodyMissingEvidenceWeightMin).max(updateAppConfigBodyMissingEvidenceWeightMax).optional(),
+  "bandCutoffs": zod.object({
+  "medium": zod.number().min(1).max(updateAppConfigBodyBandCutoffsMediumMax),
+  "high": zod.number().min(1).max(updateAppConfigBodyBandCutoffsHighMax),
+  "critical": zod.number().min(1).max(updateAppConfigBodyBandCutoffsCriticalMax)
+}).optional(),
+  "firmName": zod.string().min(1).max(updateAppConfigBodyFirmNameMax).optional(),
+  "confidentialityLegend": zod.string().min(1).max(updateAppConfigBodyConfidentialityLegendMax).optional(),
+  "retentionDefaultDays": zod.number().min(1).max(updateAppConfigBodyRetentionDefaultDaysMax).optional()
+})
+
+export const updateAppConfigResponseSeverityWeightsFatalMin = 0;
+export const updateAppConfigResponseSeverityWeightsFatalMax = 100;
+
+export const updateAppConfigResponseSeverityWeightsLikelyFatalMin = 0;
+export const updateAppConfigResponseSeverityWeightsLikelyFatalMax = 100;
+
+export const updateAppConfigResponseSeverityWeightsScoringRiskMin = 0;
+export const updateAppConfigResponseSeverityWeightsScoringRiskMax = 100;
+
+export const updateAppConfigResponseSeverityWeightsCosmeticMin = 0;
+export const updateAppConfigResponseSeverityWeightsCosmeticMax = 100;
+
+export const updateAppConfigResponseMissingEvidenceWeightMin = 0;
+export const updateAppConfigResponseMissingEvidenceWeightMax = 100;
+
+export const updateAppConfigResponseBandCutoffsMediumMax = 100;
+
+export const updateAppConfigResponseBandCutoffsHighMax = 100;
+
+export const updateAppConfigResponseBandCutoffsCriticalMax = 100;
+
+export const updateAppConfigResponseRetentionDefaultDaysMax = 3650;
+
+
+
+export const UpdateAppConfigResponse = zod.object({
+  "severityWeights": zod.object({
+  "fatal": zod.number().min(updateAppConfigResponseSeverityWeightsFatalMin).max(updateAppConfigResponseSeverityWeightsFatalMax),
+  "likely_fatal": zod.number().min(updateAppConfigResponseSeverityWeightsLikelyFatalMin).max(updateAppConfigResponseSeverityWeightsLikelyFatalMax),
+  "scoring_risk": zod.number().min(updateAppConfigResponseSeverityWeightsScoringRiskMin).max(updateAppConfigResponseSeverityWeightsScoringRiskMax),
+  "cosmetic": zod.number().min(updateAppConfigResponseSeverityWeightsCosmeticMin).max(updateAppConfigResponseSeverityWeightsCosmeticMax)
+}),
+  "missingEvidenceWeight": zod.number().min(updateAppConfigResponseMissingEvidenceWeightMin).max(updateAppConfigResponseMissingEvidenceWeightMax),
+  "bandCutoffs": zod.object({
+  "medium": zod.number().min(1).max(updateAppConfigResponseBandCutoffsMediumMax),
+  "high": zod.number().min(1).max(updateAppConfigResponseBandCutoffsHighMax),
+  "critical": zod.number().min(1).max(updateAppConfigResponseBandCutoffsCriticalMax)
+}),
+  "firmName": zod.string(),
+  "confidentialityLegend": zod.string(),
+  "retentionDefaultDays": zod.number().min(1).max(updateAppConfigResponseRetentionDefaultDaysMax),
+  "updatedAt": zod.string(),
+  "updatedBy": zod.string().nullish()
+})
+
+
+/**
  * @summary Certificate Vault artefacts for a client, with expiry telemetry
  */
 export const ListVaultItemsParams = zod.object({

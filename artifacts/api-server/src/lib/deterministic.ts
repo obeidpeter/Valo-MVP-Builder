@@ -481,14 +481,28 @@ export interface RiskResult {
   distribution: Record<Severity, number>;
 }
 
-const SEVERITY_WEIGHTS: Record<Severity, number> = {
-  fatal: 40,
-  likely_fatal: 25,
-  scoring_risk: 10,
-  cosmetic: 3,
-};
+/**
+ * Tunable inputs for the risk engine. These were previously hard-coded
+ * constants; they are now admin-configurable (see `lib/appConfig.ts`) and
+ * threaded into `computeRisk`. `bandCutoffs` are the minimum scores for each
+ * band — what the bands *mean* (and the fatal-forces-critical rule) is fixed.
+ */
+export interface RiskConfig {
+  severityWeights: Record<Severity, number>;
+  missingEvidenceWeight: number;
+  bandCutoffs: { medium: number; high: number; critical: number };
+}
 
-const MISSING_EVIDENCE_WEIGHT = 5;
+export const DEFAULT_RISK_CONFIG: RiskConfig = {
+  severityWeights: {
+    fatal: 40,
+    likely_fatal: 25,
+    scoring_risk: 10,
+    cosmetic: 3,
+  },
+  missingEvidenceWeight: 5,
+  bandCutoffs: { medium: 15, high: 40, critical: 70 },
+};
 
 /**
  * Deterministic disqualification-risk score. Per the doctrine, only items a
@@ -502,7 +516,11 @@ const MISSING_EVIDENCE_WEIGHT = 5;
  * Bands: critical if any confirmed fatal defect or score >= 70, high >= 40,
  * medium >= 15, otherwise low.
  */
-export function computeRisk(input: RiskInput): RiskResult {
+export function computeRisk(
+  input: RiskInput,
+  config: RiskConfig = DEFAULT_RISK_CONFIG,
+): RiskResult {
+  const { severityWeights, missingEvidenceWeight, bandCutoffs } = config;
   const distribution: Record<Severity, number> = {
     fatal: 0,
     likely_fatal: 0,
@@ -515,7 +533,7 @@ export function computeRisk(input: RiskInput): RiskResult {
   let score = 0;
   let hasFatal = false;
   for (const d of liveDefects) {
-    const weight = SEVERITY_WEIGHTS[d.severity] ?? 0;
+    const weight = severityWeights[d.severity] ?? 0;
     score += weight;
     if (d.severity in distribution) distribution[d.severity] += 1;
     if (d.severity === "fatal") hasFatal = true;
@@ -537,14 +555,14 @@ export function computeRisk(input: RiskInput): RiskResult {
     }
   }
   const missingEvidencePenalty = penalisedReqIds.size;
-  score += missingEvidencePenalty * MISSING_EVIDENCE_WEIGHT;
+  score += missingEvidencePenalty * missingEvidenceWeight;
 
   score = Math.min(100, Math.round(score));
 
   let band: RiskBand;
-  if (hasFatal || score >= 70) band = "critical";
-  else if (score >= 40) band = "high";
-  else if (score >= 15) band = "medium";
+  if (hasFatal || score >= bandCutoffs.critical) band = "critical";
+  else if (score >= bandCutoffs.high) band = "high";
+  else if (score >= bandCutoffs.medium) band = "medium";
   else band = "low";
 
   const parts: string[] = [];
@@ -553,7 +571,7 @@ export function computeRisk(input: RiskInput): RiskResult {
   );
   if (missingEvidencePenalty > 0) {
     parts.push(
-      `${missingEvidencePenalty} missing/expired evidence item(s) at +${MISSING_EVIDENCE_WEIGHT} each.`,
+      `${missingEvidencePenalty} missing/expired evidence item(s) at +${missingEvidenceWeight} each.`,
     );
   }
   parts.push(`Computed score ${score}/100 → ${band.toUpperCase()} band.`);

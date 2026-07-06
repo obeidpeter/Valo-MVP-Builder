@@ -371,6 +371,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+  /config:
+    get:
+      operationId: getAppConfig
+      tags: [Operations]
+      summary: Read the global scoring, template, and retention configuration
+      responses:
+        "200":
+          description: Active configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppConfig"
+    patch:
+      operationId: updateAppConfig
+      tags: [Operations]
+      summary: Update the global configuration (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppConfigUpdate"
+      responses:
+        "200":
+          description: Updated configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppConfig"
+        "400":
+          $ref: "#/components/responses/BadRequest"
   /clients/{id}/vault-items:
     get:
       operationId: listVaultItems
@@ -1624,6 +1655,51 @@ components:
       properties:
         reason: { type: string }
         dueAt: { type: string }
+    SeverityWeights:
+      type: object
+      required: [fatal, likely_fatal, scoring_risk, cosmetic]
+      properties:
+        fatal: { type: integer, minimum: 0, maximum: 100 }
+        likely_fatal: { type: integer, minimum: 0, maximum: 100 }
+        scoring_risk: { type: integer, minimum: 0, maximum: 100 }
+        cosmetic: { type: integer, minimum: 0, maximum: 100 }
+    BandCutoffs:
+      type: object
+      required: [medium, high, critical]
+      properties:
+        medium: { type: integer, minimum: 1, maximum: 100 }
+        high: { type: integer, minimum: 1, maximum: 100 }
+        critical: { type: integer, minimum: 1, maximum: 100 }
+    AppConfig:
+      type: object
+      required:
+        [
+          severityWeights,
+          missingEvidenceWeight,
+          bandCutoffs,
+          firmName,
+          confidentialityLegend,
+          retentionDefaultDays,
+          updatedAt,
+        ]
+      properties:
+        severityWeights: { $ref: "#/components/schemas/SeverityWeights" }
+        missingEvidenceWeight: { type: integer, minimum: 0, maximum: 100 }
+        bandCutoffs: { $ref: "#/components/schemas/BandCutoffs" }
+        firmName: { type: string }
+        confidentialityLegend: { type: string }
+        retentionDefaultDays: { type: integer, minimum: 1, maximum: 3650 }
+        updatedAt: { type: string }
+        updatedBy: { type: string, nullable: true }
+    AppConfigUpdate:
+      type: object
+      properties:
+        severityWeights: { $ref: "#/components/schemas/SeverityWeights" }
+        missingEvidenceWeight: { type: integer, minimum: 0, maximum: 100 }
+        bandCutoffs: { $ref: "#/components/schemas/BandCutoffs" }
+        firmName: { type: string, minLength: 1, maxLength: 120 }
+        confidentialityLegend: { type: string, minLength: 1, maxLength: 500 }
+        retentionDefaultDays: { type: integer, minimum: 1, maximum: 3650 }
     PaymentConfirmationBody:
       type: object
       required: [role]
