@@ -12,15 +12,6 @@ env = { "CI" = "true" }
 runButton = "Project"
 
 [[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "test"
-
-[[workflows.workflow]]
 name = "test"
 author = "agent"
 
@@ -30,6 +21,37 @@ isValidation = true
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "pnpm --filter @workspace/valo-workbench run test"
+
+[[workflows.workflow]]
+name = "API"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=5000 NODE_ENV=development pnpm --filter @workspace/api-server run dev"
+
+[[workflows.workflow]]
+name = "Workbench"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=3000 BASE_PATH=/ API_PROXY_TARGET=http://127.0.0.1:5000 pnpm --filter @workspace/valo-workbench run dev"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "API"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Workbench"
 
 [agent]
 stack = "PNPM_WORKSPACE"
