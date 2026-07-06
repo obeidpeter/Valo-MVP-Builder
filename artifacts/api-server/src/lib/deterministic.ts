@@ -26,6 +26,10 @@ export interface BoqFinding {
   unitRate: number | null;
   extension: number | null;
   computedExtension: number | null;
+  quantityRaw: string | null;
+  unitRateKobo: number | null;
+  extensionKobo: number | null;
+  computedExtensionKobo: number | null;
   checkType: BoqCheckType;
   finding: string;
   severity: Severity;
@@ -105,6 +109,14 @@ export function mulToKobo(a: number, b: number): bigint | null {
 
 /** Kobo back to a display number (exact for any realistic BOQ magnitude). */
 export const koboToNumber = (kobo: bigint): number => Number(kobo) / 100;
+export const koboToSafeNumber = (kobo: bigint | null): number | null => {
+  if (kobo === null) return null;
+  const n = Number(kobo);
+  if (!Number.isSafeInteger(n)) {
+    throw new Error("Currency amount exceeds safe integer range for kobo persistence");
+  }
+  return n;
+};
 
 const koboAbs = (k: bigint): bigint => (k < 0n ? -k : k);
 const koboDisplay = (kobo: bigint): string => koboToNumber(kobo).toFixed(2);
@@ -282,6 +294,10 @@ export function runBoqChecks(
         unitRate,
         extension,
         computedExtension: null,
+        quantityRaw: quantity == null ? null : String(quantity),
+        unitRateKobo: unitRate == null ? null : koboToSafeNumber(toKobo(unitRate)),
+        extensionKobo: extension == null ? null : koboToSafeNumber(toKobo(extension)),
+        computedExtensionKobo: null,
         checkType: "blank_line",
         finding: "Priced line has no quantity, rate, or extension.",
         severity: "likely_fatal",
@@ -309,6 +325,10 @@ export function runBoqChecks(
             unitRate,
             extension,
             computedExtension,
+            quantityRaw: quantity == null ? null : String(quantity),
+            unitRateKobo: unitRate == null ? null : koboToSafeNumber(toKobo(unitRate)),
+            extensionKobo: extension == null ? null : koboToSafeNumber(toKobo(extension)),
+            computedExtensionKobo: koboToSafeNumber(computedKobo),
             checkType: "extension_mismatch",
             finding: `Extension ${extension} does not equal quantity × rate (${koboDisplay(
               computedKobo,
@@ -333,6 +353,11 @@ export function runBoqChecks(
         unitRate,
         extension,
         computedExtension,
+        quantityRaw: quantity == null ? null : String(quantity),
+        unitRateKobo: unitRate == null ? null : koboToSafeNumber(toKobo(unitRate)),
+        extensionKobo: extension == null ? null : koboToSafeNumber(toKobo(extension)),
+        computedExtensionKobo:
+          computedExtension == null ? null : koboToSafeNumber(toKobo(computedExtension)),
         checkType: "suspicious_zero",
         finding: "Line item has a description but a zero unit rate.",
         severity: "scoring_risk",
@@ -358,6 +383,11 @@ export function runBoqChecks(
           unitRate,
           extension,
           computedExtension,
+          quantityRaw: quantity == null ? null : String(quantity),
+          unitRateKobo: unitRate == null ? null : koboToSafeNumber(toKobo(unitRate)),
+          extensionKobo: extension == null ? null : koboToSafeNumber(toKobo(extension)),
+          computedExtensionKobo:
+            computedExtension == null ? null : koboToSafeNumber(toKobo(computedExtension)),
           checkType: "words_vs_figures",
           finding: `Amount in words ("${row.amountInWords.trim()}" = ${koboDisplay(
             wordsKobo,
@@ -386,6 +416,10 @@ export function runBoqChecks(
         unitRate: null,
         extension: sub.declared,
         computedExtension: koboToNumber(summedKobo),
+        quantityRaw: null,
+        unitRateKobo: null,
+        extensionKobo: koboToSafeNumber(sub.declaredKobo),
+        computedExtensionKobo: koboToSafeNumber(summedKobo),
         checkType: "section_total",
         finding: `Declared section total ${sub.declared} for "${sub.section}" does not equal the sum of its line extensions (${koboDisplay(
           summedKobo,
@@ -407,6 +441,10 @@ export function runBoqChecks(
         unitRate: null,
         extension: grandTotal,
         computedExtension: computedGrandTotal,
+        quantityRaw: null,
+        unitRateKobo: null,
+        extensionKobo: koboToSafeNumber(declaredKobo),
+        computedExtensionKobo: koboToSafeNumber(grandTotalKobo),
         checkType: "grand_total",
         finding: `Submitted grand total ${grandTotal} does not equal the sum of line extensions (${koboDisplay(
           grandTotalKobo,
@@ -609,4 +647,146 @@ export function blockingSignOffDefects<
   return defects.filter(
     (d) => d.status === "open" && SIGN_OFF_BLOCKING_SEVERITIES.has(d.severity),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Engagement workflow governance (FR-CSM-01/03, FR-BIL-01, FR-WFM-01)
+// ---------------------------------------------------------------------------
+
+export type ProjectStatus =
+  | "intake"
+  | "extraction"
+  | "review"
+  | "defects"
+  | "reporting"
+  | "signed_off"
+  | "exported"
+  | "archived";
+
+export type SlaClass = "standard" | "live";
+export type PaymentStatus = "not_required" | "pending" | "confirmed";
+export type ConflictStatus = "clear" | "blocked" | "consented" | "declined";
+
+const STATUS_ORDER: ProjectStatus[] = [
+  "intake",
+  "extraction",
+  "review",
+  "defects",
+  "reporting",
+  "signed_off",
+  "exported",
+  "archived",
+];
+
+const PRODUCTION_STATUSES = new Set<ProjectStatus>([
+  "extraction",
+  "review",
+  "defects",
+  "reporting",
+  "signed_off",
+  "exported",
+]);
+
+export interface WorkflowGateInput {
+  fromStatus: ProjectStatus;
+  toStatus: ProjectStatus;
+  reviewerId?: string | null;
+  paymentStatus?: PaymentStatus;
+  paymentConfirmedByFounder?: boolean;
+  paymentConfirmedByAdvisor?: boolean;
+  conflictStatus?: ConflictStatus;
+  physicalArchiveInstruction?: string | null;
+}
+
+export interface WorkflowGateResult {
+  ok: boolean;
+  reason?: string;
+}
+
+export function paymentGateSatisfied(input: {
+  paymentStatus?: PaymentStatus;
+  paymentConfirmedByFounder?: boolean;
+  paymentConfirmedByAdvisor?: boolean;
+}): boolean {
+  if (!input.paymentStatus || input.paymentStatus === "not_required") return true;
+  return (
+    input.paymentStatus === "confirmed" &&
+    input.paymentConfirmedByFounder === true &&
+    input.paymentConfirmedByAdvisor === true
+  );
+}
+
+/**
+ * Project state movement is intentionally conservative: normal forward motion
+ * can advance one step at a time; remediation can move signed-off-adjacent
+ * work back into review/defects/reporting; archive is terminal. Production
+ * states also require the TRD control fields that make the process warranty
+ * auditable.
+ */
+export function validateProjectTransition(input: WorkflowGateInput): WorkflowGateResult {
+  const fromIndex = STATUS_ORDER.indexOf(input.fromStatus);
+  const toIndex = STATUS_ORDER.indexOf(input.toStatus);
+  if (fromIndex < 0 || toIndex < 0) return { ok: false, reason: "Unknown project status." };
+  if (input.fromStatus === input.toStatus) return { ok: true };
+  if (input.fromStatus === "archived") {
+    return { ok: false, reason: "Archived engagements cannot be reopened by status edit." };
+  }
+
+  const forwardOne = toIndex === fromIndex + 1;
+  const remediationBack =
+    fromIndex > toIndex && ["review", "defects", "reporting"].includes(input.toStatus);
+  const archive = input.toStatus === "archived";
+  if (!forwardOne && !remediationBack && !archive) {
+    return {
+      ok: false,
+      reason: `Illegal status transition: ${input.fromStatus} → ${input.toStatus}.`,
+    };
+  }
+
+  if (PRODUCTION_STATUSES.has(input.toStatus)) {
+    if (!input.reviewerId) {
+      return { ok: false, reason: "A named reviewer is required before production work starts." };
+    }
+    if (input.conflictStatus === "blocked" || input.conflictStatus === "declined") {
+      return { ok: false, reason: "Conflict check is not clear or consented." };
+    }
+    if (!paymentGateSatisfied(input)) {
+      return { ok: false, reason: "Payment gate is not satisfied by dual confirmation." };
+    }
+  }
+
+  if (
+    (input.toStatus === "exported" || input.toStatus === "archived") &&
+    (!input.physicalArchiveInstruction || input.physicalArchiveInstruction.trim().length === 0)
+  ) {
+    return {
+      ok: false,
+      reason: "Physical archive return/destroy instruction is required before close/export.",
+    };
+  }
+
+  return { ok: true };
+}
+
+function addBusinessDays(date: Date, days: number): Date {
+  const d = new Date(date.getTime());
+  let remaining = days;
+  while (remaining > 0) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    const day = d.getUTCDay();
+    if (day !== 0 && day !== 6) remaining--;
+  }
+  return d;
+}
+
+export function computeSlaDueAt(start: Date, slaClass: SlaClass): Date {
+  if (slaClass === "live") return new Date(start.getTime() + 48 * 60 * 60 * 1000);
+  return addBusinessDays(start, 5);
+}
+
+export function computeRedTeamDueAt(deadline: string | null | undefined): Date | null {
+  if (!deadline) return null;
+  const parsed = Date.parse(deadline);
+  if (Number.isNaN(parsed)) return null;
+  return new Date(parsed - 72 * 60 * 60 * 1000);
 }

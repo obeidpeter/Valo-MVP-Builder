@@ -218,6 +218,8 @@ export interface CapabilityItem {
   evidenceDocName?: string | null;
   approvedStatus: CapabilityItemApprovedStatus;
   claimable: boolean;
+  verifierName?: string | null;
+  verifiedAt?: string | null;
   createdAt: string;
 }
 
@@ -288,6 +290,9 @@ export interface VaultItem {
   expiryDate?: string | null;
   renewalLeadDays?: number | null;
   status: string;
+  objectPath?: string | null;
+  sha256?: string | null;
+  sourceDocumentId?: string | null;
   expiryBand: VaultItemExpiryBand;
   daysToExpiry?: number | null;
   createdAt: string;
@@ -302,6 +307,7 @@ export interface VaultItemCreate {
   /** @minimum 0 */
   renewalLeadDays?: number;
   status?: string;
+  sourceDocumentId?: string;
 }
 
 export interface VaultItemUpdate {
@@ -313,6 +319,7 @@ export interface VaultItemUpdate {
   /** @minimum 0 */
   renewalLeadDays?: number;
   status?: string;
+  sourceDocumentId?: string | null;
 }
 
 export type VaultExpiringItem = VaultItem & ({
@@ -534,11 +541,23 @@ export interface Project {
   tenderTitle: string;
   issuingEntity?: string | null;
   tenderRef?: string | null;
+  lot?: string | null;
   deadline?: string | null;
   valueBand?: string | null;
   segment?: ProjectSegment;
   submissionStatus?: string | null;
   status: ProjectStatus;
+  slaClass?: string | null;
+  paymentStatus?: string | null;
+  paymentConfirmedByFounder?: boolean | null;
+  paymentConfirmedByAdvisor?: boolean | null;
+  paymentConfirmedAt?: string | null;
+  conflictStatus?: string | null;
+  conflictDecision?: string | null;
+  conflictRationale?: string | null;
+  physicalArchiveInstruction?: string | null;
+  redactionScope?: string | null;
+  restrictedMode?: boolean | null;
   reviewerId?: string | null;
   reviewerName?: string | null;
   riskScore?: number | null;
@@ -608,9 +627,15 @@ export interface ProjectSummary {
   clientName?: string | null;
   tenderTitle: string;
   issuingEntity?: string | null;
+  tenderRef?: string | null;
+  lot?: string | null;
   deadline?: string | null;
   segment?: ProjectSummarySegment;
   status: ProjectSummaryStatus;
+  slaClass?: string | null;
+  paymentStatus?: string | null;
+  conflictStatus?: string | null;
+  restrictedMode?: boolean | null;
   reviewerName?: string | null;
   riskScore?: number | null;
   riskBand?: ProjectSummaryRiskBand;
@@ -638,11 +663,17 @@ export interface ProjectCreate {
   tenderTitle: string;
   issuingEntity?: string;
   tenderRef?: string;
+  lot?: string;
   deadline?: string;
   valueBand?: string;
   segment?: ProjectCreateSegment;
   submissionStatus?: string;
-  reviewerId?: string;
+  reviewerId: string;
+  slaClass?: string;
+  paymentStatus?: string;
+  physicalArchiveInstruction?: string;
+  redactionScope?: string;
+  restrictedMode?: boolean;
   scope?: string;
   limitations?: string;
 }
@@ -690,12 +721,23 @@ export interface ProjectUpdate {
   tenderTitle?: string;
   issuingEntity?: string;
   tenderRef?: string;
+  lot?: string;
   deadline?: string;
   valueBand?: string;
   segment?: ProjectUpdateSegment;
   submissionStatus?: string;
   status?: ProjectUpdateStatus;
   reviewerId?: string;
+  slaClass?: string;
+  paymentStatus?: string;
+  paymentConfirmedByFounder?: boolean;
+  paymentConfirmedByAdvisor?: boolean;
+  conflictStatus?: string;
+  conflictDecision?: string | null;
+  conflictRationale?: string | null;
+  physicalArchiveInstruction?: string | null;
+  redactionScope?: string | null;
+  restrictedMode?: boolean;
   outcome?: ProjectUpdateOutcome;
   scope?: string;
   limitations?: string;
@@ -1241,10 +1283,14 @@ export interface BoqCheck {
   sourceDocId?: string | null;
   lineRef?: string | null;
   description?: string | null;
+  quantityRaw?: string | null;
   quantity?: number | null;
   unitRate?: number | null;
   extension?: number | null;
   computedExtension?: number | null;
+  unitRateKobo?: number | null;
+  extensionKobo?: number | null;
+  computedExtensionKobo?: number | null;
   checkType: BoqCheckCheckType;
   finding: string;
   severity: BoqCheckSeverity;

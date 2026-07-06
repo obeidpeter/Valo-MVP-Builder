@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, desc } from "drizzle-orm";
-import { db, vaultItems, clients } from "@workspace/db";
+import { db, vaultItems, clients, documents, projects } from "@workspace/db";
 import { CreateVaultItemBody, UpdateVaultItemBody } from "@workspace/api-zod";
 import { requireMember, getLocalUser } from "../middlewares/auth";
 import { serializeVaultItem } from "../lib/serializers";
@@ -11,6 +11,28 @@ const router: IRouter = Router();
 
 /** Bands that appear on the renewal radar, in urgency order. */
 const RADAR_BANDS: ExpiryBand[] = ["expired", "critical", "warning", "upcoming"];
+
+async function clientDocument(clientId: string, documentId: string) {
+  const [row] = await db
+    .select({ doc: documents })
+    .from(documents)
+    .innerJoin(projects, eq(documents.projectId, projects.id))
+    .where(eq(documents.id, documentId));
+  if (!row) return null;
+  const [project] = await db
+    .select({ clientId: projects.clientId })
+    .from(projects)
+    .where(eq(projects.id, row.doc.projectId));
+  return project?.clientId === clientId ? row.doc : null;
+}
+
+async function findDuplicateVaultHash(clientId: string, sha256: string, excludeId?: string) {
+  const rows = await db
+    .select()
+    .from(vaultItems)
+    .where(eq(vaultItems.clientId, clientId));
+  return rows.find((v) => v.id !== excludeId && v.sha256 === sha256) ?? null;
+}
 
 router.get(
   "/clients/:id/vault-items",
@@ -50,16 +72,34 @@ router.post(
       return;
     }
     const user = getLocalUser(req);
+    let sourceDoc: typeof documents.$inferSelect | null = null;
+    if (parsed.data.sourceDocumentId) {
+      sourceDoc = await clientDocument(clientId, parsed.data.sourceDocumentId);
+      if (!sourceDoc) {
+        res.status(400).json({ error: "sourceDocumentId does not belong to this client" });
+        return;
+      }
+    }
+    const duplicate = sourceDoc?.sha256
+      ? await findDuplicateVaultHash(clientId, sourceDoc.sha256)
+      : null;
     const [created] = await db
       .insert(vaultItems)
-      .values({ ...parsed.data, clientId })
+      .values({
+        ...parsed.data,
+        clientId,
+        objectPath: sourceDoc?.objectPath ?? null,
+        sha256: sourceDoc?.sha256 ?? null,
+      })
       .returning();
     await writeAudit({
       user,
       eventType: "vault.item_created",
       objectType: "vault_item",
       objectId: created.id,
-      details: `${created.artefactType}${created.expiryDate ? ` (expires ${created.expiryDate})` : ""} for client ${clientId}`,
+      details: `${created.artefactType}${created.expiryDate ? ` (expires ${created.expiryDate})` : ""} for client ${clientId}${
+        duplicate ? ` | duplicate sha256 of vault item ${duplicate.id}` : ""
+      }`,
     });
     res
       .status(201)
@@ -73,21 +113,39 @@ router.patch("/vault-items/:id", requireMember, async (req: Request, res: Respon
     res.status(400).json({ error: "Invalid request" });
     return;
   }
-  const [updated] = await db
-    .update(vaultItems)
-    .set({ ...parsed.data })
-    .where(eq(vaultItems.id, String(req.params.id)))
-    .returning();
-  if (!updated) {
+  const [existing] = await db
+    .select()
+    .from(vaultItems)
+    .where(eq(vaultItems.id, String(req.params.id)));
+  if (!existing) {
     res.status(404).json({ error: "Not found" });
     return;
   }
+  let sourceDoc: typeof documents.$inferSelect | null = null;
+  if (parsed.data.sourceDocumentId) {
+    sourceDoc = await clientDocument(existing.clientId, parsed.data.sourceDocumentId);
+    if (!sourceDoc) {
+      res.status(400).json({ error: "sourceDocumentId does not belong to this client" });
+      return;
+    }
+  }
+  const duplicate = sourceDoc?.sha256
+    ? await findDuplicateVaultHash(existing.clientId, sourceDoc.sha256, existing.id)
+    : null;
+  const documentPatch = sourceDoc
+    ? { objectPath: sourceDoc.objectPath, sha256: sourceDoc.sha256 }
+    : {};
+  const [updated] = await db
+    .update(vaultItems)
+    .set({ ...parsed.data, ...documentPatch })
+    .where(eq(vaultItems.id, String(req.params.id)))
+    .returning();
   await writeAudit({
     user: getLocalUser(req),
     eventType: "vault.item_updated",
     objectType: "vault_item",
     objectId: updated.id,
-    details: updated.artefactType,
+    details: `${updated.artefactType}${duplicate ? ` | duplicate sha256 of vault item ${duplicate.id}` : ""}`,
   });
   res.json(serializeVaultItem(updated, computeExpiry(updated.expiryDate, new Date(), updated.renewalLeadDays)));
 });

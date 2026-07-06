@@ -2,6 +2,7 @@ import {
   useListReports,
   useGenerateReport,
   useSignOffReport,
+  exportProject,
   getListReportsQueryKey,
   getGetProjectQueryKey
 } from "@workspace/api-client-react";
@@ -11,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, FileBarChart, Download, FileSignature } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 /** Pull the server's human-readable error message off a failed mutation. */
 function errorMessage(err: unknown, fallback: string): string {
@@ -28,6 +30,7 @@ export function ReportsTab({ projectId }: { projectId: string }) {
   const signOffReport = useSignOffReport();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [exporting, setExporting] = useState(false);
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: getListReportsQueryKey(projectId) });
@@ -72,14 +75,43 @@ export function ReportsTab({ projectId }: { projectId: string }) {
     window.location.href = `/api/reports/${id}/download`;
   };
 
+  const handleProjectExport = async () => {
+    setExporting(true);
+    try {
+      const blob = await exportProject(projectId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `project-${projectId}-export.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Project export blocked",
+        description: errorMessage(err, "Confirm physical archive instructions before exporting a signed-off project."),
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-serif font-medium">Export & Reporting</h2>
-        <Button onClick={handleGenerate} disabled={generateReport.isPending}>
-          {generateReport.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileBarChart className="w-4 h-4 mr-2" />}
-          Generate Report
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleProjectExport} disabled={exporting}>
+            {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+            Export ZIP
+          </Button>
+          <Button onClick={handleGenerate} disabled={generateReport.isPending}>
+            {generateReport.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileBarChart className="w-4 h-4 mr-2" />}
+            Generate Report
+          </Button>
+        </div>
       </div>
 
       <div className="bg-card border border-border rounded-lg shadow-xs overflow-hidden">

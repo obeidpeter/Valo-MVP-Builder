@@ -9,6 +9,7 @@ import {
   requirements,
   documents,
   reports,
+  conflictRecords,
 } from "@workspace/db";
 import { CreateProjectBody, UpdateProjectBody } from "@workspace/api-zod";
 import { requireMember, requireRoles, getLocalUser } from "../middlewares/auth";
@@ -16,10 +17,24 @@ import { serializeProject } from "../lib/serializers";
 import { writeAudit } from "../lib/audit";
 import { responsivenessReview } from "../lib/llm";
 import { ObjectStorageService } from "../lib/objectStorage";
+import {
+  validateProjectTransition,
+  type ConflictStatus,
+  type PaymentStatus,
+  type ProjectStatus,
+} from "../lib/deterministic";
 
 const objectStorage = new ObjectStorageService();
 
 const router: IRouter = Router();
+const ACTIVE_CONFLICT_STATUSES = new Set([
+  "intake",
+  "extraction",
+  "review",
+  "defects",
+  "reporting",
+  "signed_off",
+]);
 
 function nextActionFor(status: string): string {
   switch (status) {
@@ -40,6 +55,26 @@ function nextActionFor(status: string): string {
     default:
       return "Review project";
   }
+}
+
+async function findSameTenderConflict(params: {
+  tenderRef?: string | null;
+  lot?: string | null;
+  excludeProjectId?: string | null;
+}) {
+  if (!params.tenderRef || params.tenderRef.trim().length === 0) return null;
+  const rows = await db
+    .select()
+    .from(projects)
+    .where(eq(projects.tenderRef, params.tenderRef.trim()));
+  return (
+    rows.find(
+      (p) =>
+        p.id !== params.excludeProjectId &&
+        (p.lot ?? "") === (params.lot ?? "") &&
+        ACTIVE_CONFLICT_STATUSES.has(p.status),
+    ) ?? null
+  );
 }
 
 // GET /projects — dashboard summaries with aggregates.
@@ -89,10 +124,16 @@ router.get("/projects", requireMember, async (req: Request, res: Response) => {
         clientName: r.clientName ?? null,
         tenderTitle: p.tenderTitle,
         issuingEntity: p.issuingEntity ?? null,
+        tenderRef: p.tenderRef ?? null,
+        lot: p.lot ?? null,
         deadline: p.deadline ?? null,
         segment: p.segment ?? null,
         status: p.status,
         reviewerName: r.reviewerName ?? null,
+        slaClass: p.slaClass ?? "standard",
+        paymentStatus: p.paymentStatus ?? "not_required",
+        conflictStatus: p.conflictStatus ?? "clear",
+        restrictedMode: p.restrictedMode ?? false,
         riskScore: p.riskScore ?? null,
         riskBand: p.riskBand ?? null,
         outcome: p.outcome,
@@ -112,11 +153,39 @@ router.post("/projects", requireMember, async (req: Request, res: Response) => {
     res.status(400).json({ error: "Invalid request" });
     return;
   }
-  const [created] = await db.insert(projects).values({ ...parsed.data }).returning();
+  if (!parsed.data.reviewerId) {
+    res.status(400).json({ error: "A named reviewer is required before an engagement can be created." });
+    return;
+  }
+  const user = getLocalUser(req);
+  const conflict = await findSameTenderConflict({
+    tenderRef: parsed.data.tenderRef,
+    lot: parsed.data.lot,
+  });
+  const conflictPatch = conflict
+    ? {
+        conflictStatus: "blocked",
+        conflictDecision: "pending_disclosure",
+        conflictRationale: `Same tender/lot already active on project ${conflict.id}.`,
+      }
+    : {};
+  const [created] = await db.insert(projects).values({ ...parsed.data, ...conflictPatch }).returning();
+  if (conflict) {
+    await db.insert(conflictRecords).values({
+      clientId: created.clientId,
+      projectId: created.id,
+      tenderRef: created.tenderRef,
+      lot: created.lot,
+      matchedProjectId: conflict.id,
+      status: "blocked",
+      decision: "pending_disclosure",
+      rationale: `Same tender/lot already active on project ${conflict.id}.`,
+    });
+  }
   await writeAudit({
-    user: getLocalUser(req),
+    user,
     projectId: created.id,
-    eventType: "project.created",
+    eventType: conflict ? "project.created_conflict_blocked" : "project.created",
     objectType: "project",
     objectId: created.id,
     details: created.tenderTitle,
@@ -168,19 +237,81 @@ router.patch("/projects/:id", requireMember, async (req: Request, res: Response)
     res.status(400).json({ error: "Invalid request" });
     return;
   }
-  const [updated] = await db
-    .update(projects)
-    .set({ ...parsed.data })
-    .where(eq(projects.id, String(req.params.id)))
-    .returning();
-  if (!updated) {
+  const [existing] = await db.select().from(projects).where(eq(projects.id, String(req.params.id)));
+  if (!existing) {
     res.status(404).json({ error: "Not found" });
     return;
   }
+  const next = { ...existing, ...parsed.data };
+  const user = getLocalUser(req);
+  if (parsed.data.status && parsed.data.status !== existing.status) {
+    const gate = validateProjectTransition({
+      fromStatus: existing.status as ProjectStatus,
+      toStatus: parsed.data.status as ProjectStatus,
+      reviewerId: next.reviewerId,
+      paymentStatus: next.paymentStatus as PaymentStatus,
+      paymentConfirmedByFounder: next.paymentConfirmedByFounder,
+      paymentConfirmedByAdvisor: next.paymentConfirmedByAdvisor,
+      conflictStatus: next.conflictStatus as ConflictStatus,
+      physicalArchiveInstruction: next.physicalArchiveInstruction,
+    });
+    if (!gate.ok) {
+      await writeAudit({
+        user,
+        projectId: existing.id,
+        eventType: "project.transition_denied",
+        objectType: "project",
+        objectId: existing.id,
+        details: gate.reason,
+      });
+      res.status(409).json({ error: gate.reason ?? "Project transition blocked" });
+      return;
+    }
+  }
+  const conflict = await findSameTenderConflict({
+    tenderRef: next.tenderRef,
+    lot: next.lot,
+    excludeProjectId: existing.id,
+  });
+  const shouldBlockConflict =
+    conflict != null &&
+    parsed.data.conflictStatus !== "consented" &&
+    parsed.data.conflictStatus !== "declined";
+  const conflictPatch = shouldBlockConflict && conflict
+    ? {
+        conflictStatus: "blocked",
+        conflictDecision: "pending_disclosure",
+        conflictRationale: `Same tender/lot already active on project ${conflict.id}.`,
+      }
+    : {};
+  const paymentConfirmedAtPatch =
+    next.paymentStatus === "confirmed" &&
+    next.paymentConfirmedByFounder &&
+    next.paymentConfirmedByAdvisor &&
+    !existing.paymentConfirmedAt
+      ? { paymentConfirmedAt: new Date() }
+      : {};
+  const [updated] = await db
+    .update(projects)
+    .set({ ...parsed.data, ...conflictPatch, ...paymentConfirmedAtPatch })
+    .where(eq(projects.id, String(req.params.id)))
+    .returning();
+  if (conflict && shouldBlockConflict) {
+    await db.insert(conflictRecords).values({
+      clientId: updated.clientId,
+      projectId: updated.id,
+      tenderRef: updated.tenderRef,
+      lot: updated.lot,
+      matchedProjectId: conflict.id,
+      status: "blocked",
+      decision: "pending_disclosure",
+      rationale: `Same tender/lot already active on project ${conflict.id}.`,
+    });
+  }
   await writeAudit({
-    user: getLocalUser(req),
+    user,
     projectId: updated.id,
-    eventType: "project.updated",
+    eventType: parsed.data.status ? "project.transitioned" : "project.updated",
     objectType: "project",
     objectId: updated.id,
     details: JSON.stringify(parsed.data),

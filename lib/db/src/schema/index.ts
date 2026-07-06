@@ -2,6 +2,7 @@ import {
   pgTable,
   text,
   integer,
+  bigint as pgBigint,
   bigserial,
   boolean,
   doublePrecision,
@@ -44,6 +45,7 @@ export const projects = pgTable("projects", {
   tenderTitle: text("tender_title").notNull(),
   issuingEntity: text("issuing_entity"),
   tenderRef: text("tender_ref"),
+  lot: text("lot"),
   deadline: text("deadline"),
   valueBand: text("value_band"),
   segment: text("segment"),
@@ -52,6 +54,21 @@ export const projects = pgTable("projects", {
   reviewerId: uuid("reviewer_id").references(() => users.id, {
     onDelete: "set null",
   }),
+  slaClass: text("sla_class").notNull().default("standard"),
+  paymentStatus: text("payment_status").notNull().default("not_required"),
+  paymentConfirmedByFounder: boolean("payment_confirmed_by_founder")
+    .notNull()
+    .default(false),
+  paymentConfirmedByAdvisor: boolean("payment_confirmed_by_advisor")
+    .notNull()
+    .default(false),
+  paymentConfirmedAt: timestamp("payment_confirmed_at", { withTimezone: true }),
+  conflictStatus: text("conflict_status").notNull().default("clear"),
+  conflictDecision: text("conflict_decision"),
+  conflictRationale: text("conflict_rationale"),
+  physicalArchiveInstruction: text("physical_archive_instruction"),
+  redactionScope: text("redaction_scope"),
+  restrictedMode: boolean("restricted_mode").notNull().default(false),
   riskScore: doublePrecision("risk_score"),
   riskBand: text("risk_band"),
   riskOverrideBand: text("risk_override_band"),
@@ -176,6 +193,10 @@ export const boqChecks = pgTable("boq_checks", {
   unitRate: doublePrecision("unit_rate"),
   extension: doublePrecision("extension"),
   computedExtension: doublePrecision("computed_extension"),
+  quantityRaw: text("quantity_raw"),
+  unitRateKobo: pgBigint("unit_rate_kobo", { mode: "number" }),
+  extensionKobo: pgBigint("extension_kobo", { mode: "number" }),
+  computedExtensionKobo: pgBigint("computed_extension_kobo", { mode: "number" }),
   checkType: text("check_type").notNull(),
   finding: text("finding").notNull(),
   severity: text("severity").notNull().default("scoring_risk"),
@@ -194,6 +215,11 @@ export const vaultItems = pgTable("vault_items", {
   expiryDate: text("expiry_date"),
   renewalLeadDays: integer("renewal_lead_days"),
   status: text("status").notNull().default("active"),
+  objectPath: text("object_path"),
+  sha256: text("sha256"),
+  sourceDocumentId: uuid("source_document_id").references(() => documents.id, {
+    onDelete: "set null",
+  }),
   createdAt: createdAt(),
 });
 
@@ -208,6 +234,72 @@ export const capabilityItems = pgTable("capability_items", {
     onDelete: "set null",
   }),
   approvedStatus: text("approved_status").notNull().default("pending"),
+  verifierId: uuid("verifier_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  verifierName: text("verifier_name"),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  createdAt: createdAt(),
+});
+
+export const conflictRecords = pgTable("conflict_records", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clientId: uuid("client_id").references(() => clients.id, {
+    onDelete: "set null",
+  }),
+  projectId: uuid("project_id").references(() => projects.id, {
+    onDelete: "cascade",
+  }),
+  tenderRef: text("tender_ref"),
+  lot: text("lot"),
+  matchedProjectId: uuid("matched_project_id").references(() => projects.id, {
+    onDelete: "set null",
+  }),
+  status: text("status").notNull().default("blocked"),
+  decision: text("decision"),
+  rationale: text("rationale"),
+  decidedBy: uuid("decided_by").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  decidedAt: timestamp("decided_at", { withTimezone: true }),
+  createdAt: createdAt(),
+});
+
+export const notificationEvents = pgTable("notification_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, {
+    onDelete: "cascade",
+  }),
+  clientId: uuid("client_id").references(() => clients.id, {
+    onDelete: "cascade",
+  }),
+  vaultItemId: uuid("vault_item_id").references(() => vaultItems.id, {
+    onDelete: "cascade",
+  }),
+  channel: text("channel").notNull().default("manual"),
+  template: text("template").notNull(),
+  recipient: text("recipient"),
+  payload: text("payload"),
+  status: text("status").notNull().default("queued"),
+  createdBy: uuid("created_by").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  createdAt: createdAt(),
+});
+
+export const retentionRequests = pgTable("retention_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  requestedBy: uuid("requested_by").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  reason: text("reason"),
+  dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  certificateText: text("certificate_text"),
+  status: text("status").notNull().default("pending"),
   createdAt: createdAt(),
 });
 

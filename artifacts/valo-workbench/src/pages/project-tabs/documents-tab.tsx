@@ -38,11 +38,16 @@ const PENDING_EXTRACTION = new Set(["pending", "extracting"]);
 export function DocumentsTab({
   projectId,
   ndaStatus,
+  conflictStatus,
+  restrictedMode,
 }: {
   projectId: string;
   ndaStatus?: string | null;
+  conflictStatus?: string | null;
+  restrictedMode?: boolean | null;
 }) {
   const ndaCleared = !!ndaStatus && NDA_ALLOWED.has(ndaStatus);
+  const intakeBlockedByConflict = conflictStatus === "blocked" || conflictStatus === "declined";
   // Poll while any document is still extracting so the status flips live.
   const { data: documents, isLoading } = useListDocuments(projectId, {
     query: {
@@ -212,7 +217,7 @@ export function DocumentsTab({
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-serif font-medium">Project Documents</h2>
         <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
-        <Button onClick={handleUploadClick} disabled={isUploading || !ndaCleared}>
+        <Button onClick={handleUploadClick} disabled={isUploading || !ndaCleared || intakeBlockedByConflict}>
           {isUploading ? (
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
           ) : !ndaCleared ? (
@@ -231,6 +236,23 @@ export function DocumentsTab({
             Uploads are locked until this client's NDA position is recorded.
             Set the client's NDA status to <strong>signed</strong> or <strong>not required</strong> to enable document uploads.
           </p>
+        </div>
+      )}
+
+      {intakeBlockedByConflict && (
+        <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0" />
+          <p>
+            Uploads are locked because this engagement has a {conflictStatus} conflict decision.
+            Resolve the conflict status to clear or consented before intake continues.
+          </p>
+        </div>
+      )}
+
+      {restrictedMode && (
+        <div className="flex items-start gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm text-blue-700 dark:text-blue-300">
+          <ShieldCheck className="w-4 h-4 mt-0.5 shrink-0" />
+          <p>Restricted mode is active for this project. Keep only approved redacted material available to AI steps.</p>
         </div>
       )}
 

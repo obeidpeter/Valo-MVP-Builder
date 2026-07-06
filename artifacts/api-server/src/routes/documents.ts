@@ -21,9 +21,9 @@ const NDA_ALLOWED = new Set(["signed", "not_required"]);
 /** Look up the client NDA status backing a project (null = project missing). */
 async function projectNdaStatus(
   projectId: string,
-): Promise<{ ndaStatus: string | null } | null> {
+): Promise<{ ndaStatus: string | null; conflictStatus: string | null } | null> {
   const [row] = await db
-    .select({ ndaStatus: clients.ndaStatus })
+    .select({ ndaStatus: clients.ndaStatus, conflictStatus: projects.conflictStatus })
     .from(projects)
     .leftJoin(clients, eq(projects.clientId, clients.id))
     .where(eq(projects.id, projectId));
@@ -90,6 +90,21 @@ router.post(
       await denyNda(gate.ndaStatus);
       return;
     }
+    if (gate.conflictStatus === "blocked" || gate.conflictStatus === "declined") {
+      await writeAudit({
+        user,
+        projectId,
+        eventType: "document.intake_denied",
+        objectType: "project",
+        objectId: projectId,
+        details: `Conflict gate blocked upload of "${parsed.data.filename}" (status: ${gate.conflictStatus}).`,
+      });
+      res.status(409).json({
+        error: "Conflict check is not clear or consented. Resolve conflict status before intake.",
+        conflictStatus: gate.conflictStatus,
+      });
+      return;
+    }
 
     // Download the stored object once: hash it for the intake manifest
     // (FR-INT-02) and extract text from the same bytes, so the hash is
@@ -125,6 +140,21 @@ router.post(
     const regate = await projectNdaStatus(projectId);
     if (!regate || !regate.ndaStatus || !NDA_ALLOWED.has(regate.ndaStatus)) {
       await denyNda(regate?.ndaStatus ?? null);
+      return;
+    }
+    if (regate.conflictStatus === "blocked" || regate.conflictStatus === "declined") {
+      await writeAudit({
+        user,
+        projectId,
+        eventType: "document.intake_denied",
+        objectType: "project",
+        objectId: projectId,
+        details: `Conflict gate blocked upload of "${parsed.data.filename}" after storage read (status: ${regate.conflictStatus}).`,
+      });
+      res.status(409).json({
+        error: "Conflict check is not clear or consented. Resolve conflict status before intake.",
+        conflictStatus: regate.conflictStatus,
+      });
       return;
     }
 

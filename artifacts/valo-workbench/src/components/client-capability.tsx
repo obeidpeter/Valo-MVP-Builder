@@ -169,6 +169,7 @@ export function ClientCapability({ clientId }: { clientId: string }) {
                 <TableHead>Type</TableHead>
                 <TableHead>Evidence</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Verified</TableHead>
                 <TableHead className="w-[180px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -202,6 +203,16 @@ export function ClientCapability({ clientId }: { clientId: string }) {
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="text-[10px] capitalize">{item.approvedStatus}</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {item.verifiedAt ? (
+                      <div>
+                        <div className="font-medium text-foreground">{item.verifierName ?? "Verified"}</div>
+                        <div>{new Date(item.verifiedAt).toLocaleString()}</div>
+                      </div>
+                    ) : (
+                      "-"
                     )}
                   </TableCell>
                   <TableCell className="text-right">

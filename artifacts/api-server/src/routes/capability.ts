@@ -142,13 +142,24 @@ router.patch("/capability-items/:id", requireMember, async (req: Request, res: R
     return;
   }
 
+  const user = getLocalUser(req);
+  const verificationPatch =
+    parsed.data.approvedStatus === "approved" && existing.approvedStatus !== "approved"
+      ? {
+          verifierId: user?.id ?? null,
+          verifierName: user?.name ?? user?.email ?? null,
+          verifiedAt: new Date(),
+        }
+      : parsed.data.approvedStatus && parsed.data.approvedStatus !== "approved"
+        ? { verifierId: null, verifierName: null, verifiedAt: null }
+        : {};
   const [updated] = await db
     .update(capabilityItems)
-    .set({ ...parsed.data })
+    .set({ ...parsed.data, ...verificationPatch })
     .where(eq(capabilityItems.id, existing.id))
     .returning();
   await writeAudit({
-    user: getLocalUser(req),
+    user,
     eventType:
       parsed.data.approvedStatus && parsed.data.approvedStatus !== existing.approvedStatus
         ? `capability.item_${parsed.data.approvedStatus}`
