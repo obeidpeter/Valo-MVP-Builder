@@ -1333,6 +1333,13 @@ export const ExtractRequirementsResponse = zod.object({
   "reviewerNotes": zod.string().nullish(),
   "origin": zod.enum(['engine', 'manual']).nullish(),
   "engineText": zod.string().nullish(),
+  "mergedCitations": zod.array(zod.object({
+  "sourceDocId": zod.string().nullish(),
+  "sourceDocName": zod.string().nullish(),
+  "pageRef": zod.string().nullish(),
+  "clauseRef": zod.string().nullish(),
+  "text": zod.string().nullish()
+})).optional(),
   "reviewedByName": zod.string().nullish(),
   "reviewedAt": zod.string().nullish(),
   "createdAt": zod.string()
@@ -1395,6 +1402,13 @@ export const ListRequirementsResponseItem = zod.object({
   "reviewerNotes": zod.string().nullish(),
   "origin": zod.enum(['engine', 'manual']).nullish(),
   "engineText": zod.string().nullish(),
+  "mergedCitations": zod.array(zod.object({
+  "sourceDocId": zod.string().nullish(),
+  "sourceDocName": zod.string().nullish(),
+  "pageRef": zod.string().nullish(),
+  "clauseRef": zod.string().nullish(),
+  "text": zod.string().nullish()
+})).optional(),
   "reviewedByName": zod.string().nullish(),
   "reviewedAt": zod.string().nullish(),
   "createdAt": zod.string()
@@ -1438,6 +1452,58 @@ export const CreateRequirementResponse = zod.object({
   "reviewerNotes": zod.string().nullish(),
   "origin": zod.enum(['engine', 'manual']).nullish(),
   "engineText": zod.string().nullish(),
+  "mergedCitations": zod.array(zod.object({
+  "sourceDocId": zod.string().nullish(),
+  "sourceDocName": zod.string().nullish(),
+  "pageRef": zod.string().nullish(),
+  "clauseRef": zod.string().nullish(),
+  "text": zod.string().nullish()
+})).optional(),
+  "reviewedByName": zod.string().nullish(),
+  "reviewedAt": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Merge near-duplicate requirements into a single surviving row
+ */
+export const MergeRequirementsParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const mergeRequirementsBodyRequirementIdsMin = 2;
+
+
+
+export const MergeRequirementsBody = zod.object({
+  "requirementIds": zod.array(zod.string()).min(mergeRequirementsBodyRequirementIdsMin),
+  "survivorId": zod.string()
+})
+
+export const MergeRequirementsResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "sourceDocId": zod.string().nullish(),
+  "sourceDocName": zod.string().nullish(),
+  "pageRef": zod.string().nullish(),
+  "clauseRef": zod.string().nullish(),
+  "text": zod.string(),
+  "category": zod.enum(['eligibility', 'administrative', 'technical', 'financial_format', 'other']),
+  "expectedEvidence": zod.string().nullish(),
+  "isMandatory": zod.boolean(),
+  "confidence": zod.enum(['high', 'medium', 'low', 'unclear']).nullish(),
+  "reviewStatus": zod.enum(['suggested', 'confirmed', 'edited', 'rejected', 'pending']),
+  "reviewerNotes": zod.string().nullish(),
+  "origin": zod.enum(['engine', 'manual']).nullish(),
+  "engineText": zod.string().nullish(),
+  "mergedCitations": zod.array(zod.object({
+  "sourceDocId": zod.string().nullish(),
+  "sourceDocName": zod.string().nullish(),
+  "pageRef": zod.string().nullish(),
+  "clauseRef": zod.string().nullish(),
+  "text": zod.string().nullish()
+})).optional(),
   "reviewedByName": zod.string().nullish(),
   "reviewedAt": zod.string().nullish(),
   "createdAt": zod.string()
@@ -1482,6 +1548,13 @@ export const UpdateRequirementResponse = zod.object({
   "reviewerNotes": zod.string().nullish(),
   "origin": zod.enum(['engine', 'manual']).nullish(),
   "engineText": zod.string().nullish(),
+  "mergedCitations": zod.array(zod.object({
+  "sourceDocId": zod.string().nullish(),
+  "sourceDocName": zod.string().nullish(),
+  "pageRef": zod.string().nullish(),
+  "clauseRef": zod.string().nullish(),
+  "text": zod.string().nullish()
+})).optional(),
   "reviewedByName": zod.string().nullish(),
   "reviewedAt": zod.string().nullish(),
   "createdAt": zod.string()

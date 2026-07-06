@@ -919,6 +919,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Requirement"
+  /projects/{id}/requirements/merge:
+    post:
+      operationId: mergeRequirements
+      tags: [Requirements]
+      summary: Merge near-duplicate requirements into a single surviving row
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequirementMerge"
+      responses:
+        "200":
+          description: The surviving requirement after merge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Requirement"
   /requirements/{id}:
     patch:
       operationId: updateRequirement
@@ -2235,9 +2255,30 @@ components:
           enum: [engine, manual]
           nullable: true
         engineText: { type: string, nullable: true }
+        mergedCitations:
+          type: array
+          items:
+            $ref: "#/components/schemas/RequirementCitation"
         reviewedByName: { type: string, nullable: true }
         reviewedAt: { type: string, nullable: true }
         createdAt: { type: string }
+    RequirementCitation:
+      type: object
+      properties:
+        sourceDocId: { type: string, nullable: true }
+        sourceDocName: { type: string, nullable: true }
+        pageRef: { type: string, nullable: true }
+        clauseRef: { type: string, nullable: true }
+        text: { type: string, nullable: true }
+    RequirementMerge:
+      type: object
+      required: [requirementIds, survivorId]
+      properties:
+        requirementIds:
+          type: array
+          minItems: 2
+          items: { type: string }
+        survivorId: { type: string }
     RequirementCreate:
       type: object
       required: [text, category]

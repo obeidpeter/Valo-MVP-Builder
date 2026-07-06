@@ -1276,6 +1276,14 @@ export const RequirementOrigin = {
   manual: 'manual',
 } as const;
 
+export interface RequirementCitation {
+  sourceDocId?: string | null;
+  sourceDocName?: string | null;
+  pageRef?: string | null;
+  clauseRef?: string | null;
+  text?: string | null;
+}
+
 export interface Requirement {
   id: string;
   projectId: string;
@@ -1292,6 +1300,7 @@ export interface Requirement {
   reviewerNotes?: string | null;
   origin?: RequirementOrigin;
   engineText?: string | null;
+  mergedCitations?: RequirementCitation[];
   reviewedByName?: string | null;
   reviewedAt?: string | null;
   createdAt: string;
@@ -1308,6 +1317,12 @@ export interface DocumentIntegrity {
   ok: boolean;
   expectedSha256: string;
   actualSha256?: string | null;
+}
+
+export interface RequirementMerge {
+  /** @minItems 2 */
+  requirementIds: string[];
+  survivorId: string;
 }
 
 export type RequirementCreateCategory = typeof RequirementCreateCategory[keyof typeof RequirementCreateCategory];

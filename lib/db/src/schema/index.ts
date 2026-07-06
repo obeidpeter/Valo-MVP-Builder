@@ -150,6 +150,11 @@ export const requirements = pgTable("requirements", {
   // stay diffable, and the server-derived reviewer stamp on review actions.
   origin: text("origin"),
   engineText: text("engine_text"),
+  // Citations folded in from rows merged away by a reviewer (JSON array of
+  // {sourceDocId, sourceDocName, pageRef, clauseRef, text}). The survivor keeps
+  // its own primary citation in the native columns above; this preserves the
+  // originals' page/clause refs so no provenance is lost on merge.
+  mergedCitations: text("merged_citations"),
   reviewedBy: uuid("reviewed_by").references(() => users.id, {
     onDelete: "set null",
   }),

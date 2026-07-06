@@ -67,6 +67,7 @@ import type {
   Report,
   Requirement,
   RequirementCreate,
+  RequirementMerge,
   RequirementUpdate,
   ResponsivenessResult,
   RetentionRequest,
@@ -3751,6 +3752,77 @@ export const useCreateRequirement = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateRequirementMutationOptions(options));
+    }
+
+export const getMergeRequirementsUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/requirements/merge`
+}
+
+/**
+ * @summary Merge near-duplicate requirements into a single surviving row
+ */
+export const mergeRequirements = async (id: string,
+    requirementMerge: RequirementMerge, options?: RequestInit): Promise<Requirement> => {
+
+  return customFetch<Requirement>(getMergeRequirementsUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(requirementMerge)
+  }
+);}
+
+
+
+
+export const getMergeRequirementsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeRequirements>>, TError,{id: string;data: BodyType<RequirementMerge>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof mergeRequirements>>, TError,{id: string;data: BodyType<RequirementMerge>}, TContext> => {
+
+const mutationKey = ['mergeRequirements'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof mergeRequirements>>, {id: string;data: BodyType<RequirementMerge>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  mergeRequirements(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MergeRequirementsMutationResult = NonNullable<Awaited<ReturnType<typeof mergeRequirements>>>
+    export type MergeRequirementsMutationBody = BodyType<RequirementMerge>
+    export type MergeRequirementsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Merge near-duplicate requirements into a single surviving row
+ */
+export const useMergeRequirements = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeRequirements>>, TError,{id: string;data: BodyType<RequirementMerge>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof mergeRequirements>>,
+        TError,
+        {id: string;data: BodyType<RequirementMerge>},
+        TContext
+      > => {
+      return useMutation(getMergeRequirementsMutationOptions(options));
     }
 
 export const getUpdateRequirementUrl = (id: string,) => {

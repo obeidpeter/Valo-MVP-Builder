@@ -5,6 +5,31 @@ function iso(d: DateLike): string | null {
   return d instanceof Date ? d.toISOString() : String(d);
 }
 
+export interface MergedCitation {
+  sourceDocId: string | null;
+  sourceDocName: string | null;
+  pageRef: string | null;
+  clauseRef: string | null;
+  text: string | null;
+}
+
+function parseMergedCitations(raw: unknown): MergedCitation[] {
+  if (!raw || typeof raw !== "string") return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((c) => ({
+      sourceDocId: c?.sourceDocId ?? null,
+      sourceDocName: c?.sourceDocName ?? null,
+      pageRef: c?.pageRef ?? null,
+      clauseRef: c?.clauseRef ?? null,
+      text: c?.text ?? null,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export function serializeUser(u: any) {
   return {
     id: u.id,
@@ -120,6 +145,7 @@ export function serializeRequirement(r: any, sourceDocName?: string | null) {
     reviewerNotes: r.reviewerNotes ?? null,
     origin: r.origin ?? null,
     engineText: r.engineText ?? null,
+    mergedCitations: parseMergedCitations(r.mergedCitations),
     reviewedByName: r.reviewedByName ?? null,
     reviewedAt: iso(r.reviewedAt),
     createdAt: iso(r.createdAt) ?? new Date(0).toISOString(),
