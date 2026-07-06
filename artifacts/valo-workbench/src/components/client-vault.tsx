@@ -4,6 +4,7 @@ import {
   useCreateVaultItem,
   useUpdateVaultItem,
   useDeleteVaultItem,
+  useListClientDocuments,
   getListVaultItemsQueryKey,
   type VaultItem,
 } from "@workspace/api-client-react";
@@ -42,6 +43,7 @@ const ARTEFACT_TYPES = [
   "Performance Bond Facility",
 ];
 const OTHER = "__other__";
+const NO_SOURCE_DOCUMENT = "__none__";
 
 const BAND_STYLES: Record<string, string> = {
   expired: "bg-destructive/10 text-destructive border-destructive/30",
@@ -84,6 +86,7 @@ interface FormState {
   issueDate: string;
   expiryDate: string;
   renewalLeadDays: string;
+  sourceDocumentId: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -93,10 +96,12 @@ const EMPTY_FORM: FormState = {
   issueDate: "",
   expiryDate: "",
   renewalLeadDays: "",
+  sourceDocumentId: NO_SOURCE_DOCUMENT,
 };
 
 export function ClientVault({ clientId }: { clientId: string }) {
   const { data: items, isLoading } = useListVaultItems(clientId);
+  const { data: clientDocs } = useListClientDocuments(clientId);
   const createItem = useCreateVaultItem();
   const updateItem = useUpdateVaultItem();
   const deleteItem = useDeleteVaultItem();
@@ -126,6 +131,7 @@ export function ClientVault({ clientId }: { clientId: string }) {
       issueDate: item.issueDate ?? "",
       expiryDate: item.expiryDate ?? "",
       renewalLeadDays: item.renewalLeadDays != null ? String(item.renewalLeadDays) : "",
+      sourceDocumentId: item.sourceDocumentId ?? NO_SOURCE_DOCUMENT,
     });
     setDialogOpen(true);
   };
@@ -145,6 +151,8 @@ export function ClientVault({ clientId }: { clientId: string }) {
       expiryDate: form.expiryDate || undefined,
       renewalLeadDays: form.renewalLeadDays ? Number(form.renewalLeadDays) : undefined,
     };
+    const sourceDocumentId =
+      form.sourceDocumentId === NO_SOURCE_DOCUMENT ? undefined : form.sourceDocumentId;
     const opts = {
       onSuccess: () => {
         setDialogOpen(false);
@@ -154,9 +162,15 @@ export function ClientVault({ clientId }: { clientId: string }) {
         toast({ variant: "destructive", title: "Could not save vault item" }),
     };
     if (editingId) {
-      updateItem.mutate({ id: editingId, data: payload }, opts);
+      updateItem.mutate(
+        { id: editingId, data: { ...payload, sourceDocumentId: sourceDocumentId ?? null } },
+        opts,
+      );
     } else {
-      createItem.mutate({ id: clientId, data: payload }, opts);
+      createItem.mutate({
+        id: clientId,
+        data: sourceDocumentId ? { ...payload, sourceDocumentId } : payload,
+      }, opts);
     }
   };
 
@@ -197,6 +211,7 @@ export function ClientVault({ clientId }: { clientId: string }) {
                 <TableHead>Issued</TableHead>
                 <TableHead>Expires</TableHead>
                 <TableHead>Renewal Lead</TableHead>
+                <TableHead>Source</TableHead>
                 <TableHead>Telemetry</TableHead>
                 <TableHead className="w-[90px]"></TableHead>
               </TableRow>
@@ -210,6 +225,15 @@ export function ClientVault({ clientId }: { clientId: string }) {
                   <TableCell className="text-sm">{item.expiryDate || "—"}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {item.renewalLeadDays != null ? `${item.renewalLeadDays}d` : "—"}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {item.sha256 ? (
+                      <span title={item.objectPath ?? undefined} className="font-mono">
+                        {item.sha256.slice(0, 12)}...
+                      </span>
+                    ) : (
+                      "-"
+                    )}
                   </TableCell>
                   <TableCell>
                     <ExpiryBadge item={item} />
@@ -310,6 +334,24 @@ export function ClientVault({ clientId }: { clientId: string }) {
                 value={form.renewalLeadDays}
                 onChange={(e) => setForm({ ...form, renewalLeadDays: e.target.value })}
               />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground uppercase">Source Document</label>
+              <Select
+                value={form.sourceDocumentId}
+                onValueChange={(sourceDocumentId) => setForm({ ...form, sourceDocumentId })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_SOURCE_DOCUMENT}>No linked source document</SelectItem>
+                  {(clientDocs ?? []).map((doc) => (
+                    <SelectItem key={doc.id} value={doc.id}>{doc.filename}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                Linking a document records its storage path and SHA-256 hash on the vault item.
+              </p>
             </div>
           </div>
           <DialogFooter>

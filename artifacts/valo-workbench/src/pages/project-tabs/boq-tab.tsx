@@ -381,10 +381,16 @@ export function BoqTab({ projectId }: { projectId: string }) {
             </TableHeader>
             <TableBody>
               {checks.map((check) => {
-                const variance =
-                  typeof check.extension === "number" && typeof check.computedExtension === "number"
-                    ? check.extension - check.computedExtension
+                const varianceKobo =
+                  typeof check.extensionKobo === "number" && typeof check.computedExtensionKobo === "number"
+                    ? check.extensionKobo - check.computedExtensionKobo
                     : null;
+                const variance =
+                  varianceKobo != null
+                    ? varianceKobo / 100
+                    : typeof check.extension === "number" && typeof check.computedExtension === "number"
+                      ? check.extension - check.computedExtension
+                      : null;
                 return (
                 <TableRow key={check.id}>
                   <TableCell>
@@ -397,11 +403,14 @@ export function BoqTab({ projectId }: { projectId: string }) {
                   </TableCell>
                   <TableCell>
                     <p className="text-sm font-medium">{check.finding}</p>
-                    <p className="text-xs text-muted-foreground mt-1 capitalize">{check.checkType.replace(/_/g, ' ')}</p>
+                    <p className="text-xs text-muted-foreground mt-1 capitalize">
+                      {check.checkType.replace(/_/g, ' ')}
+                      {check.quantityRaw ? ` / qty ${check.quantityRaw}` : ""}
+                    </p>
                   </TableCell>
                   <TableCell className="text-right">
                     {variance ? (
-                      <span className="text-sm font-mono font-medium text-destructive">
+                      <span className="text-sm font-mono font-medium text-destructive" title={varianceKobo != null ? `${varianceKobo} kobo` : undefined}>
                         {variance > 0 ? '+' : ''}{variance.toLocaleString()}
                       </span>
                     ) : "-"}

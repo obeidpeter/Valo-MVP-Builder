@@ -343,6 +343,23 @@ router.get(
       res.status(404).json({ error: "Not found" });
       return;
     }
+    if (
+      project.status === "signed_off" &&
+      (!project.physicalArchiveInstruction || project.physicalArchiveInstruction.trim().length === 0)
+    ) {
+      await writeAudit({
+        user: getLocalUser(req),
+        projectId,
+        eventType: "project.export_denied",
+        objectType: "project",
+        objectId: projectId,
+        details: "Physical archive return/destroy instruction is required before package export.",
+      });
+      res.status(409).json({
+        error: "Record the physical archive return/destroy instruction before exporting the package.",
+      });
+      return;
+    }
     const reqs = await db.select().from(requirements).where(eq(requirements.projectId, projectId));
     const ev = await db.select().from(evidenceItems).where(eq(evidenceItems.projectId, projectId));
     const defs = await db.select().from(defects).where(eq(defects.projectId, projectId));

@@ -9,6 +9,10 @@ import {
   mulToKobo,
   blockingSignOffDefects,
   computeExpiry,
+  computeRedTeamDueAt,
+  computeSlaDueAt,
+  paymentGateSatisfied,
+  validateProjectTransition,
   type BoqRow,
   type BoqCheckType,
   type RiskInput,
@@ -578,6 +582,122 @@ describe("computeExpiry - certificate expiry telemetry", () => {
     const a = computeExpiry("2026-09-01", TODAY, 45);
     const b = computeExpiry("2026-09-01", TODAY, 45);
     assert.deepEqual(a, b);
+  });
+});
+
+describe("workflow governance", () => {
+  test("payment gate requires both founder and advisor confirmations", () => {
+    assert.equal(paymentGateSatisfied({ paymentStatus: "not_required" }), true);
+    assert.equal(
+      paymentGateSatisfied({
+        paymentStatus: "confirmed",
+        paymentConfirmedByFounder: true,
+        paymentConfirmedByAdvisor: false,
+      }),
+      false,
+    );
+    assert.equal(
+      paymentGateSatisfied({
+        paymentStatus: "confirmed",
+        paymentConfirmedByFounder: true,
+        paymentConfirmedByAdvisor: true,
+      }),
+      true,
+    );
+  });
+
+  test("production transition requires reviewer, clear conflict, and payment gate", () => {
+    assert.deepEqual(
+      validateProjectTransition({
+        fromStatus: "intake",
+        toStatus: "extraction",
+        conflictStatus: "clear",
+        paymentStatus: "not_required",
+      }).ok,
+      false,
+    );
+    assert.deepEqual(
+      validateProjectTransition({
+        fromStatus: "intake",
+        toStatus: "extraction",
+        reviewerId: "reviewer-1",
+        conflictStatus: "blocked",
+        paymentStatus: "not_required",
+      }).ok,
+      false,
+    );
+    assert.deepEqual(
+      validateProjectTransition({
+        fromStatus: "intake",
+        toStatus: "extraction",
+        reviewerId: "reviewer-1",
+        conflictStatus: "clear",
+        paymentStatus: "confirmed",
+        paymentConfirmedByFounder: true,
+        paymentConfirmedByAdvisor: true,
+      }).ok,
+      true,
+    );
+  });
+
+  test("rejects illegal status jumps but allows remediation backflow", () => {
+    assert.equal(
+      validateProjectTransition({
+        fromStatus: "intake",
+        toStatus: "reporting",
+        reviewerId: "reviewer-1",
+        conflictStatus: "clear",
+        paymentStatus: "not_required",
+      }).ok,
+      false,
+    );
+    assert.equal(
+      validateProjectTransition({
+        fromStatus: "reporting",
+        toStatus: "defects",
+        reviewerId: "reviewer-1",
+        conflictStatus: "clear",
+        paymentStatus: "not_required",
+      }).ok,
+      true,
+    );
+  });
+
+  test("close/export requires physical archive instruction", () => {
+    assert.equal(
+      validateProjectTransition({
+        fromStatus: "signed_off",
+        toStatus: "exported",
+        reviewerId: "reviewer-1",
+        conflictStatus: "clear",
+        paymentStatus: "not_required",
+      }).ok,
+      false,
+    );
+    assert.equal(
+      validateProjectTransition({
+        fromStatus: "signed_off",
+        toStatus: "exported",
+        reviewerId: "reviewer-1",
+        conflictStatus: "clear",
+        paymentStatus: "not_required",
+        physicalArchiveInstruction: "Return originals to client.",
+      }).ok,
+      true,
+    );
+  });
+
+  test("computes SLA and red-team due dates deterministically", () => {
+    const friday = new Date("2026-07-03T09:00:00.000Z");
+    assert.equal(computeSlaDueAt(friday, "live").toISOString(), "2026-07-05T09:00:00.000Z");
+    assert.equal(
+      computeSlaDueAt(friday, "standard").toISOString(),
+      "2026-07-10T09:00:00.000Z",
+    );
+    assert.equal(
+      computeRedTeamDueAt("2026-07-20T12:00:00.000Z")?.toISOString(),
+      "2026-07-17T12:00:00.000Z",
+    );
   });
 });
 

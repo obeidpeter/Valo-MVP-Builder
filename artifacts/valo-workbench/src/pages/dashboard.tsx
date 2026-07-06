@@ -2,14 +2,16 @@ import { useGetDashboardMetrics, useListProjects, useGetVaultExpiring } from "@w
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
-import { ArrowRight, Loader2, AlertTriangle, FileText, CheckCircle2, ShieldAlert } from "lucide-react";
+import { ArrowRight, Loader2, AlertTriangle, FileText, ShieldAlert } from "lucide-react";
 import { format } from "date-fns";
 import { ExpiryBadge } from "@/components/client-vault";
+import { useWorkflowAlerts } from "@/lib/operations-api";
 
 export default function Dashboard() {
   const { data: metrics, isLoading: loadingMetrics } = useGetDashboardMetrics();
   const { data: projects, isLoading: loadingProjects } = useListProjects();
   const { data: expiring } = useGetVaultExpiring();
+  const { data: workflowAlerts } = useWorkflowAlerts();
 
   if (loadingMetrics || loadingProjects) {
     return (
@@ -71,6 +73,53 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {workflowAlerts && (workflowAlerts.slaBreaches.length > 0 || workflowAlerts.redTeamDue.length > 0) && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-destructive" />
+            <h2 className="text-xl font-serif tracking-tight font-medium">Operations Alerts</h2>
+            {workflowAlerts.slaBreaches.length > 0 && (
+              <Badge variant="destructive" className="text-[10px]">
+                {workflowAlerts.slaBreaches.length} SLA breach
+              </Badge>
+            )}
+            {workflowAlerts.redTeamDue.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] text-amber-700 bg-amber-100 border-amber-200">
+                {workflowAlerts.redTeamDue.length} red-team due
+              </Badge>
+            )}
+          </div>
+          <div className="bg-card border border-border rounded-lg shadow-xs overflow-hidden divide-y divide-border">
+            {workflowAlerts.slaBreaches.slice(0, 4).map((alert) => (
+              <Link key={`sla-${alert.projectId}`} href={`/projects/${alert.projectId}`}>
+                <div className="p-3 px-4 hover:bg-muted/50 transition-colors cursor-pointer flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">{alert.tenderTitle}</p>
+                    <p className="text-xs text-muted-foreground">Review SLA elapsed</p>
+                  </div>
+                  <span className="text-xs font-mono text-destructive">
+                    Due {format(new Date(alert.dueAt), "MMM d, HH:mm")}
+                  </span>
+                </div>
+              </Link>
+            ))}
+            {workflowAlerts.redTeamDue.slice(0, 4).map((alert) => (
+              <Link key={`red-team-${alert.projectId}`} href={`/projects/${alert.projectId}`}>
+                <div className="p-3 px-4 hover:bg-muted/50 transition-colors cursor-pointer flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">{alert.tenderTitle}</p>
+                    <p className="text-xs text-muted-foreground">Red-team review window is open</p>
+                  </div>
+                  <span className="text-xs font-mono text-amber-700">
+                    Since {format(new Date(alert.dueAt), "MMM d, HH:mm")}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {expiring && expiring.items.length > 0 && (
         <div className="space-y-4">

@@ -1,18 +1,18 @@
-import { useListProjects, useCreateProject, getListProjectsQueryKey, useListClients } from "@workspace/api-client-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { useListProjects, useCreateProject, getListProjectsQueryKey, useListClients, useGetMe, useListUsers, getListUsersQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Link, useLocation } from "wouter";
-import { Loader2, Plus, Briefcase, ChevronRight, AlertTriangle } from "lucide-react";
+import { Loader2, Plus, Briefcase, AlertTriangle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 const createProjectSchema = z.object({
@@ -20,21 +20,36 @@ const createProjectSchema = z.object({
   tenderTitle: z.string().min(1, "Tender Title is required"),
   issuingEntity: z.string().optional(),
   tenderRef: z.string().optional(),
+  lot: z.string().optional(),
+  deadline: z.string().optional(),
   segment: z.enum(["federal", "nipex_ncdmb", "donor", "other"]).optional(),
+  reviewerId: z.string().min(1, "Reviewer is required"),
+  slaClass: z.enum(["standard", "live"]).optional(),
+  paymentStatus: z.enum(["not_required", "pending", "confirmed"]).optional(),
+  physicalArchiveInstruction: z.string().optional(),
+  redactionScope: z.string().optional(),
+  restrictedMode: z.boolean().optional(),
 });
 
 type CreateProjectForm = z.infer<typeof createProjectSchema>;
 
 export default function Projects() {
-  const [location] = useLocation();
   const searchParams = new URLSearchParams(window.location.search);
   const defaultClientId = searchParams.get("clientId") || "";
 
   const { data: projects, isLoading: loadingProjects } = useListProjects();
   const { data: clients, isLoading: loadingClients } = useListClients();
+  const { data: me } = useGetMe();
+  const { data: users } = useListUsers({
+    query: { enabled: me?.role === "admin", queryKey: getListUsersQueryKey() },
+  });
   const createProject = useCreateProject();
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(defaultClientId !== "");
+  const reviewerOptions = useMemo(
+    () => (users ?? (me ? [me] : [])).filter((user) => user.status === "active" && user.role !== "none"),
+    [me, users],
+  );
 
   const form = useForm<CreateProjectForm>({
     resolver: zodResolver(createProjectSchema),
@@ -43,7 +58,15 @@ export default function Projects() {
       tenderTitle: "",
       issuingEntity: "",
       tenderRef: "",
+      lot: "",
+      deadline: "",
       segment: "other",
+      reviewerId: "",
+      slaClass: "standard",
+      paymentStatus: "not_required",
+      physicalArchiveInstruction: "",
+      redactionScope: "",
+      restrictedMode: false,
     },
   });
 
@@ -53,11 +76,42 @@ export default function Projects() {
     }
   }, [defaultClientId, form]);
 
+  useEffect(() => {
+    const currentReviewer = form.getValues("reviewerId");
+    const firstReviewer = reviewerOptions[0]?.id;
+    if (!currentReviewer && firstReviewer) {
+      form.setValue("reviewerId", firstReviewer, { shouldValidate: true });
+    }
+  }, [form, reviewerOptions]);
+
   const onSubmit = (data: CreateProjectForm) => {
-    createProject.mutate({ data }, {
+    const payload = {
+      ...data,
+      issuingEntity: data.issuingEntity || undefined,
+      tenderRef: data.tenderRef || undefined,
+      lot: data.lot || undefined,
+      deadline: data.deadline || undefined,
+      physicalArchiveInstruction: data.physicalArchiveInstruction || undefined,
+      redactionScope: data.redactionScope || undefined,
+    };
+    createProject.mutate({ data: payload }, {
       onSuccess: (newProject) => {
         setIsCreateOpen(false);
-        form.reset();
+        form.reset({
+          clientId: defaultClientId,
+          tenderTitle: "",
+          issuingEntity: "",
+          tenderRef: "",
+          lot: "",
+          deadline: "",
+          segment: "other",
+          reviewerId: reviewerOptions[0]?.id ?? "",
+          slaClass: "standard",
+          paymentStatus: "not_required",
+          physicalArchiveInstruction: "",
+          redactionScope: "",
+          restrictedMode: false,
+        });
         queryClient.invalidateQueries({ queryKey: getListProjectsQueryKey() });
         // Can't easily navigate directly in wouter here without a hook, 
         // but user will see it in the list. Let's redirect using window for simplicity in this case
@@ -80,7 +134,7 @@ export default function Projects() {
               New Project
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[680px]">
             <DialogHeader>
               <DialogTitle>Create New Project</DialogTitle>
               <DialogDescription>
@@ -127,27 +181,111 @@ export default function Projects() {
                   <Input id="tenderRef" {...form.register("tenderRef")} />
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="lot">Lot</Label>
+                  <Input id="lot" {...form.register("lot")} placeholder="e.g. Lot 2" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="deadline">Submission Deadline</Label>
+                  <Input id="deadline" type="datetime-local" {...form.register("deadline")} />
+                </div>
+              </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="segment">Segment</Label>
-                <Select 
-                  onValueChange={(val) => form.setValue("segment", val as any)} 
-                  defaultValue={form.getValues("segment")}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select segment" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="federal">Federal</SelectItem>
-                    <SelectItem value="nipex_ncdmb">NIPEX / NCDMB</SelectItem>
-                    <SelectItem value="donor">Donor</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reviewerId">Reviewer</Label>
+                  <Select
+                    onValueChange={(val) => form.setValue("reviewerId", val, { shouldValidate: true })}
+                    value={form.watch("reviewerId")}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select reviewer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {reviewerOptions.map(user => (
+                        <SelectItem key={user.id} value={user.id}>{user.name || user.email}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {form.formState.errors.reviewerId && (
+                    <p className="text-xs text-destructive">{form.formState.errors.reviewerId.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="segment">Segment</Label>
+                  <Select
+                    onValueChange={(val) => form.setValue("segment", val as CreateProjectForm["segment"])}
+                    value={form.watch("segment")}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select segment" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="federal">Federal</SelectItem>
+                      <SelectItem value="nipex_ncdmb">NIPEX / NCDMB</SelectItem>
+                      <SelectItem value="donor">Donor</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="slaClass">SLA Class</Label>
+                  <Select
+                    onValueChange={(val) => form.setValue("slaClass", val as CreateProjectForm["slaClass"])}
+                    value={form.watch("slaClass")}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">Standard</SelectItem>
+                      <SelectItem value="live">Live tender</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="paymentStatus">Payment Gate</Label>
+                  <Select
+                    onValueChange={(val) => form.setValue("paymentStatus", val as CreateProjectForm["paymentStatus"])}
+                    value={form.watch("paymentStatus")}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="not_required">Not required</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="confirmed">Confirmed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="physicalArchiveInstruction">Physical Archive</Label>
+                  <Textarea id="physicalArchiveInstruction" {...form.register("physicalArchiveInstruction")} className="min-h-[72px]" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="redactionScope">Redaction Scope</Label>
+                  <Textarea id="redactionScope" {...form.register("redactionScope")} className="min-h-[72px]" />
+                </div>
+              </div>
+
+              <label className="flex items-center justify-between rounded-md border border-border p-3 text-sm">
+                <span>
+                  <span className="font-medium">Restricted mode</span>
+                  <span className="block text-xs text-muted-foreground">Limit handling for sensitive or conflicted work.</span>
+                </span>
+                <Switch
+                  checked={form.watch("restrictedMode") ?? false}
+                  onCheckedChange={(checked) => form.setValue("restrictedMode", checked)}
+                />
+              </label>
+
               <div className="flex justify-end pt-4">
-                <Button type="submit" disabled={createProject.isPending}>
+                <Button type="submit" disabled={createProject.isPending || !form.watch("reviewerId")}>
                   {createProject.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                   Create Project
                 </Button>

@@ -1,19 +1,24 @@
 import { useListUsers, useUpdateUser, getListUsersQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Shield, Info } from "lucide-react";
+import { Archive, CheckCircle2, Loader2, Shield, Info } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { UserUpdateRole, UserUpdateStatus } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
+import { useCompleteRetentionRequest, useRetentionRequests } from "@/lib/operations-api";
 
 export default function Settings() {
   const { data: users, isLoading } = useListUsers();
+  const { data: retentionRequests, isLoading: loadingRetention } = useRetentionRequests();
   const updateUser = useUpdateUser();
+  const completeRetentionRequest = useCompleteRetentionRequest();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
+  const refreshRetention = () => queryClient.invalidateQueries({ queryKey: ["retention-requests"] });
   const onError = () => toast({ variant: "destructive", title: "Could not update user" });
 
   const handleRoleChange = (id: string, role: UserUpdateRole) => {
@@ -22,6 +27,16 @@ export default function Settings() {
 
   const handleStatusChange = (id: string, status: UserUpdateStatus) => {
     updateUser.mutate({ id, data: { status } }, { onSuccess: refresh, onError });
+  };
+
+  const handleCompleteRetention = (id: string) => {
+    completeRetentionRequest.mutate(id, {
+      onSuccess: () => {
+        refreshRetention();
+        toast({ title: "Retention request completed" });
+      },
+      onError: () => toast({ variant: "destructive", title: "Could not complete retention request" }),
+    });
   };
 
   return (
@@ -111,6 +126,76 @@ export default function Settings() {
           ) : (
             <div className="p-8 text-center text-muted-foreground">
               No users found or permission denied.
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Archive className="w-5 h-5 text-foreground" />
+          <h2 className="text-xl font-serif tracking-tight font-medium">Retention Workflows</h2>
+        </div>
+
+        <div className="bg-card border border-border rounded-lg shadow-xs overflow-hidden">
+          {loadingRetention ? (
+            <div className="p-12 flex justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : retentionRequests && retentionRequests.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="font-mono text-xs uppercase tracking-wider">Project</TableHead>
+                  <TableHead className="font-mono text-xs uppercase tracking-wider">Reason</TableHead>
+                  <TableHead className="font-mono text-xs uppercase tracking-wider">Due</TableHead>
+                  <TableHead className="font-mono text-xs uppercase tracking-wider">Status</TableHead>
+                  <TableHead className="font-mono text-xs uppercase tracking-wider text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {retentionRequests.map((request) => (
+                  <TableRow key={request.id}>
+                    <TableCell className="font-mono text-xs">{request.projectId}</TableCell>
+                    <TableCell className="max-w-[360px]">
+                      <div className="text-sm">{request.reason || "-"}</div>
+                      {request.certificateText && (
+                        <div className="text-xs text-muted-foreground mt-1">{request.certificateText}</div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(request.dueAt).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={request.status === "completed" ? "default" : "secondary"} className="capitalize">
+                        {request.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {request.status === "completed" ? (
+                        <Badge variant="outline" className="text-emerald-700 border-emerald-200 bg-emerald-50">
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          Certified
+                        </Badge>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCompleteRetention(request.id)}
+                          disabled={completeRetentionRequest.isPending}
+                        >
+                          {completeRetentionRequest.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                          Complete
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="p-8 text-center text-muted-foreground">
+              No retention requests are open.
             </div>
           )}
         </div>
