@@ -14,6 +14,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useState, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
+import { errorMessage } from "@/lib/errors";
 
 const createProjectSchema = z.object({
   clientId: z.string().min(1, "Client is required"),
@@ -45,6 +48,8 @@ export default function Projects() {
   });
   const createProject = useCreateProject();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [isCreateOpen, setIsCreateOpen] = useState(defaultClientId !== "");
   const reviewerOptions = useMemo(
     () => (users ?? (me ? [me] : [])).filter((user) => user.status === "active" && user.role !== "none"),
@@ -113,10 +118,14 @@ export default function Projects() {
           restrictedMode: false,
         });
         queryClient.invalidateQueries({ queryKey: getListProjectsQueryKey() });
-        // Can't easily navigate directly in wouter here without a hook, 
-        // but user will see it in the list. Let's redirect using window for simplicity in this case
-        window.location.href = `/projects/${newProject.id}`;
-      }
+        navigate(`/projects/${newProject.id}`);
+      },
+      onError: (err) =>
+        toast({
+          variant: "destructive",
+          title: "Project creation failed",
+          description: errorMessage(err, "Check the client, reviewer, and tender details and try again."),
+        }),
     });
   };
 
@@ -313,7 +322,7 @@ export default function Projects() {
             </TableHeader>
             <TableBody>
               {projects.map((project) => (
-                <TableRow key={project.id} className="group cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => window.location.href = `/projects/${project.id}`}>
+                <TableRow key={project.id} className="group cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => navigate(`/projects/${project.id}`)}>
                   <TableCell>
                     <div className="font-medium text-foreground group-hover:text-primary transition-colors">{project.tenderTitle}</div>
                     <div className="text-xs text-muted-foreground mt-1">

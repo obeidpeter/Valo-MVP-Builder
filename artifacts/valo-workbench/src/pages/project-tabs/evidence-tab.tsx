@@ -12,7 +12,6 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -21,15 +20,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Zap, Layers, Plus, Check, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-function errorMessage(err: unknown, fallback: string): string {
-  const data = (err as { data?: unknown })?.data;
-  const e =
-    data && typeof data === "object" && typeof (data as { error?: unknown }).error === "string"
-      ? (data as { error: string }).error
-      : undefined;
-  return e ?? (err instanceof Error ? err.message : fallback);
-}
+import { errorMessage } from "@/lib/errors";
 
 const STATUSES = ["present", "missing", "expired", "unclear", "not_applicable", "pending"] as const;
 const NONE = "__none__";

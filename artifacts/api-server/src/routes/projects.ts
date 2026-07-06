@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import { eq, and, or, ne, isNull, desc, sql, inArray } from "drizzle-orm";
 import {
   db,
   projects,
@@ -7,16 +7,19 @@ import {
   users,
   defects,
   requirements,
-  documents,
-  reports,
   conflictRecords,
 } from "@workspace/db";
-import { CreateProjectBody, UpdateProjectBody } from "@workspace/api-zod";
+import {
+  ConfirmProjectPaymentBody,
+  CreateProjectBody,
+  UpdateProjectBody,
+} from "@workspace/api-zod";
 import { requireMember, requireRoles, getLocalUser } from "../middlewares/auth";
 import { serializeProject } from "../lib/serializers";
 import { writeAudit } from "../lib/audit";
 import { responsivenessReview } from "../lib/llm";
 import { ObjectStorageService } from "../lib/objectStorage";
+import { planProjectBlobPurge, purgeBlobs } from "../lib/purge";
 import {
   validateProjectTransition,
   type ConflictStatus,
@@ -237,6 +240,10 @@ router.patch("/projects/:id", requireMember, async (req: Request, res: Response)
     res.status(400).json({ error: "Invalid request" });
     return;
   }
+  if (Object.keys(parsed.data).length === 0) {
+    res.status(400).json({ error: "No fields to update" });
+    return;
+  }
   const [existing] = await db.select().from(projects).where(eq(projects.id, String(req.params.id)));
   if (!existing) {
     res.status(404).json({ error: "Not found" });
@@ -252,6 +259,8 @@ router.patch("/projects/:id", requireMember, async (req: Request, res: Response)
       paymentStatus: next.paymentStatus as PaymentStatus,
       paymentConfirmedByFounder: next.paymentConfirmedByFounder,
       paymentConfirmedByAdvisor: next.paymentConfirmedByAdvisor,
+      paymentFounderConfirmedBy: next.paymentFounderConfirmedBy,
+      paymentAdvisorConfirmedBy: next.paymentAdvisorConfirmedBy,
       conflictStatus: next.conflictStatus as ConflictStatus,
       physicalArchiveInstruction: next.physicalArchiveInstruction,
     });
@@ -273,10 +282,22 @@ router.patch("/projects/:id", requireMember, async (req: Request, res: Response)
     lot: next.lot,
     excludeProjectId: existing.id,
   });
+  // A consent only covers the tender identity it was granted for. So:
+  //  - an unrelated PATCH (deadline edit, status move) on a consented/declined
+  //    project must NOT silently re-block it or duplicate conflict_records;
+  //  - but a PATCH that CHANGES tenderRef/lot has moved the project onto a
+  //    different tender — any match there is a brand-new conflict the old
+  //    consent cannot waive, and it must block afresh.
+  const conflictIdentityChanged =
+    (parsed.data.tenderRef !== undefined &&
+      (parsed.data.tenderRef ?? "") !== (existing.tenderRef ?? "")) ||
+    (parsed.data.lot !== undefined && (parsed.data.lot ?? "") !== (existing.lot ?? ""));
   const shouldBlockConflict =
     conflict != null &&
-    parsed.data.conflictStatus !== "consented" &&
-    parsed.data.conflictStatus !== "declined";
+    (conflictIdentityChanged ||
+      (next.conflictStatus !== "consented" && next.conflictStatus !== "declined"));
+  const newlyBlocked =
+    shouldBlockConflict && (existing.conflictStatus !== "blocked" || conflictIdentityChanged);
   const conflictPatch = shouldBlockConflict && conflict
     ? {
         conflictStatus: "blocked",
@@ -284,19 +305,12 @@ router.patch("/projects/:id", requireMember, async (req: Request, res: Response)
         conflictRationale: `Same tender/lot already active on project ${conflict.id}.`,
       }
     : {};
-  const paymentConfirmedAtPatch =
-    next.paymentStatus === "confirmed" &&
-    next.paymentConfirmedByFounder &&
-    next.paymentConfirmedByAdvisor &&
-    !existing.paymentConfirmedAt
-      ? { paymentConfirmedAt: new Date() }
-      : {};
   const [updated] = await db
     .update(projects)
-    .set({ ...parsed.data, ...conflictPatch, ...paymentConfirmedAtPatch })
+    .set({ ...parsed.data, ...conflictPatch })
     .where(eq(projects.id, String(req.params.id)))
     .returning();
-  if (conflict && shouldBlockConflict) {
+  if (conflict && newlyBlocked) {
     await db.insert(conflictRecords).values({
       clientId: updated.clientId,
       projectId: updated.id,
@@ -307,6 +321,26 @@ router.patch("/projects/:id", requireMember, async (req: Request, res: Response)
       decision: "pending_disclosure",
       rationale: `Same tender/lot already active on project ${conflict.id}.`,
     });
+  }
+  // When the reviewer rules on a blocked conflict, stamp the open conflict
+  // record with the decision and the deciding identity instead of leaving
+  // the register write-only.
+  const decidedConflict =
+    (parsed.data.conflictStatus === "consented" || parsed.data.conflictStatus === "declined") &&
+    existing.conflictStatus !== parsed.data.conflictStatus;
+  if (decidedConflict) {
+    await db
+      .update(conflictRecords)
+      .set({
+        status: parsed.data.conflictStatus,
+        decision: next.conflictDecision ?? parsed.data.conflictStatus,
+        rationale: next.conflictRationale ?? null,
+        decidedBy: user?.id ?? null,
+        decidedAt: new Date(),
+      })
+      .where(
+        and(eq(conflictRecords.projectId, updated.id), eq(conflictRecords.status, "blocked")),
+      );
   }
   await writeAudit({
     user,
@@ -326,6 +360,93 @@ router.patch("/projects/:id", requireMember, async (req: Request, res: Response)
   );
 });
 
+/**
+ * One leg of the dual payment confirmation (FR-BIL-01). The confirming
+ * identity is derived from the authenticated session — never from the
+ * request body — and the two legs must be confirmed by different people.
+ */
+router.post(
+  "/projects/:id/payment-confirmations",
+  requireMember,
+  async (req: Request, res: Response) => {
+    const parsed = ConfirmProjectPaymentBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request" });
+      return;
+    }
+    const user = getLocalUser(req);
+    if (!user) {
+      res.status(403).json({ error: "Insufficient role" });
+      return;
+    }
+    const [project] = await db.select().from(projects).where(eq(projects.id, String(req.params.id)));
+    if (!project) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const role = parsed.data.role;
+    const now = new Date();
+    const patch =
+      role === "founder"
+        ? {
+            paymentConfirmedByFounder: true,
+            paymentFounderConfirmedBy: user.id,
+            paymentFounderConfirmedByName: user.name ?? user.email,
+            paymentFounderConfirmedAt: now,
+          }
+        : {
+            paymentConfirmedByAdvisor: true,
+            paymentAdvisorConfirmedBy: user.id,
+            paymentAdvisorConfirmedByName: user.name ?? user.email,
+            paymentAdvisorConfirmedAt: now,
+          };
+    // The distinct-actor invariant is re-asserted INSIDE the UPDATE's WHERE
+    // (not just checked-then-written) so two concurrent requests from the
+    // same user cannot both slip past the guard and stamp both legs.
+    const otherLegColumn =
+      role === "founder" ? projects.paymentAdvisorConfirmedBy : projects.paymentFounderConfirmedBy;
+    const [updated] = await db
+      .update(projects)
+      .set(patch)
+      .where(
+        and(
+          eq(projects.id, project.id),
+          or(isNull(otherLegColumn), ne(otherLegColumn, user.id)),
+        ),
+      )
+      .returning();
+    if (!updated) {
+      res.status(409).json({
+        error: "Dual confirmation requires two distinct people; you already confirmed the other leg.",
+      });
+      return;
+    }
+    if (
+      updated.paymentConfirmedByFounder &&
+      updated.paymentConfirmedByAdvisor &&
+      !updated.paymentConfirmedAt
+    ) {
+      await db.update(projects).set({ paymentConfirmedAt: now }).where(eq(projects.id, project.id));
+    }
+    await writeAudit({
+      user,
+      projectId: project.id,
+      eventType: "project.payment_confirmed",
+      objectType: "project",
+      objectId: project.id,
+      details: `${role} leg confirmed by ${user.name ?? user.email}`,
+    });
+    const row = await loadProjectWithJoins(project.id);
+    res.json(
+      serializeProject(row!.project, {
+        clientName: row!.clientName,
+        ndaStatus: row!.ndaStatus,
+        reviewerName: row!.reviewerName,
+      }),
+    );
+  },
+);
+
 router.delete(
   "/projects/:id",
   requireRoles("admin"),
@@ -339,22 +460,12 @@ router.delete(
       return;
     }
 
-    // Collect every stored blob for this project before removing DB rows.
-    const docs = await db.select().from(documents).where(eq(documents.projectId, projectId));
-    const reps = await db.select().from(reports).where(eq(reports.projectId, projectId));
-    const blobPaths = [
-      ...docs.map((d) => d.objectPath),
-      ...reps.map((r) => r.docxPath).filter((p): p is string => !!p),
-    ];
-
-    let purged = 0;
-    for (const path of blobPaths) {
-      try {
-        if (await objectStorage.deleteObjectEntity(path)) purged++;
-      } catch (error) {
-        req.log.error({ err: error, objectPath: path }, "failed to purge project blob");
-      }
-    }
+    // Collect every engagement-owned blob before removing DB rows; blobs a
+    // Certificate Vault item points at belong to the client and survive.
+    const plan = await planProjectBlobPurge(projectId);
+    const blobResult = await purgeBlobs(objectStorage, plan.paths, (objectPath, error) => {
+      req.log.error({ err: error, objectPath }, "failed to purge project blob");
+    });
 
     // Cascade-deletes documents/reports/requirements/etc. via FK onDelete.
     const [deleted] = await db
@@ -367,7 +478,11 @@ router.delete(
       eventType: "project.deleted",
       objectType: "project",
       objectId: projectId,
-      details: `${deleted.tenderTitle} — purged ${purged}/${blobPaths.length} stored file(s).`,
+      details:
+        `${deleted.tenderTitle} — purged ${blobResult.purged}/${plan.paths.length} stored file(s).` +
+        (plan.vaultRetained.length > 0
+          ? ` ${plan.vaultRetained.length} file(s) retained as client vault artefacts.`
+          : ""),
     });
     res.status(204).end();
   },

@@ -2,6 +2,7 @@ import {
   useListReports,
   useGenerateReport,
   useSignOffReport,
+  useRunResponsivenessReview,
   exportProject,
   getListReportsQueryKey,
   getGetProjectQueryKey
@@ -10,24 +11,16 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, FileBarChart, Download, FileSignature } from "lucide-react";
+import { Loader2, FileBarChart, Download, FileSignature, ScrollText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { errorMessage } from "@/lib/errors";
 import { useState } from "react";
-
-/** Pull the server's human-readable error message off a failed mutation. */
-function errorMessage(err: unknown, fallback: string): string {
-  const data = (err as { data?: unknown })?.data;
-  const serverError =
-    data && typeof data === "object" && typeof (data as { error?: unknown }).error === "string"
-      ? (data as { error: string }).error
-      : undefined;
-  return serverError ?? (err instanceof Error ? err.message : fallback);
-}
 
 export function ReportsTab({ projectId }: { projectId: string }) {
   const { data: reports, isLoading } = useListReports(projectId);
   const generateReport = useGenerateReport();
   const signOffReport = useSignOffReport();
+  const runResponsiveness = useRunResponsivenessReview();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [exporting, setExporting] = useState(false);
@@ -75,6 +68,29 @@ export function ReportsTab({ projectId }: { projectId: string }) {
     window.location.href = `/api/reports/${id}/download`;
   };
 
+  const handleResponsiveness = () => {
+    runResponsiveness.mutate(
+      { id: projectId },
+      {
+        onSuccess: () => {
+          // The narrative lands on the project row (section E of the report).
+          queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) });
+          toast({
+            title: "Responsiveness review drafted",
+            description:
+              "The suggested narrative was saved to the project and will appear in section E of the next report. Review it before sign-off.",
+          });
+        },
+        onError: (err) =>
+          toast({
+            variant: "destructive",
+            title: "Responsiveness review failed",
+            description: errorMessage(err, "The LLM review did not complete. Try again."),
+          }),
+      },
+    );
+  };
+
   const handleProjectExport = async () => {
     setExporting(true);
     try {
@@ -103,6 +119,10 @@ export function ReportsTab({ projectId }: { projectId: string }) {
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-serif font-medium">Export & Reporting</h2>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={handleResponsiveness} disabled={runResponsiveness.isPending}>
+            {runResponsiveness.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ScrollText className="w-4 h-4 mr-2" />}
+            Draft Responsiveness Review
+          </Button>
           <Button variant="outline" onClick={handleProjectExport} disabled={exporting}>
             {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
             Export ZIP

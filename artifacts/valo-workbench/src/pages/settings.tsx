@@ -1,4 +1,13 @@
-import { useListUsers, useUpdateUser, getListUsersQueryKey } from "@workspace/api-client-react";
+import {
+  useListUsers,
+  useUpdateUser,
+  getListUsersQueryKey,
+  useListRetentionRequests,
+  useCompleteRetentionRequest,
+  getListRetentionRequestsQueryKey,
+  getListProjectsQueryKey,
+  getGetDashboardMetricsQueryKey,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Archive, CheckCircle2, Loader2, Shield, Info } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,18 +16,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UserUpdateRole, UserUpdateStatus } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
-import { useCompleteRetentionRequest, useRetentionRequests } from "@/lib/operations-api";
+import { errorMessage } from "@/lib/errors";
 
 export default function Settings() {
   const { data: users, isLoading } = useListUsers();
-  const { data: retentionRequests, isLoading: loadingRetention } = useRetentionRequests();
+  const { data: retentionRequests, isLoading: loadingRetention } = useListRetentionRequests();
   const updateUser = useUpdateUser();
   const completeRetentionRequest = useCompleteRetentionRequest();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
-  const refreshRetention = () => queryClient.invalidateQueries({ queryKey: ["retention-requests"] });
   const onError = () => toast({ variant: "destructive", title: "Could not update user" });
 
   const handleRoleChange = (id: string, role: UserUpdateRole) => {
@@ -30,12 +38,21 @@ export default function Settings() {
   };
 
   const handleCompleteRetention = (id: string) => {
-    completeRetentionRequest.mutate(id, {
+    completeRetentionRequest.mutate({ id }, {
       onSuccess: () => {
-        refreshRetention();
+        // Completion archives the project and purges its content, so the
+        // project list and dashboard metrics are stale too, not just this list.
+        queryClient.invalidateQueries({ queryKey: getListRetentionRequestsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListProjectsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetDashboardMetricsQueryKey() });
         toast({ title: "Retention request completed" });
       },
-      onError: () => toast({ variant: "destructive", title: "Could not complete retention request" }),
+      onError: (err) =>
+        toast({
+          variant: "destructive",
+          title: "Could not complete retention request",
+          description: errorMessage(err, "The purge was refused. Check the archive gate and storage."),
+        }),
     });
   };
 

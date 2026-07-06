@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
-import { useAuth, UserButton } from "@clerk/clerk-react";
+import { UserButton } from "@clerk/clerk-react";
 import { useGetMe } from "@workspace/api-client-react";
-import { Loader2, Briefcase, Users, LayoutDashboard, Settings, FileSearch, CheckCircle, Library } from "lucide-react";
+import { Loader2, Briefcase, Users, LayoutDashboard, Settings, CheckCircle, Library } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Layout({ children }: { children: React.ReactNode }) {

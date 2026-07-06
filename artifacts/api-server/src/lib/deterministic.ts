@@ -694,6 +694,8 @@ export interface WorkflowGateInput {
   paymentStatus?: PaymentStatus;
   paymentConfirmedByFounder?: boolean;
   paymentConfirmedByAdvisor?: boolean;
+  paymentFounderConfirmedBy?: string | null;
+  paymentAdvisorConfirmedBy?: string | null;
   conflictStatus?: ConflictStatus;
   physicalArchiveInstruction?: string | null;
 }
@@ -703,16 +705,27 @@ export interface WorkflowGateResult {
   reason?: string;
 }
 
+/**
+ * Dual confirmation means two *people*, not two booleans: each leg must carry
+ * a server-derived identity and the two identities must differ. A row where
+ * both flags are true but an identity is missing (legacy data, or a write
+ * path that bypassed the confirmation endpoint) does NOT satisfy the gate.
+ */
 export function paymentGateSatisfied(input: {
   paymentStatus?: PaymentStatus;
   paymentConfirmedByFounder?: boolean;
   paymentConfirmedByAdvisor?: boolean;
+  paymentFounderConfirmedBy?: string | null;
+  paymentAdvisorConfirmedBy?: string | null;
 }): boolean {
   if (!input.paymentStatus || input.paymentStatus === "not_required") return true;
   return (
     input.paymentStatus === "confirmed" &&
     input.paymentConfirmedByFounder === true &&
-    input.paymentConfirmedByAdvisor === true
+    input.paymentConfirmedByAdvisor === true &&
+    !!input.paymentFounderConfirmedBy &&
+    !!input.paymentAdvisorConfirmedBy &&
+    input.paymentFounderConfirmedBy !== input.paymentAdvisorConfirmedBy
   );
 }
 

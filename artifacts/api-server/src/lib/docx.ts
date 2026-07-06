@@ -230,6 +230,46 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
     );
   }
 
+  // Evidence trace: the excerpt-level provenance behind the matrix above.
+  // Evidence-first doctrine — a requirement ruling without its mapped
+  // excerpt is an assertion, not a finding.
+  const reqTextById = new Map<string, string>(requirements.map((r: any) => [r.id, r.text]));
+  const confirmedEvidence = evidence.filter((e) => !e.suggested);
+  const suggestedEvidence = evidence.filter((e) => e.suggested);
+  const evidenceRow = (e: any) => [
+    reqTextById.get(e.requirementId) ?? "—",
+    e.evidenceStatus,
+    e.excerpt ?? "—",
+    e.notes ?? "—",
+  ];
+  children.push(subheading("Evidence trace"));
+  if (confirmedEvidence.length === 0) {
+    children.push(para("No confirmed evidence mappings recorded.", { italics: true }));
+  } else {
+    children.push(
+      makeTable(
+        ["Requirement", "Status", "Excerpt", "Notes"],
+        confirmedEvidence.map(evidenceRow),
+        [30, 12, 38, 20],
+      ),
+    );
+  }
+  if (suggestedEvidence.length > 0) {
+    children.push(
+      para(
+        `${suggestedEvidence.length} AI-suggested evidence mapping(s) below are not yet confirmed and do not contribute to the risk score.`,
+        { italics: true, color: GREY },
+      ),
+    );
+    children.push(
+      makeTable(
+        ["Requirement", "Status", "Excerpt", "Notes"],
+        suggestedEvidence.map(evidenceRow),
+        [30, 12, 38, 20],
+      ),
+    );
+  }
+
   // C. Defect register
   children.push(heading("C. Defect Register"));
   if (confirmedDefects.length === 0) {

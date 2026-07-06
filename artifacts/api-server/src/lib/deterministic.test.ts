@@ -593,6 +593,7 @@ describe("workflow governance", () => {
         paymentStatus: "confirmed",
         paymentConfirmedByFounder: true,
         paymentConfirmedByAdvisor: false,
+        paymentFounderConfirmedBy: "user-a",
       }),
       false,
     );
@@ -601,8 +602,33 @@ describe("workflow governance", () => {
         paymentStatus: "confirmed",
         paymentConfirmedByFounder: true,
         paymentConfirmedByAdvisor: true,
+        paymentFounderConfirmedBy: "user-a",
+        paymentAdvisorConfirmedBy: "user-b",
       }),
       true,
+    );
+  });
+
+  test("payment gate demands two distinct server-derived identities", () => {
+    // Flags alone (legacy rows or a bypassed endpoint) do not satisfy the gate.
+    assert.equal(
+      paymentGateSatisfied({
+        paymentStatus: "confirmed",
+        paymentConfirmedByFounder: true,
+        paymentConfirmedByAdvisor: true,
+      }),
+      false,
+    );
+    // The same person confirming both legs is not dual confirmation.
+    assert.equal(
+      paymentGateSatisfied({
+        paymentStatus: "confirmed",
+        paymentConfirmedByFounder: true,
+        paymentConfirmedByAdvisor: true,
+        paymentFounderConfirmedBy: "user-a",
+        paymentAdvisorConfirmedBy: "user-a",
+      }),
+      false,
     );
   });
 
@@ -635,6 +661,8 @@ describe("workflow governance", () => {
         paymentStatus: "confirmed",
         paymentConfirmedByFounder: true,
         paymentConfirmedByAdvisor: true,
+        paymentFounderConfirmedBy: "user-a",
+        paymentAdvisorConfirmedBy: "user-b",
       }).ok,
       true,
     );

@@ -132,6 +132,7 @@ before(async () => {
       tenderTitle: "Export Integration VMT-2026-999",
       status: "signed_off",
       reviewerId: admin.id,
+      physicalArchiveInstruction: "Return all hard copies to client within 7 days",
     })
     .returning();
   projectId = project.id;
@@ -255,6 +256,27 @@ describe("GET /projects/:id/export (live route)", () => {
     currentUser = null;
   });
 
+  test("a signed-off project without a physical-archive instruction is denied export (409)", async () => {
+    const stamp = new Date().toISOString();
+    const [gated] = await db
+      .insert(projects)
+      .values({
+        clientId,
+        tenderTitle: `Export archive-gate ${stamp}`,
+        status: "signed_off",
+        reviewerId: adminId,
+      })
+      .returning();
+    try {
+      currentUser = { id: adminId, role: "admin", name: "Export Admin" } as LocalUser;
+      const res = await fetch(`${baseUrl}/projects/${gated.id}/export`);
+      assert.equal(res.status, 409);
+    } finally {
+      await db.delete(projects).where(eq(projects.id, gated.id));
+      currentUser = null;
+    }
+  });
+
   test("admin download yields a ZIP whose CSVs preserve seeded review_state", async () => {
     currentUser = { id: adminId, role: "admin", name: "Export Admin" } as LocalUser;
     const res = await fetch(`${baseUrl}/projects/${projectId}/export`);
@@ -352,6 +374,7 @@ describe("GET /projects/:id/export (live route)", () => {
         tenderTitle: `Export storage-failure ${stamp}`,
         status: "signed_off",
         reviewerId: adminId,
+        physicalArchiveInstruction: "Return all hard copies to client within 7 days",
       })
       .returning();
 

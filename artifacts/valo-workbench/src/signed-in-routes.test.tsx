@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ProtectedRoutes from "./protected-routes";
 
 vi.mock("@clerk/clerk-react", () => ({
@@ -15,14 +16,22 @@ vi.mock("@workspace/api-client-react", () => ({
   useGetDashboardMetrics: () => ({ data: undefined, isLoading: false }),
   useListProjects: () => ({ data: [], isLoading: false }),
   useGetVaultExpiring: () => ({ data: { items: [], buckets: {} }, isLoading: false }),
+  useGetWorkflowAlerts: () => ({ data: undefined, isLoading: false }),
 }));
 
 function renderAt(path: string) {
   const { hook } = memoryLocation({ path, record: true });
+  // Pages use react-query hooks directly (e.g. useWorkflowAlerts), so the
+  // route tree needs a QueryClient just like App provides in production.
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
-    <Router hook={hook}>
-      <ProtectedRoutes />
-    </Router>,
+    <QueryClientProvider client={queryClient}>
+      <Router hook={hook}>
+        <ProtectedRoutes />
+      </Router>
+    </QueryClientProvider>,
   );
 }
 

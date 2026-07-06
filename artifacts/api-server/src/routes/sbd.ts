@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, sql, desc, asc } from "drizzle-orm";
+import { and, eq, sql, desc, asc } from "drizzle-orm";
 import { db, sbdTemplates, sbdAnnotations } from "@workspace/db";
 import {
   CreateSbdTemplateBody,
@@ -68,15 +68,36 @@ router.patch("/sbd-templates/:id", requireMember, async (req: Request, res: Resp
     res.status(400).json({ error: "Invalid request" });
     return;
   }
-  const [updated] = await db
-    .update(sbdTemplates)
-    .set({ ...parsed.data })
-    .where(eq(sbdTemplates.id, String(req.params.id)))
-    .returning();
-  if (!updated) {
+  if (Object.keys(parsed.data).length === 0) {
+    res.status(400).json({ error: "No fields to update" });
+    return;
+  }
+  const [existing] = await db
+    .select()
+    .from(sbdTemplates)
+    .where(eq(sbdTemplates.id, String(req.params.id)));
+  if (!existing) {
     res.status(404).json({ error: "Not found" });
     return;
   }
+  // Single-lineage invariant: at most one active version per template code.
+  // Activating a version supersedes whichever version was active before, in
+  // the same transaction, so two actives can never coexist.
+  const activating = parsed.data.status === "active" && existing.status !== "active";
+  const updated = await db.transaction(async (tx) => {
+    if (activating) {
+      await tx
+        .update(sbdTemplates)
+        .set({ status: "superseded" })
+        .where(and(eq(sbdTemplates.code, existing.code), eq(sbdTemplates.status, "active")));
+    }
+    const [row] = await tx
+      .update(sbdTemplates)
+      .set({ ...parsed.data })
+      .where(eq(sbdTemplates.id, existing.id))
+      .returning();
+    return row;
+  });
   await writeAudit({
     user: getLocalUser(req),
     eventType: "sbd.template_updated",

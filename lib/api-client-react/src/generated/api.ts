@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AccessReview,
   AuditEvent,
   BadRequestResponse,
   BoqCheck,
@@ -50,9 +51,13 @@ import type {
   ExtractRequest,
   ExtractResult,
   ForbiddenResponse,
+  GetAccessReviewParams,
   HealthStatus,
   ListProjectsParams,
   NotFoundResponse,
+  NotificationCreate,
+  NotificationEvent,
+  PaymentConfirmationBody,
   Project,
   ProjectCreate,
   ProjectSummary,
@@ -62,6 +67,8 @@ import type {
   RequirementCreate,
   RequirementUpdate,
   ResponsivenessResult,
+  RetentionRequest,
+  RetentionRequestCreate,
   RiskAssessment,
   RiskOverride,
   SbdAnnotation,
@@ -80,7 +87,8 @@ import type {
   VaultExpiring,
   VaultItem,
   VaultItemCreate,
-  VaultItemUpdate
+  VaultItemUpdate,
+  WorkflowAlerts
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1054,6 +1062,443 @@ export const useDeleteProject = <TError = ErrorType<ForbiddenResponse>,
         TContext
       > => {
       return useMutation(getDeleteProjectMutationOptions(options));
+    }
+
+export const getGetWorkflowAlertsUrl = () => {
+
+
+
+
+  return `/api/workflow/alerts`
+}
+
+/**
+ * @summary Internal SLA, red-team and Vault expiry alert candidates
+ */
+export const getWorkflowAlerts = async ( options?: RequestInit): Promise<WorkflowAlerts> => {
+
+  return customFetch<WorkflowAlerts>(getGetWorkflowAlertsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWorkflowAlertsQueryKey = () => {
+    return [
+    `/api/workflow/alerts`
+    ] as const;
+    }
+
+
+export const getGetWorkflowAlertsQueryOptions = <TData = Awaited<ReturnType<typeof getWorkflowAlerts>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkflowAlerts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWorkflowAlertsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWorkflowAlerts>>> = ({ signal }) => getWorkflowAlerts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWorkflowAlerts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWorkflowAlertsQueryResult = NonNullable<Awaited<ReturnType<typeof getWorkflowAlerts>>>
+export type GetWorkflowAlertsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Internal SLA, red-team and Vault expiry alert candidates
+ */
+
+export function useGetWorkflowAlerts<TData = Awaited<ReturnType<typeof getWorkflowAlerts>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkflowAlerts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWorkflowAlertsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListProjectNotificationsUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/notifications`
+}
+
+export const listProjectNotifications = async (id: string, options?: RequestInit): Promise<NotificationEvent[]> => {
+
+  return customFetch<NotificationEvent[]>(getListProjectNotificationsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProjectNotificationsQueryKey = (id: string,) => {
+    return [
+    `/api/projects/${id}/notifications`
+    ] as const;
+    }
+
+
+export const getListProjectNotificationsQueryOptions = <TData = Awaited<ReturnType<typeof listProjectNotifications>>, TError = ErrorType<unknown>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProjectNotifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProjectNotificationsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProjectNotifications>>> = ({ signal }) => listProjectNotifications(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProjectNotifications>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProjectNotificationsQueryResult = NonNullable<Awaited<ReturnType<typeof listProjectNotifications>>>
+export type ListProjectNotificationsQueryError = ErrorType<unknown>
+
+
+
+export function useListProjectNotifications<TData = Awaited<ReturnType<typeof listProjectNotifications>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProjectNotifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProjectNotificationsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateProjectNotificationUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/notifications`
+}
+
+/**
+ * @summary Queue/log a manual notification event
+ */
+export const createProjectNotification = async (id: string,
+    notificationCreate: NotificationCreate, options?: RequestInit): Promise<NotificationEvent> => {
+
+  return customFetch<NotificationEvent>(getCreateProjectNotificationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(notificationCreate)
+  }
+);}
+
+
+
+
+export const getCreateProjectNotificationMutationOptions = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProjectNotification>>, TError,{id: string;data: BodyType<NotificationCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createProjectNotification>>, TError,{id: string;data: BodyType<NotificationCreate>}, TContext> => {
+
+const mutationKey = ['createProjectNotification'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createProjectNotification>>, {id: string;data: BodyType<NotificationCreate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createProjectNotification(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateProjectNotificationMutationResult = NonNullable<Awaited<ReturnType<typeof createProjectNotification>>>
+    export type CreateProjectNotificationMutationBody = BodyType<NotificationCreate>
+    export type CreateProjectNotificationMutationError = ErrorType<BadRequestResponse | NotFoundResponse>
+
+    /**
+ * @summary Queue/log a manual notification event
+ */
+export const useCreateProjectNotification = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProjectNotification>>, TError,{id: string;data: BodyType<NotificationCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createProjectNotification>>,
+        TError,
+        {id: string;data: BodyType<NotificationCreate>},
+        TContext
+      > => {
+      return useMutation(getCreateProjectNotificationMutationOptions(options));
+    }
+
+export const getCreateRetentionRequestUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/retention-requests`
+}
+
+/**
+ * @summary Start a deletion/retention workflow for an engagement
+ */
+export const createRetentionRequest = async (id: string,
+    retentionRequestCreate?: RetentionRequestCreate, options?: RequestInit): Promise<RetentionRequest> => {
+
+  return customFetch<RetentionRequest>(getCreateRetentionRequestUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(retentionRequestCreate)
+  }
+);}
+
+
+
+
+export const getCreateRetentionRequestMutationOptions = <TError = ErrorType<BadRequestResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRetentionRequest>>, TError,{id: string;data?: BodyType<RetentionRequestCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createRetentionRequest>>, TError,{id: string;data?: BodyType<RetentionRequestCreate>}, TContext> => {
+
+const mutationKey = ['createRetentionRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createRetentionRequest>>, {id: string;data?: BodyType<RetentionRequestCreate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createRetentionRequest(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateRetentionRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createRetentionRequest>>>
+    export type CreateRetentionRequestMutationBody = BodyType<RetentionRequestCreate> | undefined
+    export type CreateRetentionRequestMutationError = ErrorType<BadRequestResponse | NotFoundResponse | ConflictResponse>
+
+    /**
+ * @summary Start a deletion/retention workflow for an engagement
+ */
+export const useCreateRetentionRequest = <TError = ErrorType<BadRequestResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRetentionRequest>>, TError,{id: string;data?: BodyType<RetentionRequestCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createRetentionRequest>>,
+        TError,
+        {id: string;data?: BodyType<RetentionRequestCreate>},
+        TContext
+      > => {
+      return useMutation(getCreateRetentionRequestMutationOptions(options));
+    }
+
+export const getListRetentionRequestsUrl = () => {
+
+
+
+
+  return `/api/retention-requests`
+}
+
+/**
+ * @summary List deletion/retention workflows
+ */
+export const listRetentionRequests = async ( options?: RequestInit): Promise<RetentionRequest[]> => {
+
+  return customFetch<RetentionRequest[]>(getListRetentionRequestsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRetentionRequestsQueryKey = () => {
+    return [
+    `/api/retention-requests`
+    ] as const;
+    }
+
+
+export const getListRetentionRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listRetentionRequests>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRetentionRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRetentionRequestsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRetentionRequests>>> = ({ signal }) => listRetentionRequests({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRetentionRequests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRetentionRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof listRetentionRequests>>>
+export type ListRetentionRequestsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List deletion/retention workflows
+ */
+
+export function useListRetentionRequests<TData = Awaited<ReturnType<typeof listRetentionRequests>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRetentionRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRetentionRequestsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCompleteRetentionRequestUrl = (id: string,) => {
+
+
+
+
+  return `/api/retention-requests/${id}/complete`
+}
+
+/**
+ * @summary Complete a retention request and issue a deletion certificate
+ */
+export const completeRetentionRequest = async (id: string, options?: RequestInit): Promise<RetentionRequest> => {
+
+  return customFetch<RetentionRequest>(getCompleteRetentionRequestUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getCompleteRetentionRequestMutationOptions = <TError = ErrorType<NotFoundResponse | ConflictResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeRetentionRequest>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeRetentionRequest>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['completeRetentionRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeRetentionRequest>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  completeRetentionRequest(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteRetentionRequestMutationResult = NonNullable<Awaited<ReturnType<typeof completeRetentionRequest>>>
+
+    export type CompleteRetentionRequestMutationError = ErrorType<NotFoundResponse | ConflictResponse | ErrorEnvelope>
+
+    /**
+ * @summary Complete a retention request and issue a deletion certificate
+ */
+export const useCompleteRetentionRequest = <TError = ErrorType<NotFoundResponse | ConflictResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeRetentionRequest>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof completeRetentionRequest>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getCompleteRetentionRequestMutationOptions(options));
     }
 
 export const getListVaultItemsUrl = (id: string,) => {
@@ -4180,6 +4625,77 @@ export const useBoqCheckToDefect = <TError = ErrorType<unknown>,
       return useMutation(getBoqCheckToDefectMutationOptions(options));
     }
 
+export const getConfirmProjectPaymentUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/payment-confirmations`
+}
+
+/**
+ * @summary Record one leg of the dual payment confirmation (server-derived identity)
+ */
+export const confirmProjectPayment = async (id: string,
+    paymentConfirmationBody: PaymentConfirmationBody, options?: RequestInit): Promise<Project> => {
+
+  return customFetch<Project>(getConfirmProjectPaymentUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(paymentConfirmationBody)
+  }
+);}
+
+
+
+
+export const getConfirmProjectPaymentMutationOptions = <TError = ErrorType<BadRequestResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmProjectPayment>>, TError,{id: string;data: BodyType<PaymentConfirmationBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmProjectPayment>>, TError,{id: string;data: BodyType<PaymentConfirmationBody>}, TContext> => {
+
+const mutationKey = ['confirmProjectPayment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmProjectPayment>>, {id: string;data: BodyType<PaymentConfirmationBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  confirmProjectPayment(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmProjectPaymentMutationResult = NonNullable<Awaited<ReturnType<typeof confirmProjectPayment>>>
+    export type ConfirmProjectPaymentMutationBody = BodyType<PaymentConfirmationBody>
+    export type ConfirmProjectPaymentMutationError = ErrorType<BadRequestResponse | NotFoundResponse | ConflictResponse>
+
+    /**
+ * @summary Record one leg of the dual payment confirmation (server-derived identity)
+ */
+export const useConfirmProjectPayment = <TError = ErrorType<BadRequestResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmProjectPayment>>, TError,{id: string;data: BodyType<PaymentConfirmationBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof confirmProjectPayment>>,
+        TError,
+        {id: string;data: BodyType<PaymentConfirmationBody>},
+        TContext
+      > => {
+      return useMutation(getConfirmProjectPaymentMutationOptions(options));
+    }
+
 export const getRunResponsivenessReviewUrl = (id: string,) => {
 
 
@@ -4816,6 +5332,90 @@ export function useExportProject<TData = Awaited<ReturnType<typeof exportProject
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getExportProjectQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAccessReviewUrl = (params: GetAccessReviewParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/audit/access-review?${stringifiedParams}` : `/api/audit/access-review`
+}
+
+/**
+ * @summary Monthly access review export
+ */
+export const getAccessReview = async (params: GetAccessReviewParams, options?: RequestInit): Promise<AccessReview | string> => {
+
+  return customFetch<AccessReview | string>(getGetAccessReviewUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAccessReviewQueryKey = (params?: GetAccessReviewParams,) => {
+    return [
+    `/api/audit/access-review`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAccessReviewQueryOptions = <TData = Awaited<ReturnType<typeof getAccessReview>>, TError = ErrorType<unknown>>(params: GetAccessReviewParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAccessReview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAccessReviewQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAccessReview>>> = ({ signal }) => getAccessReview(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAccessReview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAccessReviewQueryResult = NonNullable<Awaited<ReturnType<typeof getAccessReview>>>
+export type GetAccessReviewQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Monthly access review export
+ */
+
+export function useGetAccessReview<TData = Awaited<ReturnType<typeof getAccessReview>>, TError = ErrorType<unknown>>(
+ params: GetAccessReviewParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAccessReview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAccessReviewQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

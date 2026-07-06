@@ -19,6 +19,10 @@ export interface BoqCheck {
   unitRate?: number | null;
   extension?: number | null;
   computedExtension?: number | null;
+  quantityRaw?: string | null;
+  unitRateKobo?: number | null;
+  extensionKobo?: number | null;
+  computedExtensionKobo?: number | null;
   checkType: BoqCheckCheckType;
   finding: string;
   severity: BoqCheckSeverity;

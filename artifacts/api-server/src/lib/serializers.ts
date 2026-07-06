@@ -57,6 +57,10 @@ export function serializeProject(
     paymentConfirmedByFounder: p.paymentConfirmedByFounder ?? false,
     paymentConfirmedByAdvisor: p.paymentConfirmedByAdvisor ?? false,
     paymentConfirmedAt: iso(p.paymentConfirmedAt),
+    paymentFounderConfirmedByName: p.paymentFounderConfirmedByName ?? null,
+    paymentFounderConfirmedAt: iso(p.paymentFounderConfirmedAt),
+    paymentAdvisorConfirmedByName: p.paymentAdvisorConfirmedByName ?? null,
+    paymentAdvisorConfirmedAt: iso(p.paymentAdvisorConfirmedAt),
     conflictStatus: p.conflictStatus ?? "clear",
     conflictDecision: p.conflictDecision ?? null,
     conflictRationale: p.conflictRationale ?? null,
@@ -276,6 +280,34 @@ export function serializeSbdAnnotation(a: any) {
     kind: a.kind,
     quirk: a.quirk,
     createdAt: iso(a.createdAt) ?? new Date(0).toISOString(),
+  };
+}
+
+export function serializeNotification(n: any) {
+  return {
+    id: n.id,
+    projectId: n.projectId ?? null,
+    clientId: n.clientId ?? null,
+    vaultItemId: n.vaultItemId ?? null,
+    channel: n.channel,
+    template: n.template,
+    recipient: n.recipient ?? null,
+    payload: n.payload ?? null,
+    status: n.status,
+    createdAt: iso(n.createdAt) ?? new Date(0).toISOString(),
+  };
+}
+
+export function serializeRetention(r: any) {
+  return {
+    id: r.id,
+    projectId: r.projectId,
+    reason: r.reason ?? null,
+    dueAt: iso(r.dueAt) ?? new Date(0).toISOString(),
+    completedAt: iso(r.completedAt),
+    certificateText: r.certificateText ?? null,
+    status: r.status,
+    createdAt: iso(r.createdAt) ?? new Date(0).toISOString(),
   };
 }
 
