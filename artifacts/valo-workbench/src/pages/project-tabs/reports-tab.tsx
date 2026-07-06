@@ -68,6 +68,10 @@ export function ReportsTab({ projectId }: { projectId: string }) {
     window.location.href = `/api/reports/${id}/download`;
   };
 
+  const handleDownloadPdf = (id: string) => {
+    window.location.href = `/api/reports/${id}/download-pdf`;
+  };
+
   const handleResponsiveness = () => {
     runResponsiveness.mutate(
       { id: projectId },
@@ -178,10 +182,16 @@ export function ReportsTab({ projectId }: { projectId: string }) {
                         </Button>
                       )}
                       {report.status === 'signed_off' && (
-                        <Button variant="default" size="sm" onClick={() => handleDownload(report.id)}>
-                          <Download className="w-4 h-4 mr-2" />
-                          Download DOCX
-                        </Button>
+                        <>
+                          <Button variant="default" size="sm" onClick={() => handleDownload(report.id)}>
+                            <Download className="w-4 h-4 mr-2" />
+                            Download DOCX
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => handleDownloadPdf(report.id)}>
+                            <Download className="w-4 h-4 mr-2" />
+                            Download PDF
+                          </Button>
+                        </>
                       )}
                     </div>
                   </TableCell>

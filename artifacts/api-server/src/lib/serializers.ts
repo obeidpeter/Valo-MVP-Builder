@@ -197,6 +197,7 @@ export function serializeReport(
     version: r.version,
     status: r.status,
     docxPath: r.docxPath ?? null,
+    pdfPath: r.pdfPath ?? null,
     reviewerId: r.reviewerId ?? null,
     reviewerName: r.reviewerName ?? null,
     attestation: r.attestation ?? null,

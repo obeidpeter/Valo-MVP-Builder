@@ -20,6 +20,7 @@ import { requireMember, requireRoles, getLocalUser } from "../middlewares/auth";
 import { serializeReport } from "../lib/serializers";
 import { writeAudit } from "../lib/audit";
 import { buildReportDocx, DOCX_MIME, type ReportData } from "../lib/docx";
+import { buildReportPdf, PDF_MIME } from "../lib/pdf";
 import { ENGINE_VERSION, PROMPT_PACK_VERSION, MODEL_ID } from "../lib/provenance";
 import { computeRisk, blockingSignOffDefects, type Severity } from "../lib/deterministic";
 import { computeScorecard } from "../lib/scorecard";
@@ -121,17 +122,30 @@ router.post(
     data.version = version;
     data.generatedByName = user?.name ?? null;
 
-    let docxPath: string | null = null;
-    try {
-      const buffer = await buildReportDocx(data);
+    const uploadRendered = async (buffer: Buffer, mime: string): Promise<string> => {
       const uploadURL = await objectStorage.getObjectEntityUploadURL();
       const putRes = await fetch(uploadURL, {
         method: "PUT",
-        headers: { "Content-Type": DOCX_MIME },
+        headers: { "Content-Type": mime },
         body: buffer,
       });
       if (!putRes.ok) throw new Error(`Upload failed: ${putRes.status}`);
-      docxPath = objectStorage.normalizeObjectEntityPath(uploadURL);
+      return objectStorage.normalizeObjectEntityPath(uploadURL);
+    };
+
+    let docxPath: string | null = null;
+    let pdfPath: string | null = null;
+    try {
+      const [docxBuffer, pdfBuffer] = await Promise.all([
+        buildReportDocx(data),
+        buildReportPdf(data),
+      ]);
+      // Render both formats from the same report model so the DOCX and PDF are
+      // content-identical; a failure in either aborts the whole generation.
+      [docxPath, pdfPath] = await Promise.all([
+        uploadRendered(docxBuffer, DOCX_MIME),
+        uploadRendered(pdfBuffer, PDF_MIME),
+      ]);
     } catch (error) {
       req.log.error({ err: error }, "report generation failed");
       res.status(500).json({ error: "Report generation failed" });
@@ -145,6 +159,7 @@ router.post(
         version,
         status: "draft",
         docxPath,
+        pdfPath,
         engineVersion: ENGINE_VERSION,
         promptPackVersion: PROMPT_PACK_VERSION,
         modelId: MODEL_ID,
@@ -286,6 +301,48 @@ router.get("/reports/:id/download", requireMember, async (req: Request, res: Res
     res.send(buffer);
   } catch (error) {
     req.log.error({ err: error }, "report download failed");
+    res.status(404).json({ error: "Report file not found" });
+  }
+});
+
+router.get("/reports/:id/download-pdf", requireMember, async (req: Request, res: Response) => {
+  const user = getLocalUser(req);
+  const [report] = await db.select().from(reports).where(eq(reports.id, String(req.params.id)));
+  if (!report || !report.pdfPath) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  if (report.status !== "signed_off") {
+    await writeAudit({
+      user,
+      projectId: report.projectId,
+      eventType: "report.export_denied",
+      objectType: "report",
+      objectId: report.id,
+      details: `PDF export blocked: report is "${report.status}", not signed off.`,
+    });
+    res.status(403).json({ error: "Report must be signed off before it can be exported" });
+    return;
+  }
+  try {
+    const file = await objectStorage.getObjectEntityFile(report.pdfPath);
+    const [buffer] = await file.download();
+    res.setHeader("Content-Type", PDF_MIME);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="bid-autopsy-report-v${report.version}.pdf"`,
+    );
+    await writeAudit({
+      user,
+      projectId: report.projectId,
+      eventType: "report.exported",
+      objectType: "report",
+      objectId: report.id,
+      details: `Exported signed-off report v${report.version} (PDF).`,
+    });
+    res.send(buffer);
+  } catch (error) {
+    req.log.error({ err: error }, "report pdf download failed");
     res.status(404).json({ error: "Report file not found" });
   }
 });

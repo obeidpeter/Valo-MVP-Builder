@@ -354,6 +354,7 @@ export const reports = pgTable("reports", {
   version: integer("version").notNull().default(1),
   status: text("status").notNull().default("draft"),
   docxPath: text("docx_path"),
+  pdfPath: text("pdf_path"),
   reviewerId: uuid("reviewer_id").references(() => users.id, {
     onDelete: "set null",
   }),

@@ -25,6 +25,7 @@ import reportsRouter from "./reports";
 import type { LocalUser } from "../middlewares/auth";
 import { ObjectStorageService } from "../lib/objectStorage";
 import { DOCX_MIME } from "../lib/docx";
+import { PDF_MIME } from "../lib/pdf";
 
 /**
  * End-to-end proof that the real `GET /projects/:id/export` HTTP route can't
@@ -525,6 +526,7 @@ describe("object-storage-backed report attach & download", () => {
         version: 2,
         status: "signed_off",
         docxPath: "/objects/uploads/signed-report-v2",
+        pdfPath: "/objects/uploads/signed-report-v2-pdf",
       })
       .returning();
     signedReportId = signed.id;
@@ -536,6 +538,7 @@ describe("object-storage-backed report attach & download", () => {
         version: 3,
         status: "draft",
         docxPath: "/objects/uploads/draft-report-v3",
+        pdfPath: "/objects/uploads/draft-report-v3-pdf",
       })
       .returning();
     draftReportId = draft.id;
@@ -612,6 +615,47 @@ describe("object-storage-backed report attach & download", () => {
         (e) => e.eventType === "report.export_denied" && e.objectId === draftReportId,
       ),
       "report.export_denied audit event written",
+    );
+
+    currentUser = null;
+  });
+
+  test("download-pdf of a signed-off report streams the .pdf bytes + filename", async () => {
+    currentUser = { id: adminId, role: "admin", name: "Export Admin" } as LocalUser;
+    const res = await fetch(`${baseUrl}/reports/${signedReportId}/download-pdf`);
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("content-type"), PDF_MIME);
+    assert.equal(
+      res.headers.get("content-disposition"),
+      'attachment; filename="bid-autopsy-report-v2.pdf"',
+    );
+
+    const body = Buffer.from(await res.arrayBuffer());
+    assert.ok(body.equals(FAKE_DOCX_BYTES), "downloaded bytes match storage payload");
+
+    // The successful PDF export is audited with report.exported, mirroring DOCX.
+    const events = await db.select().from(auditEvents).where(eq(auditEvents.projectId, projectId));
+    assert.ok(
+      events.some(
+        (e) => e.eventType === "report.exported" && e.objectId === signedReportId,
+      ),
+      "report.exported audit event written for PDF",
+    );
+
+    currentUser = null;
+  });
+
+  test("download-pdf of a not-signed-off report is denied (403) and audited", async () => {
+    currentUser = { id: adminId, role: "admin", name: "Export Admin" } as LocalUser;
+    const res = await fetch(`${baseUrl}/reports/${draftReportId}/download-pdf`);
+    assert.equal(res.status, 403);
+
+    const events = await db.select().from(auditEvents).where(eq(auditEvents.projectId, projectId));
+    assert.ok(
+      events.some(
+        (e) => e.eventType === "report.export_denied" && e.objectId === draftReportId,
+      ),
+      "report.export_denied audit event written for PDF",
     );
 
     currentUser = null;
