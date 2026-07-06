@@ -3,3 +3,4 @@
 - [Eval harness design](eval-harness-design.md) — v0 recall bar 0.85 (not v1.0 0.95); AND-of-ORs matcher at requirement level, avoid weak fallbacks; live gate is manual `prove:ship`, deliberately not a deploy hook.
 - [Valo web Clerk auth transport](valo-clerk-web-auth-transport.md) — web must use Clerk session cookies; never call setAuthTokenGetter/getToken/Bearer on web (mobile-only). Caused permanent "Authentication Failed".
 - [Clerk dev-preview duplicate cookies](clerk-dev-preview-duplicate-cookies.md) — signed-in 401s in Replit preview from duplicate Clerk cookies (one stale); dedupe to freshest before clerkMiddleware.
+- [GitHub push workflow scope](github-push-workflow-scope.md) — Replit pane's "remote has commits you're missing" often really means the token lacks `workflow` scope for a `.github/workflows/` change; push via CLI with a PAT-in-Secrets.
