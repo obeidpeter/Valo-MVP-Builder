@@ -21,6 +21,7 @@ import {
   useCreateRetentionRequest,
   useProjectNotifications,
 } from "@/lib/operations-api";
+import { ProjectReadinessGate, type ProjectTab } from "@/components/project-readiness-gate";
 
 import { DocumentsTab } from "./project-tabs/documents-tab";
 import { RequirementsTab } from "./project-tabs/requirements-tab";
@@ -55,6 +56,7 @@ export default function ProjectDetails() {
   const { data: notifications } = useProjectNotifications(id);
   const createNotification = useCreateProjectNotification(id ?? "");
   const createRetentionRequest = useCreateRetentionRequest(id ?? "");
+  const [activeTab, setActiveTab] = useState<ProjectTab>("overview");
   const [governance, setGovernance] = useState<{
     status: ProjectStatus;
     slaClass: SlaClass;
@@ -229,7 +231,7 @@ export default function ProjectDetails() {
         </div>
       </div>
 
-      <Tabs defaultValue="overview" className="w-full">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ProjectTab)} className="w-full">
         <TabsList className="w-full justify-start border-b border-border rounded-none bg-transparent h-auto p-0 space-x-6 overflow-x-auto">
           <TabsTrigger value="overview" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium">
             <Activity className="w-4 h-4 mr-2" />
@@ -271,7 +273,9 @@ export default function ProjectDetails() {
         
         <div className="pt-6 pb-20">
           <TabsContent value="overview" className="m-0">
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <div className="space-y-6">
+              <ProjectReadinessGate project={project} onGoToTab={setActiveTab} />
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
               <div className="bg-card border border-border p-6 rounded-xl shadow-xs">
                 <h3 className="font-serif text-lg font-medium mb-4">Project Metadata</h3>
                 <dl className="space-y-4 text-sm">
@@ -479,6 +483,7 @@ export default function ProjectDetails() {
                   {createRetentionRequest.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   Open Retention Workflow
                 </Button>
+              </div>
               </div>
             </div>
           </TabsContent>
