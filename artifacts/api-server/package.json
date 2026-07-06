@@ -13,7 +13,8 @@
     "prove:doctrine:offline": "node ./scripts/run-proof.mjs --offline",
     "prove:injection": "node ./scripts/run-injection.mjs",
     "prove:injection:offline": "node ./scripts/run-injection.mjs --offline",
-    "verify:audit": "node --import tsx ./scripts/verify-audit-chain.ts"
+    "verify:audit": "node --import tsx ./scripts/verify-audit-chain.ts",
+    "retention:scan": "node --import tsx ./scripts/run-retention-scan.ts"
   },
   "dependencies": {
     "@clerk/express": "^2.1.35",

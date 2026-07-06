@@ -15,10 +15,12 @@ import {
   computeSlaDueAt,
   paymentGateSatisfied,
   validateProjectTransition,
+  planRetentionScan,
   type BoqRow,
   type BoqCheckType,
   type RiskInput,
   type Severity,
+  type RetentionScanProject,
 } from "./deterministic";
 
 /** Collect the check types produced by a run, for concise assertions. */
@@ -879,5 +881,84 @@ describe("blockingSignOffDefects - fatal-block invariant", () => {
       computeRisk({ defects: defs, requirements: [], evidence: [] }).band,
       "critical",
     );
+  });
+});
+
+describe("planRetentionScan", () => {
+  const now = new Date("2026-07-06T00:00:00.000Z");
+  const daysAgo = (n: number) => new Date(now.getTime() - n * 24 * 60 * 60 * 1000);
+
+  const project = (over: Partial<RetentionScanProject> & { id: string }): RetentionScanProject => ({
+    status: "signed_off",
+    relevantDate: daysAgo(20),
+    hasPendingRequest: false,
+    ...over,
+  });
+
+  test("opens a request for a concluded engagement past its retention window", () => {
+    const out = planRetentionScan({
+      projects: [project({ id: "p1", relevantDate: daysAgo(20) })],
+      retentionDefaultDays: 14,
+      now,
+    });
+    assert.equal(out.length, 1);
+    assert.equal(out[0].projectId, "p1");
+    // dueAt is the moment the window elapsed: relevantDate + 14 days.
+    assert.equal(out[0].dueAt.toISOString(), daysAgo(6).toISOString());
+  });
+
+  test("is inclusive at the exact window boundary", () => {
+    const out = planRetentionScan({
+      projects: [project({ id: "p1", relevantDate: daysAgo(14) })],
+      retentionDefaultDays: 14,
+      now,
+    });
+    assert.equal(out.length, 1);
+  });
+
+  test("does not open before the window has elapsed", () => {
+    const out = planRetentionScan({
+      projects: [project({ id: "p1", relevantDate: daysAgo(13) })],
+      retentionDefaultDays: 14,
+      now,
+    });
+    assert.equal(out.length, 0);
+  });
+
+  test("skips in-progress and archived engagements", () => {
+    const out = planRetentionScan({
+      projects: [
+        project({ id: "review", status: "review", relevantDate: daysAgo(100) }),
+        project({ id: "intake", status: "intake", relevantDate: daysAgo(100) }),
+        project({ id: "archived", status: "archived", relevantDate: daysAgo(100) }),
+        project({ id: "exported", status: "exported", relevantDate: daysAgo(100) }),
+      ],
+      retentionDefaultDays: 14,
+      now,
+    });
+    assert.deepEqual(
+      out.map((c) => c.projectId),
+      ["exported"],
+    );
+  });
+
+  test("skips a project that already has an open request (dedup)", () => {
+    const out = planRetentionScan({
+      projects: [project({ id: "p1", relevantDate: daysAgo(30), hasPendingRequest: true })],
+      retentionDefaultDays: 14,
+      now,
+    });
+    assert.equal(out.length, 0);
+  });
+
+  test("returns nothing for a non-positive retention window", () => {
+    for (const days of [0, -5, Number.NaN]) {
+      const out = planRetentionScan({
+        projects: [project({ id: "p1", relevantDate: daysAgo(1000) })],
+        retentionDefaultDays: days,
+        now,
+      });
+      assert.equal(out.length, 0, `days=${days}`);
+    }
   });
 });

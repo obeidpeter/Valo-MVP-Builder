@@ -10,6 +10,7 @@ import {
   uuid,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 const createdAt = () =>
   timestamp("created_at", { withTimezone: true }).defaultNow().notNull();
@@ -311,21 +312,32 @@ export const notificationEvents = pgTable("notification_events", {
   createdAt: createdAt(),
 });
 
-export const retentionRequests = pgTable("retention_requests", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  projectId: uuid("project_id")
-    .notNull()
-    .references(() => projects.id, { onDelete: "cascade" }),
-  requestedBy: uuid("requested_by").references(() => users.id, {
-    onDelete: "set null",
-  }),
-  reason: text("reason"),
-  dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
-  completedAt: timestamp("completed_at", { withTimezone: true }),
-  certificateText: text("certificate_text"),
-  status: text("status").notNull().default("pending"),
-  createdAt: createdAt(),
-});
+export const retentionRequests = pgTable(
+  "retention_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    requestedBy: uuid("requested_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reason: text("reason"),
+    dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    certificateText: text("certificate_text"),
+    status: text("status").notNull().default("pending"),
+    createdAt: createdAt(),
+  },
+  // At most one OPEN request per project: the manual endpoint and the retention
+  // scheduler both dedup in code, but this partial unique index is the last-line
+  // guarantee that concurrent runs can never create duplicate pending requests.
+  (t) => [
+    uniqueIndex("retention_requests_one_pending_per_project")
+      .on(t.projectId)
+      .where(sql`${t.status} = 'pending'`),
+  ],
+);
 
 // Global, admin-configurable settings (single-row table). Holds the scoring
 // parameters the deterministic risk engine reads at runtime, report-template
