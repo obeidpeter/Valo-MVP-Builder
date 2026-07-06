@@ -16,6 +16,8 @@ export interface CapabilityItem {
   evidenceDocId?: string | null;
   evidenceDocName?: string | null;
   approvedStatus: CapabilityItemApprovedStatus;
+  verifierName?: string | null;
+  verifiedAt?: string | null;
   claimable: boolean;
   createdAt: string;
 }

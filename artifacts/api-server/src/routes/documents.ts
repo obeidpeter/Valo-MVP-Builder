@@ -12,6 +12,7 @@ import {
   type ExtractionResult,
 } from "../lib/extractText";
 import { ObjectStorageService } from "../lib/objectStorage";
+import { vaultReferencedPaths } from "../lib/purge";
 
 const sha256Hex = (buf: Buffer): string =>
   createHash("sha256").update(buf).digest("hex");
@@ -378,11 +379,16 @@ router.delete(
       res.status(404).json({ error: "Not found" });
       return;
     }
+    // A blob a Certificate Vault item points at belongs to the client's
+    // vault, not to this document row — keep the file, drop only the row.
+    const vaultOwned = (await vaultReferencedPaths([deleted.objectPath])).size > 0;
     let blobDeleted = false;
-    try {
-      blobDeleted = await objectStorage.deleteObjectEntity(deleted.objectPath);
-    } catch (error) {
-      req.log.error({ err: error, objectPath: deleted.objectPath }, "failed to delete document blob");
+    if (!vaultOwned) {
+      try {
+        blobDeleted = await objectStorage.deleteObjectEntity(deleted.objectPath);
+      } catch (error) {
+        req.log.error({ err: error, objectPath: deleted.objectPath }, "failed to delete document blob");
+      }
     }
     await writeAudit({
       user: getLocalUser(req),
@@ -390,7 +396,9 @@ router.delete(
       eventType: "document.deleted",
       objectType: "document",
       objectId: deleted.id,
-      details: `${deleted.filename} (file ${blobDeleted ? "purged" : "not found"} in storage)`,
+      details: `${deleted.filename} (file ${
+        vaultOwned ? "retained as client vault artefact" : blobDeleted ? "purged" : "not found"
+      } in storage)`,
     });
     res.status(204).end();
   },

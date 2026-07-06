@@ -181,6 +181,165 @@ export interface Scorecard {
   legacyRows: number;
 }
 
+export type WorkflowAlertsSlaBreachesItem = {
+  projectId: string;
+  tenderTitle: string;
+  dueAt: string;
+  breached: boolean;
+};
+
+export type WorkflowAlertsRedTeamDueItem = {
+  projectId: string;
+  tenderTitle: string;
+  dueAt: string;
+};
+
+export type WorkflowAlertsVaultExpiringItemExpiryBand = typeof WorkflowAlertsVaultExpiringItemExpiryBand[keyof typeof WorkflowAlertsVaultExpiringItemExpiryBand];
+
+
+export const WorkflowAlertsVaultExpiringItemExpiryBand = {
+  expired: 'expired',
+  critical: 'critical',
+  warning: 'warning',
+  upcoming: 'upcoming',
+  ok: 'ok',
+  unknown: 'unknown',
+} as const;
+
+export type WorkflowAlertsVaultExpiringItemExpiry = {
+  band: WorkflowAlertsVaultExpiringItemExpiryBand;
+  daysToExpiry: number | null;
+};
+
+export type WorkflowAlertsVaultExpiringItem = {
+  vaultItemId: string;
+  clientId: string;
+  clientName?: string | null;
+  artefactType: string;
+  expiry: WorkflowAlertsVaultExpiringItemExpiry;
+};
+
+export interface WorkflowAlerts {
+  slaBreaches: WorkflowAlertsSlaBreachesItem[];
+  redTeamDue: WorkflowAlertsRedTeamDueItem[];
+  vaultExpiring: WorkflowAlertsVaultExpiringItem[];
+}
+
+export type NotificationEventChannel = typeof NotificationEventChannel[keyof typeof NotificationEventChannel];
+
+
+export const NotificationEventChannel = {
+  manual: 'manual',
+  email: 'email',
+  whatsapp: 'whatsapp',
+  in_app: 'in_app',
+} as const;
+
+export type NotificationEventStatus = typeof NotificationEventStatus[keyof typeof NotificationEventStatus];
+
+
+export const NotificationEventStatus = {
+  queued: 'queued',
+  sent: 'sent',
+  archived: 'archived',
+  failed: 'failed',
+} as const;
+
+export interface NotificationEvent {
+  id: string;
+  projectId?: string | null;
+  clientId?: string | null;
+  vaultItemId?: string | null;
+  channel: NotificationEventChannel;
+  template: string;
+  recipient?: string | null;
+  payload?: string | null;
+  status: NotificationEventStatus;
+  createdAt: string;
+}
+
+export type NotificationCreateChannel = typeof NotificationCreateChannel[keyof typeof NotificationCreateChannel];
+
+
+export const NotificationCreateChannel = {
+  manual: 'manual',
+  email: 'email',
+  whatsapp: 'whatsapp',
+  in_app: 'in_app',
+} as const;
+
+export type NotificationCreateStatus = typeof NotificationCreateStatus[keyof typeof NotificationCreateStatus];
+
+
+export const NotificationCreateStatus = {
+  queued: 'queued',
+  sent: 'sent',
+  archived: 'archived',
+  failed: 'failed',
+} as const;
+
+export interface NotificationCreate {
+  channel?: NotificationCreateChannel;
+  /** @minLength 1 */
+  template: string;
+  recipient?: string;
+  payload?: unknown;
+  status?: NotificationCreateStatus;
+}
+
+export type RetentionRequestStatus = typeof RetentionRequestStatus[keyof typeof RetentionRequestStatus];
+
+
+export const RetentionRequestStatus = {
+  pending: 'pending',
+  completed: 'completed',
+  cancelled: 'cancelled',
+} as const;
+
+export interface RetentionRequest {
+  id: string;
+  projectId: string;
+  reason?: string | null;
+  dueAt: string;
+  completedAt?: string | null;
+  certificateText?: string | null;
+  status: RetentionRequestStatus;
+  createdAt: string;
+}
+
+export interface RetentionRequestCreate {
+  reason?: string;
+  dueAt?: string;
+}
+
+export type PaymentConfirmationBodyRole = typeof PaymentConfirmationBodyRole[keyof typeof PaymentConfirmationBodyRole];
+
+
+export const PaymentConfirmationBodyRole = {
+  founder: 'founder',
+  advisor: 'advisor',
+} as const;
+
+export interface PaymentConfirmationBody {
+  role: PaymentConfirmationBodyRole;
+}
+
+export interface AccessReviewRow {
+  at: string;
+  actor: string;
+  client: string;
+  project: string;
+  action: string;
+  objectType: string;
+  objectId: string;
+  details: string;
+}
+
+export interface AccessReview {
+  month: string;
+  rows: AccessReviewRow[];
+}
+
 export interface ClientDocumentSummary {
   id: string;
   projectId: string;
@@ -217,9 +376,9 @@ export interface CapabilityItem {
   evidenceDocId?: string | null;
   evidenceDocName?: string | null;
   approvedStatus: CapabilityItemApprovedStatus;
-  claimable: boolean;
   verifierName?: string | null;
   verifiedAt?: string | null;
+  claimable: boolean;
   createdAt: string;
 }
 
@@ -448,8 +607,6 @@ export const SbdTemplateUpdateStatus = {
 
 export interface SbdTemplateUpdate {
   /** @minLength 1 */
-  code?: string;
-  /** @minLength 1 */
   title?: string;
   category?: SbdTemplateUpdateCategory;
   status?: SbdTemplateUpdateStatus;
@@ -497,6 +654,33 @@ export const ProjectStatus = {
   signed_off: 'signed_off',
   exported: 'exported',
   archived: 'archived',
+} as const;
+
+export type ProjectSlaClass = typeof ProjectSlaClass[keyof typeof ProjectSlaClass];
+
+
+export const ProjectSlaClass = {
+  standard: 'standard',
+  live: 'live',
+} as const;
+
+export type ProjectPaymentStatus = typeof ProjectPaymentStatus[keyof typeof ProjectPaymentStatus];
+
+
+export const ProjectPaymentStatus = {
+  not_required: 'not_required',
+  pending: 'pending',
+  confirmed: 'confirmed',
+} as const;
+
+export type ProjectConflictStatus = typeof ProjectConflictStatus[keyof typeof ProjectConflictStatus];
+
+
+export const ProjectConflictStatus = {
+  clear: 'clear',
+  blocked: 'blocked',
+  consented: 'consented',
+  declined: 'declined',
 } as const;
 
 export type ProjectRiskBand = typeof ProjectRiskBand[keyof typeof ProjectRiskBand] | null;
@@ -547,19 +731,23 @@ export interface Project {
   segment?: ProjectSegment;
   submissionStatus?: string | null;
   status: ProjectStatus;
-  slaClass?: string | null;
-  paymentStatus?: string | null;
-  paymentConfirmedByFounder?: boolean | null;
-  paymentConfirmedByAdvisor?: boolean | null;
+  reviewerId?: string | null;
+  reviewerName?: string | null;
+  slaClass?: ProjectSlaClass;
+  paymentStatus?: ProjectPaymentStatus;
+  paymentConfirmedByFounder?: boolean;
+  paymentConfirmedByAdvisor?: boolean;
   paymentConfirmedAt?: string | null;
-  conflictStatus?: string | null;
+  paymentFounderConfirmedByName?: string | null;
+  paymentFounderConfirmedAt?: string | null;
+  paymentAdvisorConfirmedByName?: string | null;
+  paymentAdvisorConfirmedAt?: string | null;
+  conflictStatus?: ProjectConflictStatus;
   conflictDecision?: string | null;
   conflictRationale?: string | null;
   physicalArchiveInstruction?: string | null;
   redactionScope?: string | null;
-  restrictedMode?: boolean | null;
-  reviewerId?: string | null;
-  reviewerName?: string | null;
+  restrictedMode?: boolean;
   riskScore?: number | null;
   riskBand?: ProjectRiskBand;
   riskOverrideBand?: ProjectRiskOverrideBand;
@@ -597,6 +785,33 @@ export const ProjectSummaryStatus = {
   archived: 'archived',
 } as const;
 
+export type ProjectSummarySlaClass = typeof ProjectSummarySlaClass[keyof typeof ProjectSummarySlaClass];
+
+
+export const ProjectSummarySlaClass = {
+  standard: 'standard',
+  live: 'live',
+} as const;
+
+export type ProjectSummaryPaymentStatus = typeof ProjectSummaryPaymentStatus[keyof typeof ProjectSummaryPaymentStatus];
+
+
+export const ProjectSummaryPaymentStatus = {
+  not_required: 'not_required',
+  pending: 'pending',
+  confirmed: 'confirmed',
+} as const;
+
+export type ProjectSummaryConflictStatus = typeof ProjectSummaryConflictStatus[keyof typeof ProjectSummaryConflictStatus];
+
+
+export const ProjectSummaryConflictStatus = {
+  clear: 'clear',
+  blocked: 'blocked',
+  consented: 'consented',
+  declined: 'declined',
+} as const;
+
 export type ProjectSummaryRiskBand = typeof ProjectSummaryRiskBand[keyof typeof ProjectSummaryRiskBand] | null;
 
 
@@ -632,11 +847,11 @@ export interface ProjectSummary {
   deadline?: string | null;
   segment?: ProjectSummarySegment;
   status: ProjectSummaryStatus;
-  slaClass?: string | null;
-  paymentStatus?: string | null;
-  conflictStatus?: string | null;
-  restrictedMode?: boolean | null;
   reviewerName?: string | null;
+  slaClass?: ProjectSummarySlaClass;
+  paymentStatus?: ProjectSummaryPaymentStatus;
+  conflictStatus?: ProjectSummaryConflictStatus;
+  restrictedMode?: boolean;
   riskScore?: number | null;
   riskBand?: ProjectSummaryRiskBand;
   outcome?: ProjectSummaryOutcome;
@@ -657,6 +872,33 @@ export const ProjectCreateSegment = {
   other: 'other',
 } as const;
 
+export type ProjectCreateSlaClass = typeof ProjectCreateSlaClass[keyof typeof ProjectCreateSlaClass];
+
+
+export const ProjectCreateSlaClass = {
+  standard: 'standard',
+  live: 'live',
+} as const;
+
+export type ProjectCreatePaymentStatus = typeof ProjectCreatePaymentStatus[keyof typeof ProjectCreatePaymentStatus];
+
+
+export const ProjectCreatePaymentStatus = {
+  not_required: 'not_required',
+  pending: 'pending',
+  confirmed: 'confirmed',
+} as const;
+
+export type ProjectCreateConflictStatus = typeof ProjectCreateConflictStatus[keyof typeof ProjectCreateConflictStatus];
+
+
+export const ProjectCreateConflictStatus = {
+  clear: 'clear',
+  blocked: 'blocked',
+  consented: 'consented',
+  declined: 'declined',
+} as const;
+
 export interface ProjectCreate {
   clientId: string;
   /** @minLength 1 */
@@ -669,8 +911,11 @@ export interface ProjectCreate {
   segment?: ProjectCreateSegment;
   submissionStatus?: string;
   reviewerId: string;
-  slaClass?: string;
-  paymentStatus?: string;
+  slaClass?: ProjectCreateSlaClass;
+  paymentStatus?: ProjectCreatePaymentStatus;
+  conflictStatus?: ProjectCreateConflictStatus;
+  conflictDecision?: string;
+  conflictRationale?: string;
   physicalArchiveInstruction?: string;
   redactionScope?: string;
   restrictedMode?: boolean;
@@ -702,6 +947,33 @@ export const ProjectUpdateStatus = {
   archived: 'archived',
 } as const;
 
+export type ProjectUpdateSlaClass = typeof ProjectUpdateSlaClass[keyof typeof ProjectUpdateSlaClass];
+
+
+export const ProjectUpdateSlaClass = {
+  standard: 'standard',
+  live: 'live',
+} as const;
+
+export type ProjectUpdatePaymentStatus = typeof ProjectUpdatePaymentStatus[keyof typeof ProjectUpdatePaymentStatus];
+
+
+export const ProjectUpdatePaymentStatus = {
+  not_required: 'not_required',
+  pending: 'pending',
+  confirmed: 'confirmed',
+} as const;
+
+export type ProjectUpdateConflictStatus = typeof ProjectUpdateConflictStatus[keyof typeof ProjectUpdateConflictStatus];
+
+
+export const ProjectUpdateConflictStatus = {
+  clear: 'clear',
+  blocked: 'blocked',
+  consented: 'consented',
+  declined: 'declined',
+} as const;
+
 export type ProjectUpdateOutcome = typeof ProjectUpdateOutcome[keyof typeof ProjectUpdateOutcome];
 
 
@@ -728,11 +1000,9 @@ export interface ProjectUpdate {
   submissionStatus?: string;
   status?: ProjectUpdateStatus;
   reviewerId?: string;
-  slaClass?: string;
-  paymentStatus?: string;
-  paymentConfirmedByFounder?: boolean;
-  paymentConfirmedByAdvisor?: boolean;
-  conflictStatus?: string;
+  slaClass?: ProjectUpdateSlaClass;
+  paymentStatus?: ProjectUpdatePaymentStatus;
+  conflictStatus?: ProjectUpdateConflictStatus;
   conflictDecision?: string | null;
   conflictRationale?: string | null;
   physicalArchiveInstruction?: string | null;
@@ -1283,11 +1553,11 @@ export interface BoqCheck {
   sourceDocId?: string | null;
   lineRef?: string | null;
   description?: string | null;
-  quantityRaw?: string | null;
   quantity?: number | null;
   unitRate?: number | null;
   extension?: number | null;
   computedExtension?: number | null;
+  quantityRaw?: string | null;
   unitRateKobo?: number | null;
   extensionKobo?: number | null;
   computedExtensionKobo?: number | null;
@@ -1470,4 +1740,20 @@ export type ConflictResponse = ErrorEnvelope;
 export type ListProjectsParams = {
 clientId?: string;
 };
+
+export type GetAccessReviewParams = {
+/**
+ * @pattern ^\d{4}-\d{2}$
+ */
+month: string;
+format?: GetAccessReviewFormat;
+};
+
+export type GetAccessReviewFormat = typeof GetAccessReviewFormat[keyof typeof GetAccessReviewFormat];
+
+
+export const GetAccessReviewFormat = {
+  json: 'json',
+  csv: 'csv',
+} as const;
 

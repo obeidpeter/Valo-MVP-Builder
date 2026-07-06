@@ -303,6 +303,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NotificationEvent"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /projects/{id}/retention-requests:
     post:
       operationId: createRetentionRequest
@@ -323,6 +327,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RetentionRequest"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /retention-requests:
     get:
       operationId: listRetentionRequests
@@ -351,6 +361,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RetentionRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "502":
+          description: Stored files could not be purged; certificate withheld
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /clients/{id}/vault-items:
     get:
       operationId: listVaultItems
@@ -1094,6 +1114,32 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Defect"
+  /projects/{id}/payment-confirmations:
+    post:
+      operationId: confirmProjectPayment
+      tags: [Projects]
+      summary: Record one leg of the dual payment confirmation (server-derived identity)
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentConfirmationBody"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /projects/{id}/responsiveness-review:
     post:
       operationId: runResponsivenessReview
@@ -1495,11 +1541,12 @@ components:
           type: array
           items:
             type: object
-            required: [projectId, tenderTitle, dueAt]
+            required: [projectId, tenderTitle, dueAt, breached]
             properties:
               projectId: { type: string }
               tenderTitle: { type: string }
               dueAt: { type: string }
+              breached: { type: boolean }
         redTeamDue:
           type: array
           items:
@@ -1577,6 +1624,13 @@ components:
       properties:
         reason: { type: string }
         dueAt: { type: string }
+    PaymentConfirmationBody:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [founder, advisor]
     AccessReviewRow:
       type: object
       required: [at, actor, client, project, action, objectType, objectId, details]
@@ -1757,7 +1811,6 @@ components:
     SbdTemplateUpdate:
       type: object
       properties:
-        code: { type: string, minLength: 1 }
         title: { type: string, minLength: 1 }
         category:
           type: string
@@ -1824,6 +1877,10 @@ components:
         paymentConfirmedByFounder: { type: boolean }
         paymentConfirmedByAdvisor: { type: boolean }
         paymentConfirmedAt: { type: string, nullable: true }
+        paymentFounderConfirmedByName: { type: string, nullable: true }
+        paymentFounderConfirmedAt: { type: string, nullable: true }
+        paymentAdvisorConfirmedByName: { type: string, nullable: true }
+        paymentAdvisorConfirmedAt: { type: string, nullable: true }
         conflictStatus:
           type: string
           enum: [clear, blocked, consented, declined]
@@ -1916,8 +1973,6 @@ components:
         paymentStatus:
           type: string
           enum: [not_required, pending, confirmed]
-        paymentConfirmedByFounder: { type: boolean }
-        paymentConfirmedByAdvisor: { type: boolean }
         conflictStatus:
           type: string
           enum: [clear, blocked, consented, declined]
@@ -1951,8 +2006,6 @@ components:
         paymentStatus:
           type: string
           enum: [not_required, pending, confirmed]
-        paymentConfirmedByFounder: { type: boolean }
-        paymentConfirmedByAdvisor: { type: boolean }
         conflictStatus:
           type: string
           enum: [clear, blocked, consented, declined]

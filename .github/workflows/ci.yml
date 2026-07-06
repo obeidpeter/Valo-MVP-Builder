@@ -1,0 +1,78 @@
+# Valo Bid Autopsy Workbench — CI
+#
+# Guards every push/PR with the deterministic verification stack:
+# typecheck, unit + DB-backed integration tests, both production builds,
+# and the offline doctrine + injection-containment proofs.
+#
+# The LIVE halves of the proofs (real OpenAI calls) intentionally do NOT run
+# here — the OpenAI key lives only in the deploy environment. Run
+# `pnpm --filter @workspace/api-server prove:doctrine` / `prove:injection`
+# there before shipping model or prompt changes.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: valo_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/valo_ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck (libs + artifacts)
+        run: pnpm run typecheck
+
+      - name: Push schema to CI database
+        run: pnpm --filter @workspace/db run push-force
+
+      - name: API server tests (unit + DB integration)
+        run: pnpm --filter @workspace/api-server test
+
+      - name: Workbench tests
+        run: pnpm --filter @workspace/valo-workbench test
+
+      - name: Doctrine proof (offline)
+        run: pnpm --filter @workspace/api-server prove:doctrine:offline
+
+      - name: Injection-containment proof (offline corpus)
+        run: pnpm --filter @workspace/api-server prove:injection:offline
+
+      - name: Build API server
+        run: pnpm --filter @workspace/api-server build
+
+      - name: Build workbench
+        env:
+          PORT: "5173"
+          BASE_PATH: "/"
+        run: pnpm --filter @workspace/valo-workbench build

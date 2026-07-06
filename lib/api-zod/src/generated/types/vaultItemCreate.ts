@@ -15,4 +15,5 @@ export interface VaultItemCreate {
   /** @minimum 0 */
   renewalLeadDays?: number;
   status?: string;
+  sourceDocumentId?: string;
 }

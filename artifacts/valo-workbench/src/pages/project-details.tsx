@@ -1,12 +1,18 @@
 import { useParams } from "wouter";
-import { 
-  useGetProject, 
+import {
+  useGetProject,
   useUpdateProject,
-  getGetProjectQueryKey
+  useConfirmProjectPayment,
+  useCreateProjectNotification,
+  useCreateRetentionRequest,
+  useListProjectNotifications,
+  getGetProjectQueryKey,
+  getListProjectNotificationsQueryKey,
+  getListRetentionRequestsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Loader2, FileText, CheckSquare, Layers, AlertOctagon, FileBarChart, History, Activity, Calculator, ShieldAlert, Bell, Archive, Save } from "lucide-react";
+import { Loader2, FileText, CheckSquare, Layers, AlertOctagon, FileBarChart, History, Activity, Calculator, ShieldAlert, Bell, Archive, Save, UserCheck } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,11 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import {
-  useCreateProjectNotification,
-  useCreateRetentionRequest,
-  useProjectNotifications,
-} from "@/lib/operations-api";
+import { errorMessage } from "@/lib/errors";
 import { ProjectReadinessGate, type ProjectTab } from "@/components/project-readiness-gate";
 
 import { DocumentsTab } from "./project-tabs/documents-tab";
@@ -39,30 +41,23 @@ type SlaClass = "standard" | "live";
 type PaymentStatus = "not_required" | "pending" | "confirmed";
 type ConflictStatus = (typeof CONFLICT_OPTIONS)[number];
 
-function errorMessage(err: unknown, fallback: string): string {
-  const data = (err as { data?: unknown })?.data;
-  if (data && typeof data === "object" && typeof (data as { error?: unknown }).error === "string") {
-    return (data as { error: string }).error;
-  }
-  return err instanceof Error ? err.message : fallback;
-}
-
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>();
   const { data: project, isLoading } = useGetProject(id);
   const updateProject = useUpdateProject();
+  const confirmPayment = useConfirmProjectPayment();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data: notifications } = useProjectNotifications(id);
-  const createNotification = useCreateProjectNotification(id ?? "");
-  const createRetentionRequest = useCreateRetentionRequest(id ?? "");
+  const { data: notifications } = useListProjectNotifications(id ?? "", {
+    query: { enabled: Boolean(id), queryKey: getListProjectNotificationsQueryKey(id ?? "") },
+  });
+  const createNotification = useCreateProjectNotification();
+  const createRetentionRequest = useCreateRetentionRequest();
   const [activeTab, setActiveTab] = useState<ProjectTab>("overview");
   const [governance, setGovernance] = useState<{
     status: ProjectStatus;
     slaClass: SlaClass;
     paymentStatus: PaymentStatus;
-    paymentConfirmedByFounder: boolean;
-    paymentConfirmedByAdvisor: boolean;
     conflictStatus: ConflictStatus;
     conflictDecision: string;
     conflictRationale: string;
@@ -73,8 +68,6 @@ export default function ProjectDetails() {
     status: "intake",
     slaClass: "standard",
     paymentStatus: "not_required",
-    paymentConfirmedByFounder: false,
-    paymentConfirmedByAdvisor: false,
     conflictStatus: "clear",
     conflictDecision: "",
     conflictRationale: "",
@@ -89,22 +82,27 @@ export default function ProjectDetails() {
   });
   const [retentionReason, setRetentionReason] = useState("");
 
-  useEffect(() => {
-    if (!project) return;
+  const syncGovernance = (p: NonNullable<typeof project>) => {
     setGovernance({
-      status: project.status as ProjectStatus,
-      slaClass: (project.slaClass ?? "standard") as SlaClass,
-      paymentStatus: (project.paymentStatus ?? "not_required") as PaymentStatus,
-      paymentConfirmedByFounder: Boolean(project.paymentConfirmedByFounder),
-      paymentConfirmedByAdvisor: Boolean(project.paymentConfirmedByAdvisor),
-      conflictStatus: (project.conflictStatus ?? "clear") as ConflictStatus,
-      conflictDecision: project.conflictDecision ?? "",
-      conflictRationale: project.conflictRationale ?? "",
-      physicalArchiveInstruction: project.physicalArchiveInstruction ?? "",
-      redactionScope: project.redactionScope ?? "",
-      restrictedMode: Boolean(project.restrictedMode),
+      status: p.status as ProjectStatus,
+      slaClass: (p.slaClass ?? "standard") as SlaClass,
+      paymentStatus: (p.paymentStatus ?? "not_required") as PaymentStatus,
+      conflictStatus: (p.conflictStatus ?? "clear") as ConflictStatus,
+      conflictDecision: p.conflictDecision ?? "",
+      conflictRationale: p.conflictRationale ?? "",
+      physicalArchiveInstruction: p.physicalArchiveInstruction ?? "",
+      redactionScope: p.redactionScope ?? "",
+      restrictedMode: Boolean(p.restrictedMode),
     });
-  }, [project]);
+  };
+
+  // Seed the form when a project first loads (or the route switches projects).
+  // Deliberately NOT keyed on the whole project object: background refetches
+  // (payment confirmation, notifications) must not wipe unsaved form edits.
+  useEffect(() => {
+    if (project) syncGovernance(project);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id]);
 
   const refreshProject = () => {
     if (id) queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(id) });
@@ -119,8 +117,6 @@ export default function ProjectDetails() {
           status: governance.status,
           slaClass: governance.slaClass,
           paymentStatus: governance.paymentStatus,
-          paymentConfirmedByFounder: governance.paymentConfirmedByFounder,
-          paymentConfirmedByAdvisor: governance.paymentConfirmedByAdvisor,
           conflictStatus: governance.conflictStatus,
           conflictDecision: governance.conflictDecision.trim() || null,
           conflictRationale: governance.conflictRationale.trim() || null,
@@ -130,7 +126,10 @@ export default function ProjectDetails() {
         },
       },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
+          // Sync from the server's canonical response (it may have auto-set
+          // conflict fields) since background refetches no longer reset the form.
+          syncGovernance(data);
           refreshProject();
           toast({ title: "Governance controls updated" });
         },
@@ -145,16 +144,20 @@ export default function ProjectDetails() {
   };
 
   const handleCreateNotification = () => {
+    if (!id) return;
     createNotification.mutate(
       {
-        template: notificationForm.template,
-        channel: notificationForm.channel,
-        recipient: notificationForm.recipient.trim() || undefined,
+        id,
+        data: {
+          template: notificationForm.template,
+          channel: notificationForm.channel as "manual" | "email" | "whatsapp" | "in_app",
+          recipient: notificationForm.recipient.trim() || undefined,
+        },
       },
       {
         onSuccess: () => {
           setNotificationForm({ ...notificationForm, recipient: "" });
-          queryClient.invalidateQueries({ queryKey: ["project-notifications", id] });
+          queryClient.invalidateQueries({ queryKey: getListProjectNotificationsQueryKey(id) });
           toast({ title: "Notification logged" });
         },
         onError: (err) =>
@@ -164,15 +167,37 @@ export default function ProjectDetails() {
   };
 
   const handleRetentionRequest = () => {
+    if (!id) return;
     createRetentionRequest.mutate(
-      { reason: retentionReason.trim() || undefined },
+      { id, data: { reason: retentionReason.trim() || undefined } },
       {
         onSuccess: () => {
           setRetentionReason("");
+          // The admin retention queue on Settings reads this list.
+          queryClient.invalidateQueries({ queryKey: getListRetentionRequestsQueryKey() });
           toast({ title: "Retention request opened" });
         },
         onError: (err) =>
           toast({ variant: "destructive", title: "Retention request failed", description: errorMessage(err, "") }),
+      },
+    );
+  };
+
+  const handleConfirmPayment = (role: "founder" | "advisor") => {
+    if (!id) return;
+    confirmPayment.mutate(
+      { id, data: { role } },
+      {
+        onSuccess: () => {
+          refreshProject();
+          toast({ title: `Payment confirmed (${role} leg)` });
+        },
+        onError: (err) =>
+          toast({
+            variant: "destructive",
+            title: "Confirmation rejected",
+            description: errorMessage(err, "Dual confirmation requires two distinct people."),
+          }),
       },
     );
   };
@@ -346,20 +371,55 @@ export default function ProjectDetails() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <label className="flex items-center justify-between rounded-md border border-border p-3 text-sm">
-                    <span>Founder confirmed</span>
-                    <Switch
-                      checked={governance.paymentConfirmedByFounder}
-                      onCheckedChange={(paymentConfirmedByFounder) => setGovernance({ ...governance, paymentConfirmedByFounder })}
-                    />
-                  </label>
-                  <label className="flex items-center justify-between rounded-md border border-border p-3 text-sm">
-                    <span>Advisor confirmed</span>
-                    <Switch
-                      checked={governance.paymentConfirmedByAdvisor}
-                      onCheckedChange={(paymentConfirmedByAdvisor) => setGovernance({ ...governance, paymentConfirmedByAdvisor })}
-                    />
-                  </label>
+                  {([
+                    {
+                      role: "founder" as const,
+                      label: "Founder confirmed",
+                      confirmed: Boolean(project.paymentConfirmedByFounder),
+                      name: project.paymentFounderConfirmedByName ?? null,
+                      at: project.paymentFounderConfirmedAt ?? null,
+                    },
+                    {
+                      role: "advisor" as const,
+                      label: "Advisor confirmed",
+                      confirmed: Boolean(project.paymentConfirmedByAdvisor),
+                      name: project.paymentAdvisorConfirmedByName ?? null,
+                      at: project.paymentAdvisorConfirmedAt ?? null,
+                    },
+                  ]).map((leg) => (
+                    <div key={leg.role} className="flex items-center justify-between gap-2 rounded-md border border-border p-3 text-sm">
+                      <div className="min-w-0">
+                        <span className="block">{leg.label}</span>
+                        {leg.confirmed && leg.name && (
+                          <span className="block text-xs text-muted-foreground truncate">
+                            {leg.name}
+                            {leg.at ? ` · ${new Date(leg.at).toLocaleDateString()}` : ""}
+                          </span>
+                        )}
+                        {leg.confirmed && !leg.name && (
+                          <span className="block text-xs text-amber-700">
+                            Legacy confirmation — no identity recorded
+                          </span>
+                        )}
+                      </div>
+                      {leg.confirmed && leg.name ? (
+                        <Badge variant="outline" className="text-emerald-700 border-emerald-200 bg-emerald-50 shrink-0">
+                          Confirmed
+                        </Badge>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="shrink-0"
+                          onClick={() => handleConfirmPayment(leg.role)}
+                          disabled={confirmPayment.isPending}
+                        >
+                          <UserCheck className="w-3.5 h-3.5 mr-1.5" />
+                          {leg.confirmed ? `Re-confirm as ${leg.role}` : `Confirm as ${leg.role}`}
+                        </Button>
+                      )}
+                    </div>
+                  ))}
                   <label className="flex items-center justify-between rounded-md border border-border p-3 text-sm">
                     <span>Restricted mode</span>
                     <Switch

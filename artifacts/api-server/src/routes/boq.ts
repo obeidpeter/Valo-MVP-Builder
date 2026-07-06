@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, desc } from "drizzle-orm";
-import { db, boqChecks, defects, projects } from "@workspace/db";
+import { db, boqChecks, defects } from "@workspace/db";
 import { RunBoqChecksBody } from "@workspace/api-zod";
 import { requireMember, getLocalUser } from "../middlewares/auth";
 import { serializeBoqCheck, serializeDefect } from "../lib/serializers";

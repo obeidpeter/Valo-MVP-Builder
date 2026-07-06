@@ -5,7 +5,10 @@
  * Valo Bid Autopsy Workbench API
  * OpenAPI spec version: 0.1.0
  */
+import type { ProjectCreateConflictStatus } from './projectCreateConflictStatus';
+import type { ProjectCreatePaymentStatus } from './projectCreatePaymentStatus';
 import type { ProjectCreateSegment } from './projectCreateSegment';
+import type { ProjectCreateSlaClass } from './projectCreateSlaClass';
 
 export interface ProjectCreate {
   clientId: string;
@@ -13,11 +16,20 @@ export interface ProjectCreate {
   tenderTitle: string;
   issuingEntity?: string;
   tenderRef?: string;
+  lot?: string;
   deadline?: string;
   valueBand?: string;
   segment?: ProjectCreateSegment;
   submissionStatus?: string;
-  reviewerId?: string;
+  reviewerId: string;
+  slaClass?: ProjectCreateSlaClass;
+  paymentStatus?: ProjectCreatePaymentStatus;
+  conflictStatus?: ProjectCreateConflictStatus;
+  conflictDecision?: string;
+  conflictRationale?: string;
+  physicalArchiveInstruction?: string;
+  redactionScope?: string;
+  restrictedMode?: boolean;
   scope?: string;
   limitations?: string;
 }

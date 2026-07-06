@@ -21,15 +21,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Zap, AlertOctagon, Check, X, Plus, Pencil, Undo2, ShieldCheck, Ban } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-function errorMessage(err: unknown, fallback: string): string {
-  const data = (err as { data?: unknown })?.data;
-  const e =
-    data && typeof data === "object" && typeof (data as { error?: unknown }).error === "string"
-      ? (data as { error: string }).error
-      : undefined;
-  return e ?? (err instanceof Error ? err.message : fallback);
-}
+import { errorMessage } from "@/lib/errors";
 
 const DEFECT_TYPES = [
   "omission", "expiry", "arithmetic", "formatting", "responsiveness", "eligibility", "unsupported_claim", "validity",

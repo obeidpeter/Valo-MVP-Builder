@@ -113,6 +113,10 @@ router.patch("/vault-items/:id", requireMember, async (req: Request, res: Respon
     res.status(400).json({ error: "Invalid request" });
     return;
   }
+  if (Object.keys(parsed.data).length === 0) {
+    res.status(400).json({ error: "No fields to update" });
+    return;
+  }
   const [existing] = await db
     .select()
     .from(vaultItems)
@@ -132,9 +136,13 @@ router.patch("/vault-items/:id", requireMember, async (req: Request, res: Respon
   const duplicate = sourceDoc?.sha256
     ? await findDuplicateVaultHash(existing.clientId, sourceDoc.sha256, existing.id)
     : null;
+  // Unlinking the source document must also drop the copied file pointers,
+  // otherwise the row keeps a stale objectPath/sha256 with no provenance.
   const documentPatch = sourceDoc
     ? { objectPath: sourceDoc.objectPath, sha256: sourceDoc.sha256 }
-    : {};
+    : parsed.data.sourceDocumentId === null
+      ? { objectPath: null, sha256: null }
+      : {};
   const [updated] = await db
     .update(vaultItems)
     .set({ ...parsed.data, ...documentPatch })

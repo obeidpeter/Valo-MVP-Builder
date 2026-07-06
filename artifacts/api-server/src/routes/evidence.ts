@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, desc, inArray } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db, evidenceItems, requirements, documents, projects } from "@workspace/db";
 import { CreateEvidenceBody, UpdateEvidenceBody } from "@workspace/api-zod";
 import { requireMember, getLocalUser } from "../middlewares/auth";

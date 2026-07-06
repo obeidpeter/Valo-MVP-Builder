@@ -5,9 +5,12 @@
  * Valo Bid Autopsy Workbench API
  * OpenAPI spec version: 0.1.0
  */
+import type { ProjectSummaryConflictStatus } from './projectSummaryConflictStatus';
 import type { ProjectSummaryOutcome } from './projectSummaryOutcome';
+import type { ProjectSummaryPaymentStatus } from './projectSummaryPaymentStatus';
 import type { ProjectSummaryRiskBand } from './projectSummaryRiskBand';
 import type { ProjectSummarySegment } from './projectSummarySegment';
+import type { ProjectSummarySlaClass } from './projectSummarySlaClass';
 import type { ProjectSummaryStatus } from './projectSummaryStatus';
 
 export interface ProjectSummary {
@@ -16,10 +19,16 @@ export interface ProjectSummary {
   clientName?: string | null;
   tenderTitle: string;
   issuingEntity?: string | null;
+  tenderRef?: string | null;
+  lot?: string | null;
   deadline?: string | null;
   segment?: ProjectSummarySegment;
   status: ProjectSummaryStatus;
   reviewerName?: string | null;
+  slaClass?: ProjectSummarySlaClass;
+  paymentStatus?: ProjectSummaryPaymentStatus;
+  conflictStatus?: ProjectSummaryConflictStatus;
+  restrictedMode?: boolean;
   riskScore?: number | null;
   riskBand?: ProjectSummaryRiskBand;
   outcome?: ProjectSummaryOutcome;

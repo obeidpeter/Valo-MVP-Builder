@@ -20,18 +20,7 @@
  * non-deterministic). The --offline mode is fast, side-effect free, and safe
  * for CI to guard the risk-gating fix against regressions.
  */
-import { eq } from "drizzle-orm";
-import {
-  db,
-  clients,
-  projects,
-  documents,
-  requirements as requirementsTable,
-  evidenceItems,
-  defects as defectsTable,
-} from "@workspace/db";
 import { computeRisk } from "../src/lib/deterministic";
-import { extractRequirements, mapEvidence, suggestDefects } from "../src/lib/llm";
 
 let failures = 0;
 let passes = 0;
@@ -155,6 +144,19 @@ Reference letter 2: Northgate Industrial Estate.`;
 
 async function proveLive(): Promise<void> {
   section("Live end-to-end proof against real OpenAI");
+  // Imported lazily so the OFFLINE mode needs neither DATABASE_URL nor the
+  // OpenAI integration env vars — that keeps the offline proof runnable in CI.
+  const { eq } = await import("drizzle-orm");
+  const {
+    db,
+    clients,
+    projects,
+    documents,
+    requirements: requirementsTable,
+    evidenceItems,
+    defects: defectsTable,
+  } = await import("@workspace/db");
+  const { extractRequirements, mapEvidence, suggestDefects } = await import("../src/lib/llm");
   const stamp = new Date().toISOString();
   let clientId: string | null = null;
 

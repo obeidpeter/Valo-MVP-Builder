@@ -5,10 +5,13 @@
  * Valo Bid Autopsy Workbench API
  * OpenAPI spec version: 0.1.0
  */
+import type { ProjectConflictStatus } from './projectConflictStatus';
 import type { ProjectOutcome } from './projectOutcome';
+import type { ProjectPaymentStatus } from './projectPaymentStatus';
 import type { ProjectRiskBand } from './projectRiskBand';
 import type { ProjectRiskOverrideBand } from './projectRiskOverrideBand';
 import type { ProjectSegment } from './projectSegment';
+import type { ProjectSlaClass } from './projectSlaClass';
 import type { ProjectStatus } from './projectStatus';
 
 export interface Project {
@@ -19,6 +22,7 @@ export interface Project {
   tenderTitle: string;
   issuingEntity?: string | null;
   tenderRef?: string | null;
+  lot?: string | null;
   deadline?: string | null;
   valueBand?: string | null;
   segment?: ProjectSegment;
@@ -26,6 +30,21 @@ export interface Project {
   status: ProjectStatus;
   reviewerId?: string | null;
   reviewerName?: string | null;
+  slaClass?: ProjectSlaClass;
+  paymentStatus?: ProjectPaymentStatus;
+  paymentConfirmedByFounder?: boolean;
+  paymentConfirmedByAdvisor?: boolean;
+  paymentConfirmedAt?: string | null;
+  paymentFounderConfirmedByName?: string | null;
+  paymentFounderConfirmedAt?: string | null;
+  paymentAdvisorConfirmedByName?: string | null;
+  paymentAdvisorConfirmedAt?: string | null;
+  conflictStatus?: ProjectConflictStatus;
+  conflictDecision?: string | null;
+  conflictRationale?: string | null;
+  physicalArchiveInstruction?: string | null;
+  redactionScope?: string | null;
+  restrictedMode?: boolean;
   riskScore?: number | null;
   riskBand?: ProjectRiskBand;
   riskOverrideBand?: ProjectRiskOverrideBand;

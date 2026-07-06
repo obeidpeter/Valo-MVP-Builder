@@ -184,11 +184,11 @@ export const ListProjectsResponseItem = zod.object({
   "deadline": zod.string().nullish(),
   "segment": zod.enum(['federal', 'nipex_ncdmb', 'donor', 'other']).nullish(),
   "status": zod.enum(['intake', 'extraction', 'review', 'defects', 'reporting', 'signed_off', 'exported', 'archived']),
+  "reviewerName": zod.string().nullish(),
   "slaClass": zod.enum(['standard', 'live']).optional(),
   "paymentStatus": zod.enum(['not_required', 'pending', 'confirmed']).optional(),
   "conflictStatus": zod.enum(['clear', 'blocked', 'consented', 'declined']).optional(),
   "restrictedMode": zod.boolean().optional(),
-  "reviewerName": zod.string().nullish(),
   "riskScore": zod.number().nullish(),
   "riskBand": zod.enum(['low', 'medium', 'high', 'critical']).nullish(),
   "outcome": zod.enum(['none', 'free_autopsy', 'paid_autopsy', 'assisted_bid_offer', 'retainer_offer', 'paid_mandate', 'lost', 'no_response']).optional(),
@@ -220,8 +220,6 @@ export const CreateProjectBody = zod.object({
   "reviewerId": zod.string(),
   "slaClass": zod.enum(['standard', 'live']).optional(),
   "paymentStatus": zod.enum(['not_required', 'pending', 'confirmed']).optional(),
-  "paymentConfirmedByFounder": zod.boolean().optional(),
-  "paymentConfirmedByAdvisor": zod.boolean().optional(),
   "conflictStatus": zod.enum(['clear', 'blocked', 'consented', 'declined']).optional(),
   "conflictDecision": zod.string().optional(),
   "conflictRationale": zod.string().optional(),
@@ -253,6 +251,10 @@ export const CreateProjectResponse = zod.object({
   "paymentConfirmedByFounder": zod.boolean().optional(),
   "paymentConfirmedByAdvisor": zod.boolean().optional(),
   "paymentConfirmedAt": zod.string().nullish(),
+  "paymentFounderConfirmedByName": zod.string().nullish(),
+  "paymentFounderConfirmedAt": zod.string().nullish(),
+  "paymentAdvisorConfirmedByName": zod.string().nullish(),
+  "paymentAdvisorConfirmedAt": zod.string().nullish(),
   "conflictStatus": zod.enum(['clear', 'blocked', 'consented', 'declined']).optional(),
   "conflictDecision": zod.string().nullish(),
   "conflictRationale": zod.string().nullish(),
@@ -298,6 +300,10 @@ export const GetProjectResponse = zod.object({
   "paymentConfirmedByFounder": zod.boolean().optional(),
   "paymentConfirmedByAdvisor": zod.boolean().optional(),
   "paymentConfirmedAt": zod.string().nullish(),
+  "paymentFounderConfirmedByName": zod.string().nullish(),
+  "paymentFounderConfirmedAt": zod.string().nullish(),
+  "paymentAdvisorConfirmedByName": zod.string().nullish(),
+  "paymentAdvisorConfirmedAt": zod.string().nullish(),
   "conflictStatus": zod.enum(['clear', 'blocked', 'consented', 'declined']).optional(),
   "conflictDecision": zod.string().nullish(),
   "conflictRationale": zod.string().nullish(),
@@ -338,8 +344,6 @@ export const UpdateProjectBody = zod.object({
   "reviewerId": zod.string().optional(),
   "slaClass": zod.enum(['standard', 'live']).optional(),
   "paymentStatus": zod.enum(['not_required', 'pending', 'confirmed']).optional(),
-  "paymentConfirmedByFounder": zod.boolean().optional(),
-  "paymentConfirmedByAdvisor": zod.boolean().optional(),
   "conflictStatus": zod.enum(['clear', 'blocked', 'consented', 'declined']).optional(),
   "conflictDecision": zod.string().nullish(),
   "conflictRationale": zod.string().nullish(),
@@ -373,6 +377,10 @@ export const UpdateProjectResponse = zod.object({
   "paymentConfirmedByFounder": zod.boolean().optional(),
   "paymentConfirmedByAdvisor": zod.boolean().optional(),
   "paymentConfirmedAt": zod.string().nullish(),
+  "paymentFounderConfirmedByName": zod.string().nullish(),
+  "paymentFounderConfirmedAt": zod.string().nullish(),
+  "paymentAdvisorConfirmedByName": zod.string().nullish(),
+  "paymentAdvisorConfirmedAt": zod.string().nullish(),
   "conflictStatus": zod.enum(['clear', 'blocked', 'consented', 'declined']).optional(),
   "conflictDecision": zod.string().nullish(),
   "conflictRationale": zod.string().nullish(),
@@ -404,6 +412,144 @@ export const DeleteProjectResponse = zod.void()
 
 
 /**
+ * @summary Internal SLA, red-team and Vault expiry alert candidates
+ */
+export const GetWorkflowAlertsResponse = zod.object({
+  "slaBreaches": zod.array(zod.object({
+  "projectId": zod.string(),
+  "tenderTitle": zod.string(),
+  "dueAt": zod.string(),
+  "breached": zod.boolean()
+})),
+  "redTeamDue": zod.array(zod.object({
+  "projectId": zod.string(),
+  "tenderTitle": zod.string(),
+  "dueAt": zod.string()
+})),
+  "vaultExpiring": zod.array(zod.object({
+  "vaultItemId": zod.string(),
+  "clientId": zod.string(),
+  "clientName": zod.string().nullish(),
+  "artefactType": zod.string(),
+  "expiry": zod.object({
+  "band": zod.enum(['expired', 'critical', 'warning', 'upcoming', 'ok', 'unknown']),
+  "daysToExpiry": zod.number().nullable()
+})
+}))
+})
+
+
+export const ListProjectNotificationsParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ListProjectNotificationsResponseItem = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string().nullish(),
+  "clientId": zod.string().nullish(),
+  "vaultItemId": zod.string().nullish(),
+  "channel": zod.enum(['manual', 'email', 'whatsapp', 'in_app']),
+  "template": zod.string(),
+  "recipient": zod.string().nullish(),
+  "payload": zod.string().nullish(),
+  "status": zod.enum(['queued', 'sent', 'archived', 'failed']),
+  "createdAt": zod.string()
+})
+export const ListProjectNotificationsResponse = zod.array(ListProjectNotificationsResponseItem)
+
+
+/**
+ * @summary Queue/log a manual notification event
+ */
+export const CreateProjectNotificationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+
+export const CreateProjectNotificationBody = zod.object({
+  "channel": zod.enum(['manual', 'email', 'whatsapp', 'in_app']).optional(),
+  "template": zod.string().min(1),
+  "recipient": zod.string().optional(),
+  "payload": zod.unknown().optional(),
+  "status": zod.enum(['queued', 'sent', 'archived', 'failed']).optional()
+})
+
+export const CreateProjectNotificationResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string().nullish(),
+  "clientId": zod.string().nullish(),
+  "vaultItemId": zod.string().nullish(),
+  "channel": zod.enum(['manual', 'email', 'whatsapp', 'in_app']),
+  "template": zod.string(),
+  "recipient": zod.string().nullish(),
+  "payload": zod.string().nullish(),
+  "status": zod.enum(['queued', 'sent', 'archived', 'failed']),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Start a deletion/retention workflow for an engagement
+ */
+export const CreateRetentionRequestParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const CreateRetentionRequestBody = zod.object({
+  "reason": zod.string().optional(),
+  "dueAt": zod.string().optional()
+})
+
+export const CreateRetentionRequestResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "reason": zod.string().nullish(),
+  "dueAt": zod.string(),
+  "completedAt": zod.string().nullish(),
+  "certificateText": zod.string().nullish(),
+  "status": zod.enum(['pending', 'completed', 'cancelled']),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary List deletion/retention workflows
+ */
+export const ListRetentionRequestsResponseItem = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "reason": zod.string().nullish(),
+  "dueAt": zod.string(),
+  "completedAt": zod.string().nullish(),
+  "certificateText": zod.string().nullish(),
+  "status": zod.enum(['pending', 'completed', 'cancelled']),
+  "createdAt": zod.string()
+})
+export const ListRetentionRequestsResponse = zod.array(ListRetentionRequestsResponseItem)
+
+
+/**
+ * @summary Complete a retention request and issue a deletion certificate
+ */
+export const CompleteRetentionRequestParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const CompleteRetentionRequestResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "reason": zod.string().nullish(),
+  "dueAt": zod.string(),
+  "completedAt": zod.string().nullish(),
+  "certificateText": zod.string().nullish(),
+  "status": zod.enum(['pending', 'completed', 'cancelled']),
+  "createdAt": zod.string()
+})
+
+
+/**
  * @summary Certificate Vault artefacts for a client, with expiry telemetry
  */
 export const ListVaultItemsParams = zod.object({
@@ -419,6 +565,9 @@ export const ListVaultItemsResponseItem = zod.object({
   "expiryDate": zod.string().nullish(),
   "renewalLeadDays": zod.number().nullish(),
   "status": zod.string(),
+  "objectPath": zod.string().nullish(),
+  "sha256": zod.string().nullish(),
+  "sourceDocumentId": zod.string().nullish(),
   "expiryBand": zod.enum(['expired', 'critical', 'warning', 'upcoming', 'ok', 'unknown']),
   "daysToExpiry": zod.number().nullish(),
   "createdAt": zod.string()
@@ -457,6 +606,9 @@ export const CreateVaultItemResponse = zod.object({
   "expiryDate": zod.string().nullish(),
   "renewalLeadDays": zod.number().nullish(),
   "status": zod.string(),
+  "objectPath": zod.string().nullish(),
+  "sha256": zod.string().nullish(),
+  "sourceDocumentId": zod.string().nullish(),
   "expiryBand": zod.enum(['expired', 'critical', 'warning', 'upcoming', 'ok', 'unknown']),
   "daysToExpiry": zod.number().nullish(),
   "createdAt": zod.string()
@@ -491,6 +643,9 @@ export const UpdateVaultItemResponse = zod.object({
   "expiryDate": zod.string().nullish(),
   "renewalLeadDays": zod.number().nullish(),
   "status": zod.string(),
+  "objectPath": zod.string().nullish(),
+  "sha256": zod.string().nullish(),
+  "sourceDocumentId": zod.string().nullish(),
   "expiryBand": zod.enum(['expired', 'critical', 'warning', 'upcoming', 'ok', 'unknown']),
   "daysToExpiry": zod.number().nullish(),
   "createdAt": zod.string()
@@ -523,6 +678,9 @@ export const GetVaultExpiringResponse = zod.object({
   "expiryDate": zod.string().nullish(),
   "renewalLeadDays": zod.number().nullish(),
   "status": zod.string(),
+  "objectPath": zod.string().nullish(),
+  "sha256": zod.string().nullish(),
+  "sourceDocumentId": zod.string().nullish(),
   "expiryBand": zod.enum(['expired', 'critical', 'warning', 'upcoming', 'ok', 'unknown']),
   "daysToExpiry": zod.number().nullish(),
   "createdAt": zod.string()
@@ -563,6 +721,8 @@ export const ListCapabilityItemsResponseItem = zod.object({
   "evidenceDocId": zod.string().nullish(),
   "evidenceDocName": zod.string().nullish(),
   "approvedStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "verifierName": zod.string().nullish(),
+  "verifiedAt": zod.string().nullish(),
   "claimable": zod.boolean(),
   "createdAt": zod.string()
 })
@@ -587,6 +747,8 @@ export const CreateCapabilityItemResponse = zod.object({
   "evidenceDocId": zod.string().nullish(),
   "evidenceDocName": zod.string().nullish(),
   "approvedStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "verifierName": zod.string().nullish(),
+  "verifiedAt": zod.string().nullish(),
   "claimable": zod.boolean(),
   "createdAt": zod.string()
 })
@@ -611,6 +773,8 @@ export const UpdateCapabilityItemResponse = zod.object({
   "evidenceDocId": zod.string().nullish(),
   "evidenceDocName": zod.string().nullish(),
   "approvedStatus": zod.enum(['pending', 'approved', 'rejected']),
+  "verifierName": zod.string().nullish(),
+  "verifiedAt": zod.string().nullish(),
   "claimable": zod.boolean(),
   "createdAt": zod.string()
 })
@@ -706,9 +870,7 @@ export const UpdateSbdTemplateParams = zod.object({
 
 
 
-
 export const UpdateSbdTemplateBody = zod.object({
-  "code": zod.string().min(1).optional(),
   "title": zod.string().min(1).optional(),
   "category": zod.enum(['goods', 'works', 'consultancy', 'non_consultancy', 'special']).optional(),
   "status": zod.enum(['draft', 'active', 'superseded']).optional(),
@@ -1438,6 +1600,10 @@ export const ListBoqChecksResponseItem = zod.object({
   "unitRate": zod.number().nullish(),
   "extension": zod.number().nullish(),
   "computedExtension": zod.number().nullish(),
+  "quantityRaw": zod.string().nullish(),
+  "unitRateKobo": zod.number().nullish(),
+  "extensionKobo": zod.number().nullish(),
+  "computedExtensionKobo": zod.number().nullish(),
   "checkType": zod.enum(['extension_mismatch', 'section_total', 'grand_total', 'words_vs_figures', 'blank_line', 'suspicious_zero']),
   "finding": zod.string(),
   "severity": zod.enum(['fatal', 'likely_fatal', 'scoring_risk', 'cosmetic']),
@@ -1483,6 +1649,10 @@ export const RunBoqChecksResponse = zod.object({
   "unitRate": zod.number().nullish(),
   "extension": zod.number().nullish(),
   "computedExtension": zod.number().nullish(),
+  "quantityRaw": zod.string().nullish(),
+  "unitRateKobo": zod.number().nullish(),
+  "extensionKobo": zod.number().nullish(),
+  "computedExtensionKobo": zod.number().nullish(),
   "checkType": zod.enum(['extension_mismatch', 'section_total', 'grand_total', 'words_vs_figures', 'blank_line', 'suspicious_zero']),
   "finding": zod.string(),
   "severity": zod.enum(['fatal', 'likely_fatal', 'scoring_risk', 'cosmetic']),
@@ -1512,6 +1682,62 @@ export const BoqCheckToDefectResponse = zod.object({
   "owner": zod.string().nullish(),
   "status": zod.enum(['open', 'remediated', 'waived', 'suggested']),
   "suggested": zod.boolean().optional(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Record one leg of the dual payment confirmation (server-derived identity)
+ */
+export const ConfirmProjectPaymentParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ConfirmProjectPaymentBody = zod.object({
+  "role": zod.enum(['founder', 'advisor'])
+})
+
+export const ConfirmProjectPaymentResponse = zod.object({
+  "id": zod.string(),
+  "clientId": zod.string(),
+  "clientName": zod.string().nullish(),
+  "ndaStatus": zod.string().nullish(),
+  "tenderTitle": zod.string(),
+  "issuingEntity": zod.string().nullish(),
+  "tenderRef": zod.string().nullish(),
+  "lot": zod.string().nullish(),
+  "deadline": zod.string().nullish(),
+  "valueBand": zod.string().nullish(),
+  "segment": zod.enum(['federal', 'nipex_ncdmb', 'donor', 'other']).nullish(),
+  "submissionStatus": zod.string().nullish(),
+  "status": zod.enum(['intake', 'extraction', 'review', 'defects', 'reporting', 'signed_off', 'exported', 'archived']),
+  "reviewerId": zod.string().nullish(),
+  "reviewerName": zod.string().nullish(),
+  "slaClass": zod.enum(['standard', 'live']).optional(),
+  "paymentStatus": zod.enum(['not_required', 'pending', 'confirmed']).optional(),
+  "paymentConfirmedByFounder": zod.boolean().optional(),
+  "paymentConfirmedByAdvisor": zod.boolean().optional(),
+  "paymentConfirmedAt": zod.string().nullish(),
+  "paymentFounderConfirmedByName": zod.string().nullish(),
+  "paymentFounderConfirmedAt": zod.string().nullish(),
+  "paymentAdvisorConfirmedByName": zod.string().nullish(),
+  "paymentAdvisorConfirmedAt": zod.string().nullish(),
+  "conflictStatus": zod.enum(['clear', 'blocked', 'consented', 'declined']).optional(),
+  "conflictDecision": zod.string().nullish(),
+  "conflictRationale": zod.string().nullish(),
+  "physicalArchiveInstruction": zod.string().nullish(),
+  "redactionScope": zod.string().nullish(),
+  "restrictedMode": zod.boolean().optional(),
+  "riskScore": zod.number().nullish(),
+  "riskBand": zod.enum(['low', 'medium', 'high', 'critical']).nullish(),
+  "riskOverrideBand": zod.enum(['low', 'medium', 'high', 'critical']).nullish(),
+  "riskOverrideNote": zod.string().nullish(),
+  "riskOverrideBy": zod.string().nullish(),
+  "outcome": zod.enum(['none', 'free_autopsy', 'paid_autopsy', 'assisted_bid_offer', 'retainer_offer', 'paid_mandate', 'lost', 'no_response']).optional(),
+  "scope": zod.string().nullish(),
+  "limitations": zod.string().nullish(),
+  "responsivenessReview": zod.string().nullish(),
+  "responsivenessSuggested": zod.boolean().nullish(),
   "createdAt": zod.string()
 })
 
@@ -1701,6 +1927,32 @@ export const ExportProjectParams = zod.object({
 })
 
 export const ExportProjectResponse = zod.unknown()
+
+
+/**
+ * @summary Monthly access review export
+ */
+export const getAccessReviewQueryMonthRegExp = new RegExp('^\\d{4}-\\d{2}$');
+
+
+export const GetAccessReviewQueryParams = zod.object({
+  "month": zod.coerce.string().regex(getAccessReviewQueryMonthRegExp),
+  "format": zod.enum(['json', 'csv']).optional()
+})
+
+export const GetAccessReviewResponse = zod.object({
+  "month": zod.string(),
+  "rows": zod.array(zod.object({
+  "at": zod.string(),
+  "actor": zod.string(),
+  "client": zod.string(),
+  "project": zod.string(),
+  "action": zod.string(),
+  "objectType": zod.string(),
+  "objectId": zod.string(),
+  "details": zod.string()
+}))
+})
 
 
 export const ListAuditParams = zod.object({

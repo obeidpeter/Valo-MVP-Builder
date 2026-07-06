@@ -16,6 +16,9 @@ export interface VaultItem {
   expiryDate?: string | null;
   renewalLeadDays?: number | null;
   status: string;
+  objectPath?: string | null;
+  sha256?: string | null;
+  sourceDocumentId?: string | null;
   expiryBand: VaultItemExpiryBand;
   daysToExpiry?: number | null;
   createdAt: string;

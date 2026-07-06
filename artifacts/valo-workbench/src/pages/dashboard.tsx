@@ -1,17 +1,21 @@
-import { useGetDashboardMetrics, useListProjects, useGetVaultExpiring } from "@workspace/api-client-react";
+import {
+  useGetDashboardMetrics,
+  useListProjects,
+  useGetVaultExpiring,
+  useGetWorkflowAlerts,
+} from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { ArrowRight, Loader2, AlertTriangle, FileText, ShieldAlert } from "lucide-react";
 import { format } from "date-fns";
 import { ExpiryBadge } from "@/components/client-vault";
-import { useWorkflowAlerts } from "@/lib/operations-api";
 
 export default function Dashboard() {
   const { data: metrics, isLoading: loadingMetrics } = useGetDashboardMetrics();
   const { data: projects, isLoading: loadingProjects } = useListProjects();
   const { data: expiring } = useGetVaultExpiring();
-  const { data: workflowAlerts } = useWorkflowAlerts();
+  const { data: workflowAlerts } = useGetWorkflowAlerts();
 
   if (loadingMetrics || loadingProjects) {
     return (

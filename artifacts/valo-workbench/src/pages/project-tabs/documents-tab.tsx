@@ -19,16 +19,7 @@ import {
 } from "lucide-react";
 import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
-
-/** Pull the server's human-readable error message off a failed request. */
-function errorMessage(err: unknown, fallback: string): string {
-  const data = (err as { data?: unknown })?.data;
-  const serverError =
-    data && typeof data === "object" && typeof (data as { error?: unknown }).error === "string"
-      ? (data as { error: string }).error
-      : undefined;
-  return serverError ?? (err instanceof Error ? err.message : fallback);
-}
+import { errorMessage } from "@/lib/errors";
 
 const NDA_ALLOWED = new Set(["signed", "not_required"]);
 const DOC_TYPES = ["tender", "bid", "certificate", "boq", "evidence", "other"] as const;

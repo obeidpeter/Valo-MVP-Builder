@@ -63,6 +63,25 @@ export const projects = pgTable("projects", {
     .notNull()
     .default(false),
   paymentConfirmedAt: timestamp("payment_confirmed_at", { withTimezone: true }),
+  // Dual-confirmation identity stamps (FR-BIL-01): the payment gate requires
+  // two *distinct* people, so each leg records who confirmed it, derived
+  // server-side from the session — never accepted from the client.
+  paymentFounderConfirmedBy: uuid("payment_founder_confirmed_by").references(
+    () => users.id,
+    { onDelete: "set null" },
+  ),
+  paymentFounderConfirmedByName: text("payment_founder_confirmed_by_name"),
+  paymentFounderConfirmedAt: timestamp("payment_founder_confirmed_at", {
+    withTimezone: true,
+  }),
+  paymentAdvisorConfirmedBy: uuid("payment_advisor_confirmed_by").references(
+    () => users.id,
+    { onDelete: "set null" },
+  ),
+  paymentAdvisorConfirmedByName: text("payment_advisor_confirmed_by_name"),
+  paymentAdvisorConfirmedAt: timestamp("payment_advisor_confirmed_at", {
+    withTimezone: true,
+  }),
   conflictStatus: text("conflict_status").notNull().default("clear"),
   conflictDecision: text("conflict_decision"),
   conflictRationale: text("conflict_rationale"),
