@@ -39,7 +39,10 @@ function App() {
   }
 
   return (
-    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+    <ClerkProvider
+      publishableKey={CLERK_PUBLISHABLE_KEY}
+      proxyUrl={import.meta.env.VITE_CLERK_PROXY_URL}
+    >
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <SignedIn>
