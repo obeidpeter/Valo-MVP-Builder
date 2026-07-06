@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ProjectUpdateConflictStatus } from './projectUpdateConflictStatus';
+import type { ProjectUpdateMandateQuality } from './projectUpdateMandateQuality';
 import type { ProjectUpdateOutcome } from './projectUpdateOutcome';
 import type { ProjectUpdatePaymentStatus } from './projectUpdatePaymentStatus';
 import type { ProjectUpdateSegment } from './projectUpdateSegment';
@@ -33,6 +34,7 @@ export interface ProjectUpdate {
   redactionScope?: string | null;
   restrictedMode?: boolean;
   outcome?: ProjectUpdateOutcome;
+  mandateQuality?: ProjectUpdateMandateQuality;
   scope?: string;
   limitations?: string;
   responsivenessReview?: string;

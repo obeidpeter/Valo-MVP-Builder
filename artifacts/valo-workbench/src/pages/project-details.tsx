@@ -36,6 +36,15 @@ import { AuditTab } from "./project-tabs/audit-tab";
 
 const STATUS_OPTIONS = ["intake", "extraction", "review", "defects", "reporting", "signed_off", "exported", "archived"] as const;
 const CONFLICT_OPTIONS = ["clear", "blocked", "consented", "declined"] as const;
+// Gate 0 mandate quality (Build Brief §17): a quality mandate is an assisted
+// bid or retainer, not autopsy-only revenue.
+const MANDATE_QUALITY_OPTIONS = [
+  { value: "none", label: "Not set" },
+  { value: "autopsy_only", label: "Autopsy-only revenue" },
+  { value: "assisted_bid", label: "Assisted bid" },
+  { value: "retainer", label: "Retainer" },
+] as const;
+type MandateQuality = (typeof MANDATE_QUALITY_OPTIONS)[number]["value"];
 type ProjectStatus = (typeof STATUS_OPTIONS)[number];
 type SlaClass = "standard" | "live";
 type PaymentStatus = "not_required" | "pending" | "confirmed";
@@ -81,6 +90,7 @@ export default function ProjectDetails() {
     recipient: "",
   });
   const [retentionReason, setRetentionReason] = useState("");
+  const [mandateQuality, setMandateQuality] = useState<MandateQuality>("none");
 
   const syncGovernance = (p: NonNullable<typeof project>) => {
     setGovernance({
@@ -100,7 +110,10 @@ export default function ProjectDetails() {
   // Deliberately NOT keyed on the whole project object: background refetches
   // (payment confirmation, notifications) must not wipe unsaved form edits.
   useEffect(() => {
-    if (project) syncGovernance(project);
+    if (project) {
+      syncGovernance(project);
+      setMandateQuality((project.mandateQuality ?? "none") as MandateQuality);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.id]);
 
@@ -139,6 +152,28 @@ export default function ProjectDetails() {
             title: "Update blocked",
             description: errorMessage(err, "The project transition or governance update was rejected."),
           }),
+      },
+    );
+  };
+
+  const handleSaveMandateQuality = (value: MandateQuality) => {
+    setMandateQuality(value);
+    if (!id) return;
+    updateProject.mutate(
+      { id, data: { mandateQuality: value } },
+      {
+        onSuccess: () => {
+          refreshProject();
+          toast({ title: "Mandate quality updated" });
+        },
+        onError: (err) => {
+          if (project) setMandateQuality((project.mandateQuality ?? "none") as MandateQuality);
+          toast({
+            variant: "destructive",
+            title: "Update failed",
+            description: errorMessage(err, "The mandate quality could not be saved."),
+          });
+        },
       },
     );
   };
@@ -252,6 +287,26 @@ export default function ProjectDetails() {
                 <span className="font-mono text-xs">{project.tenderRef}</span>
               </>
             )}
+          </p>
+        </div>
+        <div className="shrink-0 space-y-1.5">
+          <Label htmlFor="mandateQuality" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Mandate Quality
+          </Label>
+          <Select value={mandateQuality} onValueChange={(v) => handleSaveMandateQuality(v as MandateQuality)}>
+            <SelectTrigger id="mandateQuality" className="w-[220px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MANDATE_QUALITY_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[11px] text-muted-foreground max-w-[220px]">
+            Gate 0 counts assisted-bid & retainer mandates, not autopsy-only.
           </p>
         </div>
       </div>

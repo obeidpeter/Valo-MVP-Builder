@@ -16,6 +16,8 @@ import {
   paymentGateSatisfied,
   validateProjectTransition,
   planRetentionScan,
+  assembleGate0,
+  GATE0_THRESHOLDS,
   type BoqRow,
   type BoqCheckType,
   type RiskInput,
@@ -960,5 +962,61 @@ describe("planRetentionScan", () => {
       });
       assert.equal(out.length, 0, `days=${days}`);
     }
+  });
+});
+
+describe("assembleGate0", () => {
+  const passing = {
+    decisionMakerConversations: 8,
+    packagesUnderNda: 5,
+    materialDefectRate: 0.5,
+    paidMandates: 3,
+    mandateQuality: 1,
+  };
+
+  test("uses the Build Brief §17 thresholds", () => {
+    assert.deepEqual(GATE0_THRESHOLDS, {
+      decisionMakerConversations: 8,
+      packagesUnderNda: 5,
+      materialDefectRate: 0.5,
+      paidMandates: 3,
+      mandateQuality: 1,
+    });
+  });
+
+  test("marks every metric met at exactly the threshold (inclusive)", () => {
+    const out = assembleGate0(passing);
+    assert.equal(out.totalCount, 5);
+    assert.equal(out.metCount, 5);
+    assert.ok(out.metrics.every((m) => m.met));
+    assert.ok(out.metrics.every((m) => m.comparator === "gte"));
+  });
+
+  test("marks a metric unmet just below its threshold", () => {
+    const out = assembleGate0({ ...passing, decisionMakerConversations: 7 });
+    const m = out.metrics.find((x) => x.key === "decisionMakerConversations")!;
+    assert.equal(m.met, false);
+    assert.equal(m.value, 7);
+    assert.equal(m.threshold, 8);
+    assert.equal(out.metCount, 4);
+  });
+
+  test("mandate quality passes at >=1 assisted-bid/retainer mandate", () => {
+    const zero = assembleGate0({ ...passing, mandateQuality: 0 });
+    assert.equal(zero.metrics.find((m) => m.key === "mandateQuality")!.met, false);
+    const one = assembleGate0({ ...passing, mandateQuality: 1 });
+    assert.equal(one.metrics.find((m) => m.key === "mandateQuality")!.met, true);
+  });
+
+  test("treats non-finite inputs as zero rather than throwing", () => {
+    const out = assembleGate0({ ...passing, packagesUnderNda: Number.NaN });
+    const m = out.metrics.find((x) => x.key === "packagesUnderNda")!;
+    assert.equal(m.value, 0);
+    assert.equal(m.met, false);
+  });
+
+  test("material defect rate is reported as a ratio unit", () => {
+    const out = assembleGate0(passing);
+    assert.equal(out.metrics.find((m) => m.key === "materialDefectRate")!.unit, "ratio");
   });
 });

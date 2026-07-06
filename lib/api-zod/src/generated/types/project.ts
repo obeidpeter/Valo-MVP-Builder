@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ProjectConflictStatus } from './projectConflictStatus';
+import type { ProjectMandateQuality } from './projectMandateQuality';
 import type { ProjectOutcome } from './projectOutcome';
 import type { ProjectPaymentStatus } from './projectPaymentStatus';
 import type { ProjectRiskBand } from './projectRiskBand';
@@ -51,6 +52,7 @@ export interface Project {
   riskOverrideNote?: string | null;
   riskOverrideBy?: string | null;
   outcome?: ProjectOutcome;
+  mandateQuality?: ProjectMandateQuality;
   scope?: string | null;
   limitations?: string | null;
   responsivenessReview?: string | null;

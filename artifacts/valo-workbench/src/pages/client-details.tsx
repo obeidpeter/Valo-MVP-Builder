@@ -48,12 +48,19 @@ export default function ClientDetails() {
       contactName: client.contactName,
       contactEmail: client.contactEmail,
       notes: client.notes,
+      decisionMakerConversations: client.decisionMakerConversations ?? 0,
+      juniorConversations: client.juniorConversations ?? 0,
     });
     setIsEditing(true);
   };
 
   const handleSave = () => {
-    updateClient.mutate({ id, data: formData }, {
+    const data = {
+      ...formData,
+      decisionMakerConversations: Number(formData.decisionMakerConversations ?? 0),
+      juniorConversations: Number(formData.juniorConversations ?? 0),
+    };
+    updateClient.mutate({ id, data }, {
       onSuccess: () => {
         setIsEditing(false);
         queryClient.invalidateQueries({ queryKey: getGetClientQueryKey(id) });
@@ -148,6 +155,26 @@ export default function ClientDetails() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground uppercase">Decision-maker Talks</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={formData.decisionMakerConversations ?? 0}
+                    onChange={e => setFormData({...formData, decisionMakerConversations: e.target.value})}
+                  />
+                  <p className="text-[11px] text-muted-foreground">Owners / MDs — Gate 0 metric</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground uppercase">Junior Contacts</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={formData.juniorConversations ?? 0}
+                    onChange={e => setFormData({...formData, juniorConversations: e.target.value})}
+                  />
+                  <p className="text-[11px] text-muted-foreground">Junior bid staff</p>
+                </div>
                 <div className="col-span-1 md:col-span-2 space-y-2">
                   <label className="text-xs font-medium text-muted-foreground uppercase">Notes</label>
                   <Textarea 
@@ -176,6 +203,14 @@ export default function ClientDetails() {
                   <Badge variant={client.ndaStatus === 'signed' ? 'default' : client.ndaStatus === 'pending' ? 'secondary' : 'outline'}>
                     {client.ndaStatus.replace('_', ' ')}
                   </Badge>
+                </div>
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground uppercase mb-1">Decision-maker Talks</h3>
+                  <p className="font-medium">{client.decisionMakerConversations ?? 0}<span className="text-xs text-muted-foreground font-normal"> owners / MDs</span></p>
+                </div>
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground uppercase mb-1">Junior Contacts</h3>
+                  <p className="font-medium">{client.juniorConversations ?? 0}<span className="text-xs text-muted-foreground font-normal"> junior bid staff</span></p>
                 </div>
                 <div className="col-span-1 md:col-span-2">
                   <h3 className="text-xs font-medium text-muted-foreground uppercase mb-1">Notes</h3>

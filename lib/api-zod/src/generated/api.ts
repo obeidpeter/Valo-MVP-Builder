@@ -81,6 +81,8 @@ export const ListClientsResponseItem = zod.object({
   "contactEmail": zod.string().nullish(),
   "ndaStatus": zod.enum(['pending', 'signed', 'not_required', 'declined']),
   "notes": zod.string().nullish(),
+  "decisionMakerConversations": zod.number().optional(),
+  "juniorConversations": zod.number().optional(),
   "projectCount": zod.number().nullish(),
   "createdAt": zod.string()
 })
@@ -91,6 +93,10 @@ export const ListClientsResponse = zod.array(ListClientsResponseItem)
  * @summary Create a client
  */
 
+export const createClientBodyDecisionMakerConversationsMin = 0;
+
+export const createClientBodyJuniorConversationsMin = 0;
+
 
 
 export const CreateClientBody = zod.object({
@@ -100,7 +106,9 @@ export const CreateClientBody = zod.object({
   "contactName": zod.string().optional(),
   "contactEmail": zod.string().optional(),
   "ndaStatus": zod.enum(['pending', 'signed', 'not_required', 'declined']),
-  "notes": zod.string().optional()
+  "notes": zod.string().optional(),
+  "decisionMakerConversations": zod.number().min(createClientBodyDecisionMakerConversationsMin).optional(),
+  "juniorConversations": zod.number().min(createClientBodyJuniorConversationsMin).optional()
 })
 
 export const CreateClientResponse = zod.object({
@@ -112,6 +120,8 @@ export const CreateClientResponse = zod.object({
   "contactEmail": zod.string().nullish(),
   "ndaStatus": zod.enum(['pending', 'signed', 'not_required', 'declined']),
   "notes": zod.string().nullish(),
+  "decisionMakerConversations": zod.number().optional(),
+  "juniorConversations": zod.number().optional(),
   "projectCount": zod.number().nullish(),
   "createdAt": zod.string()
 })
@@ -130,6 +140,8 @@ export const GetClientResponse = zod.object({
   "contactEmail": zod.string().nullish(),
   "ndaStatus": zod.enum(['pending', 'signed', 'not_required', 'declined']),
   "notes": zod.string().nullish(),
+  "decisionMakerConversations": zod.number().optional(),
+  "juniorConversations": zod.number().optional(),
   "projectCount": zod.number().nullish(),
   "createdAt": zod.string()
 })
@@ -140,6 +152,10 @@ export const UpdateClientParams = zod.object({
 })
 
 
+export const updateClientBodyDecisionMakerConversationsMin = 0;
+
+export const updateClientBodyJuniorConversationsMin = 0;
+
 
 
 export const UpdateClientBody = zod.object({
@@ -149,7 +165,9 @@ export const UpdateClientBody = zod.object({
   "contactName": zod.string().optional(),
   "contactEmail": zod.string().optional(),
   "ndaStatus": zod.enum(['pending', 'signed', 'not_required', 'declined']).optional(),
-  "notes": zod.string().optional()
+  "notes": zod.string().optional(),
+  "decisionMakerConversations": zod.number().min(updateClientBodyDecisionMakerConversationsMin).optional(),
+  "juniorConversations": zod.number().min(updateClientBodyJuniorConversationsMin).optional()
 })
 
 export const UpdateClientResponse = zod.object({
@@ -161,6 +179,8 @@ export const UpdateClientResponse = zod.object({
   "contactEmail": zod.string().nullish(),
   "ndaStatus": zod.enum(['pending', 'signed', 'not_required', 'declined']),
   "notes": zod.string().nullish(),
+  "decisionMakerConversations": zod.number().optional(),
+  "juniorConversations": zod.number().optional(),
   "projectCount": zod.number().nullish(),
   "createdAt": zod.string()
 })
@@ -267,6 +287,7 @@ export const CreateProjectResponse = zod.object({
   "riskOverrideNote": zod.string().nullish(),
   "riskOverrideBy": zod.string().nullish(),
   "outcome": zod.enum(['none', 'free_autopsy', 'paid_autopsy', 'assisted_bid_offer', 'retainer_offer', 'paid_mandate', 'lost', 'no_response']).optional(),
+  "mandateQuality": zod.enum(['none', 'autopsy_only', 'assisted_bid', 'retainer']).optional(),
   "scope": zod.string().nullish(),
   "limitations": zod.string().nullish(),
   "responsivenessReview": zod.string().nullish(),
@@ -316,6 +337,7 @@ export const GetProjectResponse = zod.object({
   "riskOverrideNote": zod.string().nullish(),
   "riskOverrideBy": zod.string().nullish(),
   "outcome": zod.enum(['none', 'free_autopsy', 'paid_autopsy', 'assisted_bid_offer', 'retainer_offer', 'paid_mandate', 'lost', 'no_response']).optional(),
+  "mandateQuality": zod.enum(['none', 'autopsy_only', 'assisted_bid', 'retainer']).optional(),
   "scope": zod.string().nullish(),
   "limitations": zod.string().nullish(),
   "responsivenessReview": zod.string().nullish(),
@@ -351,6 +373,7 @@ export const UpdateProjectBody = zod.object({
   "redactionScope": zod.string().nullish(),
   "restrictedMode": zod.boolean().optional(),
   "outcome": zod.enum(['none', 'free_autopsy', 'paid_autopsy', 'assisted_bid_offer', 'retainer_offer', 'paid_mandate', 'lost', 'no_response']).optional(),
+  "mandateQuality": zod.enum(['none', 'autopsy_only', 'assisted_bid', 'retainer']).optional(),
   "scope": zod.string().optional(),
   "limitations": zod.string().optional(),
   "responsivenessReview": zod.string().optional()
@@ -393,6 +416,7 @@ export const UpdateProjectResponse = zod.object({
   "riskOverrideNote": zod.string().nullish(),
   "riskOverrideBy": zod.string().nullish(),
   "outcome": zod.enum(['none', 'free_autopsy', 'paid_autopsy', 'assisted_bid_offer', 'retainer_offer', 'paid_mandate', 'lost', 'no_response']).optional(),
+  "mandateQuality": zod.enum(['none', 'autopsy_only', 'assisted_bid', 'retainer']).optional(),
   "scope": zod.string().nullish(),
   "limitations": zod.string().nullish(),
   "responsivenessReview": zod.string().nullish(),
@@ -1123,7 +1147,21 @@ export const GetDashboardMetricsResponse = zod.object({
   "segmentBreakdown": zod.array(zod.object({
   "key": zod.string(),
   "count": zod.number()
-})).optional()
+})).optional(),
+  "gate0": zod.object({
+  "metrics": zod.array(zod.object({
+  "key": zod.enum(['decisionMakerConversations', 'packagesUnderNda', 'materialDefectRate', 'paidMandates', 'mandateQuality']),
+  "label": zod.string(),
+  "description": zod.string().optional(),
+  "value": zod.number(),
+  "threshold": zod.number(),
+  "comparator": zod.enum(['gte']),
+  "unit": zod.enum(['count', 'ratio']),
+  "met": zod.boolean()
+})),
+  "metCount": zod.number(),
+  "totalCount": zod.number()
+}).optional()
 })
 
 
@@ -1952,6 +1990,7 @@ export const ConfirmProjectPaymentResponse = zod.object({
   "riskOverrideNote": zod.string().nullish(),
   "riskOverrideBy": zod.string().nullish(),
   "outcome": zod.enum(['none', 'free_autopsy', 'paid_autopsy', 'assisted_bid_offer', 'retainer_offer', 'paid_mandate', 'lost', 'no_response']).optional(),
+  "mandateQuality": zod.enum(['none', 'autopsy_only', 'assisted_bid', 'retainer']).optional(),
   "scope": zod.string().nullish(),
   "limitations": zod.string().nullish(),
   "responsivenessReview": zod.string().nullish(),

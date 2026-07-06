@@ -22,6 +22,8 @@ const createClientSchema = z.object({
   contactEmail: z.string().email().optional().or(z.literal("")),
   ndaStatus: z.enum(["pending", "signed", "not_required", "declined"]),
   notes: z.string().optional(),
+  decisionMakerConversations: z.coerce.number().int().min(0).optional(),
+  juniorConversations: z.coerce.number().int().min(0).optional(),
 });
 
 type CreateClientForm = z.infer<typeof createClientSchema>;
@@ -123,6 +125,30 @@ export default function Clients() {
               <div className="space-y-2">
                 <Label htmlFor="sector">Sector</Label>
                 <Input id="sector" {...form.register("sector")} placeholder="e.g. Oil & Gas, IT" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="decisionMakerConversations">Decision-maker talks</Label>
+                  <Input
+                    id="decisionMakerConversations"
+                    type="number"
+                    min={0}
+                    {...form.register("decisionMakerConversations")}
+                    placeholder="0"
+                  />
+                  <p className="text-[11px] text-muted-foreground">Owners / MDs (Gate 0 metric)</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="juniorConversations">Junior contacts</Label>
+                  <Input
+                    id="juniorConversations"
+                    type="number"
+                    min={0}
+                    {...form.register("juniorConversations")}
+                    placeholder="0"
+                  />
+                  <p className="text-[11px] text-muted-foreground">Junior bid staff</p>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">

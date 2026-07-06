@@ -52,6 +52,8 @@ export function serializeClient(c: any, projectCount?: number) {
     contactEmail: c.contactEmail ?? null,
     ndaStatus: c.ndaStatus,
     notes: c.notes ?? null,
+    decisionMakerConversations: c.decisionMakerConversations ?? 0,
+    juniorConversations: c.juniorConversations ?? 0,
     projectCount: projectCount ?? null,
     createdAt: iso(c.createdAt) ?? new Date(0).toISOString(),
   };
@@ -98,6 +100,7 @@ export function serializeProject(
     riskOverrideNote: p.riskOverrideNote ?? null,
     riskOverrideBy: p.riskOverrideBy ?? null,
     outcome: p.outcome,
+    mandateQuality: p.mandateQuality ?? "none",
     scope: p.scope ?? null,
     limitations: p.limitations ?? null,
     responsivenessReview: p.responsivenessReview ?? null,

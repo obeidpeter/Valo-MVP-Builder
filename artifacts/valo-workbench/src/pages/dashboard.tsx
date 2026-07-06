@@ -7,9 +7,14 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
-import { ArrowRight, Loader2, AlertTriangle, FileText, ShieldAlert } from "lucide-react";
+import { ArrowRight, Loader2, AlertTriangle, FileText, ShieldAlert, Target, Check, X } from "lucide-react";
 import { format } from "date-fns";
 import { ExpiryBadge } from "@/components/client-vault";
+import type { Gate0Metric } from "@workspace/api-client-react";
+
+function formatGate0Value(value: number, unit: Gate0Metric["unit"]): string {
+  return unit === "ratio" ? `${(value * 100).toFixed(0)}%` : `${value}`;
+}
 
 export default function Dashboard() {
   const { data: metrics, isLoading: loadingMetrics } = useGetDashboardMetrics();
@@ -77,6 +82,58 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {metrics?.gate0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Target className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-serif tracking-tight font-medium">Gate 0 Readiness</h2>
+            <Badge
+              variant={metrics.gate0.metCount === metrics.gate0.totalCount ? "default" : "secondary"}
+              className={
+                metrics.gate0.metCount === metrics.gate0.totalCount
+                  ? "text-[10px] bg-emerald-100 text-emerald-800 border-emerald-200"
+                  : "text-[10px] text-amber-700 bg-amber-100 border-amber-200"
+              }
+            >
+              {metrics.gate0.metCount} / {metrics.gate0.totalCount} thresholds met
+            </Badge>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {metrics.gate0.metrics.map((metric) => (
+              <Card key={metric.key} className="shadow-xs border-border/60">
+                <CardContent className="pt-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">{metric.label}</p>
+                      {metric.description && (
+                        <p className="text-xs text-muted-foreground">{metric.description}</p>
+                      )}
+                    </div>
+                    <span
+                      className={`shrink-0 flex items-center justify-center w-6 h-6 rounded-full ${
+                        metric.met
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      {metric.met ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
+                    </span>
+                  </div>
+                  <div className="mt-3 flex items-baseline gap-2">
+                    <span className={`text-2xl font-semibold ${metric.met ? "text-foreground" : "text-amber-600"}`}>
+                      {formatGate0Value(metric.value, metric.unit)}
+                    </span>
+                    <span className="text-xs text-muted-foreground font-mono">
+                      / {formatGate0Value(metric.threshold, metric.unit)} target
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       {workflowAlerts && (workflowAlerts.slaBreaches.length > 0 || workflowAlerts.redTeamDue.length > 0) && (
         <div className="space-y-4">

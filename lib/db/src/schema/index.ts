@@ -35,6 +35,12 @@ export const clients = pgTable("clients", {
   contactEmail: text("contact_email"),
   ndaStatus: text("nda_status").notNull().default("pending"),
   notes: text("notes"),
+  // Gate 0 founder metric (Build Brief §17): decision-maker conversations are
+  // counted against the >=8 threshold, kept distinct from junior bid staff.
+  decisionMakerConversations: integer("decision_maker_conversations")
+    .notNull()
+    .default(0),
+  juniorConversations: integer("junior_conversations").notNull().default(0),
   createdAt: createdAt(),
 });
 
@@ -95,6 +101,10 @@ export const projects = pgTable("projects", {
   riskOverrideNote: text("risk_override_note"),
   riskOverrideBy: text("risk_override_by"),
   outcome: text("outcome").notNull().default("none"),
+  // Gate 0 mandate-quality metric (Build Brief §17): distinguishes autopsy-only
+  // revenue from a real assisted-bid/retainer mandate so ">=1 quality mandate"
+  // is visible. none | autopsy_only | assisted_bid | retainer.
+  mandateQuality: text("mandate_quality").notNull().default("none"),
   scope: text("scope"),
   limitations: text("limitations"),
   responsivenessReview: text("responsiveness_review"),
