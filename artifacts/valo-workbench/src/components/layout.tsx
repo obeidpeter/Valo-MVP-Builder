@@ -1,12 +1,28 @@
 import { Link, useLocation } from "wouter";
 import { UserButton } from "@clerk/clerk-react";
-import { useGetMe } from "@workspace/api-client-react";
+import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { Loader2, Briefcase, Users, LayoutDashboard, Settings, CheckCircle, Library } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  const { data: user, isLoading, error } = useGetMe();
+  // Auth here is cookie-based (Clerk session cookie). This screen only renders
+  // under <SignedIn>, so a 401 means the browser's __session cookie was briefly
+  // stale before clerk-js refreshed it — a transient state, not a real auth
+  // failure. Retry those so one cold-load miss doesn't dead-end on
+  // "Authentication Failed" (the global queryClient sets retry:false). A 403
+  // (disabled/forbidden account) is definitive, so fail fast.
+  const { data: user, isLoading, error } = useGetMe({
+    query: {
+      queryKey: getGetMeQueryKey(),
+      retry: (failureCount, err) => {
+        const status = (err as { status?: number } | null)?.status;
+        if (status === 403) return false;
+        return failureCount < 3;
+      },
+      retryDelay: (attempt) => Math.min(400 * 2 ** attempt, 2000),
+    },
+  });
 
   if (isLoading) {
     return (
