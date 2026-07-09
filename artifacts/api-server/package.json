@@ -13,6 +13,9 @@
     "prove:doctrine:offline": "node ./scripts/run-proof.mjs --offline",
     "prove:injection": "node ./scripts/run-injection.mjs",
     "prove:injection:offline": "node ./scripts/run-injection.mjs --offline",
+    "eval:harness": "node ./scripts/run-eval.mjs",
+    "eval:harness:offline": "node ./scripts/run-eval.mjs --offline",
+    "eval:promote-baseline": "node ./scripts/run-eval.mjs --promote-baseline",
     "verify:audit": "node --import tsx ./scripts/verify-audit-chain.ts"
   },
   "dependencies": {

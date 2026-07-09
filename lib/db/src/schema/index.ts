@@ -125,6 +125,12 @@ export const documents = pgTable("documents", {
   contentText: text("content_text"),
   extractedChars: integer("extracted_chars"),
   extractionStatus: text("extraction_status").default("pending"),
+  // Extraction telemetry (FR-OCR-01/02): how the text was obtained, a coarse
+  // deterministic confidence heuristic, and per-document notes that feed the
+  // OCR evaluation set the roadmap requires.
+  extractionMethod: text("extraction_method"),
+  extractionConfidence: doublePrecision("extraction_confidence"),
+  extractionNotes: text("extraction_notes"),
   createdAt: createdAt(),
 });
 
@@ -360,10 +366,11 @@ export const reports = pgTable("reports", {
   reviewerName: text("reviewer_name"),
   attestation: text("attestation"),
   engineVersion: text("engine_version"),
-  // Full provenance stamp (NFR-AUD-01): which prompt pack and model were in
-  // service when this report version was generated.
+  // Full provenance stamp (NFR-AUD-01): which prompt pack, model, and defect
+  // taxonomy were in service when this report version was generated.
   promptPackVersion: text("prompt_pack_version"),
   modelId: text("model_id"),
+  taxonomyVersion: text("taxonomy_version"),
   signedOffAt: timestamp("signed_off_at", { withTimezone: true }),
   generatedBy: uuid("generated_by").references(() => users.id, {
     onDelete: "set null",
@@ -410,6 +417,10 @@ export const llmRuns = pgTable("llm_runs", {
   promptVersion: text("prompt_version"),
   inputHash: text("input_hash"),
   outputSummary: text("output_summary"),
+  // Cost telemetry (FR-ANL-03): raw token counts per call, rolled up to
+  // per-engagement cost records against the BP unit assumption.
+  promptTokens: integer("prompt_tokens"),
+  completionTokens: integer("completion_tokens"),
   error: text("error"),
   createdAt: createdAt(),
 });

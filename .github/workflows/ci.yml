@@ -37,6 +37,14 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/valo_ci
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Secret scanning gate (NFR-SEC-04): zero secrets in version control.
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -67,6 +75,12 @@ jobs:
 
       - name: Injection-containment proof (offline corpus)
         run: pnpm --filter @workspace/api-server prove:injection:offline
+
+      # Eval-harness regression gate (FR-EXT-05 / NFR-QLT-02): corpus + scorer
+      # always verified; recall gates activate once a recorded live run
+      # (eval-harness/runs/latest.json) is committed from the deploy env.
+      - name: Eval harness (offline gates)
+        run: pnpm --filter @workspace/api-server eval:harness:offline
 
       - name: Build API server
         run: pnpm --filter @workspace/api-server build

@@ -1,0 +1,27 @@
+import { createRequire } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { build as esbuild } from "esbuild";
+
+globalThis.require = createRequire(import.meta.url);
+
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const artifactDir = path.resolve(scriptDir, "..");
+const outfile = path.resolve(artifactDir, "dist", "run-eval-harness.mjs");
+
+await esbuild({
+  entryPoints: [path.resolve(scriptDir, "run-eval-harness.ts")],
+  platform: "node",
+  bundle: true,
+  format: "esm",
+  outfile,
+  logLevel: "warning",
+  external: ["*.node", "pg-native", "cpu-features"],
+  banner: {
+    js: `import { createRequire as __cr } from 'node:module';
+globalThis.require = __cr(import.meta.url);`,
+  },
+});
+
+const mod = await import(outfile);
+void mod;

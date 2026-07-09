@@ -5,6 +5,7 @@
  * Valo Bid Autopsy Workbench API
  * OpenAPI spec version: 0.1.0
  */
+import type { DocumentExtractionMethod } from './documentExtractionMethod';
 import type { DocumentExtractionStatus } from './documentExtractionStatus';
 import type { DocumentRedactionStatus } from './documentRedactionStatus';
 import type { DocumentType } from './documentType';
@@ -26,5 +27,8 @@ export interface Document {
   contentText?: string | null;
   extractedChars?: number | null;
   extractionStatus?: DocumentExtractionStatus;
+  extractionMethod?: DocumentExtractionMethod;
+  extractionConfidence?: number | null;
+  extractionNotes?: string | null;
   createdAt: string;
 }

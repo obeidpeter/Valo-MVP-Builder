@@ -1003,6 +1003,9 @@ export const ListDocumentsResponseItem = zod.object({
   "contentText": zod.string().nullish(),
   "extractedChars": zod.number().nullish(),
   "extractionStatus": zod.enum(['pending', 'extracting', 'extracted', 'failed', 'skipped']).nullish(),
+  "extractionMethod": zod.enum(['textual', 'text_layer', 'multimodal_ocr', 'none']).nullish(),
+  "extractionConfidence": zod.number().nullish(),
+  "extractionNotes": zod.string().nullish(),
   "createdAt": zod.string()
 })
 export const ListDocumentsResponse = zod.array(ListDocumentsResponseItem)
@@ -1047,6 +1050,9 @@ export const CreateDocumentResponse = zod.object({
   "contentText": zod.string().nullish(),
   "extractedChars": zod.number().nullish(),
   "extractionStatus": zod.enum(['pending', 'extracting', 'extracted', 'failed', 'skipped']).nullish(),
+  "extractionMethod": zod.enum(['textual', 'text_layer', 'multimodal_ocr', 'none']).nullish(),
+  "extractionConfidence": zod.number().nullish(),
+  "extractionNotes": zod.string().nullish(),
   "createdAt": zod.string()
 })
 
@@ -1072,6 +1078,9 @@ export const GetDocumentResponse = zod.object({
   "contentText": zod.string().nullish(),
   "extractedChars": zod.number().nullish(),
   "extractionStatus": zod.enum(['pending', 'extracting', 'extracted', 'failed', 'skipped']).nullish(),
+  "extractionMethod": zod.enum(['textual', 'text_layer', 'multimodal_ocr', 'none']).nullish(),
+  "extractionConfidence": zod.number().nullish(),
+  "extractionNotes": zod.string().nullish(),
   "createdAt": zod.string()
 })
 
@@ -1104,6 +1113,9 @@ export const UpdateDocumentResponse = zod.object({
   "contentText": zod.string().nullish(),
   "extractedChars": zod.number().nullish(),
   "extractionStatus": zod.enum(['pending', 'extracting', 'extracted', 'failed', 'skipped']).nullish(),
+  "extractionMethod": zod.enum(['textual', 'text_layer', 'multimodal_ocr', 'none']).nullish(),
+  "extractionConfidence": zod.number().nullish(),
+  "extractionNotes": zod.string().nullish(),
   "createdAt": zod.string()
 })
 
@@ -1139,6 +1151,9 @@ export const ExtractDocumentResponse = zod.object({
   "contentText": zod.string().nullish(),
   "extractedChars": zod.number().nullish(),
   "extractionStatus": zod.enum(['pending', 'extracting', 'extracted', 'failed', 'skipped']).nullish(),
+  "extractionMethod": zod.enum(['textual', 'text_layer', 'multimodal_ocr', 'none']).nullish(),
+  "extractionConfidence": zod.number().nullish(),
+  "extractionNotes": zod.string().nullish(),
   "createdAt": zod.string()
 })
 
@@ -1842,6 +1857,7 @@ export const ListReportsResponseItem = zod.object({
   "engineVersion": zod.string().nullish(),
   "promptPackVersion": zod.string().nullish(),
   "modelId": zod.string().nullish(),
+  "taxonomyVersion": zod.string().nullish(),
   "signedOffAt": zod.string().nullish(),
   "generatedBy": zod.string().nullish(),
   "generatedByName": zod.string().nullish(),
@@ -1869,6 +1885,7 @@ export const GenerateReportResponse = zod.object({
   "engineVersion": zod.string().nullish(),
   "promptPackVersion": zod.string().nullish(),
   "modelId": zod.string().nullish(),
+  "taxonomyVersion": zod.string().nullish(),
   "signedOffAt": zod.string().nullish(),
   "generatedBy": zod.string().nullish(),
   "generatedByName": zod.string().nullish(),
@@ -1902,6 +1919,7 @@ export const SignOffReportResponse = zod.object({
   "engineVersion": zod.string().nullish(),
   "promptPackVersion": zod.string().nullish(),
   "modelId": zod.string().nullish(),
+  "taxonomyVersion": zod.string().nullish(),
   "signedOffAt": zod.string().nullish(),
   "generatedBy": zod.string().nullish(),
   "generatedByName": zod.string().nullish(),
@@ -1927,6 +1945,60 @@ export const ExportProjectParams = zod.object({
 })
 
 export const ExportProjectResponse = zod.unknown()
+
+
+/**
+ * @summary Per-engagement model-cost telemetry (FR-ANL-03)
+ */
+export const GetProjectCostParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetProjectCostResponse = zod.object({
+  "projectId": zod.string(),
+  "runs": zod.number(),
+  "promptTokens": zod.number(),
+  "completionTokens": zod.number(),
+  "estimatedKobo": zod.number(),
+  "tasks": zod.array(zod.object({
+  "task": zod.string(),
+  "runs": zod.number(),
+  "promptTokens": zod.number(),
+  "completionTokens": zod.number()
+}))
+})
+
+
+/**
+ * @summary Monthly per-engagement cost variance report (FR-ANL-03)
+ */
+export const getMonthlyCostReportQueryMonthRegExp = new RegExp('^\\d{4}-\\d{2}$');
+
+
+export const GetMonthlyCostReportQueryParams = zod.object({
+  "month": zod.coerce.string().regex(getMonthlyCostReportQueryMonthRegExp)
+})
+
+export const GetMonthlyCostReportResponse = zod.object({
+  "month": zod.string(),
+  "unitAssumptionKobo": zod.object({
+  "low": zod.number().optional(),
+  "high": zod.number().optional()
+}).optional(),
+  "totalRuns": zod.number(),
+  "totalPromptTokens": zod.number(),
+  "totalCompletionTokens": zod.number(),
+  "totalEstimatedKobo": zod.number(),
+  "engagements": zod.array(zod.object({
+  "projectId": zod.string().nullish(),
+  "tenderTitle": zod.string().nullish(),
+  "runs": zod.number(),
+  "promptTokens": zod.number(),
+  "completionTokens": zod.number(),
+  "estimatedKobo": zod.number(),
+  "withinUnitAssumption": zod.boolean()
+}))
+})
 
 
 /**

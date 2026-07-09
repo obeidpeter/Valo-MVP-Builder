@@ -52,13 +52,16 @@ import type {
   ExtractResult,
   ForbiddenResponse,
   GetAccessReviewParams,
+  GetMonthlyCostReportParams,
   HealthStatus,
   ListProjectsParams,
+  MonthlyCostReport,
   NotFoundResponse,
   NotificationCreate,
   NotificationEvent,
   PaymentConfirmationBody,
   Project,
+  ProjectCost,
   ProjectCreate,
   ProjectSummary,
   ProjectUpdate,
@@ -5332,6 +5335,167 @@ export function useExportProject<TData = Awaited<ReturnType<typeof exportProject
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getExportProjectQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetProjectCostUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/cost`
+}
+
+/**
+ * @summary Per-engagement model-cost telemetry (FR-ANL-03)
+ */
+export const getProjectCost = async (id: string, options?: RequestInit): Promise<ProjectCost> => {
+
+  return customFetch<ProjectCost>(getGetProjectCostUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProjectCostQueryKey = (id: string,) => {
+    return [
+    `/api/projects/${id}/cost`
+    ] as const;
+    }
+
+
+export const getGetProjectCostQueryOptions = <TData = Awaited<ReturnType<typeof getProjectCost>>, TError = ErrorType<NotFoundResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectCost>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProjectCostQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProjectCost>>> = ({ signal }) => getProjectCost(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProjectCost>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProjectCostQueryResult = NonNullable<Awaited<ReturnType<typeof getProjectCost>>>
+export type GetProjectCostQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary Per-engagement model-cost telemetry (FR-ANL-03)
+ */
+
+export function useGetProjectCost<TData = Awaited<ReturnType<typeof getProjectCost>>, TError = ErrorType<NotFoundResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectCost>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProjectCostQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMonthlyCostReportUrl = (params: GetMonthlyCostReportParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/analytics/cost?${stringifiedParams}` : `/api/analytics/cost`
+}
+
+/**
+ * @summary Monthly per-engagement cost variance report (FR-ANL-03)
+ */
+export const getMonthlyCostReport = async (params: GetMonthlyCostReportParams, options?: RequestInit): Promise<MonthlyCostReport> => {
+
+  return customFetch<MonthlyCostReport>(getGetMonthlyCostReportUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMonthlyCostReportQueryKey = (params?: GetMonthlyCostReportParams,) => {
+    return [
+    `/api/analytics/cost`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetMonthlyCostReportQueryOptions = <TData = Awaited<ReturnType<typeof getMonthlyCostReport>>, TError = ErrorType<BadRequestResponse>>(params: GetMonthlyCostReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMonthlyCostReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMonthlyCostReportQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMonthlyCostReport>>> = ({ signal }) => getMonthlyCostReport(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMonthlyCostReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMonthlyCostReportQueryResult = NonNullable<Awaited<ReturnType<typeof getMonthlyCostReport>>>
+export type GetMonthlyCostReportQueryError = ErrorType<BadRequestResponse>
+
+
+/**
+ * @summary Monthly per-engagement cost variance report (FR-ANL-03)
+ */
+
+export function useGetMonthlyCostReport<TData = Awaited<ReturnType<typeof getMonthlyCostReport>>, TError = ErrorType<BadRequestResponse>>(
+ params: GetMonthlyCostReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMonthlyCostReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMonthlyCostReportQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

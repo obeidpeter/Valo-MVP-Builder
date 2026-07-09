@@ -92,6 +92,32 @@ router.get("/projects/:id/notifications", requireMember, async (req: Request, re
   res.json(rows.map(serializeNotification));
 });
 
+/**
+ * FR-NTF-01: templates render from engagement data server-side, so the
+ * notification log records the actual message that goes to the client, not
+ * just a template name. A caller-supplied payload (bespoke text) wins.
+ */
+function renderNotificationTemplate(
+  template: string,
+  project: typeof projects.$inferSelect,
+  clientName: string | null,
+): string {
+  switch (template) {
+    case "deadline_reminder":
+      return `Reminder: "${project.tenderTitle}" submission deadline is ${project.deadline ?? "not recorded"}.`;
+    case "payment_confirmation":
+      return `Payment status for "${project.tenderTitle}" is ${project.paymentStatus ?? "not_required"}${
+        project.paymentConfirmedAt ? " (dual confirmation complete)" : ""
+      }.`;
+    case "certificate_renewal":
+      return `Certificate renewal check for ${clientName ?? "client"} — review the Vault renewal radar for expiring artefacts.`;
+    case "report_ready":
+      return `The bid autopsy report for "${project.tenderTitle}" is ready for review and delivery.`;
+    default:
+      return `${template.replace(/_/g, " ")} — "${project.tenderTitle}".`;
+  }
+}
+
 router.post("/projects/:id/notifications", requireMember, async (req: Request, res: Response) => {
   const parsed = CreateProjectNotificationBody.safeParse(req.body);
   if (!parsed.success) {
@@ -99,11 +125,16 @@ router.post("/projects/:id/notifications", requireMember, async (req: Request, r
     return;
   }
   const projectId = String(req.params.id);
-  const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
-  if (!project) {
+  const [row] = await db
+    .select({ project: projects, clientName: clients.name })
+    .from(projects)
+    .leftJoin(clients, eq(projects.clientId, clients.id))
+    .where(eq(projects.id, projectId));
+  if (!row) {
     res.status(404).json({ error: "Project not found" });
     return;
   }
+  const project = row.project;
   const user = getLocalUser(req);
   const [created] = await db
     .insert(notificationEvents)
@@ -113,7 +144,10 @@ router.post("/projects/:id/notifications", requireMember, async (req: Request, r
       channel: parsed.data.channel ?? "manual",
       template: parsed.data.template,
       recipient: parsed.data.recipient ?? null,
-      payload: parsed.data.payload == null ? null : JSON.stringify(parsed.data.payload),
+      payload:
+        parsed.data.payload == null
+          ? renderNotificationTemplate(parsed.data.template, project, row.clientName)
+          : JSON.stringify(parsed.data.payload),
       status: parsed.data.status ?? "queued",
       createdBy: user?.id ?? null,
     })

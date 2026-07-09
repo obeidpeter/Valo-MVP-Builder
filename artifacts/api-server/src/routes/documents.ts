@@ -223,13 +223,20 @@ async function runExtraction(
         contentText: extraction.text,
         extractedChars: extraction.text ? extraction.text.length : null,
         extractionStatus: extraction.status,
+        extractionMethod: extraction.method,
+        extractionConfidence: extraction.confidence,
+        extractionNotes: extraction.notes,
       })
       .where(eq(documents.id, documentId));
   } catch (error) {
     req.log.error({ err: error, documentId }, "async extraction failed");
     await db
       .update(documents)
-      .set({ extractionStatus: "failed" })
+      .set({
+        extractionStatus: "failed",
+        extractionMethod: "none",
+        extractionNotes: `async extraction crashed: ${(error instanceof Error ? error.message : String(error)).slice(0, 200)}`,
+      })
       .where(eq(documents.id, documentId))
       .catch(() => {});
   }
