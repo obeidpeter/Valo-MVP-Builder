@@ -15,7 +15,7 @@ import {
   TableOfContents,
 } from "docx";
 
-import { ENGINE_VERSION, PROMPT_PACK_VERSION, MODEL_ID } from "./provenance";
+import { ENGINE_VERSION, PROMPT_PACK_VERSION, MODEL_ID, TAXONOMY_VERSION } from "./provenance";
 
 export const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -40,6 +40,8 @@ export interface ReportData {
   template?: { firmName: string; confidentialityLegend: string };
   version: number;
   generatedByName: string | null;
+  /** Injectable for deterministic golden-file tests; defaults to now. */
+  generatedAt?: Date;
 }
 
 const DEFAULT_TEMPLATE = {
@@ -105,6 +107,14 @@ function makeTable(headers: string[], rows: string[][], widths?: number[]): Tabl
 
 export async function buildReportDocx(data: ReportData): Promise<Buffer> {
   const { project, client, requirements, evidence, defects, boqChecks, risk } = data;
+  // Explicit locale + timezone: the deliverable is stamped in Nigerian local
+  // time regardless of where the server runs, and the golden-file test stays
+  // deterministic across environments.
+  const generatedAt = (data.generatedAt ?? new Date()).toLocaleString("en-GB", {
+    timeZone: "Africa/Lagos",
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
   const template = data.template ?? DEFAULT_TEMPLATE;
 
   const children: (Paragraph | Table)[] = [];
@@ -120,7 +130,7 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
       children: [new TextRun({ text: "Bid Autopsy Report", bold: true, size: 32, color: NAVY })],
     }),
     para(`${project.tenderTitle}`, { bold: true }),
-    para(`Client: ${client?.name ?? "—"}   |   Version ${data.version}   |   Generated ${new Date().toLocaleString()}`, { color: GREY }),
+    para(`Client: ${client?.name ?? "—"}   |   Version ${data.version}   |   Generated ${generatedAt}`, { color: GREY }),
     para(template.confidentialityLegend, { italics: true, color: GREY }),
   );
 
@@ -133,10 +143,11 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
       [
         ["Document", `Bid Autopsy Report — ${project.tenderTitle}`],
         ["Report version", `v${data.version}`],
-        ["Generated", new Date().toLocaleString()],
+        ["Generated", generatedAt],
         ["Prepared by", data.generatedByName ?? "—"],
         ["Named reviewer", data.reviewerName ?? "—"],
         ["Engine / prompt pack / model", `${ENGINE_VERSION} · ${PROMPT_PACK_VERSION} · ${MODEL_ID}`],
+        ["Defect taxonomy", TAXONOMY_VERSION],
         ["Classification", "CONFIDENTIAL — internal review only"],
       ],
       [30, 70],
@@ -178,6 +189,21 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
       [30, 70],
     ),
   );
+  // FR-INT-03: a redacted or restricted engagement always carries its
+  // limitation banner — the reader must know the findings do not cover
+  // content excluded at intake.
+  if (project.redactionScope || project.restrictedMode) {
+    children.push(
+      para(
+        `LIMITATION — ${
+          project.restrictedMode ? "Restricted-mode engagement. " : ""
+        }Content was excluded or redacted at intake${
+          project.redactionScope ? ` (scope: ${project.redactionScope})` : ""
+        }. Findings in this report do not cover redacted or withheld material.`,
+        { bold: true, color: GREY },
+      ),
+    );
+  }
   if (project.scope) {
     children.push(subheading("Scope"), para(project.scope));
   }
@@ -430,7 +456,7 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
     // Full provenance stamp (NFR-AUD-01): the signed deliverable names the
     // exact engine, prompt pack, and model configuration that produced it.
     para(
-      `Engine: ${ENGINE_VERSION} · Prompt pack: ${PROMPT_PACK_VERSION} · Model: ${MODEL_ID}`,
+      `Engine: ${ENGINE_VERSION} · Prompt pack: ${PROMPT_PACK_VERSION} · Model: ${MODEL_ID} · Taxonomy: ${TAXONOMY_VERSION}`,
       { color: GREY },
     ),
   );

@@ -6,6 +6,8 @@ import {
   useCreateProjectNotification,
   useCreateRetentionRequest,
   useListProjectNotifications,
+  useGetProjectCost,
+  getGetProjectCostQueryKey,
   getGetProjectQueryKey,
   getListProjectNotificationsQueryKey,
   getListRetentionRequestsQueryKey,
@@ -59,6 +61,9 @@ export default function ProjectDetails() {
   const { toast } = useToast();
   const { data: notifications } = useListProjectNotifications(id ?? "", {
     query: { enabled: Boolean(id), queryKey: getListProjectNotificationsQueryKey(id ?? "") },
+  });
+  const { data: cost } = useGetProjectCost(id ?? "", {
+    query: { enabled: Boolean(id), queryKey: getGetProjectCostQueryKey(id ?? "") },
   });
   const createNotification = useCreateProjectNotification();
   const createRetentionRequest = useCreateRetentionRequest();
@@ -379,6 +384,14 @@ export default function ProjectDetails() {
                     <dt className="text-muted-foreground uppercase text-[10px] tracking-wider font-mono">Created</dt>
                     <dd className="mt-1">{new Date(project.createdAt).toLocaleString()}</dd>
                   </div>
+                  <div>
+                    <dt className="text-muted-foreground uppercase text-[10px] tracking-wider font-mono">Model Cost (est.)</dt>
+                    <dd className="mt-1">
+                      {cost
+                        ? `₦${(cost.estimatedKobo / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })} · ${cost.runs} run${cost.runs === 1 ? "" : "s"}`
+                        : "-"}
+                    </dd>
+                  </div>
                 </dl>
               </div>
               <div className="bg-card border border-border p-6 rounded-xl shadow-xs xl:col-span-2 space-y-5">
@@ -576,6 +589,9 @@ export default function ProjectDetails() {
                         <Badge variant="outline" className="text-[10px]">{event.status}</Badge>
                       </div>
                       <p className="text-muted-foreground mt-1">{event.channel} {event.recipient ? `to ${event.recipient}` : ""}</p>
+                      {event.payload && (
+                        <p className="text-muted-foreground/80 mt-1 italic line-clamp-2">{event.payload}</p>
+                      )}
                     </div>
                   ))}
                   {(!notifications || notifications.length === 0) && (

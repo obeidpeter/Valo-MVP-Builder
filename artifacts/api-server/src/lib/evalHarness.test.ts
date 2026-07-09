@@ -168,3 +168,35 @@ describe("validateCorpus", () => {
     assert.deepEqual(validateCorpus(corpus), []);
   });
 });
+
+describe("mandatory recall (FR-EXT-05 gate figure)", () => {
+  test("mandatory recall counts only mandatory rows; desirable misses do not gate", () => {
+    const t = tender({
+      groundTruth: [
+        gt({ id: "g1", label: "Tax clearance", mandatory: true, match: [["tax clearance"]] }),
+        gt({ id: "g2", label: "Brochures", mandatory: false, match: [["brochure"]] }),
+      ],
+    });
+    // Engine surfaces the mandatory row but not the desirable one.
+    const result = computeTenderRecall(t, ["Submit a valid tax clearance certificate"]);
+    assert.equal(result.mandatoryTotal, 1);
+    assert.equal(result.mandatoryMatched, 1);
+    assert.equal(result.mandatoryRecall, 1);
+    assert.ok(Math.abs(result.recall - 0.5) < 1e-9);
+
+    const report = aggregateReport([result]);
+    assert.equal(report.mandatoryPassed, true);
+    assert.equal(report.passed, false); // overall 50% < 85% target
+  });
+
+  test("a missed mandatory row fails the mandatory gate", () => {
+    const t = tender({
+      groundTruth: [
+        gt({ id: "g1", label: "Bid security", mandatory: true, match: [["bid security", "bid bond"]] }),
+      ],
+    });
+    const report = aggregateReport([computeTenderRecall(t, ["Unrelated text"])]);
+    assert.equal(report.mandatoryRecall, 0);
+    assert.equal(report.mandatoryPassed, false);
+  });
+});

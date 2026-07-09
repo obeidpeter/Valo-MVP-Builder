@@ -1336,6 +1336,43 @@ paths:
                 format: binary
         "403":
           $ref: "#/components/responses/Forbidden"
+  /projects/{id}/cost:
+    get:
+      operationId: getProjectCost
+      tags: [Analytics]
+      summary: Per-engagement model-cost telemetry (FR-ANL-03)
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Token usage and estimated cost for the engagement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectCost"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /analytics/cost:
+    get:
+      operationId: getMonthlyCostReport
+      tags: [Analytics]
+      summary: Monthly per-engagement cost variance report (FR-ANL-03)
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: "^\\d{4}-\\d{2}$"
+      responses:
+        "200":
+          description: Monthly cost rollup vs the unit assumption
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MonthlyCostReport"
+        "400":
+          $ref: "#/components/responses/BadRequest"
   /audit/access-review:
     get:
       operationId: getAccessReview
@@ -1733,6 +1770,52 @@ components:
         role:
           type: string
           enum: [founder, advisor]
+    ProjectCost:
+      type: object
+      required: [projectId, runs, promptTokens, completionTokens, estimatedKobo, tasks]
+      properties:
+        projectId: { type: string }
+        runs: { type: integer }
+        promptTokens: { type: integer }
+        completionTokens: { type: integer }
+        estimatedKobo: { type: integer }
+        tasks:
+          type: array
+          items:
+            type: object
+            required: [task, runs, promptTokens, completionTokens]
+            properties:
+              task: { type: string }
+              runs: { type: integer }
+              promptTokens: { type: integer }
+              completionTokens: { type: integer }
+    MonthlyCostReport:
+      type: object
+      required: [month, totalRuns, totalPromptTokens, totalCompletionTokens, totalEstimatedKobo, engagements]
+      properties:
+        month: { type: string }
+        unitAssumptionKobo:
+          type: object
+          properties:
+            low: { type: integer }
+            high: { type: integer }
+        totalRuns: { type: integer }
+        totalPromptTokens: { type: integer }
+        totalCompletionTokens: { type: integer }
+        totalEstimatedKobo: { type: integer }
+        engagements:
+          type: array
+          items:
+            type: object
+            required: [runs, promptTokens, completionTokens, estimatedKobo, withinUnitAssumption]
+            properties:
+              projectId: { type: string, nullable: true }
+              tenderTitle: { type: string, nullable: true }
+              runs: { type: integer }
+              promptTokens: { type: integer }
+              completionTokens: { type: integer }
+              estimatedKobo: { type: integer }
+              withinUnitAssumption: { type: boolean }
     AccessReviewRow:
       type: object
       required: [at, actor, client, project, action, objectType, objectId, details]
@@ -2217,6 +2300,12 @@ components:
           type: string
           enum: [pending, extracting, extracted, failed, skipped]
           nullable: true
+        extractionMethod:
+          type: string
+          enum: [textual, text_layer, multimodal_ocr, none]
+          nullable: true
+        extractionConfidence: { type: number, nullable: true }
+        extractionNotes: { type: string, nullable: true }
         createdAt: { type: string }
     DocumentCreate:
       type: object
@@ -2587,6 +2676,7 @@ components:
         engineVersion: { type: string, nullable: true }
         promptPackVersion: { type: string, nullable: true }
         modelId: { type: string, nullable: true }
+        taxonomyVersion: { type: string, nullable: true }
         signedOffAt: { type: string, nullable: true }
         generatedBy: { type: string, nullable: true }
         generatedByName: { type: string, nullable: true }

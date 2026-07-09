@@ -21,7 +21,7 @@ import { serializeReport } from "../lib/serializers";
 import { writeAudit } from "../lib/audit";
 import { buildReportDocx, DOCX_MIME, type ReportData } from "../lib/docx";
 import { buildReportPdf, PDF_MIME } from "../lib/pdf";
-import { ENGINE_VERSION, PROMPT_PACK_VERSION, MODEL_ID } from "../lib/provenance";
+import { ENGINE_VERSION, PROMPT_PACK_VERSION, MODEL_ID, TAXONOMY_VERSION } from "../lib/provenance";
 import { computeRisk, blockingSignOffDefects, type Severity } from "../lib/deterministic";
 import { getActiveConfig } from "../lib/appConfig";
 import { computeScorecard } from "../lib/scorecard";
@@ -169,6 +169,7 @@ router.post(
         engineVersion: ENGINE_VERSION,
         promptPackVersion: PROMPT_PACK_VERSION,
         modelId: MODEL_ID,
+        taxonomyVersion: TAXONOMY_VERSION,
         generatedBy: user?.id ?? null,
       })
       .returning();

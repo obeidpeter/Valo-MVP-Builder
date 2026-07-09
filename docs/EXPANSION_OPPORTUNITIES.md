@@ -23,17 +23,24 @@ Audit of the codebase against the Valo Business Plan v1.1/v1.2, the Replit Build
 - **Project Readiness Gate** — reviewer-facing checklist across governance/intake/evidence/defects/BOQ/risk/report; gate logic extracted to a pure, unit-tested module aligned with the server's deterministic gates (dual payment confirmation; only OPEN material defects block).
 - **SBD Corpus v1** — templates + agency-quirk annotations; single-active-lineage enforced on activation, version cloning supersedes the source.
 - **DOCX report** — document control block, table of contents, requirement matrix with evidence-trace annex, defect register, risk score, responsiveness review (UI trigger in the Reports tab), BOQ annex, remediation plan, copies manifest, signature/seal checklist, process warranty.
-- **CI** (`.github/workflows/ci.yml`) — typecheck, unit + DB-backed integration tests (including the retention-purge and export end-to-end suites), offline doctrine + injection proofs, the offline eval-harness self-check, and both production builds on every push/PR.
-- **Eval harness v0** (FR-EXT-05, §9) — ≥10 hand-labelled tenders (`scripts/eval-corpus/`) run as a recall regression suite (`eval:harness`) that measures the engine against verified ground truth and fails below the 85% v0 target, naming the missed requirements per tender. The offline self-check (corpus well-formed + deterministic matcher consistent) runs in CI; the live recall measurement runs where the model key lives.
-- **Live pre-ship proof gate** — `prove:ship` runs the live doctrine, injection, and eval-harness proofs together (fail-fast) in the Replit environment where the model key lives; run it before shipping any model/prompt change (a `MODEL_ID`/`PROMPT_PACK_VERSION` bump). Runbook: `docs/PRE_SHIP_PROOFS.md`.
+- **CI** (`.github/workflows/ci.yml`) — the full TRD §12.2 gate order: secret scan (gitleaks, NFR-SEC-04), typecheck, unit + DB-backed integration tests (including the retention-purge, governance, and export end-to-end suites plus the FR-ASM-01 golden-file report test), offline injection + doctrine proofs, the eval-harness offline gates, and both production builds on every push/PR.
+- **Eval harness v0** (FR-EXT-05 / FR-EXT-04 / NFR-QLT-02) — 14 hand-labelled tenders (`scripts/eval-corpus/`, incl. Nigerian federal goods/works and NIPEX cases) scored by the unit-tested AND-of-ORs matcher in `src/lib/evalHarness.ts`, with both overall and MANDATORY recall. Live mode (`eval:harness`) records engine outputs + figures to `eval-corpus/runs/latest.json`; the CI offline mode self-checks the corpus/matcher, independently recomputes recorded figures (reproducibility), and enforces the ≥85% mandatory-recall threshold plus the >2-point baseline-drift block once a live run is committed (`eval:promote-baseline` sets the baseline).
+- **Live pre-ship proof gate** — `prove:ship` runs the live doctrine, injection, and eval-harness proofs together (fail-fast) in the Replit environment where the model key lives; run it before shipping any model/prompt change. Runbook: `docs/PRE_SHIP_PROOFS.md`.
+- **Configurable scoring + Settings** — severity weights, band cutoffs, report template details and retention defaults are editable app config (with the active config versioned); reports keep their provenance stamps so historic sign-offs stay traceable.
+- **PDF export** — reports render to PDF alongside DOCX.
+- **Requirement merge** — near-duplicate AI extractions can be merged in the review queue with citations preserved.
+- **Founder Gate 0 metrics** — decision-maker conversations and mandate-quality tracking with a readiness dashboard.
+- **Retention automation** (NFR-PRV-02, scheduled half) — `retention:scan` auto-opens retention requests at the 12-month mark (it never purges by itself; completion stays a human admin act).
+- **Cost telemetry** (FR-ANL-03) — token counts on every llm_runs row, per-engagement rollup (`GET /projects/:id/cost`, shown on the project overview) and an admin monthly variance report (`GET /analytics/cost?month=`) against the BP ₦15–30k unit assumption.
+- **Extraction telemetry** (FR-OCR-01/02) — every document records how its text was obtained (text layer / multimodal OCR / native), a deterministic confidence heuristic, and per-document notes that accumulate into the OCR evaluation set; surfaced in the Documents tab.
+- **Versioned defect taxonomy** (FR-ANL-01) — `TAXONOMY_VERSION` joins the provenance stamp on every report row and DOCX; registry + governed change process in `docs/DEFECT_TAXONOMY.md`.
+- **Report fidelity** — redacted/restricted engagements auto-render their limitation banner (FR-INT-03); notification templates render actual messages from engagement data (FR-NTF-01); the report timestamp is pinned to Nigerian local time.
+- **User manual** — `docs/USER_MANUAL.md`: every screen, workflow, and gate in plain language, with a "why is this blocked?" cheat-sheet.
 
 ## Remaining — near-term (current gate)
 
-1. **Configurable scoring + real Settings** — severity weights and band cutoffs are hard-coded in `deterministic.ts`; the Settings screen (thresholds, report template details, retention defaults) is unbuilt. Keep engine-version stamping so historic sign-offs stay traceable.
-2. **PDF export** — reports are DOCX-only; brief says PDF follows once DOCX is stable (it is).
-3. **Requirement merge** — the review queue lacks merge for near-duplicate AI extractions (brief lists it; preserve both source citations).
-4. **Gate 0 founder metrics completeness** — decision-maker conversations count (≥8 threshold) and mandate-quality breakdown are still not tracked in-app.
-5. **Retention automation** (NFR-PRV-02, scheduled half) — the manual workflow with honest certificates exists; the 12-month clock that *opens* requests automatically does not. Needs a scheduler (cron/queue) in the deploy environment.
+1. **Run the live proofs + first eval-harness run in the deploy environment** — `prove:ship` (or the three proofs individually), then commit `eval-corpus/runs/latest.json` and run `eval:promote-baseline`; that activates CI's recall gates.
+2. **Grow the eval corpus from real engagements** — 14 seeded cases today; ≥25 by v1.0, harvested from delivered autopsies (roadmap §9 rule: labels never edited to make a run pass).
 
 ## Remaining — v1.0 trio (gated on Phase 1 commercial exit; do not build early)
 
@@ -48,4 +55,4 @@ Client portal (v1.5), self-serve tier + billing/entitlements (v2.0), automation 
 
 ## Deploy note
 
-Schema changes require `pnpm --filter @workspace/db run push` in the deploy environment. Latest addition: the six `payment_*_confirmed_by`/`_by_name`/`_at` identity columns on `projects` (dual-confirmation stamps). The DB-dependent test suites pass only where `DATABASE_URL` exists; CI provisions a throwaway Postgres for them.
+Schema changes require `pnpm --filter @workspace/db run push` in the deploy environment. Latest additions: the six `payment_*` identity columns on `projects`, `prompt_tokens`/`completion_tokens` on `llm_runs`, `extraction_method`/`extraction_confidence`/`extraction_notes` on `documents`, and `taxonomy_version` on `reports`. The DB-dependent test suites pass only where `DATABASE_URL` exists; CI provisions a throwaway Postgres for them.

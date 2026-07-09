@@ -1,0 +1,216 @@
+VALO
+Bid Autopsy Report
+Supply of Laboratory Equipment VMT-2026-014
+Client: Acme Integrated Services Ltd   |   Version 1   |   Generated 1 Jul 2026, 10:00
+CONFIDENTIAL — Prepared for internal review. Not for external distribution.
+Document Control
+Field
+Value
+Document
+Bid Autopsy Report — Supply of Laboratory Equipment VMT-2026-014
+Report version
+v1
+Generated
+1 Jul 2026, 10:00
+Prepared by
+Ada Obi
+Named reviewer
+Ada Obi
+Engine / prompt pack / model
+valo-autopsy-engine/gate0-v1 · gate0-v1 · gpt-5.4
+Defect taxonomy
+ng-defects-v1.0.0
+Classification
+CONFIDENTIAL — internal review only
+Contents
+TOC \h \o &quot;1-2&quot;
+Right-click the contents above and choose “Update Field” to refresh page numbers.
+A. Engagement Summary
+Field
+Value
+Client
+Acme Integrated Services Ltd
+NDA status
+signed
+Issuing entity
+Federal Ministry of Health
+Tender reference
+FMOH/2026/EQ/014
+Segment
+federal
+Deadline
+2026-09-30
+Value band
+50m-250m
+Reviewer
+Ada Obi
+Status
+reporting
+LIMITATION — Content was excluded or redacted at intake (scope: Financial pages 41-58 excluded at client request). Findings in this report do not cover redacted or withheld material.
+Scope
+Full forensic autopsy of the tender/bid pair.
+Limitations
+BOQ addendum 2 was not provided by the client.
+B. Requirement Matrix
+Requirement
+Category
+Mandatory
+Source
+Status
+Valid CAC certificate of incorporation
+eligibility
+Yes
+tender.pdf · ITB 12.1 · p. 14
+confirmed
+Bid security of 2% of bid price
+financial_format
+Yes
+tender.pdf · ITB 19 · p. 22
+edited
+Suggested requirements — pending named-reviewer confirmation
+1 AI-suggested requirement(s) below are not yet confirmed and do not contribute to the risk score.
+Requirement
+Category
+Mandatory
+Source
+Status
+ISO 13485 certification for medical devices
+technical
+No
+tender.pdf · TS 3.2 · p. 41
+suggested
+Evidence trace
+Requirement
+Status
+Excerpt
+Notes
+Valid CAC certificate of incorporation
+present
+Certificate of Incorporation RC 123456 dated 12 March 2015
+Annex A, page 2
+1 AI-suggested evidence mapping(s) below are not yet confirmed and do not contribute to the risk score.
+Requirement
+Status
+Excerpt
+Notes
+Bid security of 2% of bid price
+missing
+—
+No bank guarantee found in the bid
+C. Defect Register
+Description
+Type
+Severity
+Status
+Remediation
+Bid security instrument absent
+omission
+fatal
+open
+Obtain a 2% bank guarantee before submission
+Suggested defects — pending named-reviewer confirmation
+1 AI-suggested defect(s) below are not yet confirmed and do not contribute to the risk score.
+Description
+Type
+Severity
+Status
+Remediation
+Table of contents page numbers stale
+formatting
+cosmetic
+open
+—
+D. Disqualification-Risk Score
+Score: 45 / 100    Band: HIGH
+1 open fatal defect (40) and 1 mandatory requirement without resolved evidence (5).
+E. Responsiveness Review
+Suggested narrative — pending named-reviewer confirmation.
+The bid is broadly responsive.
+Section 4 omits the after-sales plan the ITB requires.
+F. BOQ Verification Annex
+Line
+Check
+Finding
+Severity
+Status
+3.04
+extension
+Extension mismatch: 40 × ₦125,000.00 = ₦5,000,000.00 but sheet shows ₦4,999,999.50
+scoring_risk
+flagged
+G. Remediation Plan
+Defect
+Severity
+Owner
+Remediation
+Status
+Bid security instrument absent
+fatal
+Client CFO
+Obtain a 2% bank guarantee before submission
+open
+H. Copies Manifest
+Confirm each required hard copy is produced, correctly labelled, bound, and sealed before dispatch. Mark the number of copies against the tender instructions to bidders (ITB).
+Copy
+Label on cover
+Bound
+Sealed
+Included
+Original
+ORIGINAL
+☐
+☐
+☐
+Copy 1
+COPY
+☐
+☐
+☐
+Copy 2
+COPY
+☐
+☐
+☐
+Soft copy (if required)
+USB / CD — as ITB
+☐
+☐
+☐
+I. Signature &amp; Seal Checklist
+Every point below must be signed and, where indicated, stamped with the company seal by an authorised signatory before submission.
+Point
+Location / cross-reference
+Signed
+Sealed
+Form of Tender / Bid submission sheet
+Tender document — Form of Tender
+☐
+☐
+Price schedule / BOQ summary
+See § F. BOQ Verification Annex
+☐
+☐
+Declaration of eligibility &amp; non-collusion
+Tender document — Declarations
+☐
+☐
+CAC &amp; compliance certificate copies
+Certificate Vault artefacts
+☐
+☐
+Each page initialled by signatory
+Full package
+☐
+—
+Bid security / bank guarantee (if required)
+Tender document — Bid Security
+☐
+☐
+J. Sign-Off
+This report is a DRAFT until a named reviewer signs off below. Export is blocked until sign-off is recorded.
+Reviewer name: ______________________________
+Attestation: ________________________________
+Date: _______________________________________
+Process Warranty
+Valo does not warrant contract award, evaluator behaviour, or acceptance of the package. Valo warrants the reviewed process applied to the materials provided: requirement extraction, deterministic verification, and named human review.
+Engine: valo-autopsy-engine/gate0-v1 · Prompt pack: gate0-v1 · Model: gpt-5.4 · Taxonomy: ng-defects-v1.0.0

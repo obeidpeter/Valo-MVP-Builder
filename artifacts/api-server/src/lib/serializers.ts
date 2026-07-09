@@ -127,6 +127,9 @@ export function serializeDocument(d: any, uploadedByName?: string | null) {
     contentText: d.contentText ?? null,
     extractedChars: d.extractedChars ?? null,
     extractionStatus: d.extractionStatus ?? null,
+    extractionMethod: d.extractionMethod ?? null,
+    extractionConfidence: d.extractionConfidence ?? null,
+    extractionNotes: d.extractionNotes ?? null,
     createdAt: iso(d.createdAt) ?? new Date(0).toISOString(),
   };
 }
@@ -233,6 +236,7 @@ export function serializeReport(
     engineVersion: r.engineVersion ?? null,
     promptPackVersion: r.promptPackVersion ?? null,
     modelId: r.modelId ?? null,
+    taxonomyVersion: r.taxonomyVersion ?? null,
     signedOffAt: iso(r.signedOffAt),
     generatedBy: r.generatedBy ?? null,
     generatedByName: generatedByName ?? null,

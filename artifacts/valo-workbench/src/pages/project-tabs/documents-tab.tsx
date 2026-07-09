@@ -190,8 +190,27 @@ export function DocumentsTab({
 
   const extractionBadge = (doc: Document) => {
     const s = doc.extractionStatus ?? "pending";
-    if (s === "extracted")
-      return <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-200 bg-emerald-50">text ready</Badge>;
+    // Extraction telemetry (FR-OCR-01/02): the badge names the method and
+    // confidence, and the tooltip carries the per-document extraction notes.
+    const title = doc.extractionNotes ?? undefined;
+    if (s === "extracted") {
+      const viaOcr = doc.extractionMethod === "multimodal_ocr";
+      const pct =
+        doc.extractionConfidence != null ? ` ${(doc.extractionConfidence * 100).toFixed(0)}%` : "";
+      return (
+        <Badge
+          variant="outline"
+          title={title}
+          className={
+            viaOcr
+              ? "text-[10px] text-amber-700 border-amber-300 bg-amber-50"
+              : "text-[10px] text-emerald-600 border-emerald-200 bg-emerald-50"
+          }
+        >
+          {viaOcr ? `OCR${pct} — verify` : `text ready${pct}`}
+        </Badge>
+      );
+    }
     if (s === "extracting" || s === "pending")
       return (
         <Badge variant="outline" className="text-[10px] text-amber-700 border-amber-300 bg-amber-50">
@@ -199,8 +218,8 @@ export function DocumentsTab({
         </Badge>
       );
     if (s === "skipped")
-      return <Badge variant="outline" className="text-[10px] text-muted-foreground">no text (paste?)</Badge>;
-    return <Badge variant="outline" className="text-[10px] text-destructive border-destructive/30 bg-destructive/10">failed</Badge>;
+      return <Badge variant="outline" title={title} className="text-[10px] text-muted-foreground">no text (paste?)</Badge>;
+    return <Badge variant="outline" title={title} className="text-[10px] text-destructive border-destructive/30 bg-destructive/10">failed</Badge>;
   };
 
   return (

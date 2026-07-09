@@ -615,4 +615,219 @@ L7  Bidders should submit a B-BBEE verification certificate.`,
       },
     ],
   },
+  {
+    id: "NG-FMOH-2026-014-lab-equipment",
+    title: "Federal goods tender — laboratory equipment (Nigeria)",
+    documentText: `INVITATION TO TENDER — FEDERAL MINISTRY OF HEALTH
+Tender No. FMOH/2026/EQ/014 — Supply and Installation of Laboratory Equipment.
+Instructions to Bidders (ITB):
+12.1 Bidders must submit a valid CAC certificate of incorporation.
+12.2 Bidders must submit evidence of current tax clearance for the last three (3) years.
+12.3 Bidders must submit a current PENCOM compliance certificate.
+12.4 Bidders must submit a current ITF compliance certificate.
+12.5 Bidders must submit a current NSITF compliance certificate.
+14.0 Bids must be accompanied by evidence of registration on the BPP National Database of Contractors (Interim Registration Report).
+19.1 Bids must be accompanied by a bid security of two percent (2%) of the bid price from a reputable bank.
+21.0 The bid shall remain valid for a period of ninety (90) days from the date of bid opening.
+23.2 Bidders should, where possible, provide brochures of the offered equipment.
+25.0 Bids must be submitted in one (1) original and two (2) copies, each clearly marked.`,
+    groundTruth: [
+      {
+        id: "cac-cert",
+        label: "Valid CAC certificate of incorporation",
+        mandatory: true,
+        match: [["cac", "certificate of incorporation", "corporate affairs commission"]],
+      },
+      {
+        id: "tax-clearance",
+        label: "Tax clearance for the last three years",
+        mandatory: true,
+        match: [["tax clearance", "tax compliance"], ["three", "3"]],
+      },
+      {
+        id: "pencom",
+        label: "Current PENCOM compliance certificate",
+        mandatory: true,
+        match: [["pencom", "pension"], ["compliance", "certificate"]],
+      },
+      {
+        id: "itf",
+        label: "Current ITF compliance certificate",
+        mandatory: true,
+        match: [["itf", "industrial training fund"], ["compliance", "certificate"]],
+      },
+      {
+        id: "nsitf",
+        label: "Current NSITF compliance certificate",
+        mandatory: true,
+        match: [["nsitf", "social insurance"], ["compliance", "certificate"]],
+      },
+      {
+        id: "bpp-database",
+        label: "Registration on the BPP National Database of Contractors",
+        mandatory: true,
+        match: [["bpp", "national database"], ["registration", "contractors"]],
+      },
+      {
+        id: "bid-security",
+        label: "Bid security of 2% of the bid price from a reputable bank",
+        mandatory: true,
+        match: [["bid security", "bid bond"], ["2", "two percent"]],
+      },
+      {
+        id: "bid-validity",
+        label: "Bid valid for ninety days from bid opening",
+        mandatory: true,
+        match: [["valid", "validity"], ["90", "ninety"]],
+      },
+      {
+        id: "copies",
+        label: "One original and two copies, clearly marked",
+        mandatory: true,
+        match: [["original"], ["two", "2"], ["copies", "copy"]],
+      },
+      {
+        id: "brochures",
+        label: "Brochures of the offered equipment (desirable)",
+        mandatory: false,
+        match: [["brochure"]],
+      },
+    ],
+  },
+  {
+    id: "NG-NIPEX-2026-ML-0042-marine",
+    title: "NIPEX oil & gas — marine logistics services (Nigeria)",
+    documentText: `NIPEX TENDER — PROVISION OF MARINE LOGISTICS SERVICES (ITT No. 2026/ML/0042).
+Pre-qualification requirements:
+1. Evidence of registration and valid categorisation on the NIPEX Joint Qualification System (NJQS) in product code 3.99.12.
+2. Valid NCDMB Nigerian Content Equipment Certificate (NCEC) or evidence of application.
+3. A Nigerian Content Plan demonstrating minimum 70% Nigerian content, submitted with the technical bid.
+4. Valid Certificate of Registration with the Department of Petroleum Resources / NUPRC as applicable.
+5. Evidence of ownership or bareboat charter of at least two (2) DP2 platform supply vessels not older than 15 years.
+6. Valid ISM Code Document of Compliance and Safety Management Certificate for each vessel.
+7. HSE statistics for the last three (3) years including LTIF and TRIR.
+8. Bidders are encouraged to attend the virtual clarification session.
+Commercial bids will be opened only for bidders that pass the technical evaluation.`,
+    groundTruth: [
+      {
+        id: "njqs",
+        label: "NJQS registration and categorisation in product code 3.99.12",
+        mandatory: true,
+        match: [["njqs", "joint qualification"]],
+      },
+      {
+        id: "ncec",
+        label: "NCDMB Nigerian Content Equipment Certificate or application evidence",
+        mandatory: true,
+        match: [["ncdmb", "ncec", "nigerian content equipment"]],
+      },
+      {
+        id: "nc-plan",
+        label: "Nigerian Content Plan demonstrating minimum 70% Nigerian content",
+        mandatory: true,
+        match: [["nigerian content plan"], ["70"]],
+      },
+      {
+        id: "dpr-nuprc",
+        label: "Certificate of registration with DPR / NUPRC",
+        mandatory: true,
+        match: [["dpr", "nuprc", "department of petroleum"], ["registration", "certificate"]],
+      },
+      {
+        id: "vessels",
+        label: "Ownership or bareboat charter of two DP2 platform supply vessels",
+        mandatory: true,
+        match: [["dp2", "platform supply vessel"], ["two", "2"]],
+      },
+      {
+        id: "ism",
+        label: "ISM Code Document of Compliance and Safety Management Certificate per vessel",
+        mandatory: true,
+        match: [["ism"], ["document of compliance", "safety management"]],
+      },
+      {
+        id: "hse-stats",
+        label: "HSE statistics for three years including LTIF and TRIR",
+        mandatory: true,
+        match: [["hse"], ["ltif", "trir", "statistics"]],
+      },
+      {
+        id: "clarification",
+        label: "Attend the virtual clarification session (desirable)",
+        mandatory: false,
+        match: [["clarification session"]],
+      },
+    ],
+  },
+  {
+    id: "NG-FMW-2026-road-rehab",
+    title: "Federal works tender — road rehabilitation (Nigeria)",
+    documentText: `FEDERAL MINISTRY OF WORKS — TENDER FOR REHABILITATION OF 24KM ACCESS ROAD.
+Eligibility Criteria:
+(a) Certificate of incorporation with CAC including certified true copies of Forms CAC2 and CAC7.
+(b) Company audited accounts for the last three (3) years.
+(c) Evidence of financial capability: a bank reference letter and evidence of access to a credit line of not less than N200,000,000.
+(d) Verifiable evidence of at least three (3) similar road projects executed in the last five (5) years, including letters of award and completion certificates.
+(e) List of construction equipment with proof of ownership or lease agreement.
+(f) Key personnel: a COREN-registered civil engineer as project manager with minimum 10 years experience (CV and certificates required).
+(g) A sworn affidavit disclosing whether any officer of the ministry is a former or present director of the company.
+Submission: Technical and financial bids in two separate sealed envelopes, both enclosed in one outer envelope.
+Note: Site visit is recommended before bid submission.`,
+    groundTruth: [
+      {
+        id: "cac-forms",
+        label: "CAC incorporation certificate with Forms CAC2 and CAC7",
+        mandatory: true,
+        match: [["cac"], ["cac2", "cac 2", "cac7", "cac 7"]],
+      },
+      {
+        id: "audited-accounts",
+        label: "Audited accounts for the last three years",
+        mandatory: true,
+        match: [["audited accounts", "audited financial"], ["three", "3"]],
+      },
+      {
+        id: "credit-line",
+        label: "Bank reference letter and credit line of not less than N200,000,000",
+        mandatory: true,
+        match: [["bank reference", "credit line", "financial capability"], ["200 000 000", "two hundred million"]],
+      },
+      {
+        id: "similar-projects",
+        label: "Three similar road projects in the last five years with award letters and completion certificates",
+        mandatory: true,
+        match: [["similar", "road projects"], ["three", "3"], ["five", "5"]],
+      },
+      {
+        id: "equipment-list",
+        label: "Construction equipment list with proof of ownership or lease",
+        mandatory: true,
+        match: [["equipment"], ["ownership", "lease"]],
+      },
+      {
+        id: "coren-engineer",
+        label: "COREN-registered civil engineer as project manager",
+        mandatory: true,
+        match: [["coren"], ["engineer", "project manager"]],
+      },
+      {
+        id: "affidavit",
+        label: "Sworn affidavit disclosing ministry officers as directors",
+        mandatory: true,
+        match: [["affidavit"], ["director", "officer"]],
+      },
+      {
+        id: "two-envelopes",
+        label: "Technical and financial bids in two separate sealed envelopes",
+        mandatory: true,
+        match: [["envelope"], ["technical", "financial"]],
+      },
+      {
+        id: "site-visit",
+        label: "Site visit before bid submission (desirable)",
+        mandatory: false,
+        match: [["site visit"]],
+      },
+    ],
+  },
 ];

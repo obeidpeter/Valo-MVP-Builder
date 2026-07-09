@@ -419,6 +419,47 @@ export interface PaymentConfirmationBody {
   role: PaymentConfirmationBodyRole;
 }
 
+export type ProjectCostTasksItem = {
+  task: string;
+  runs: number;
+  promptTokens: number;
+  completionTokens: number;
+};
+
+export interface ProjectCost {
+  projectId: string;
+  runs: number;
+  promptTokens: number;
+  completionTokens: number;
+  estimatedKobo: number;
+  tasks: ProjectCostTasksItem[];
+}
+
+export type MonthlyCostReportUnitAssumptionKobo = {
+  low?: number;
+  high?: number;
+};
+
+export type MonthlyCostReportEngagementsItem = {
+  projectId?: string | null;
+  tenderTitle?: string | null;
+  runs: number;
+  promptTokens: number;
+  completionTokens: number;
+  estimatedKobo: number;
+  withinUnitAssumption: boolean;
+};
+
+export interface MonthlyCostReport {
+  month: string;
+  unitAssumptionKobo?: MonthlyCostReportUnitAssumptionKobo;
+  totalRuns: number;
+  totalPromptTokens: number;
+  totalCompletionTokens: number;
+  totalEstimatedKobo: number;
+  engagements: MonthlyCostReportEngagementsItem[];
+}
+
 export interface AccessReviewRow {
   at: string;
   actor: string;
@@ -1226,6 +1267,16 @@ export const DocumentExtractionStatus = {
   skipped: 'skipped',
 } as const;
 
+export type DocumentExtractionMethod = typeof DocumentExtractionMethod[keyof typeof DocumentExtractionMethod] | null;
+
+
+export const DocumentExtractionMethod = {
+  textual: 'textual',
+  text_layer: 'text_layer',
+  multimodal_ocr: 'multimodal_ocr',
+  none: 'none',
+} as const;
+
 export interface Document {
   id: string;
   projectId: string;
@@ -1243,6 +1294,9 @@ export interface Document {
   contentText?: string | null;
   extractedChars?: number | null;
   extractionStatus?: DocumentExtractionStatus;
+  extractionMethod?: DocumentExtractionMethod;
+  extractionConfidence?: number | null;
+  extractionNotes?: string | null;
   createdAt: string;
 }
 
@@ -1850,6 +1904,7 @@ export interface Report {
   engineVersion?: string | null;
   promptPackVersion?: string | null;
   modelId?: string | null;
+  taxonomyVersion?: string | null;
   signedOffAt?: string | null;
   generatedBy?: string | null;
   generatedByName?: string | null;
@@ -1915,6 +1970,13 @@ export type ConflictResponse = ErrorEnvelope;
 
 export type ListProjectsParams = {
 clientId?: string;
+};
+
+export type GetMonthlyCostReportParams = {
+/**
+ * @pattern ^\d{4}-\d{2}$
+ */
+month: string;
 };
 
 export type GetAccessReviewParams = {

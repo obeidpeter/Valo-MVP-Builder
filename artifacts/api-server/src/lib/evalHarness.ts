@@ -61,6 +61,11 @@ export interface TenderRecall {
   matched: number;
   /** matched / total, or 1 when a tender has no ground-truth rows. */
   recall: number;
+  /** Mandatory-only figures — the TRD's FR-EXT-05 threshold is on these. */
+  mandatoryTotal: number;
+  mandatoryMatched: number;
+  /** mandatoryMatched / mandatoryTotal, or 1 when no mandatory rows. */
+  mandatoryRecall: number;
   /** Ground-truth requirements the engine did NOT surface. */
   missed: GroundTruthRequirement[];
 }
@@ -71,8 +76,15 @@ export interface EvalReport {
   totalMatched: number;
   /** totalMatched / totalGroundTruth, or 1 when the corpus is empty. */
   overallRecall: number;
+  /** Cumulative mandatory-only recall (the FR-EXT-05 gate figure). */
+  mandatoryGroundTruth: number;
+  mandatoryMatched: number;
+  mandatoryRecall: number;
   target: number;
+  /** Overall recall meets the target. */
   passed: boolean;
+  /** Mandatory recall meets the target — the TRD release gate. */
+  mandatoryPassed: boolean;
 }
 
 /** Lowercase, strip punctuation to spaces, collapse whitespace. */
@@ -110,12 +122,18 @@ export function computeTenderRecall(
   const missed = tender.groundTruth.filter((gt) => !requirementMatched(gt, normalizedExtracted));
   const total = tender.groundTruth.length;
   const matched = total - missed.length;
+  const mandatoryTotal = tender.groundTruth.filter((g) => g.mandatory).length;
+  const mandatoryMissed = missed.filter((g) => g.mandatory).length;
+  const mandatoryMatched = mandatoryTotal - mandatoryMissed;
   return {
     tenderId: tender.id,
     title: tender.title,
     total,
     matched,
     recall: total === 0 ? 1 : matched / total,
+    mandatoryTotal,
+    mandatoryMatched,
+    mandatoryRecall: mandatoryTotal === 0 ? 1 : mandatoryMatched / mandatoryTotal,
     missed,
   };
 }
@@ -128,14 +146,21 @@ export function aggregateReport(
   const totalGroundTruth = perTender.reduce((n, t) => n + t.total, 0);
   const totalMatched = perTender.reduce((n, t) => n + t.matched, 0);
   const overallRecall = totalGroundTruth === 0 ? 1 : totalMatched / totalGroundTruth;
+  const mandatoryGroundTruth = perTender.reduce((n, t) => n + t.mandatoryTotal, 0);
+  const mandatoryMatched = perTender.reduce((n, t) => n + t.mandatoryMatched, 0);
+  const mandatoryRecall = mandatoryGroundTruth === 0 ? 1 : mandatoryMatched / mandatoryGroundTruth;
   return {
     perTender,
     totalGroundTruth,
     totalMatched,
     overallRecall,
+    mandatoryGroundTruth,
+    mandatoryMatched,
+    mandatoryRecall,
     target,
     // Guard against a floating-point hair below an exact target boundary.
     passed: overallRecall + 1e-9 >= target,
+    mandatoryPassed: mandatoryRecall + 1e-9 >= target,
   };
 }
 

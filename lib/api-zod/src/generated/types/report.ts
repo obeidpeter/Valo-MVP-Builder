@@ -19,6 +19,7 @@ export interface Report {
   engineVersion?: string | null;
   promptPackVersion?: string | null;
   modelId?: string | null;
+  taxonomyVersion?: string | null;
   signedOffAt?: string | null;
   generatedBy?: string | null;
   generatedByName?: string | null;
