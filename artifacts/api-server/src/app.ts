@@ -10,6 +10,7 @@ import {
   clerkProxyMiddleware,
   getClerkProxyHost,
 } from "./middlewares/clerkProxyMiddleware";
+import { dedupeClerkCookies } from "./middlewares/dedupeClerkCookies";
 
 const app: Express = express();
 
@@ -39,6 +40,11 @@ app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 app.use(cors({ credentials: true, origin: true }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
+
+// Collapse duplicated Clerk cookies (a Replit dev-preview quirk) to the freshest
+// value before Clerk verifies the session — otherwise a lingering expired copy
+// can shadow the valid token and yield a spurious 401.
+app.use(dedupeClerkCookies);
 
 app.use(
   clerkMiddleware((req) => ({

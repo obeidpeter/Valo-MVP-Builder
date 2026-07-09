@@ -481,14 +481,28 @@ export interface RiskResult {
   distribution: Record<Severity, number>;
 }
 
-const SEVERITY_WEIGHTS: Record<Severity, number> = {
-  fatal: 40,
-  likely_fatal: 25,
-  scoring_risk: 10,
-  cosmetic: 3,
-};
+/**
+ * Tunable inputs for the risk engine. These were previously hard-coded
+ * constants; they are now admin-configurable (see `lib/appConfig.ts`) and
+ * threaded into `computeRisk`. `bandCutoffs` are the minimum scores for each
+ * band — what the bands *mean* (and the fatal-forces-critical rule) is fixed.
+ */
+export interface RiskConfig {
+  severityWeights: Record<Severity, number>;
+  missingEvidenceWeight: number;
+  bandCutoffs: { medium: number; high: number; critical: number };
+}
 
-const MISSING_EVIDENCE_WEIGHT = 5;
+export const DEFAULT_RISK_CONFIG: RiskConfig = {
+  severityWeights: {
+    fatal: 40,
+    likely_fatal: 25,
+    scoring_risk: 10,
+    cosmetic: 3,
+  },
+  missingEvidenceWeight: 5,
+  bandCutoffs: { medium: 15, high: 40, critical: 70 },
+};
 
 /**
  * Deterministic disqualification-risk score. Per the doctrine, only items a
@@ -502,7 +516,11 @@ const MISSING_EVIDENCE_WEIGHT = 5;
  * Bands: critical if any confirmed fatal defect or score >= 70, high >= 40,
  * medium >= 15, otherwise low.
  */
-export function computeRisk(input: RiskInput): RiskResult {
+export function computeRisk(
+  input: RiskInput,
+  config: RiskConfig = DEFAULT_RISK_CONFIG,
+): RiskResult {
+  const { severityWeights, missingEvidenceWeight, bandCutoffs } = config;
   const distribution: Record<Severity, number> = {
     fatal: 0,
     likely_fatal: 0,
@@ -515,7 +533,7 @@ export function computeRisk(input: RiskInput): RiskResult {
   let score = 0;
   let hasFatal = false;
   for (const d of liveDefects) {
-    const weight = SEVERITY_WEIGHTS[d.severity] ?? 0;
+    const weight = severityWeights[d.severity] ?? 0;
     score += weight;
     if (d.severity in distribution) distribution[d.severity] += 1;
     if (d.severity === "fatal") hasFatal = true;
@@ -537,14 +555,14 @@ export function computeRisk(input: RiskInput): RiskResult {
     }
   }
   const missingEvidencePenalty = penalisedReqIds.size;
-  score += missingEvidencePenalty * MISSING_EVIDENCE_WEIGHT;
+  score += missingEvidencePenalty * missingEvidenceWeight;
 
   score = Math.min(100, Math.round(score));
 
   let band: RiskBand;
-  if (hasFatal || score >= 70) band = "critical";
-  else if (score >= 40) band = "high";
-  else if (score >= 15) band = "medium";
+  if (hasFatal || score >= bandCutoffs.critical) band = "critical";
+  else if (score >= bandCutoffs.high) band = "high";
+  else if (score >= bandCutoffs.medium) band = "medium";
   else band = "low";
 
   const parts: string[] = [];
@@ -553,7 +571,7 @@ export function computeRisk(input: RiskInput): RiskResult {
   );
   if (missingEvidencePenalty > 0) {
     parts.push(
-      `${missingEvidencePenalty} missing/expired evidence item(s) at +${MISSING_EVIDENCE_WEIGHT} each.`,
+      `${missingEvidencePenalty} missing/expired evidence item(s) at +${missingEvidenceWeight} each.`,
     );
   }
   parts.push(`Computed score ${score}/100 → ${band.toUpperCase()} band.`);
@@ -802,4 +820,175 @@ export function computeRedTeamDueAt(deadline: string | null | undefined): Date |
   const parsed = Date.parse(deadline);
   if (Number.isNaN(parsed)) return null;
   return new Date(parsed - 72 * 60 * 60 * 1000);
+}
+
+/**
+ * Engagements whose work has concluded and are therefore eligible to have a
+ * retention request auto-opened. In-progress states are deliberately excluded
+ * (data must not be scheduled for deletion while the review is still live), and
+ * `archived` is excluded because its content has already been purged.
+ */
+export const RETENTION_ELIGIBLE_STATUSES: ReadonlySet<ProjectStatus> = new Set([
+  "signed_off",
+  "exported",
+]);
+
+export interface RetentionScanProject {
+  id: string;
+  status: string;
+  /** The engagement's relevant date — the anchor the retention clock counts from. */
+  relevantDate: Date;
+  /** True if a retention request is already open for this project (dedup). */
+  hasPendingRequest: boolean;
+}
+
+export interface RetentionScanInput {
+  projects: RetentionScanProject[];
+  /** Configured retention window in days (from the app_config singleton). */
+  retentionDefaultDays: number;
+  now: Date;
+}
+
+export interface RetentionScanCandidate {
+  projectId: string;
+  /**
+   * The moment the retention window elapsed (relevantDate + window). It is in
+   * the past for every candidate — the retention action is already due — so it
+   * honestly records how overdue the deletion is.
+   */
+  dueAt: Date;
+}
+
+/**
+ * Pure retention scan (FR-RET automation): given concluded engagements, the
+ * configured retention window and a reference time, decide which projects need
+ * a retention request opened. A project is a candidate when it is a concluded
+ * engagement, has no request already open, and its retention window has fully
+ * elapsed. The clock is inclusive at the boundary (>= window) so a request is
+ * opened the moment the window is reached, never a day late.
+ */
+export function planRetentionScan(input: RetentionScanInput): RetentionScanCandidate[] {
+  if (!Number.isFinite(input.retentionDefaultDays) || input.retentionDefaultDays <= 0) {
+    return [];
+  }
+  const windowMs = input.retentionDefaultDays * MS_PER_DAY;
+  const nowMs = input.now.getTime();
+  return input.projects
+    .filter((p) => RETENTION_ELIGIBLE_STATUSES.has(p.status as ProjectStatus))
+    .filter((p) => !p.hasPendingRequest)
+    .map((p) => ({ project: p, dueAtMs: p.relevantDate.getTime() + windowMs }))
+    .filter(({ dueAtMs }) => Number.isFinite(dueAtMs) && dueAtMs <= nowMs)
+    .map(({ project, dueAtMs }) => ({ projectId: project.id, dueAt: new Date(dueAtMs) }));
+}
+
+// ---------------------------------------------------------------------------
+// Gate 0 founder metrics (Build Brief §17)
+// ---------------------------------------------------------------------------
+
+/**
+ * The Gate 0 commercial thresholds, taken verbatim from the Build Brief §17
+ * "Founder Gate 0 Metrics to Track Inside the App". These are the pass bars the
+ * founder measures demand against before building the public platform; they are
+ * NOT a pass/kill automation — the app only surfaces value-vs-threshold.
+ */
+export const GATE0_THRESHOLDS = {
+  /** Decision-maker (owner/MD) conversations, excluding junior bid staff. */
+  decisionMakerConversations: 8,
+  /** Tender+bid pairs shared under a signed/not-required NDA. */
+  packagesUnderNda: 5,
+  /** Share of audited packages with a fatal/likely-fatal defect. */
+  materialDefectRate: 0.5,
+  /** Prepaid mandates won. */
+  paidMandates: 3,
+  /** Paid mandates that are an assisted-bid or retainer (not autopsy-only). */
+  mandateQuality: 1,
+} as const;
+
+export type Gate0MetricKey = keyof typeof GATE0_THRESHOLDS;
+
+export interface Gate0Metric {
+  key: Gate0MetricKey;
+  label: string;
+  description: string;
+  value: number;
+  threshold: number;
+  comparator: "gte";
+  unit: "count" | "ratio";
+  met: boolean;
+}
+
+export interface Gate0Readiness {
+  metrics: Gate0Metric[];
+  metCount: number;
+  totalCount: number;
+}
+
+/** Raw observed values feeding the Gate 0 readiness view. */
+export interface Gate0Input {
+  decisionMakerConversations: number;
+  packagesUnderNda: number;
+  /** 0..1 share of audited packages with a material defect. */
+  materialDefectRate: number;
+  paidMandates: number;
+  /** Count of paid mandates that are an assisted bid or retainer. */
+  mandateQuality: number;
+}
+
+/**
+ * Pure assembly of the Gate 0 readiness view: pairs each observed value with
+ * its Build Brief threshold and marks whether the bar is met (value >= bar).
+ * Kept deterministic and DB-free so it is unit-testable and the API route only
+ * has to supply the aggregates.
+ */
+export function assembleGate0(input: Gate0Input): Gate0Readiness {
+  const defs: Omit<Gate0Metric, "value" | "threshold" | "met">[] = [
+    {
+      key: "decisionMakerConversations",
+      label: "Decision-maker conversations",
+      description: "Conversations with owners/MDs, not junior bid staff.",
+      comparator: "gte",
+      unit: "count",
+    },
+    {
+      key: "packagesUnderNda",
+      label: "Packages under NDA",
+      description: "Tender+bid pairs shared under a signed NDA.",
+      comparator: "gte",
+      unit: "count",
+    },
+    {
+      key: "materialDefectRate",
+      label: "Material defect rate",
+      description: "Fatal/likely-fatal defects across audited packages.",
+      comparator: "gte",
+      unit: "ratio",
+    },
+    {
+      key: "paidMandates",
+      label: "Paid mandates",
+      description: "Prepaid mandates within six weeks of first autopsy.",
+      comparator: "gte",
+      unit: "count",
+    },
+    {
+      key: "mandateQuality",
+      label: "Mandate quality",
+      description: "Paid mandates that are an assisted bid or retainer.",
+      comparator: "gte",
+      unit: "count",
+    },
+  ];
+
+  const metrics: Gate0Metric[] = defs.map((d) => {
+    const rawValue = input[d.key];
+    const value = Number.isFinite(rawValue) ? rawValue : 0;
+    const threshold = GATE0_THRESHOLDS[d.key];
+    return { ...d, value, threshold, met: value >= threshold };
+  });
+
+  return {
+    metrics,
+    metCount: metrics.filter((m) => m.met).length,
+    totalCount: metrics.length,
+  };
 }

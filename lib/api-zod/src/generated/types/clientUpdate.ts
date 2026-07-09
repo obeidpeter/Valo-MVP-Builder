@@ -17,4 +17,8 @@ export interface ClientUpdate {
   contactEmail?: string;
   ndaStatus?: ClientUpdateNdaStatus;
   notes?: string;
+  /** @minimum 0 */
+  decisionMakerConversations?: number;
+  /** @minimum 0 */
+  juniorConversations?: number;
 }

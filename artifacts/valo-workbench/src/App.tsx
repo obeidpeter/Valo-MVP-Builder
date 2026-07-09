@@ -6,7 +6,6 @@ import { ClerkProvider, SignedIn, SignedOut } from "@clerk/clerk-react";
 import SignedOutRoutes from "@/signed-out-routes";
 import ProtectedRoutes from "@/protected-routes";
 import Layout from "@/components/layout";
-import { useAuthSync } from "@/hooks/use-auth-sync";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,8 +19,6 @@ const queryClient = new QueryClient({
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 function ProtectedApp() {
-  useAuthSync();
-
   return (
     <Layout>
       <ProtectedRoutes />
@@ -42,7 +39,10 @@ function App() {
   }
 
   return (
-    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+    <ClerkProvider
+      publishableKey={CLERK_PUBLISHABLE_KEY}
+      proxyUrl={import.meta.env.VITE_CLERK_PROXY_URL}
+    >
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <SignedIn>

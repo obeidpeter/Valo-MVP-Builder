@@ -2,12 +2,15 @@
 #
 # Guards every push/PR with the deterministic verification stack:
 # typecheck, unit + DB-backed integration tests, both production builds,
-# and the offline doctrine + injection-containment proofs.
+# the offline doctrine + injection-containment proofs, and the offline
+# eval-harness self-check (corpus well-formed + matcher consistent).
 #
-# The LIVE halves of the proofs (real OpenAI calls) intentionally do NOT run
-# here — the OpenAI key lives only in the deploy environment. Run
-# `pnpm --filter @workspace/api-server prove:doctrine` / `prove:injection`
-# there before shipping model or prompt changes.
+# The LIVE proofs (real model calls) intentionally do NOT run here — the model
+# key lives only in the Replit environment (dev + deploy), not in GitHub.
+# Before shipping a model or prompt change (i.e. bumping MODEL_ID or
+# PROMPT_PACK_VERSION in src/lib/provenance.ts), run the live pre-ship gate
+# there: `pnpm --filter @workspace/api-server prove:ship`
+# (doctrine + injection + eval-harness recall). See docs/PRE_SHIP_PROOFS.md.
 name: CI
 
 on:
@@ -76,9 +79,9 @@ jobs:
       - name: Injection-containment proof (offline corpus)
         run: pnpm --filter @workspace/api-server prove:injection:offline
 
-      # Eval-harness regression gate (FR-EXT-05 / NFR-QLT-02): corpus + scorer
+      # Eval-harness regression gate (FR-EXT-05 / NFR-QLT-02): corpus + matcher
       # always verified; recall gates activate once a recorded live run
-      # (eval-harness/runs/latest.json) is committed from the deploy env.
+      # (eval-corpus/runs/latest.json) is committed from the deploy env.
       - name: Eval harness (offline gates)
         run: pnpm --filter @workspace/api-server eval:harness:offline
 

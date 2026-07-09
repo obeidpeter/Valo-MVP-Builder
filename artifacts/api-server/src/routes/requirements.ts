@@ -1,10 +1,11 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, desc } from "drizzle-orm";
-import { db, requirements, documents, projects } from "@workspace/db";
+import { eq, desc, inArray } from "drizzle-orm";
+import { db, requirements, documents, projects, evidenceItems, defects } from "@workspace/db";
 import {
   CreateRequirementBody,
   UpdateRequirementBody,
   ExtractRequirementsBody,
+  MergeRequirementsBody,
 } from "@workspace/api-zod";
 import { requireMember, getLocalUser } from "../middlewares/auth";
 import { serializeRequirement } from "../lib/serializers";
@@ -179,6 +180,125 @@ router.patch("/requirements/:id", requireMember, async (req: Request, res: Respo
   });
   res.json(serializeRequirement(updated));
 });
+
+router.post(
+  "/projects/:id/requirements/merge",
+  requireMember,
+  async (req: Request, res: Response) => {
+    const projectId = String(req.params.id);
+    const parsed = MergeRequirementsBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request" });
+      return;
+    }
+    const requestedIds = Array.from(new Set(parsed.data.requirementIds));
+    const { survivorId } = parsed.data;
+    if (requestedIds.length < 2) {
+      res.status(400).json({ error: "Select at least two requirements to merge" });
+      return;
+    }
+    if (!requestedIds.includes(survivorId)) {
+      res.status(400).json({ error: "Survivor must be one of the selected requirements" });
+      return;
+    }
+
+    const user = getLocalUser(req);
+    try {
+      const result = await db.transaction(async (tx) => {
+        // Lock the selected rows so a concurrent edit/merge can't race us into
+        // re-pointing links onto a row that's being deleted.
+        const rows = await tx
+          .select()
+          .from(requirements)
+          .where(inArray(requirements.id, requestedIds))
+          .for("update");
+
+        // Every selected row must exist and belong to this project, or the
+        // merge is ambiguous and we refuse it wholesale.
+        if (rows.length !== requestedIds.length || rows.some((r) => r.projectId !== projectId)) {
+          return { error: "notfound" as const };
+        }
+
+        const survivor = rows.find((r) => r.id === survivorId)!;
+        const mergedAway = rows.filter((r) => r.id !== survivorId);
+        const mergedIds = mergedAway.map((r) => r.id);
+
+        // Fold the merged-away rows' citations onto the survivor, keeping any
+        // it already accumulated from prior merges. The survivor's own primary
+        // citation stays in its native columns and is not duplicated here.
+        const docNames = await tx
+          .select({ id: documents.id, filename: documents.filename })
+          .from(documents)
+          .where(eq(documents.projectId, projectId));
+        const nameById = new Map(docNames.map((d) => [d.id, d.filename]));
+
+        const existing = serializeRequirement(survivor).mergedCitations;
+        // Fold in each merged-away row's own native citation AND any citations
+        // it had already absorbed from prior merges, so provenance survives
+        // repeated merges (no historical citation is ever dropped).
+        const foldedIn = mergedAway.flatMap((r) => [
+          {
+            sourceDocId: r.sourceDocId ?? null,
+            sourceDocName: r.sourceDocId ? (nameById.get(r.sourceDocId) ?? null) : null,
+            pageRef: r.pageRef ?? null,
+            clauseRef: r.clauseRef ?? null,
+            text: r.text,
+          },
+          ...serializeRequirement(r).mergedCitations,
+        ]);
+        const combined = [...existing, ...foldedIn];
+
+        // Re-point links BEFORE deleting the merged rows: evidence cascades on
+        // requirement delete and defects null out, so both must move first.
+        await tx
+          .update(evidenceItems)
+          .set({ requirementId: survivorId })
+          .where(inArray(evidenceItems.requirementId, mergedIds));
+        await tx
+          .update(defects)
+          .set({ requirementId: survivorId })
+          .where(inArray(defects.requirementId, mergedIds));
+
+        await tx.delete(requirements).where(inArray(requirements.id, mergedIds));
+
+        const [updated] = await tx
+          .update(requirements)
+          .set({ mergedCitations: JSON.stringify(combined) })
+          .where(eq(requirements.id, survivorId))
+          .returning();
+
+        return { updated, mergedCount: mergedIds.length };
+      });
+
+      if ("error" in result) {
+        res.status(404).json({ error: "One or more requirements not found in this project" });
+        return;
+      }
+
+      await writeAudit({
+        user,
+        projectId,
+        eventType: "requirement.merged",
+        objectType: "requirement",
+        objectId: survivorId,
+        details: `${result.mergedCount} merged into survivor`,
+      });
+
+      const sourceDocName = result.updated.sourceDocId
+        ? (
+            await db
+              .select({ filename: documents.filename })
+              .from(documents)
+              .where(eq(documents.id, result.updated.sourceDocId))
+          )[0]?.filename ?? null
+        : null;
+      res.json(serializeRequirement(result.updated, sourceDocName));
+    } catch (error) {
+      req.log.error({ err: error }, "requirement merge failed");
+      res.status(500).json({ error: "Merge failed" });
+    }
+  },
+);
 
 router.get(
   "/projects/:id/scorecard",

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   useListUsers,
   useUpdateUser,
@@ -7,13 +8,20 @@ import {
   getListRetentionRequestsQueryKey,
   getListProjectsQueryKey,
   getGetDashboardMetricsQueryKey,
+  useGetAppConfig,
+  useUpdateAppConfig,
+  getGetAppConfigQueryKey,
 } from "@workspace/api-client-react";
+import type { AppConfig, AppConfigUpdate } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Archive, CheckCircle2, Loader2, Shield, Info } from "lucide-react";
+import { Archive, CheckCircle2, Loader2, Shield, Info, SlidersHorizontal, FileText } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { UserUpdateRole, UserUpdateStatus } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { errorMessage } from "@/lib/errors";
@@ -56,6 +64,70 @@ export default function Settings() {
     });
   };
 
+  const { data: config, isLoading: loadingConfig } = useGetAppConfig();
+  const updateConfig = useUpdateAppConfig();
+  const [draft, setDraft] = useState<AppConfig | null>(null);
+
+  // Seed the editable draft once the active config lands, then let the admin
+  // mutate it locally until they save.
+  useEffect(() => {
+    if (config) setDraft(config);
+  }, [config]);
+
+  const setWeight = (key: keyof AppConfig["severityWeights"], value: number) =>
+    setDraft((d) => (d ? { ...d, severityWeights: { ...d.severityWeights, [key]: value } } : d));
+  const setCutoff = (key: keyof AppConfig["bandCutoffs"], value: number) =>
+    setDraft((d) => (d ? { ...d, bandCutoffs: { ...d.bandCutoffs, [key]: value } } : d));
+
+  const cutoffsValid = (d: AppConfig) =>
+    d.bandCutoffs.medium > 0 &&
+    d.bandCutoffs.medium < d.bandCutoffs.high &&
+    d.bandCutoffs.high < d.bandCutoffs.critical &&
+    d.bandCutoffs.critical <= 100;
+
+  const saveConfig = () => {
+    if (!draft) return;
+    if (!cutoffsValid(draft)) {
+      toast({
+        variant: "destructive",
+        title: "Invalid band cutoffs",
+        description: "Cutoffs must satisfy 0 < medium < high < critical ≤ 100.",
+      });
+      return;
+    }
+    if (!draft.firmName.trim() || !draft.confidentialityLegend.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Missing report details",
+        description: "Firm name and confidentiality legend are required.",
+      });
+      return;
+    }
+    const body: AppConfigUpdate = {
+      severityWeights: draft.severityWeights,
+      missingEvidenceWeight: draft.missingEvidenceWeight,
+      bandCutoffs: draft.bandCutoffs,
+      firmName: draft.firmName.trim(),
+      confidentialityLegend: draft.confidentialityLegend.trim(),
+      retentionDefaultDays: draft.retentionDefaultDays,
+    };
+    updateConfig.mutate(
+      { data: body },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetAppConfigQueryKey() });
+          toast({ title: "Configuration saved", description: "New scores use the updated settings. Historic reports are unchanged." });
+        },
+        onError: (err) =>
+          toast({
+            variant: "destructive",
+            title: "Could not save configuration",
+            description: errorMessage(err, "The update was refused."),
+          }),
+      },
+    );
+  };
+
   return (
     <div className="p-8 max-w-5xl mx-auto w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
@@ -73,6 +145,153 @@ export default function Settings() {
             Do not share the publishable key or environment endpoints publicly.
           </p>
         </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <SlidersHorizontal className="w-5 h-5 text-foreground" />
+          <h2 className="text-xl font-serif tracking-tight font-medium">Scoring &amp; Risk Bands</h2>
+        </div>
+
+        <div className="bg-card border border-border rounded-lg shadow-xs p-6 space-y-6">
+          {loadingConfig || !draft ? (
+            <div className="p-6 flex justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <>
+              <div>
+                <h3 className="text-sm font-medium mb-1">Severity Weights</h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Points contributed to the raw risk score by each finding severity (0–100).
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="w-fatal" className="text-xs">Fatal</Label>
+                    <Input id="w-fatal" type="number" min={0} max={100}
+                      value={draft.severityWeights.fatal}
+                      onChange={(e) => setWeight("fatal", Number(e.target.value))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="w-likely" className="text-xs">Likely Fatal</Label>
+                    <Input id="w-likely" type="number" min={0} max={100}
+                      value={draft.severityWeights.likely_fatal}
+                      onChange={(e) => setWeight("likely_fatal", Number(e.target.value))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="w-scoring" className="text-xs">Scoring Risk</Label>
+                    <Input id="w-scoring" type="number" min={0} max={100}
+                      value={draft.severityWeights.scoring_risk}
+                      onChange={(e) => setWeight("scoring_risk", Number(e.target.value))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="w-cosmetic" className="text-xs">Cosmetic</Label>
+                    <Input id="w-cosmetic" type="number" min={0} max={100}
+                      value={draft.severityWeights.cosmetic}
+                      onChange={(e) => setWeight("cosmetic", Number(e.target.value))} />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium mb-1">Missing Evidence Weight</h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Penalty applied per mandatory requirement lacking evidence (0–100).
+                </p>
+                <div className="w-40 space-y-1.5">
+                  <Label htmlFor="w-missing" className="text-xs">Weight</Label>
+                  <Input id="w-missing" type="number" min={0} max={100}
+                    value={draft.missingEvidenceWeight}
+                    onChange={(e) => setDraft((d) => (d ? { ...d, missingEvidenceWeight: Number(e.target.value) } : d))} />
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium mb-1">Risk Band Cutoffs</h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Score thresholds where each band begins. Must satisfy 0 &lt; medium &lt; high &lt; critical ≤ 100.
+                </p>
+                <div className="grid grid-cols-3 gap-4 max-w-md">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="c-medium" className="text-xs">Medium ≥</Label>
+                    <Input id="c-medium" type="number" min={1} max={100}
+                      value={draft.bandCutoffs.medium}
+                      onChange={(e) => setCutoff("medium", Number(e.target.value))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="c-high" className="text-xs">High ≥</Label>
+                    <Input id="c-high" type="number" min={1} max={100}
+                      value={draft.bandCutoffs.high}
+                      onChange={(e) => setCutoff("high", Number(e.target.value))} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="c-critical" className="text-xs">Critical ≥</Label>
+                    <Input id="c-critical" type="number" min={1} max={100}
+                      value={draft.bandCutoffs.critical}
+                      onChange={(e) => setCutoff("critical", Number(e.target.value))} />
+                  </div>
+                </div>
+                {!cutoffsValid(draft) && (
+                  <p className="text-xs text-destructive mt-2">
+                    Cutoffs must be strictly increasing and within 1–100.
+                  </p>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <FileText className="w-5 h-5 text-foreground" />
+          <h2 className="text-xl font-serif tracking-tight font-medium">Report Template &amp; Retention</h2>
+        </div>
+
+        <div className="bg-card border border-border rounded-lg shadow-xs p-6 space-y-4">
+          {loadingConfig || !draft ? (
+            <div className="p-6 flex justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <Label htmlFor="firm-name" className="text-xs">Firm Name</Label>
+                <Input id="firm-name" type="text" maxLength={120}
+                  value={draft.firmName}
+                  onChange={(e) => setDraft((d) => (d ? { ...d, firmName: e.target.value } : d))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="legend" className="text-xs">Confidentiality Legend</Label>
+                <Textarea id="legend" rows={2} maxLength={500}
+                  value={draft.confidentialityLegend}
+                  onChange={(e) => setDraft((d) => (d ? { ...d, confidentialityLegend: e.target.value } : d))} />
+                <p className="text-xs text-muted-foreground">Printed in the footer of generated reports.</p>
+              </div>
+              <div className="w-48 space-y-1.5">
+                <Label htmlFor="retention-days" className="text-xs">Default Retention (days)</Label>
+                <Input id="retention-days" type="number" min={1} max={3650}
+                  value={draft.retentionDefaultDays}
+                  onChange={(e) => setDraft((d) => (d ? { ...d, retentionDefaultDays: Number(e.target.value) } : d))} />
+              </div>
+            </>
+          )}
+        </div>
+
+        {draft && (
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-xs text-muted-foreground">
+              {config?.updatedAt
+                ? `Last updated ${new Date(config.updatedAt).toLocaleString()}`
+                : "Using system defaults."}
+              {" "}Saving affects new scores only; historic reports keep their snapshot.
+            </p>
+            <Button onClick={saveConfig} disabled={updateConfig.isPending}>
+              {updateConfig.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save Configuration
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="space-y-4">

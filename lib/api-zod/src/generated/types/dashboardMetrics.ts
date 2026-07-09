@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CountBucket } from './countBucket';
+import type { Gate0Readiness } from './gate0Readiness';
 
 export interface DashboardMetrics {
   totalProjects: number;
@@ -19,4 +20,5 @@ export interface DashboardMetrics {
   statusBreakdown?: CountBucket[];
   outcomeBreakdown?: CountBucket[];
   segmentBreakdown?: CountBucket[];
+  gate0?: Gate0Readiness;
 }

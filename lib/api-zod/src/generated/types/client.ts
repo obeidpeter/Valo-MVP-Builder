@@ -17,6 +17,8 @@ export interface Client {
   contactEmail?: string | null;
   ndaStatus: ClientNdaStatus;
   notes?: string | null;
+  decisionMakerConversations?: number;
+  juniorConversations?: number;
   projectCount?: number | null;
   createdAt: string;
 }

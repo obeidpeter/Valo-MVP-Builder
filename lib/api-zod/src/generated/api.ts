@@ -81,6 +81,8 @@ export const ListClientsResponseItem = zod.object({
   "contactEmail": zod.string().nullish(),
   "ndaStatus": zod.enum(['pending', 'signed', 'not_required', 'declined']),
   "notes": zod.string().nullish(),
+  "decisionMakerConversations": zod.number().optional(),
+  "juniorConversations": zod.number().optional(),
   "projectCount": zod.number().nullish(),
   "createdAt": zod.string()
 })
@@ -91,6 +93,10 @@ export const ListClientsResponse = zod.array(ListClientsResponseItem)
  * @summary Create a client
  */
 
+export const createClientBodyDecisionMakerConversationsMin = 0;
+
+export const createClientBodyJuniorConversationsMin = 0;
+
 
 
 export const CreateClientBody = zod.object({
@@ -100,7 +106,9 @@ export const CreateClientBody = zod.object({
   "contactName": zod.string().optional(),
   "contactEmail": zod.string().optional(),
   "ndaStatus": zod.enum(['pending', 'signed', 'not_required', 'declined']),
-  "notes": zod.string().optional()
+  "notes": zod.string().optional(),
+  "decisionMakerConversations": zod.number().min(createClientBodyDecisionMakerConversationsMin).optional(),
+  "juniorConversations": zod.number().min(createClientBodyJuniorConversationsMin).optional()
 })
 
 export const CreateClientResponse = zod.object({
@@ -112,6 +120,8 @@ export const CreateClientResponse = zod.object({
   "contactEmail": zod.string().nullish(),
   "ndaStatus": zod.enum(['pending', 'signed', 'not_required', 'declined']),
   "notes": zod.string().nullish(),
+  "decisionMakerConversations": zod.number().optional(),
+  "juniorConversations": zod.number().optional(),
   "projectCount": zod.number().nullish(),
   "createdAt": zod.string()
 })
@@ -130,6 +140,8 @@ export const GetClientResponse = zod.object({
   "contactEmail": zod.string().nullish(),
   "ndaStatus": zod.enum(['pending', 'signed', 'not_required', 'declined']),
   "notes": zod.string().nullish(),
+  "decisionMakerConversations": zod.number().optional(),
+  "juniorConversations": zod.number().optional(),
   "projectCount": zod.number().nullish(),
   "createdAt": zod.string()
 })
@@ -140,6 +152,10 @@ export const UpdateClientParams = zod.object({
 })
 
 
+export const updateClientBodyDecisionMakerConversationsMin = 0;
+
+export const updateClientBodyJuniorConversationsMin = 0;
+
 
 
 export const UpdateClientBody = zod.object({
@@ -149,7 +165,9 @@ export const UpdateClientBody = zod.object({
   "contactName": zod.string().optional(),
   "contactEmail": zod.string().optional(),
   "ndaStatus": zod.enum(['pending', 'signed', 'not_required', 'declined']).optional(),
-  "notes": zod.string().optional()
+  "notes": zod.string().optional(),
+  "decisionMakerConversations": zod.number().min(updateClientBodyDecisionMakerConversationsMin).optional(),
+  "juniorConversations": zod.number().min(updateClientBodyJuniorConversationsMin).optional()
 })
 
 export const UpdateClientResponse = zod.object({
@@ -161,6 +179,8 @@ export const UpdateClientResponse = zod.object({
   "contactEmail": zod.string().nullish(),
   "ndaStatus": zod.enum(['pending', 'signed', 'not_required', 'declined']),
   "notes": zod.string().nullish(),
+  "decisionMakerConversations": zod.number().optional(),
+  "juniorConversations": zod.number().optional(),
   "projectCount": zod.number().nullish(),
   "createdAt": zod.string()
 })
@@ -267,6 +287,7 @@ export const CreateProjectResponse = zod.object({
   "riskOverrideNote": zod.string().nullish(),
   "riskOverrideBy": zod.string().nullish(),
   "outcome": zod.enum(['none', 'free_autopsy', 'paid_autopsy', 'assisted_bid_offer', 'retainer_offer', 'paid_mandate', 'lost', 'no_response']).optional(),
+  "mandateQuality": zod.enum(['none', 'autopsy_only', 'assisted_bid', 'retainer']).optional(),
   "scope": zod.string().nullish(),
   "limitations": zod.string().nullish(),
   "responsivenessReview": zod.string().nullish(),
@@ -316,6 +337,7 @@ export const GetProjectResponse = zod.object({
   "riskOverrideNote": zod.string().nullish(),
   "riskOverrideBy": zod.string().nullish(),
   "outcome": zod.enum(['none', 'free_autopsy', 'paid_autopsy', 'assisted_bid_offer', 'retainer_offer', 'paid_mandate', 'lost', 'no_response']).optional(),
+  "mandateQuality": zod.enum(['none', 'autopsy_only', 'assisted_bid', 'retainer']).optional(),
   "scope": zod.string().nullish(),
   "limitations": zod.string().nullish(),
   "responsivenessReview": zod.string().nullish(),
@@ -351,6 +373,7 @@ export const UpdateProjectBody = zod.object({
   "redactionScope": zod.string().nullish(),
   "restrictedMode": zod.boolean().optional(),
   "outcome": zod.enum(['none', 'free_autopsy', 'paid_autopsy', 'assisted_bid_offer', 'retainer_offer', 'paid_mandate', 'lost', 'no_response']).optional(),
+  "mandateQuality": zod.enum(['none', 'autopsy_only', 'assisted_bid', 'retainer']).optional(),
   "scope": zod.string().optional(),
   "limitations": zod.string().optional(),
   "responsivenessReview": zod.string().optional()
@@ -393,6 +416,7 @@ export const UpdateProjectResponse = zod.object({
   "riskOverrideNote": zod.string().nullish(),
   "riskOverrideBy": zod.string().nullish(),
   "outcome": zod.enum(['none', 'free_autopsy', 'paid_autopsy', 'assisted_bid_offer', 'retainer_offer', 'paid_mandate', 'lost', 'no_response']).optional(),
+  "mandateQuality": zod.enum(['none', 'autopsy_only', 'assisted_bid', 'retainer']).optional(),
   "scope": zod.string().nullish(),
   "limitations": zod.string().nullish(),
   "responsivenessReview": zod.string().nullish(),
@@ -546,6 +570,151 @@ export const CompleteRetentionRequestResponse = zod.object({
   "certificateText": zod.string().nullish(),
   "status": zod.enum(['pending', 'completed', 'cancelled']),
   "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Read the global scoring, template, and retention configuration
+ */
+export const getAppConfigResponseSeverityWeightsFatalMin = 0;
+export const getAppConfigResponseSeverityWeightsFatalMax = 100;
+
+export const getAppConfigResponseSeverityWeightsLikelyFatalMin = 0;
+export const getAppConfigResponseSeverityWeightsLikelyFatalMax = 100;
+
+export const getAppConfigResponseSeverityWeightsScoringRiskMin = 0;
+export const getAppConfigResponseSeverityWeightsScoringRiskMax = 100;
+
+export const getAppConfigResponseSeverityWeightsCosmeticMin = 0;
+export const getAppConfigResponseSeverityWeightsCosmeticMax = 100;
+
+export const getAppConfigResponseMissingEvidenceWeightMin = 0;
+export const getAppConfigResponseMissingEvidenceWeightMax = 100;
+
+export const getAppConfigResponseBandCutoffsMediumMax = 100;
+
+export const getAppConfigResponseBandCutoffsHighMax = 100;
+
+export const getAppConfigResponseBandCutoffsCriticalMax = 100;
+
+export const getAppConfigResponseRetentionDefaultDaysMax = 3650;
+
+
+
+export const GetAppConfigResponse = zod.object({
+  "severityWeights": zod.object({
+  "fatal": zod.number().min(getAppConfigResponseSeverityWeightsFatalMin).max(getAppConfigResponseSeverityWeightsFatalMax),
+  "likely_fatal": zod.number().min(getAppConfigResponseSeverityWeightsLikelyFatalMin).max(getAppConfigResponseSeverityWeightsLikelyFatalMax),
+  "scoring_risk": zod.number().min(getAppConfigResponseSeverityWeightsScoringRiskMin).max(getAppConfigResponseSeverityWeightsScoringRiskMax),
+  "cosmetic": zod.number().min(getAppConfigResponseSeverityWeightsCosmeticMin).max(getAppConfigResponseSeverityWeightsCosmeticMax)
+}),
+  "missingEvidenceWeight": zod.number().min(getAppConfigResponseMissingEvidenceWeightMin).max(getAppConfigResponseMissingEvidenceWeightMax),
+  "bandCutoffs": zod.object({
+  "medium": zod.number().min(1).max(getAppConfigResponseBandCutoffsMediumMax),
+  "high": zod.number().min(1).max(getAppConfigResponseBandCutoffsHighMax),
+  "critical": zod.number().min(1).max(getAppConfigResponseBandCutoffsCriticalMax)
+}),
+  "firmName": zod.string(),
+  "confidentialityLegend": zod.string(),
+  "retentionDefaultDays": zod.number().min(1).max(getAppConfigResponseRetentionDefaultDaysMax),
+  "updatedAt": zod.string(),
+  "updatedBy": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update the global configuration (admin only)
+ */
+export const updateAppConfigBodySeverityWeightsFatalMin = 0;
+export const updateAppConfigBodySeverityWeightsFatalMax = 100;
+
+export const updateAppConfigBodySeverityWeightsLikelyFatalMin = 0;
+export const updateAppConfigBodySeverityWeightsLikelyFatalMax = 100;
+
+export const updateAppConfigBodySeverityWeightsScoringRiskMin = 0;
+export const updateAppConfigBodySeverityWeightsScoringRiskMax = 100;
+
+export const updateAppConfigBodySeverityWeightsCosmeticMin = 0;
+export const updateAppConfigBodySeverityWeightsCosmeticMax = 100;
+
+export const updateAppConfigBodyMissingEvidenceWeightMin = 0;
+export const updateAppConfigBodyMissingEvidenceWeightMax = 100;
+
+export const updateAppConfigBodyBandCutoffsMediumMax = 100;
+
+export const updateAppConfigBodyBandCutoffsHighMax = 100;
+
+export const updateAppConfigBodyBandCutoffsCriticalMax = 100;
+
+export const updateAppConfigBodyFirmNameMax = 120;
+
+export const updateAppConfigBodyConfidentialityLegendMax = 500;
+
+export const updateAppConfigBodyRetentionDefaultDaysMax = 3650;
+
+
+
+export const UpdateAppConfigBody = zod.object({
+  "severityWeights": zod.object({
+  "fatal": zod.number().min(updateAppConfigBodySeverityWeightsFatalMin).max(updateAppConfigBodySeverityWeightsFatalMax),
+  "likely_fatal": zod.number().min(updateAppConfigBodySeverityWeightsLikelyFatalMin).max(updateAppConfigBodySeverityWeightsLikelyFatalMax),
+  "scoring_risk": zod.number().min(updateAppConfigBodySeverityWeightsScoringRiskMin).max(updateAppConfigBodySeverityWeightsScoringRiskMax),
+  "cosmetic": zod.number().min(updateAppConfigBodySeverityWeightsCosmeticMin).max(updateAppConfigBodySeverityWeightsCosmeticMax)
+}).optional(),
+  "missingEvidenceWeight": zod.number().min(updateAppConfigBodyMissingEvidenceWeightMin).max(updateAppConfigBodyMissingEvidenceWeightMax).optional(),
+  "bandCutoffs": zod.object({
+  "medium": zod.number().min(1).max(updateAppConfigBodyBandCutoffsMediumMax),
+  "high": zod.number().min(1).max(updateAppConfigBodyBandCutoffsHighMax),
+  "critical": zod.number().min(1).max(updateAppConfigBodyBandCutoffsCriticalMax)
+}).optional(),
+  "firmName": zod.string().min(1).max(updateAppConfigBodyFirmNameMax).optional(),
+  "confidentialityLegend": zod.string().min(1).max(updateAppConfigBodyConfidentialityLegendMax).optional(),
+  "retentionDefaultDays": zod.number().min(1).max(updateAppConfigBodyRetentionDefaultDaysMax).optional()
+})
+
+export const updateAppConfigResponseSeverityWeightsFatalMin = 0;
+export const updateAppConfigResponseSeverityWeightsFatalMax = 100;
+
+export const updateAppConfigResponseSeverityWeightsLikelyFatalMin = 0;
+export const updateAppConfigResponseSeverityWeightsLikelyFatalMax = 100;
+
+export const updateAppConfigResponseSeverityWeightsScoringRiskMin = 0;
+export const updateAppConfigResponseSeverityWeightsScoringRiskMax = 100;
+
+export const updateAppConfigResponseSeverityWeightsCosmeticMin = 0;
+export const updateAppConfigResponseSeverityWeightsCosmeticMax = 100;
+
+export const updateAppConfigResponseMissingEvidenceWeightMin = 0;
+export const updateAppConfigResponseMissingEvidenceWeightMax = 100;
+
+export const updateAppConfigResponseBandCutoffsMediumMax = 100;
+
+export const updateAppConfigResponseBandCutoffsHighMax = 100;
+
+export const updateAppConfigResponseBandCutoffsCriticalMax = 100;
+
+export const updateAppConfigResponseRetentionDefaultDaysMax = 3650;
+
+
+
+export const UpdateAppConfigResponse = zod.object({
+  "severityWeights": zod.object({
+  "fatal": zod.number().min(updateAppConfigResponseSeverityWeightsFatalMin).max(updateAppConfigResponseSeverityWeightsFatalMax),
+  "likely_fatal": zod.number().min(updateAppConfigResponseSeverityWeightsLikelyFatalMin).max(updateAppConfigResponseSeverityWeightsLikelyFatalMax),
+  "scoring_risk": zod.number().min(updateAppConfigResponseSeverityWeightsScoringRiskMin).max(updateAppConfigResponseSeverityWeightsScoringRiskMax),
+  "cosmetic": zod.number().min(updateAppConfigResponseSeverityWeightsCosmeticMin).max(updateAppConfigResponseSeverityWeightsCosmeticMax)
+}),
+  "missingEvidenceWeight": zod.number().min(updateAppConfigResponseMissingEvidenceWeightMin).max(updateAppConfigResponseMissingEvidenceWeightMax),
+  "bandCutoffs": zod.object({
+  "medium": zod.number().min(1).max(updateAppConfigResponseBandCutoffsMediumMax),
+  "high": zod.number().min(1).max(updateAppConfigResponseBandCutoffsHighMax),
+  "critical": zod.number().min(1).max(updateAppConfigResponseBandCutoffsCriticalMax)
+}),
+  "firmName": zod.string(),
+  "confidentialityLegend": zod.string(),
+  "retentionDefaultDays": zod.number().min(1).max(updateAppConfigResponseRetentionDefaultDaysMax),
+  "updatedAt": zod.string(),
+  "updatedBy": zod.string().nullish()
 })
 
 
@@ -978,7 +1147,21 @@ export const GetDashboardMetricsResponse = zod.object({
   "segmentBreakdown": zod.array(zod.object({
   "key": zod.string(),
   "count": zod.number()
-})).optional()
+})).optional(),
+  "gate0": zod.object({
+  "metrics": zod.array(zod.object({
+  "key": zod.enum(['decisionMakerConversations', 'packagesUnderNda', 'materialDefectRate', 'paidMandates', 'mandateQuality']),
+  "label": zod.string(),
+  "description": zod.string().optional(),
+  "value": zod.number(),
+  "threshold": zod.number(),
+  "comparator": zod.enum(['gte']),
+  "unit": zod.enum(['count', 'ratio']),
+  "met": zod.boolean()
+})),
+  "metCount": zod.number(),
+  "totalCount": zod.number()
+}).optional()
 })
 
 
@@ -1203,6 +1386,13 @@ export const ExtractRequirementsResponse = zod.object({
   "reviewerNotes": zod.string().nullish(),
   "origin": zod.enum(['engine', 'manual']).nullish(),
   "engineText": zod.string().nullish(),
+  "mergedCitations": zod.array(zod.object({
+  "sourceDocId": zod.string().nullish(),
+  "sourceDocName": zod.string().nullish(),
+  "pageRef": zod.string().nullish(),
+  "clauseRef": zod.string().nullish(),
+  "text": zod.string().nullish()
+})).optional(),
   "reviewedByName": zod.string().nullish(),
   "reviewedAt": zod.string().nullish(),
   "createdAt": zod.string()
@@ -1265,6 +1455,13 @@ export const ListRequirementsResponseItem = zod.object({
   "reviewerNotes": zod.string().nullish(),
   "origin": zod.enum(['engine', 'manual']).nullish(),
   "engineText": zod.string().nullish(),
+  "mergedCitations": zod.array(zod.object({
+  "sourceDocId": zod.string().nullish(),
+  "sourceDocName": zod.string().nullish(),
+  "pageRef": zod.string().nullish(),
+  "clauseRef": zod.string().nullish(),
+  "text": zod.string().nullish()
+})).optional(),
   "reviewedByName": zod.string().nullish(),
   "reviewedAt": zod.string().nullish(),
   "createdAt": zod.string()
@@ -1308,6 +1505,58 @@ export const CreateRequirementResponse = zod.object({
   "reviewerNotes": zod.string().nullish(),
   "origin": zod.enum(['engine', 'manual']).nullish(),
   "engineText": zod.string().nullish(),
+  "mergedCitations": zod.array(zod.object({
+  "sourceDocId": zod.string().nullish(),
+  "sourceDocName": zod.string().nullish(),
+  "pageRef": zod.string().nullish(),
+  "clauseRef": zod.string().nullish(),
+  "text": zod.string().nullish()
+})).optional(),
+  "reviewedByName": zod.string().nullish(),
+  "reviewedAt": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Merge near-duplicate requirements into a single surviving row
+ */
+export const MergeRequirementsParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const mergeRequirementsBodyRequirementIdsMin = 2;
+
+
+
+export const MergeRequirementsBody = zod.object({
+  "requirementIds": zod.array(zod.string()).min(mergeRequirementsBodyRequirementIdsMin),
+  "survivorId": zod.string()
+})
+
+export const MergeRequirementsResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "sourceDocId": zod.string().nullish(),
+  "sourceDocName": zod.string().nullish(),
+  "pageRef": zod.string().nullish(),
+  "clauseRef": zod.string().nullish(),
+  "text": zod.string(),
+  "category": zod.enum(['eligibility', 'administrative', 'technical', 'financial_format', 'other']),
+  "expectedEvidence": zod.string().nullish(),
+  "isMandatory": zod.boolean(),
+  "confidence": zod.enum(['high', 'medium', 'low', 'unclear']).nullish(),
+  "reviewStatus": zod.enum(['suggested', 'confirmed', 'edited', 'rejected', 'pending']),
+  "reviewerNotes": zod.string().nullish(),
+  "origin": zod.enum(['engine', 'manual']).nullish(),
+  "engineText": zod.string().nullish(),
+  "mergedCitations": zod.array(zod.object({
+  "sourceDocId": zod.string().nullish(),
+  "sourceDocName": zod.string().nullish(),
+  "pageRef": zod.string().nullish(),
+  "clauseRef": zod.string().nullish(),
+  "text": zod.string().nullish()
+})).optional(),
   "reviewedByName": zod.string().nullish(),
   "reviewedAt": zod.string().nullish(),
   "createdAt": zod.string()
@@ -1352,6 +1601,13 @@ export const UpdateRequirementResponse = zod.object({
   "reviewerNotes": zod.string().nullish(),
   "origin": zod.enum(['engine', 'manual']).nullish(),
   "engineText": zod.string().nullish(),
+  "mergedCitations": zod.array(zod.object({
+  "sourceDocId": zod.string().nullish(),
+  "sourceDocName": zod.string().nullish(),
+  "pageRef": zod.string().nullish(),
+  "clauseRef": zod.string().nullish(),
+  "text": zod.string().nullish()
+})).optional(),
   "reviewedByName": zod.string().nullish(),
   "reviewedAt": zod.string().nullish(),
   "createdAt": zod.string()
@@ -1749,6 +2005,7 @@ export const ConfirmProjectPaymentResponse = zod.object({
   "riskOverrideNote": zod.string().nullish(),
   "riskOverrideBy": zod.string().nullish(),
   "outcome": zod.enum(['none', 'free_autopsy', 'paid_autopsy', 'assisted_bid_offer', 'retainer_offer', 'paid_mandate', 'lost', 'no_response']).optional(),
+  "mandateQuality": zod.enum(['none', 'autopsy_only', 'assisted_bid', 'retainer']).optional(),
   "scope": zod.string().nullish(),
   "limitations": zod.string().nullish(),
   "responsivenessReview": zod.string().nullish(),

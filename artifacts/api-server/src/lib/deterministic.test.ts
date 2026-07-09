@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {
   runBoqChecks,
   computeRisk,
+  DEFAULT_RISK_CONFIG,
+  type RiskConfig,
   wordsToNumber,
   wordsToKobo,
   toKobo,
@@ -13,10 +15,14 @@ import {
   computeSlaDueAt,
   paymentGateSatisfied,
   validateProjectTransition,
+  planRetentionScan,
+  assembleGate0,
+  GATE0_THRESHOLDS,
   type BoqRow,
   type BoqCheckType,
   type RiskInput,
   type Severity,
+  type RetentionScanProject,
 } from "./deterministic";
 
 /** Collect the check types produced by a run, for concise assertions. */
@@ -521,6 +527,91 @@ describe("computeRisk - evidence penalty (mandatory-only, deduplicated)", () => 
   });
 });
 
+describe("computeRisk - honours a custom RiskConfig", () => {
+  test("default config matches DEFAULT_RISK_CONFIG behaviour", () => {
+    const base = computeRisk({
+      defects: defects([{ severity: "likely_fatal", status: "open" }]),
+      requirements: [],
+      evidence: [],
+    });
+    const explicit = computeRisk(
+      {
+        defects: defects([{ severity: "likely_fatal", status: "open" }]),
+        requirements: [],
+        evidence: [],
+      },
+      DEFAULT_RISK_CONFIG,
+    );
+    assert.deepEqual(base.score, explicit.score);
+    assert.deepEqual(base.band, explicit.band);
+  });
+
+  test("custom severity weights change the score", () => {
+    const config: RiskConfig = {
+      severityWeights: { fatal: 50, likely_fatal: 30, scoring_risk: 20, cosmetic: 5 },
+      missingEvidenceWeight: 5,
+      bandCutoffs: { medium: 15, high: 40, critical: 70 },
+    };
+    const r = computeRisk(
+      {
+        defects: defects([{ severity: "scoring_risk", status: "open", n: 2 }]),
+        requirements: [],
+        evidence: [],
+      },
+      config,
+    );
+    assert.equal(r.score, 40); // 2 * 20
+    assert.equal(r.band, "high");
+  });
+
+  test("custom band cutoffs re-band the same score", () => {
+    const config: RiskConfig = {
+      ...DEFAULT_RISK_CONFIG,
+      bandCutoffs: { medium: 5, high: 8, critical: 12 },
+    };
+    // one scoring_risk = 10 -> high under these tighter cutoffs
+    const r = computeRisk(
+      {
+        defects: defects([{ severity: "scoring_risk", status: "open" }]),
+        requirements: [],
+        evidence: [],
+      },
+      config,
+    );
+    assert.equal(r.score, 10);
+    assert.equal(r.band, "high");
+  });
+
+  test("custom missing-evidence weight scales the penalty", () => {
+    const config: RiskConfig = { ...DEFAULT_RISK_CONFIG, missingEvidenceWeight: 12 };
+    const r = computeRisk(
+      {
+        defects: [],
+        requirements: [{ id: "r1", isMandatory: true, reviewStatus: "pending" }],
+        evidence: [{ requirementId: "r1", evidenceStatus: "missing", suggested: false }],
+      },
+      config,
+    );
+    assert.equal(r.score, 12);
+  });
+
+  test("a live fatal still forces critical regardless of cutoffs", () => {
+    const config: RiskConfig = {
+      ...DEFAULT_RISK_CONFIG,
+      bandCutoffs: { medium: 90, high: 95, critical: 99 },
+    };
+    const r = computeRisk(
+      {
+        defects: defects([{ severity: "fatal", status: "open" }]),
+        requirements: [],
+        evidence: [],
+      },
+      config,
+    );
+    assert.equal(r.band, "critical");
+  });
+});
+
 describe("computeExpiry - certificate expiry telemetry", () => {
   const TODAY = "2026-07-05";
 
@@ -792,5 +883,140 @@ describe("blockingSignOffDefects - fatal-block invariant", () => {
       computeRisk({ defects: defs, requirements: [], evidence: [] }).band,
       "critical",
     );
+  });
+});
+
+describe("planRetentionScan", () => {
+  const now = new Date("2026-07-06T00:00:00.000Z");
+  const daysAgo = (n: number) => new Date(now.getTime() - n * 24 * 60 * 60 * 1000);
+
+  const project = (over: Partial<RetentionScanProject> & { id: string }): RetentionScanProject => ({
+    status: "signed_off",
+    relevantDate: daysAgo(20),
+    hasPendingRequest: false,
+    ...over,
+  });
+
+  test("opens a request for a concluded engagement past its retention window", () => {
+    const out = planRetentionScan({
+      projects: [project({ id: "p1", relevantDate: daysAgo(20) })],
+      retentionDefaultDays: 14,
+      now,
+    });
+    assert.equal(out.length, 1);
+    assert.equal(out[0].projectId, "p1");
+    // dueAt is the moment the window elapsed: relevantDate + 14 days.
+    assert.equal(out[0].dueAt.toISOString(), daysAgo(6).toISOString());
+  });
+
+  test("is inclusive at the exact window boundary", () => {
+    const out = planRetentionScan({
+      projects: [project({ id: "p1", relevantDate: daysAgo(14) })],
+      retentionDefaultDays: 14,
+      now,
+    });
+    assert.equal(out.length, 1);
+  });
+
+  test("does not open before the window has elapsed", () => {
+    const out = planRetentionScan({
+      projects: [project({ id: "p1", relevantDate: daysAgo(13) })],
+      retentionDefaultDays: 14,
+      now,
+    });
+    assert.equal(out.length, 0);
+  });
+
+  test("skips in-progress and archived engagements", () => {
+    const out = planRetentionScan({
+      projects: [
+        project({ id: "review", status: "review", relevantDate: daysAgo(100) }),
+        project({ id: "intake", status: "intake", relevantDate: daysAgo(100) }),
+        project({ id: "archived", status: "archived", relevantDate: daysAgo(100) }),
+        project({ id: "exported", status: "exported", relevantDate: daysAgo(100) }),
+      ],
+      retentionDefaultDays: 14,
+      now,
+    });
+    assert.deepEqual(
+      out.map((c) => c.projectId),
+      ["exported"],
+    );
+  });
+
+  test("skips a project that already has an open request (dedup)", () => {
+    const out = planRetentionScan({
+      projects: [project({ id: "p1", relevantDate: daysAgo(30), hasPendingRequest: true })],
+      retentionDefaultDays: 14,
+      now,
+    });
+    assert.equal(out.length, 0);
+  });
+
+  test("returns nothing for a non-positive retention window", () => {
+    for (const days of [0, -5, Number.NaN]) {
+      const out = planRetentionScan({
+        projects: [project({ id: "p1", relevantDate: daysAgo(1000) })],
+        retentionDefaultDays: days,
+        now,
+      });
+      assert.equal(out.length, 0, `days=${days}`);
+    }
+  });
+});
+
+describe("assembleGate0", () => {
+  const passing = {
+    decisionMakerConversations: 8,
+    packagesUnderNda: 5,
+    materialDefectRate: 0.5,
+    paidMandates: 3,
+    mandateQuality: 1,
+  };
+
+  test("uses the Build Brief §17 thresholds", () => {
+    assert.deepEqual(GATE0_THRESHOLDS, {
+      decisionMakerConversations: 8,
+      packagesUnderNda: 5,
+      materialDefectRate: 0.5,
+      paidMandates: 3,
+      mandateQuality: 1,
+    });
+  });
+
+  test("marks every metric met at exactly the threshold (inclusive)", () => {
+    const out = assembleGate0(passing);
+    assert.equal(out.totalCount, 5);
+    assert.equal(out.metCount, 5);
+    assert.ok(out.metrics.every((m) => m.met));
+    assert.ok(out.metrics.every((m) => m.comparator === "gte"));
+  });
+
+  test("marks a metric unmet just below its threshold", () => {
+    const out = assembleGate0({ ...passing, decisionMakerConversations: 7 });
+    const m = out.metrics.find((x) => x.key === "decisionMakerConversations")!;
+    assert.equal(m.met, false);
+    assert.equal(m.value, 7);
+    assert.equal(m.threshold, 8);
+    assert.equal(out.metCount, 4);
+  });
+
+  test("mandate quality passes at >=1 assisted-bid/retainer mandate", () => {
+    const zero = assembleGate0({ ...passing, mandateQuality: 0 });
+    assert.equal(zero.metrics.find((m) => m.key === "mandateQuality")!.met, false);
+    const one = assembleGate0({ ...passing, mandateQuality: 1 });
+    assert.equal(one.metrics.find((m) => m.key === "mandateQuality")!.met, true);
+  });
+
+  test("treats non-finite inputs as zero rather than throwing", () => {
+    const out = assembleGate0({ ...passing, packagesUnderNda: Number.NaN });
+    const m = out.metrics.find((x) => x.key === "packagesUnderNda")!;
+    assert.equal(m.value, 0);
+    assert.equal(m.met, false);
+  });
+
+  test("material defect rate is reported as a ratio unit", () => {
+    const out = assembleGate0(passing);
+    assert.equal(out.metrics.find((m) => m.key === "materialDefectRate")!.unit, "ratio");
   });
 });

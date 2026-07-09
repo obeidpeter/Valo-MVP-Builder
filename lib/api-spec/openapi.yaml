@@ -371,6 +371,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+  /config:
+    get:
+      operationId: getAppConfig
+      tags: [Operations]
+      summary: Read the global scoring, template, and retention configuration
+      responses:
+        "200":
+          description: Active configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppConfig"
+    patch:
+      operationId: updateAppConfig
+      tags: [Operations]
+      summary: Update the global configuration (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppConfigUpdate"
+      responses:
+        "200":
+          description: Updated configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppConfig"
+        "400":
+          $ref: "#/components/responses/BadRequest"
   /clients/{id}/vault-items:
     get:
       operationId: listVaultItems
@@ -884,6 +915,26 @@ paths:
       responses:
         "201":
           description: Created requirement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Requirement"
+  /projects/{id}/requirements/merge:
+    post:
+      operationId: mergeRequirements
+      tags: [Requirements]
+      summary: Merge near-duplicate requirements into a single surviving row
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequirementMerge"
+      responses:
+        "200":
+          description: The surviving requirement after merge
           content:
             application/json:
               schema:
@@ -1506,6 +1557,8 @@ components:
           type: string
           enum: [pending, signed, not_required, declined]
         notes: { type: string, nullable: true }
+        decisionMakerConversations: { type: integer }
+        juniorConversations: { type: integer }
         projectCount: { type: integer, nullable: true }
         createdAt: { type: string }
     ClientCreate:
@@ -1523,6 +1576,8 @@ components:
           type: string
           enum: [pending, signed, not_required, declined]
         notes: { type: string }
+        decisionMakerConversations: { type: integer, minimum: 0 }
+        juniorConversations: { type: integer, minimum: 0 }
     ClientUpdate:
       type: object
       properties:
@@ -1537,6 +1592,8 @@ components:
           type: string
           enum: [pending, signed, not_required, declined]
         notes: { type: string }
+        decisionMakerConversations: { type: integer, minimum: 0 }
+        juniorConversations: { type: integer, minimum: 0 }
     ScorecardCounts:
       type: object
       required:
@@ -1661,6 +1718,51 @@ components:
       properties:
         reason: { type: string }
         dueAt: { type: string }
+    SeverityWeights:
+      type: object
+      required: [fatal, likely_fatal, scoring_risk, cosmetic]
+      properties:
+        fatal: { type: integer, minimum: 0, maximum: 100 }
+        likely_fatal: { type: integer, minimum: 0, maximum: 100 }
+        scoring_risk: { type: integer, minimum: 0, maximum: 100 }
+        cosmetic: { type: integer, minimum: 0, maximum: 100 }
+    BandCutoffs:
+      type: object
+      required: [medium, high, critical]
+      properties:
+        medium: { type: integer, minimum: 1, maximum: 100 }
+        high: { type: integer, minimum: 1, maximum: 100 }
+        critical: { type: integer, minimum: 1, maximum: 100 }
+    AppConfig:
+      type: object
+      required:
+        [
+          severityWeights,
+          missingEvidenceWeight,
+          bandCutoffs,
+          firmName,
+          confidentialityLegend,
+          retentionDefaultDays,
+          updatedAt,
+        ]
+      properties:
+        severityWeights: { $ref: "#/components/schemas/SeverityWeights" }
+        missingEvidenceWeight: { type: integer, minimum: 0, maximum: 100 }
+        bandCutoffs: { $ref: "#/components/schemas/BandCutoffs" }
+        firmName: { type: string }
+        confidentialityLegend: { type: string }
+        retentionDefaultDays: { type: integer, minimum: 1, maximum: 3650 }
+        updatedAt: { type: string }
+        updatedBy: { type: string, nullable: true }
+    AppConfigUpdate:
+      type: object
+      properties:
+        severityWeights: { $ref: "#/components/schemas/SeverityWeights" }
+        missingEvidenceWeight: { type: integer, minimum: 0, maximum: 100 }
+        bandCutoffs: { $ref: "#/components/schemas/BandCutoffs" }
+        firmName: { type: string, minLength: 1, maxLength: 120 }
+        confidentialityLegend: { type: string, minLength: 1, maxLength: 500 }
+        retentionDefaultDays: { type: integer, minimum: 1, maximum: 3650 }
     PaymentConfirmationBody:
       type: object
       required: [role]
@@ -1986,6 +2088,9 @@ components:
         outcome:
           type: string
           enum: [none, free_autopsy, paid_autopsy, assisted_bid_offer, retainer_offer, paid_mandate, lost, no_response]
+        mandateQuality:
+          type: string
+          enum: [none, autopsy_only, assisted_bid, retainer]
         scope: { type: string, nullable: true }
         limitations: { type: string, nullable: true }
         responsivenessReview: { type: string, nullable: true }
@@ -2100,6 +2205,9 @@ components:
         outcome:
           type: string
           enum: [none, free_autopsy, paid_autopsy, assisted_bid_offer, retainer_offer, paid_mandate, lost, no_response]
+        mandateQuality:
+          type: string
+          enum: [none, autopsy_only, assisted_bid, retainer]
         scope: { type: string }
         limitations: { type: string }
         responsivenessReview: { type: string }
@@ -2127,12 +2235,44 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CountBucket"
+        gate0:
+          $ref: "#/components/schemas/Gate0Readiness"
     CountBucket:
       type: object
       required: [key, count]
       properties:
         key: { type: string }
         count: { type: integer }
+    Gate0Metric:
+      type: object
+      required: [key, label, value, threshold, comparator, unit, met]
+      properties:
+        key:
+          type: string
+          enum:
+            [decisionMakerConversations, packagesUnderNda, materialDefectRate,
+             paidMandates, mandateQuality]
+        label: { type: string }
+        description: { type: string }
+        value: { type: number }
+        threshold: { type: number }
+        comparator:
+          type: string
+          enum: [gte]
+        unit:
+          type: string
+          enum: [count, ratio]
+        met: { type: boolean }
+    Gate0Readiness:
+      type: object
+      required: [metrics, metCount, totalCount]
+      properties:
+        metrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/Gate0Metric"
+        metCount: { type: integer }
+        totalCount: { type: integer }
     Document:
       type: object
       required: [id, projectId, type, filename, objectPath, redactionStatus, createdAt]
@@ -2248,9 +2388,30 @@ components:
           enum: [engine, manual]
           nullable: true
         engineText: { type: string, nullable: true }
+        mergedCitations:
+          type: array
+          items:
+            $ref: "#/components/schemas/RequirementCitation"
         reviewedByName: { type: string, nullable: true }
         reviewedAt: { type: string, nullable: true }
         createdAt: { type: string }
+    RequirementCitation:
+      type: object
+      properties:
+        sourceDocId: { type: string, nullable: true }
+        sourceDocName: { type: string, nullable: true }
+        pageRef: { type: string, nullable: true }
+        clauseRef: { type: string, nullable: true }
+        text: { type: string, nullable: true }
+    RequirementMerge:
+      type: object
+      required: [requirementIds, survivorId]
+      properties:
+        requirementIds:
+          type: array
+          minItems: 2
+          items: { type: string }
+        survivorId: { type: string }
     RequirementCreate:
       type: object
       required: [text, category]

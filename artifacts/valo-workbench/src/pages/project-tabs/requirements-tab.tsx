@@ -4,6 +4,7 @@ import {
   useExtractRequirements,
   useCreateRequirement,
   useUpdateRequirement,
+  useMergeRequirements,
   useGetProjectScorecard,
   getListRequirementsQueryKey,
   getGetProjectScorecardQueryKey,
@@ -24,7 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Zap, CheckSquare, Target, Check, X, Pencil, Plus, Bot, UserRound } from "lucide-react";
+import { Loader2, Zap, CheckSquare, Target, Check, X, Pencil, Plus, Bot, UserRound, GitMerge } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const CATEGORIES = ["eligibility", "administrative", "technical", "financial_format", "other"] as const;
@@ -43,11 +44,16 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
   const extractReqs = useExtractRequirements();
   const createReq = useCreateRequirement();
   const updateReq = useUpdateRequirement();
+  const mergeReqs = useMergeRequirements();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const [editing, setEditing] = useState<Requirement | null>(null);
   const [adding, setAdding] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [survivorId, setSurvivorId] = useState<string | null>(null);
+  const [mergeOpen, setMergeOpen] = useState(false);
   const [form, setForm] = useState<EditForm>({
     text: "",
     category: "other",
@@ -65,6 +71,53 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
   const handleExtract = () => {
     extractReqs.mutate({ id: projectId }, { onSuccess: refresh });
   };
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+    setSurvivorId(null);
+  };
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+        if (survivorId === id) setSurvivorId(null);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const selectedReqs = (requirements ?? []).filter((r) => selectedIds.has(r.id));
+
+  const openMerge = () => {
+    // Default the survivor to the first selected row so the reviewer can just
+    // confirm, but let them change it in the dialog.
+    setSurvivorId((cur) => cur ?? selectedReqs[0]?.id ?? null);
+    setMergeOpen(true);
+  };
+
+  const handleMerge = () => {
+    if (!survivorId || selectedIds.size < 2) return;
+    mergeReqs.mutate(
+      { id: projectId, data: { requirementIds: Array.from(selectedIds), survivorId } },
+      {
+        onSuccess: () => {
+          setMergeOpen(false);
+          exitSelectMode();
+          refresh();
+          toast({ title: "Requirements merged" });
+        },
+        onError: () => toast({ variant: "destructive", title: "Could not merge requirements" }),
+      },
+    );
+  };
+
+  const citationOf = (r: Requirement) =>
+    [r.pageRef, r.clauseRef].filter(Boolean).join(", ") || (r.sourceDocName ?? "no citation");
 
   const rule = (req: Requirement, reviewStatus: "confirmed" | "rejected") => {
     setActingId(req.id);
@@ -173,14 +226,40 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-serif font-medium">Requirement Matrix</h2>
         <div className="flex gap-2">
-          <Button onClick={openAdd} variant="outline">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Requirement
-          </Button>
-          <Button onClick={handleExtract} disabled={extractReqs.isPending} variant="secondary">
-            {extractReqs.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
-            AI Extraction
-          </Button>
+          {selectMode ? (
+            <>
+              <span className="self-center text-xs text-muted-foreground">
+                {selectedIds.size} selected
+              </span>
+              <Button onClick={openMerge} disabled={selectedIds.size < 2} variant="default">
+                <GitMerge className="w-4 h-4 mr-2" />
+                Merge Selected
+              </Button>
+              <Button onClick={exitSelectMode} variant="ghost">
+                Cancel
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                onClick={() => setSelectMode(true)}
+                variant="outline"
+                disabled={!requirements || requirements.length < 2}
+                title="Fold near-duplicate requirements into one"
+              >
+                <GitMerge className="w-4 h-4 mr-2" />
+                Merge
+              </Button>
+              <Button onClick={openAdd} variant="outline">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Requirement
+              </Button>
+              <Button onClick={handleExtract} disabled={extractReqs.isPending} variant="secondary">
+                {extractReqs.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
+                AI Extraction
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -224,6 +303,7 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30">
+                {selectMode && <TableHead className="w-[44px]" />}
                 <TableHead className="w-[110px]">Status</TableHead>
                 <TableHead>Requirement</TableHead>
                 <TableHead>Category</TableHead>
@@ -233,7 +313,21 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
             </TableHeader>
             <TableBody>
               {requirements.map((req) => (
-                <TableRow key={req.id} className={req.reviewStatus === "rejected" ? "opacity-50" : undefined}>
+                <TableRow
+                  key={req.id}
+                  className={`${req.reviewStatus === "rejected" ? "opacity-50" : ""} ${
+                    selectMode && selectedIds.has(req.id) ? "bg-primary/5" : ""
+                  }`.trim() || undefined}
+                >
+                  {selectMode && (
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedIds.has(req.id)}
+                        onCheckedChange={() => toggleSelected(req.id)}
+                        aria-label="Select requirement to merge"
+                      />
+                    </TableCell>
+                  )}
                   <TableCell>
                     <div className="flex flex-col gap-1 items-start">
                       {statusBadge(req)}
@@ -399,6 +493,64 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {editing ? "Save & Mark Edited" : "Add as Confirmed"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={mergeOpen} onOpenChange={(open) => setMergeOpen(open)}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle className="font-serif">Merge Requirements</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Choose which requirement survives. The others are folded into it and their source
+              citations are preserved on the surviving row. Linked evidence and defects move to the
+              survivor.
+            </p>
+            <div className="space-y-2">
+              {selectedReqs.map((r) => {
+                const isSurvivor = survivorId === r.id;
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => setSurvivorId(r.id)}
+                    className={`w-full text-left rounded-md border px-3 py-2 transition-colors ${
+                      isSurvivor ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium leading-snug">{r.text}</span>
+                      {isSurvivor && (
+                        <Badge variant="default" className="text-[10px] shrink-0">survivor</Badge>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground">Citation: {citationOf(r)}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="rounded-md bg-muted/40 border border-border px-3 py-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase mb-1">
+                Combined citations
+              </p>
+              <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-0.5">
+                {selectedReqs.map((r) => (
+                  <li key={r.id}>
+                    {citationOf(r)}
+                    {survivorId === r.id ? " (survivor)" : ""}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMergeOpen(false)}>Cancel</Button>
+            <Button onClick={handleMerge} disabled={!survivorId || mergeReqs.isPending}>
+              {mergeReqs.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Merge {selectedIds.size} into one
             </Button>
           </DialogFooter>
         </DialogContent>

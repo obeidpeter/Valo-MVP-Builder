@@ -93,6 +93,8 @@ export interface Client {
   contactEmail?: string | null;
   ndaStatus: ClientNdaStatus;
   notes?: string | null;
+  decisionMakerConversations?: number;
+  juniorConversations?: number;
   projectCount?: number | null;
   createdAt: string;
 }
@@ -126,6 +128,10 @@ export interface ClientCreate {
   contactEmail?: string;
   ndaStatus: ClientCreateNdaStatus;
   notes?: string;
+  /** @minimum 0 */
+  decisionMakerConversations?: number;
+  /** @minimum 0 */
+  juniorConversations?: number;
 }
 
 export type ClientUpdateSegment = typeof ClientUpdateSegment[keyof typeof ClientUpdateSegment];
@@ -157,6 +163,10 @@ export interface ClientUpdate {
   contactEmail?: string;
   ndaStatus?: ClientUpdateNdaStatus;
   notes?: string;
+  /** @minimum 0 */
+  decisionMakerConversations?: number;
+  /** @minimum 0 */
+  juniorConversations?: number;
 }
 
 export interface ScorecardCounts {
@@ -310,6 +320,91 @@ export interface RetentionRequest {
 export interface RetentionRequestCreate {
   reason?: string;
   dueAt?: string;
+}
+
+export interface SeverityWeights {
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  fatal: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  likely_fatal: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  scoring_risk: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  cosmetic: number;
+}
+
+export interface BandCutoffs {
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  medium: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  high: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  critical: number;
+}
+
+export interface AppConfig {
+  severityWeights: SeverityWeights;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  missingEvidenceWeight: number;
+  bandCutoffs: BandCutoffs;
+  firmName: string;
+  confidentialityLegend: string;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  retentionDefaultDays: number;
+  updatedAt: string;
+  updatedBy?: string | null;
+}
+
+export interface AppConfigUpdate {
+  severityWeights?: SeverityWeights;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  missingEvidenceWeight?: number;
+  bandCutoffs?: BandCutoffs;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  firmName?: string;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  confidentialityLegend?: string;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  retentionDefaultDays?: number;
 }
 
 export type PaymentConfirmationBodyRole = typeof PaymentConfirmationBodyRole[keyof typeof PaymentConfirmationBodyRole];
@@ -758,6 +853,16 @@ export const ProjectOutcome = {
   no_response: 'no_response',
 } as const;
 
+export type ProjectMandateQuality = typeof ProjectMandateQuality[keyof typeof ProjectMandateQuality];
+
+
+export const ProjectMandateQuality = {
+  none: 'none',
+  autopsy_only: 'autopsy_only',
+  assisted_bid: 'assisted_bid',
+  retainer: 'retainer',
+} as const;
+
 export interface Project {
   id: string;
   clientId: string;
@@ -795,6 +900,7 @@ export interface Project {
   riskOverrideNote?: string | null;
   riskOverrideBy?: string | null;
   outcome?: ProjectOutcome;
+  mandateQuality?: ProjectMandateQuality;
   scope?: string | null;
   limitations?: string | null;
   responsivenessReview?: string | null;
@@ -1029,6 +1135,16 @@ export const ProjectUpdateOutcome = {
   no_response: 'no_response',
 } as const;
 
+export type ProjectUpdateMandateQuality = typeof ProjectUpdateMandateQuality[keyof typeof ProjectUpdateMandateQuality];
+
+
+export const ProjectUpdateMandateQuality = {
+  none: 'none',
+  autopsy_only: 'autopsy_only',
+  assisted_bid: 'assisted_bid',
+  retainer: 'retainer',
+} as const;
+
 export interface ProjectUpdate {
   /** @minLength 1 */
   tenderTitle?: string;
@@ -1050,6 +1166,7 @@ export interface ProjectUpdate {
   redactionScope?: string | null;
   restrictedMode?: boolean;
   outcome?: ProjectUpdateOutcome;
+  mandateQuality?: ProjectUpdateMandateQuality;
   scope?: string;
   limitations?: string;
   responsivenessReview?: string;
@@ -1058,6 +1175,49 @@ export interface ProjectUpdate {
 export interface CountBucket {
   key: string;
   count: number;
+}
+
+export type Gate0MetricKey = typeof Gate0MetricKey[keyof typeof Gate0MetricKey];
+
+
+export const Gate0MetricKey = {
+  decisionMakerConversations: 'decisionMakerConversations',
+  packagesUnderNda: 'packagesUnderNda',
+  materialDefectRate: 'materialDefectRate',
+  paidMandates: 'paidMandates',
+  mandateQuality: 'mandateQuality',
+} as const;
+
+export type Gate0MetricComparator = typeof Gate0MetricComparator[keyof typeof Gate0MetricComparator];
+
+
+export const Gate0MetricComparator = {
+  gte: 'gte',
+} as const;
+
+export type Gate0MetricUnit = typeof Gate0MetricUnit[keyof typeof Gate0MetricUnit];
+
+
+export const Gate0MetricUnit = {
+  count: 'count',
+  ratio: 'ratio',
+} as const;
+
+export interface Gate0Metric {
+  key: Gate0MetricKey;
+  label: string;
+  description?: string;
+  value: number;
+  threshold: number;
+  comparator: Gate0MetricComparator;
+  unit: Gate0MetricUnit;
+  met: boolean;
+}
+
+export interface Gate0Readiness {
+  metrics: Gate0Metric[];
+  metCount: number;
+  totalCount: number;
 }
 
 export interface DashboardMetrics {
@@ -1072,6 +1232,7 @@ export interface DashboardMetrics {
   statusBreakdown?: CountBucket[];
   outcomeBreakdown?: CountBucket[];
   segmentBreakdown?: CountBucket[];
+  gate0?: Gate0Readiness;
 }
 
 export type DocumentType = typeof DocumentType[keyof typeof DocumentType];
@@ -1245,6 +1406,14 @@ export const RequirementOrigin = {
   manual: 'manual',
 } as const;
 
+export interface RequirementCitation {
+  sourceDocId?: string | null;
+  sourceDocName?: string | null;
+  pageRef?: string | null;
+  clauseRef?: string | null;
+  text?: string | null;
+}
+
 export interface Requirement {
   id: string;
   projectId: string;
@@ -1261,6 +1430,7 @@ export interface Requirement {
   reviewerNotes?: string | null;
   origin?: RequirementOrigin;
   engineText?: string | null;
+  mergedCitations?: RequirementCitation[];
   reviewedByName?: string | null;
   reviewedAt?: string | null;
   createdAt: string;
@@ -1277,6 +1447,12 @@ export interface DocumentIntegrity {
   ok: boolean;
   expectedSha256: string;
   actualSha256?: string | null;
+}
+
+export interface RequirementMerge {
+  /** @minItems 2 */
+  requirementIds: string[];
+  survivorId: string;
 }
 
 export type RequirementCreateCategory = typeof RequirementCreateCategory[keyof typeof RequirementCreateCategory];

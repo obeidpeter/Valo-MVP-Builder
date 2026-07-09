@@ -18,6 +18,7 @@ vi.mock("@clerk/clerk-react", () => ({
 
 vi.mock("@workspace/api-client-react", () => ({
   useGetMe: () => meResult,
+  getGetMeQueryKey: () => ["/api/me"],
 }));
 
 function renderLayout() {

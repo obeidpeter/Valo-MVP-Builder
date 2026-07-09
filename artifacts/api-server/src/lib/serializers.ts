@@ -5,6 +5,31 @@ function iso(d: DateLike): string | null {
   return d instanceof Date ? d.toISOString() : String(d);
 }
 
+export interface MergedCitation {
+  sourceDocId: string | null;
+  sourceDocName: string | null;
+  pageRef: string | null;
+  clauseRef: string | null;
+  text: string | null;
+}
+
+function parseMergedCitations(raw: unknown): MergedCitation[] {
+  if (!raw || typeof raw !== "string") return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((c) => ({
+      sourceDocId: c?.sourceDocId ?? null,
+      sourceDocName: c?.sourceDocName ?? null,
+      pageRef: c?.pageRef ?? null,
+      clauseRef: c?.clauseRef ?? null,
+      text: c?.text ?? null,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export function serializeUser(u: any) {
   return {
     id: u.id,
@@ -27,6 +52,8 @@ export function serializeClient(c: any, projectCount?: number) {
     contactEmail: c.contactEmail ?? null,
     ndaStatus: c.ndaStatus,
     notes: c.notes ?? null,
+    decisionMakerConversations: c.decisionMakerConversations ?? 0,
+    juniorConversations: c.juniorConversations ?? 0,
     projectCount: projectCount ?? null,
     createdAt: iso(c.createdAt) ?? new Date(0).toISOString(),
   };
@@ -73,6 +100,7 @@ export function serializeProject(
     riskOverrideNote: p.riskOverrideNote ?? null,
     riskOverrideBy: p.riskOverrideBy ?? null,
     outcome: p.outcome,
+    mandateQuality: p.mandateQuality ?? "none",
     scope: p.scope ?? null,
     limitations: p.limitations ?? null,
     responsivenessReview: p.responsivenessReview ?? null,
@@ -123,6 +151,7 @@ export function serializeRequirement(r: any, sourceDocName?: string | null) {
     reviewerNotes: r.reviewerNotes ?? null,
     origin: r.origin ?? null,
     engineText: r.engineText ?? null,
+    mergedCitations: parseMergedCitations(r.mergedCitations),
     reviewedByName: r.reviewedByName ?? null,
     reviewedAt: iso(r.reviewedAt),
     createdAt: iso(r.createdAt) ?? new Date(0).toISOString(),
@@ -200,6 +229,7 @@ export function serializeReport(
     version: r.version,
     status: r.status,
     docxPath: r.docxPath ?? null,
+    pdfPath: r.pdfPath ?? null,
     reviewerId: r.reviewerId ?? null,
     reviewerName: r.reviewerName ?? null,
     attestation: r.attestation ?? null,

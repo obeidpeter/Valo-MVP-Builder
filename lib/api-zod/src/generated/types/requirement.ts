@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { RequirementCategory } from './requirementCategory';
+import type { RequirementCitation } from './requirementCitation';
 import type { RequirementConfidence } from './requirementConfidence';
 import type { RequirementOrigin } from './requirementOrigin';
 import type { RequirementReviewStatus } from './requirementReviewStatus';
@@ -26,6 +27,7 @@ export interface Requirement {
   reviewerNotes?: string | null;
   origin?: RequirementOrigin;
   engineText?: string | null;
+  mergedCitations?: RequirementCitation[];
   reviewedByName?: string | null;
   reviewedAt?: string | null;
   createdAt: string;

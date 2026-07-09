@@ -5,6 +5,7 @@ import { OverrideRiskBody } from "@workspace/api-zod";
 import { requireMember, requireRoles, getLocalUser } from "../middlewares/auth";
 import { writeAudit } from "../lib/audit";
 import { computeRisk, type Severity } from "../lib/deterministic";
+import { getActiveConfig } from "../lib/appConfig";
 
 const router: IRouter = Router();
 
@@ -16,19 +17,23 @@ async function computeAndPersist(projectId: string) {
   const reqs = await db.select().from(requirements).where(eq(requirements.projectId, projectId));
   const ev = await db.select().from(evidenceItems).where(eq(evidenceItems.projectId, projectId));
 
-  const result = computeRisk({
-    defects: defs.map((d) => ({ severity: d.severity as Severity, status: d.status })),
-    requirements: reqs.map((r) => ({
-      id: r.id,
-      isMandatory: r.isMandatory,
-      reviewStatus: r.reviewStatus,
-    })),
-    evidence: ev.map((e) => ({
-      requirementId: e.requirementId,
-      evidenceStatus: e.evidenceStatus,
-      suggested: e.suggested,
-    })),
-  });
+  const config = await getActiveConfig();
+  const result = computeRisk(
+    {
+      defects: defs.map((d) => ({ severity: d.severity as Severity, status: d.status })),
+      requirements: reqs.map((r) => ({
+        id: r.id,
+        isMandatory: r.isMandatory,
+        reviewStatus: r.reviewStatus,
+      })),
+      evidence: ev.map((e) => ({
+        requirementId: e.requirementId,
+        evidenceStatus: e.evidenceStatus,
+        suggested: e.suggested,
+      })),
+    },
+    config.risk,
+  );
 
   await db
     .update(projects)

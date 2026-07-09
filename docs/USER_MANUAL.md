@@ -41,7 +41,7 @@ The left sidebar has five destinations:
 - **Clients** — the companies you work for: their NDA status, Certificate Vault, and Capability Library.
 - **Projects** — one project = one engagement = one tender/bid pair under review.
 - **SBD Corpus** — your library of Standard Bidding Document templates and agency quirks.
-- **Settings** *(admins only)* — people and retention workflows.
+- **Settings** *(admins only)* — people, scoring/report configuration, and retention workflows.
 
 Almost all of your working time is spent inside a single project's page, which has nine tabs. Section 6 walks through them in the order you'd actually use them.
 
@@ -55,6 +55,8 @@ Below them, two alert feeds appear when there is something to act on:
 
 - **Operations Alerts** — red **SLA breach** entries (a project has been open longer than its service class allows: 5 working days standard, 48 hours for live tenders) and amber **red-team due** entries (a project's tender deadline is within 72 hours — time for the final hostile review pass; these disappear once the deadline passes).
 - **Certificate Renewal Radar** — client vault artefacts that are expired or expiring: **expired**, **≤3 days** (critical), **≤14 days** (warning), and **upcoming** (≤30 days, or earlier if the artefact has a longer renewal lead time — a certificate that takes 60 days to renew shows up 60 days out). Click any row to jump to that client.
+
+A **Gate 0 Readiness** panel tracks the founder's commercial gate metrics (decision-maker conversations against the ≥8 threshold, mandate quality) alongside the technical ones.
 
 Then a list of recent projects with their risk band, requirement and defect counts.
 
@@ -118,6 +120,7 @@ The heart of the autopsy: what does the tender demand?
 
 - **Run Extraction** sends the included documents to the AI, which returns a candidate list of requirements — each with category (eligibility, administrative, technical, financial-format, other), a mandatory flag, expected evidence, and source citations (document, page, clause). All arrive as **suggested**.
 - **Nothing counts until you rule on it.** For each suggestion: **Confirm** it, **Edit** it (your edit is kept alongside the engine's original wording, so the diff is visible), or **Reject** it. You can also **Add** requirements the engine missed — those count as engine misses on the scorecard.
+- **Merge** near-duplicate extractions into one requirement — both source citations are preserved, so nothing loses its trace back to the tender.
 - The **Gate 0 Scorecard** strip shows *mandatory recall*: of all the mandatory requirements a human confirmed, what share did the engine surface by itself? The business target is ≥85%. This is measured, not asserted — the underlying records are exportable and recomputable.
 
 ### 6.5 Evidence tab
@@ -153,15 +156,15 @@ The defect register — everything wrong with the bid.
 
 The disqualification-risk score, computed by documented arithmetic (never by AI):
 
-- Each confirmed live defect adds its weight — fatal 40, likely-fatal 25, scoring-risk 10, cosmetic 3 — plus 5 per mandatory requirement without resolved evidence. Capped at 100.
-- **Bands:** `critical` at ≥70 (or automatically if *any* fatal defect is open, regardless of score), `high` ≥40, `medium` ≥15, otherwise `low`.
+- Each confirmed live defect adds its weight — by default fatal 40, likely-fatal 25, scoring-risk 10, cosmetic 3 — plus 5 per mandatory requirement without resolved evidence. Capped at 100. Admins can adjust the weights and band cutoffs in **Settings → Scoring & Risk Bands**; new scores use the new settings while historic signed reports keep the figures they were signed with.
+- **Default bands:** `critical` at ≥70 (or automatically if *any* fatal defect is open, regardless of score), `high` ≥40, `medium` ≥15, otherwise `low`.
 - A named reviewer can **override the band** — the override requires a written note and the reviewer's name, and the report will show both the computed and the overridden band.
 
 ### 6.9 Reports tab
 
 - **Draft Responsiveness Review** — asks the AI for a narrative assessment of overall responsiveness. It lands as a *suggested* narrative on the project, clearly marked pending reviewer confirmation, and appears in section E of the report.
 - **Generate Report** — assembles the DOCX: document control block (with the engine, prompt-pack, model, and defect-taxonomy versions that produced it), table of contents, engagement summary (with the redaction limitation banner where applicable), requirement matrix with an evidence-trace annex, defect register (confirmed findings separated from unconfirmed suggestions), risk score with method note, responsiveness review, BOQ annex, remediation plan, copies manifest, signature/seal checklist, sign-off page, and the process warranty.
-- **Sign Off** — the named-reviewer attestation. Blocked while open fatal/likely-fatal defects exist. Once signed, the DOCX can be **downloaded**.
+- **Sign Off** — the named-reviewer attestation. Blocked while open fatal/likely-fatal defects exist. Once signed, the report can be **downloaded as DOCX or PDF**.
 - **Export ZIP** *(admin)* — the full engagement package: all registers as CSV, the document manifest with fingerprints, the scorecard, the audit trail, project metadata, and the signed report. Requires a signed-off report and the physical archive instruction. Exporting moves the project to `exported`.
 
 ### 6.10 Audit tab
@@ -178,6 +181,8 @@ Your library of BPP Standard Bidding Document templates. Create templates by cod
 
 ## 8. Settings (admins)
 
+- **Scoring & Risk Bands** — adjust the severity weights and band cutoffs the risk score uses. Changes apply to new computations only; historic signed reports are never rescored.
+- **Report Template & Retention** — the firm name and confidentiality legend printed on reports, and the default retention window.
 - **Personnel Management** — assign roles (`admin`, `reviewer`, `analyst`, `none`) and enable/disable accounts.
 - **Retention Workflows** — the queue of deletion requests (see §9), with a **Complete** button for each pending request and the deletion certificate for finished ones.
 
@@ -187,7 +192,7 @@ Your library of BPP Standard Bidding Document templates. Create templates by cod
 
 When a client asks for their data to be deleted (or the retention period ends):
 
-1. On the project's **Overview tab**, open a **Retention Request** with a reason. One open request per project; the due date defaults to 14 days out (the NDPR-aligned window).
+1. On the project's **Overview tab**, open a **Retention Request** with a reason. One open request per project; the due date defaults to 14 days out (the NDPR-aligned window). A scheduled scan (`retention:scan`, run in the deploy environment) also auto-opens requests for engagements that reach the 12-month retention mark — it only *opens* them; deletion always remains a human admin decision.
 2. An **admin** completes it from **Settings → Retention Workflows**. Completion refuses to run until the project's physical archive instruction is recorded (the same gate as archiving) — the system will not certify digital deletion while nobody has said what happens to the paper.
 3. Completion then deletes, in a single all-or-nothing operation: every stored file, all extracted requirement text, evidence excerpts, defect records, BOQ lines, AI-run summaries, and the project's narrative fields. If any stored file cannot be deleted (e.g. storage is down), **no certificate is issued** and the request stays pending for retry.
 4. What is *kept*, on purpose: the project's bare metadata, the retention record itself, the tamper-evident audit chain (your accountability record), and any files owned by the client's Certificate Vault (those belong to the client relationship, not the engagement).

@@ -10,6 +10,7 @@ import {
   uuid,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 const createdAt = () =>
   timestamp("created_at", { withTimezone: true }).defaultNow().notNull();
@@ -34,6 +35,12 @@ export const clients = pgTable("clients", {
   contactEmail: text("contact_email"),
   ndaStatus: text("nda_status").notNull().default("pending"),
   notes: text("notes"),
+  // Gate 0 founder metric (Build Brief §17): decision-maker conversations are
+  // counted against the >=8 threshold, kept distinct from junior bid staff.
+  decisionMakerConversations: integer("decision_maker_conversations")
+    .notNull()
+    .default(0),
+  juniorConversations: integer("junior_conversations").notNull().default(0),
   createdAt: createdAt(),
 });
 
@@ -94,6 +101,10 @@ export const projects = pgTable("projects", {
   riskOverrideNote: text("risk_override_note"),
   riskOverrideBy: text("risk_override_by"),
   outcome: text("outcome").notNull().default("none"),
+  // Gate 0 mandate-quality metric (Build Brief §17): distinguishes autopsy-only
+  // revenue from a real assisted-bid/retainer mandate so ">=1 quality mandate"
+  // is visible. none | autopsy_only | assisted_bid | retainer.
+  mandateQuality: text("mandate_quality").notNull().default("none"),
   scope: text("scope"),
   limitations: text("limitations"),
   responsivenessReview: text("responsiveness_review"),
@@ -156,6 +167,11 @@ export const requirements = pgTable("requirements", {
   // stay diffable, and the server-derived reviewer stamp on review actions.
   origin: text("origin"),
   engineText: text("engine_text"),
+  // Citations folded in from rows merged away by a reviewer (JSON array of
+  // {sourceDocId, sourceDocName, pageRef, clauseRef, text}). The survivor keeps
+  // its own primary citation in the native columns above; this preserves the
+  // originals' page/clause refs so no provenance is lost on merge.
+  mergedCitations: text("merged_citations"),
   reviewedBy: uuid("reviewed_by").references(() => users.id, {
     onDelete: "set null",
   }),
@@ -312,20 +328,55 @@ export const notificationEvents = pgTable("notification_events", {
   createdAt: createdAt(),
 });
 
-export const retentionRequests = pgTable("retention_requests", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  projectId: uuid("project_id")
+export const retentionRequests = pgTable(
+  "retention_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    requestedBy: uuid("requested_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reason: text("reason"),
+    dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    certificateText: text("certificate_text"),
+    status: text("status").notNull().default("pending"),
+    createdAt: createdAt(),
+  },
+  // At most one OPEN request per project: the manual endpoint and the retention
+  // scheduler both dedup in code, but this partial unique index is the last-line
+  // guarantee that concurrent runs can never create duplicate pending requests.
+  (t) => [
+    uniqueIndex("retention_requests_one_pending_per_project")
+      .on(t.projectId)
+      .where(sql`${t.status} = 'pending'`),
+  ],
+);
+
+// Global, admin-configurable settings (single-row table). Holds the scoring
+// parameters the deterministic risk engine reads at runtime, report-template
+// details, and retention defaults. The `id` is pinned to a fixed value so
+// there is exactly one active configuration; historic reports keep their own
+// engine-version stamp and are never rewritten when this changes.
+export const appConfig = pgTable("app_config", {
+  id: text("id").primaryKey().default("singleton"),
+  severityWeightFatal: integer("severity_weight_fatal").notNull().default(40),
+  severityWeightLikelyFatal: integer("severity_weight_likely_fatal").notNull().default(25),
+  severityWeightScoringRisk: integer("severity_weight_scoring_risk").notNull().default(10),
+  severityWeightCosmetic: integer("severity_weight_cosmetic").notNull().default(3),
+  missingEvidenceWeight: integer("missing_evidence_weight").notNull().default(5),
+  bandMediumCutoff: integer("band_medium_cutoff").notNull().default(15),
+  bandHighCutoff: integer("band_high_cutoff").notNull().default(40),
+  bandCriticalCutoff: integer("band_critical_cutoff").notNull().default(70),
+  firmName: text("firm_name").notNull().default("VALO"),
+  confidentialityLegend: text("confidentiality_legend")
     .notNull()
-    .references(() => projects.id, { onDelete: "cascade" }),
-  requestedBy: uuid("requested_by").references(() => users.id, {
-    onDelete: "set null",
-  }),
-  reason: text("reason"),
-  dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
-  completedAt: timestamp("completed_at", { withTimezone: true }),
-  certificateText: text("certificate_text"),
-  status: text("status").notNull().default("pending"),
-  createdAt: createdAt(),
+    .default("CONFIDENTIAL — Prepared for internal review. Not for external distribution."),
+  retentionDefaultDays: integer("retention_default_days").notNull().default(14),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
 });
 
 export const sbdTemplates = pgTable("sbd_templates", {
@@ -360,6 +411,7 @@ export const reports = pgTable("reports", {
   version: integer("version").notNull().default(1),
   status: text("status").notNull().default("draft"),
   docxPath: text("docx_path"),
+  pdfPath: text("pdf_path"),
   reviewerId: uuid("reviewer_id").references(() => users.id, {
     onDelete: "set null",
   }),

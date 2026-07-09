@@ -24,6 +24,7 @@ export async function attachUser(
   try {
     const auth = getAuth(req);
     const clerkUserId = auth?.userId;
+
     if (!clerkUserId) {
       res.status(401).json({ error: "Unauthorized" });
       return;

@@ -1,53 +1,65 @@
 /**
- * Eval harness v0 runner (FR-EXT-05 / NFR-QLT-02).
+ * Eval harness v0 runner (FR-EXT-05 / FR-EXT-04 / NFR-QLT-02).
  *
- * Modes:
- *   (default, LIVE)   Runs every labelled case through the real
- *                     extractRequirements pipeline (needs OPENAI_API_KEY +
- *                     DATABASE_URL — run in the deploy environment), scores
- *                     recall against the hand-labelled ground truth, and
- *                     records the run (engine outputs + figures) to
- *                     eval-harness/runs/latest.json. Fails when cumulative
- *                     mandatory recall < 85% (Gate 0 threshold) or when it
- *                     drops > 2 points below the recorded baseline.
- *   --offline         (CI mode) No model, no DB. Validates the corpus,
- *                     self-tests the scorer against synthetic outputs with
- *                     known recall, then — if a recorded live run exists —
- *                     independently RECOMPUTES its figures from the stored
- *                     engine outputs (FR-EXT-04 reproducibility) and enforces
- *                     the threshold + baseline-drift gates on them.
- *   --promote-baseline  Copies the latest recorded run to baseline.json
- *                     (do this deliberately, in a reviewed commit).
+ * Measures the extraction ENGINE against the fixed, hand-labelled corpus in
+ * scripts/eval-corpus/corpus.ts using the pure matcher in
+ * src/lib/evalHarness.ts (AND-of-ORs specs, unit-tested). Unlike the
+ * production scorecard — which measures the engine against live reviews —
+ * this is a regression suite: it fails loudly when a prompt or model change
+ * silently drops requirements.
  *
- * The corpus rule: labels are never edited to make a run pass.
+ * Run modes:
+ *   (default, LIVE)   Self-check PLUS a live pass over every tender (needs
+ *                     the model key; run in the deploy environment, not CI).
+ *                     Records the run — the engine's extracted texts and the
+ *                     scored report — to eval-corpus/runs/latest.json, then
+ *                     enforces the gates.
+ *   --offline         (CI mode) Self-check: corpus well-formed, matcher
+ *                     consistent (synthetic faithful extraction recalls
+ *                     100%), no false matches. Then, if a recorded live run
+ *                     exists, independently RECOMPUTES its figures from the
+ *                     stored extracted texts (FR-EXT-04 reproducibility) and
+ *                     enforces the recall + baseline-drift gates on them.
+ *   --promote-baseline  Copies runs/latest.json to runs/baseline.json — do
+ *                     this deliberately, in a reviewed commit.
+ *
+ * Gates:
+ *   - cumulative MANDATORY recall >= target (default 0.85, the Gate 0 bar;
+ *     override with EVAL_RECALL_TARGET, e.g. 0.95 for the v1.0 bar);
+ *   - mandatory recall must not drop more than 2 points below the recorded
+ *     baseline (NFR-QLT-02).
+ *
+ * Corpus rule: labels are never edited to make a run pass.
  */
 import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { EVAL_CASES } from "./eval-harness/cases";
 import {
-  scoreCase,
-  cumulative,
-  type DocScore,
-  type EngineItem,
-  type CumulativeScore,
-} from "./eval-harness/scoring";
+  aggregateReport,
+  computeTenderRecall,
+  normalizeText,
+  requirementMatched,
+  validateCorpus,
+  EVAL_RECALL_TARGET_V0,
+  type EvalReport,
+  type EvalTender,
+  type TenderRecall,
+} from "../src/lib/evalHarness";
+import { CORPUS } from "./eval-corpus/corpus";
 
-const HARNESS_DIR = join(dirname(fileURLToPath(import.meta.url)), "eval-harness");
-const RUNS_DIR = join(HARNESS_DIR, "runs");
+const RUNS_DIR = join(dirname(fileURLToPath(import.meta.url)), "eval-corpus", "runs");
 const LATEST_PATH = join(RUNS_DIR, "latest.json");
 const BASELINE_PATH = join(RUNS_DIR, "baseline.json");
-
-const GATE0_THRESHOLD = 0.85;
 const MAX_BASELINE_DROP = 0.02;
 
 interface RecordedRun {
   recordedAt: string;
   model: string;
   promptVersion: string;
-  engineOutputs: Record<string, EngineItem[]>;
-  perDoc: DocScore[];
-  cumulative: CumulativeScore;
+  target: number;
+  /** The engine's raw extracted requirement texts, per tender id. */
+  extractedTexts: Record<string, string[]>;
+  report: EvalReport;
 }
 
 let passes = 0;
@@ -63,138 +75,149 @@ function check(label: string, ok: boolean, detail?: string): boolean {
   return ok;
 }
 
-const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
+function resolveTarget(): number {
+  const raw = process.env.EVAL_RECALL_TARGET;
+  if (!raw) return EVAL_RECALL_TARGET_V0;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 1) {
+    console.warn(`(ignoring invalid EVAL_RECALL_TARGET=${raw}; using ${EVAL_RECALL_TARGET_V0})`);
+    return EVAL_RECALL_TARGET_V0;
+  }
+  return parsed;
+}
 
-function validateCorpus(): void {
-  console.log(`=== Corpus validation: ${EVAL_CASES.length} labelled tenders ===`);
-  check(`corpus has >= 10 labelled documents (FR-EXT-05)`, EVAL_CASES.length >= 10, `${EVAL_CASES.length}`);
-  const ids = new Set(EVAL_CASES.map((c) => c.id));
-  check("case ids unique", ids.size === EVAL_CASES.length);
-  for (const c of EVAL_CASES) {
-    const mandatory = c.labelled.filter((l) => l.isMandatory).length;
-    check(`${c.id}: >= 5 labels incl. >= 4 mandatory`, c.labelled.length >= 5 && mandatory >= 4);
-    check(`${c.id}: document text is substantial`, c.documentText.length > 400);
+const pct = (n: number): string => `${(n * 100).toFixed(1)}%`;
+
+/**
+ * A faithful engine, at minimum, echoes the label plus the first alternative
+ * of every match group. Feeding that through the matcher must recall 100% — if
+ * it doesn't, the corpus and matcher disagree (a labelling bug), which the
+ * offline self-check catches before any model call is wasted.
+ */
+function syntheticExtraction(tender: EvalTender): string[] {
+  return tender.groundTruth.map(
+    (g) => `${g.label} ${g.match.map((group) => group[0]).join(" ")}`,
+  );
+}
+
+function selfCheck(): void {
+  console.log(`=== OFFLINE self-check: ${CORPUS.length} hand-labelled tenders ===`);
+  const problems = validateCorpus(CORPUS);
+  check(
+    `corpus is well-formed (>= 10 tenders, verified ground truth)`,
+    problems.length === 0,
+    problems.join("; "),
+  );
+
+  for (const tender of CORPUS) {
+    const perfect = computeTenderRecall(tender, syntheticExtraction(tender));
+    check(
+      `${tender.id}: synthetic faithful extraction recalls 100% (matcher consistent)`,
+      perfect.recall === 1,
+      perfect.recall === 1 ? undefined : `missed ${perfect.missed.map((m) => m.id).join(", ")}`,
+    );
+  }
+  // Negative control: unrelated text must recall nothing.
+  const noise = ["The quick brown fox jumps over the lazy dog."];
+  const spurious = CORPUS[0].groundTruth.filter((g) =>
+    requirementMatched(g, noise.map(normalizeText)),
+  );
+  check("unrelated text recalls no requirement (no false matches)", spurious.length === 0);
+}
+
+function logTender(result: TenderRecall): void {
+  const line =
+    `${result.tenderId}: recall ${pct(result.recall)} (${result.matched}/${result.total}), ` +
+    `mandatory ${pct(result.mandatoryRecall)} (${result.mandatoryMatched}/${result.mandatoryTotal})`;
+  if (result.missed.length > 0) {
+    console.log(`  ✗ ${line}`);
+    for (const m of result.missed) {
+      console.log(`      MISSED [${m.mandatory ? "mandatory" : "desirable"}] ${m.label}`);
+    }
+  } else {
+    console.log(`  ✓ ${line}`);
   }
 }
 
-function scorerSelfTest(): void {
-  console.log("\n=== Scorer self-test (known-recall synthetic outputs) ===");
-  const testCase = EVAL_CASES[0];
-  const mandatoryLabels = testCase.labelled.filter((l) => l.isMandatory);
-
-  // Perfect engine: verbatim copies of every label -> recall 1.0.
-  const perfect = testCase.labelled.map((l) => ({ text: l.text, isMandatory: l.isMandatory }));
-  const perfectScore = scoreCase(testCase, perfect);
-  check("verbatim engine output scores 100% mandatory recall", perfectScore.mandatoryRecall === 1);
-  check("verbatim engine output has zero false positives", perfectScore.falsePositives === 0);
-
-  // Drop one mandatory label -> recall (n-1)/n exactly.
-  const missing = perfect.filter((item) => item.text !== mandatoryLabels[0].text);
-  const missingScore = scoreCase(testCase, missing);
-  const expected = (mandatoryLabels.length - 1) / mandatoryLabels.length;
-  check(
-    `dropping one mandatory item scores exactly ${pct(expected)}`,
-    Math.abs((missingScore.mandatoryRecall ?? 0) - expected) < 1e-9,
-    `got ${pct(missingScore.mandatoryRecall ?? 0)}`,
+function recomputeFromStored(run: RecordedRun): EvalReport {
+  const perTender = CORPUS.filter((t) => run.extractedTexts[t.id]).map((t) =>
+    computeTenderRecall(t, run.extractedTexts[t.id]),
   );
-  check("the dropped item is named in missedMandatory", missingScore.missedMandatory.length === 1);
-
-  // Paraphrase robustness: reworded-but-substantive item still matches.
-  const paraphrased = [{
-    text: "The bidder is required to provide a bid security equal to 2% of the bid price, issued by a reputable bank.",
-    isMandatory: true,
-  }];
-  const paraScore = scoreCase(testCase, paraphrased);
-  check("paraphrased extraction still surfaces its label", paraScore.surfacedTotal >= 1);
-
-  // Fabricated item (ungrounded in any label) -> false positive.
-  const fabricated = [{ text: "The company must provide a helicopter landing pad at its headquarters", isMandatory: false }];
-  const fabScore = scoreCase(testCase, fabricated);
-  check("fabricated item is logged as a false positive", fabScore.falsePositives === 1);
+  return aggregateReport(perTender, run.target);
 }
 
-function enforceGates(run: RecordedRun, recomputed: CumulativeScore): void {
+function enforceGates(run: RecordedRun, recomputed: EvalReport): void {
   console.log("\n=== Gates ===");
   check(
-    "recorded figures reproducible from stored engine outputs (FR-EXT-04)",
-    Math.abs(recomputed.mandatoryRecall - run.cumulative.mandatoryRecall) < 1e-9 &&
-      recomputed.surfacedMandatory === run.cumulative.surfacedMandatory,
-    `recorded ${pct(run.cumulative.mandatoryRecall)} vs recomputed ${pct(recomputed.mandatoryRecall)}`,
+    "recorded figures reproducible from stored extracted texts (FR-EXT-04)",
+    Math.abs(recomputed.mandatoryRecall - run.report.mandatoryRecall) < 1e-9 &&
+      recomputed.totalMatched === run.report.totalMatched,
+    `recorded ${pct(run.report.mandatoryRecall)} vs recomputed ${pct(recomputed.mandatoryRecall)}`,
   );
   check(
-    `cumulative mandatory recall >= ${pct(GATE0_THRESHOLD)} (Gate 0)`,
-    recomputed.mandatoryRecall >= GATE0_THRESHOLD,
+    `cumulative MANDATORY recall >= ${pct(run.target)} (FR-EXT-05)`,
+    recomputed.mandatoryPassed,
     pct(recomputed.mandatoryRecall),
+  );
+  console.log(
+    `  (overall recall ${pct(recomputed.overallRecall)} — ` +
+      `${recomputed.totalMatched}/${recomputed.totalGroundTruth} incl. desirable rows)`,
   );
   if (existsSync(BASELINE_PATH)) {
     const baseline = JSON.parse(readFileSync(BASELINE_PATH, "utf-8")) as RecordedRun;
-    const drop = baseline.cumulative.mandatoryRecall - recomputed.mandatoryRecall;
+    const drop = baseline.report.mandatoryRecall - recomputed.mandatoryRecall;
     check(
-      `recall drop vs baseline <= ${pct(MAX_BASELINE_DROP)} (NFR-QLT-02)`,
+      `mandatory-recall drop vs baseline <= ${pct(MAX_BASELINE_DROP)} (NFR-QLT-02)`,
       drop <= MAX_BASELINE_DROP,
-      `baseline ${pct(baseline.cumulative.mandatoryRecall)} -> ${pct(recomputed.mandatoryRecall)}`,
+      `baseline ${pct(baseline.report.mandatoryRecall)} -> ${pct(recomputed.mandatoryRecall)}`,
     );
   } else {
-    console.log("  (no baseline.json yet — record one with --promote-baseline after a good live run)");
+    console.log("  (no baseline.json yet — record one with eval:promote-baseline after a good live run)");
   }
 }
 
-function recomputeFromStored(run: RecordedRun): { perDoc: DocScore[]; cumulative: CumulativeScore } {
-  const perDoc = EVAL_CASES.filter((c) => run.engineOutputs[c.id]).map((c) =>
-    scoreCase(c, run.engineOutputs[c.id]),
-  );
-  return { perDoc, cumulative: cumulative(perDoc) };
-}
-
-async function liveRun(): Promise<void> {
-  console.log("\n=== LIVE run: real extraction over the labelled corpus ===");
+async function livePass(target: number): Promise<void> {
+  console.log(`\n=== LIVE recall pass (real engine over ${CORPUS.length} tenders) ===`);
+  console.log(`Target mandatory recall: ${pct(target)}\n`);
   const { extractRequirements } = await import("../src/lib/llm");
-  const engineOutputs: Record<string, EngineItem[]> = {};
-  const perDoc: DocScore[] = [];
+  const projectId = "00000000-0000-0000-0000-000000000000";
 
-  for (const evalCase of EVAL_CASES) {
-    const { requirements } = await extractRequirements("00000000-0000-0000-0000-000000000000", [
-      {
-        id: `eval-${evalCase.id}`,
-        filename: `${evalCase.id}.txt`,
-        type: "tender",
-        contentText: evalCase.documentText,
-      },
+  const extractedTexts: Record<string, string[]> = {};
+  const perTender: TenderRecall[] = [];
+  for (const tender of CORPUS) {
+    const { requirements } = await extractRequirements(projectId, [
+      { id: `${tender.id}-doc`, filename: `${tender.id}.txt`, type: "tender", contentText: tender.documentText },
     ]);
-    const items: EngineItem[] = requirements.map((r) => ({
-      text: r.text,
-      isMandatory: r.isMandatory,
-    }));
-    engineOutputs[evalCase.id] = items;
-    const score = scoreCase(evalCase, items);
-    perDoc.push(score);
-    console.log(
-      `  ${evalCase.id}: mandatory recall ${pct(score.mandatoryRecall ?? 0)} ` +
-        `(${score.surfacedMandatory}/${score.labelledMandatory}), ${score.falsePositives} false positive(s)` +
-        (score.missedMandatory.length ? `\n    missed: ${score.missedMandatory.join(" | ")}` : ""),
-    );
+    extractedTexts[tender.id] = requirements.map((r) => r.text);
+    const result = computeTenderRecall(tender, extractedTexts[tender.id]);
+    perTender.push(result);
+    logTender(result);
   }
 
+  const report = aggregateReport(perTender, target);
   const { PROMPT_PACK_VERSION, MODEL_ID } = await import("../src/lib/provenance");
   const run: RecordedRun = {
     recordedAt: new Date().toISOString(),
     model: MODEL_ID,
     promptVersion: PROMPT_PACK_VERSION,
-    engineOutputs,
-    perDoc,
-    cumulative: cumulative(perDoc),
+    target,
+    extractedTexts,
+    report,
   };
   mkdirSync(RUNS_DIR, { recursive: true });
   writeFileSync(LATEST_PATH, JSON.stringify(run, null, 2) + "\n");
   console.log(`\nRecorded run -> ${LATEST_PATH}`);
-  console.log(`Cumulative mandatory recall: ${pct(run.cumulative.mandatoryRecall)}`);
-
-  enforceGates(run, recomputeFromStored(run).cumulative);
+  console.log(
+    `Mandatory recall: ${pct(report.mandatoryRecall)} (${report.mandatoryMatched}/${report.mandatoryGroundTruth}); ` +
+      `overall ${pct(report.overallRecall)}`,
+  );
+  enforceGates(run, recomputeFromStored(run));
 }
 
 async function main(): Promise<void> {
   const offline = process.argv.includes("--offline");
   const promote = process.argv.includes("--promote-baseline");
+  const target = resolveTarget();
 
   if (promote) {
     if (!existsSync(LATEST_PATH)) {
@@ -206,32 +229,36 @@ async function main(): Promise<void> {
     return;
   }
 
-  console.log(offline ? "Eval harness: OFFLINE (corpus + scorer + recorded-run gates).\n" : "Eval harness: FULL (live model run).\n");
-  validateCorpus();
-  scorerSelfTest();
+  console.log(
+    offline
+      ? "Running OFFLINE eval-harness checks (self-check + recorded-run gates).\n"
+      : "Running FULL eval harness (self-check + live engine recall).\n",
+  );
 
+  selfCheck();
   if (offline) {
     if (existsSync(LATEST_PATH)) {
       const run = JSON.parse(readFileSync(LATEST_PATH, "utf-8")) as RecordedRun;
       console.log(`\nRecorded live run found (${run.recordedAt}, model ${run.model}, prompts ${run.promptVersion}).`);
-      enforceGates(run, recomputeFromStored(run).cumulative);
+      enforceGates(run, recomputeFromStored(run));
     } else {
       console.log(
-        "\n(no recorded live run yet — run `pnpm --filter @workspace/api-server eval:harness` in the deploy environment " +
-          "and commit eval-harness/runs/latest.json to activate the recall gates)",
+        "\n(no recorded live run yet — run `pnpm --filter @workspace/api-server eval:harness` in the deploy " +
+          "environment and commit eval-corpus/runs/latest.json to activate the recall gates)",
       );
     }
   } else {
-    await liveRun();
+    await livePass(target);
   }
 
-  console.log(`\n=== RESULT: ${passes} passed, ${failures} failed ===`);
+  console.log(`\n---------------------------------------------`);
+  console.log(`RESULT: ${passes} passed, ${failures} failed`);
   if (failures > 0) process.exit(1);
 }
 
 main()
   .then(() => process.exit(0))
-  .catch((error) => {
-    console.error("Eval harness crashed:", error);
+  .catch((err) => {
+    console.error("\nEVAL HARNESS ERROR:", err);
     process.exit(1);
   });
