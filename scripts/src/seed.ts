@@ -1,6 +1,7 @@
 import {
   db,
   pool,
+  organisations,
   clients,
   projects,
   requirements,
@@ -9,6 +10,8 @@ import {
   boqChecks,
   vaultItems,
   auditEvents,
+  eq,
+  withTenantDatabase,
 } from "@workspace/db";
 
 type SeedPackage = {
@@ -116,7 +119,8 @@ const packages: SeedPackage[] = [
         type: "arithmetic_error",
         severity: "fatal",
         description: "BOQ grand total does not match sum of line extensions.",
-        remediation: "Re-verify all line extensions and correct the grand total.",
+        remediation:
+          "Re-verify all line extensions and correct the grand total.",
       },
       {
         type: "missing_evidence",
@@ -440,79 +444,131 @@ const packages: SeedPackage[] = [
 async function seed() {
   console.log("Seeding Valo Bid Autopsy Workbench sample data...");
 
-  await db.delete(auditEvents);
-  await db.delete(boqChecks);
-  await db.delete(defects);
-  await db.delete(evidenceItems);
-  await db.delete(requirements);
-  await db.delete(projects);
-  await db.delete(vaultItems);
-  await db.delete(clients);
+  const [seedOrganisation] = await db
+    .insert(organisations)
+    .values({
+      name: "Valo Sample Workspace",
+      slug: "valo-sample-workspace",
+      type: "valo",
+    })
+    .onConflictDoUpdate({
+      target: organisations.slug,
+      set: {
+        name: "Valo Sample Workspace",
+        status: "active",
+        updatedAt: new Date(),
+      },
+    })
+    .returning();
 
-  for (const pkg of packages) {
-    const [client] = await db
-      .insert(clients)
-      .values(pkg.client)
-      .returning();
+  // A seed run may replace only its own tenant. It must never erase another
+  // organisation's production or evaluation data.
+  await withTenantDatabase(seedOrganisation.id, async () => {
+    await db
+      .delete(auditEvents)
+      .where(eq(auditEvents.organisationId, seedOrganisation.id));
+    await db
+      .delete(boqChecks)
+      .where(eq(boqChecks.organisationId, seedOrganisation.id));
+    await db
+      .delete(defects)
+      .where(eq(defects.organisationId, seedOrganisation.id));
+    await db
+      .delete(evidenceItems)
+      .where(eq(evidenceItems.organisationId, seedOrganisation.id));
+    await db
+      .delete(requirements)
+      .where(eq(requirements.organisationId, seedOrganisation.id));
+    await db
+      .delete(projects)
+      .where(eq(projects.organisationId, seedOrganisation.id));
+    await db
+      .delete(vaultItems)
+      .where(eq(vaultItems.organisationId, seedOrganisation.id));
+    await db
+      .delete(clients)
+      .where(eq(clients.organisationId, seedOrganisation.id));
 
-    const [project] = await db
-      .insert(projects)
-      .values({ ...pkg.project, clientId: client.id })
-      .returning();
+    for (const pkg of packages) {
+      const [client] = await db
+        .insert(clients)
+        .values({ ...pkg.client, organisationId: seedOrganisation.id })
+        .returning();
 
-    if (pkg.vault.length) {
-      await db
-        .insert(vaultItems)
-        .values(pkg.vault.map((v) => ({ ...v, clientId: client.id })));
+      const [project] = await db
+        .insert(projects)
+        .values({
+          ...pkg.project,
+          organisationId: seedOrganisation.id,
+          clientId: client.id,
+        })
+        .returning();
+
+      if (pkg.vault.length) {
+        await db.insert(vaultItems).values(
+          pkg.vault.map((v) => ({
+            ...v,
+            organisationId: seedOrganisation.id,
+            clientId: client.id,
+          })),
+        );
+      }
+
+      const insertedReqs = pkg.requirements.length
+        ? await db
+            .insert(requirements)
+            .values(
+              pkg.requirements.map((r) => ({
+                ...r,
+                organisationId: seedOrganisation.id,
+                projectId: project.id,
+                reviewStatus: "confirmed",
+              })),
+            )
+            .returning()
+        : [];
+
+      if (insertedReqs.length) {
+        await db.insert(evidenceItems).values(
+          insertedReqs.map((r, i) => ({
+            organisationId: seedOrganisation.id,
+            projectId: project.id,
+            requirementId: r.id,
+            evidenceStatus: i === 0 ? "confirmed" : "pending",
+            excerpt: i === 0 ? "Evidence located in submitted document." : null,
+            suggested: i !== 0,
+          })),
+        );
+      }
+
+      if (pkg.defects.length) {
+        await db.insert(defects).values(
+          pkg.defects.map((d) => ({
+            ...d,
+            organisationId: seedOrganisation.id,
+            projectId: project.id,
+            suggested: false,
+          })),
+        );
+      }
+
+      if (pkg.boq.length) {
+        await db.insert(boqChecks).values(
+          pkg.boq.map((b) => ({
+            ...b,
+            organisationId: seedOrganisation.id,
+            projectId: project.id,
+          })),
+        );
+      }
+
+      // Deliberately NO audit_events insert here: raw inserts would create
+      // unchained rows indistinguishable from pre-chain legacy data. Seeding
+      // leaves the audit table empty so the first real writeAudit starts a
+      // clean hash chain at seq 1.
+      console.log(`  ✓ ${pkg.client.name} — ${pkg.project.tenderTitle}`);
     }
-
-    const insertedReqs = pkg.requirements.length
-      ? await db
-          .insert(requirements)
-          .values(
-            pkg.requirements.map((r) => ({
-              ...r,
-              projectId: project.id,
-              reviewStatus: "confirmed",
-            })),
-          )
-          .returning()
-      : [];
-
-    if (insertedReqs.length) {
-      await db.insert(evidenceItems).values(
-        insertedReqs.map((r, i) => ({
-          projectId: project.id,
-          requirementId: r.id,
-          evidenceStatus: i === 0 ? "confirmed" : "pending",
-          excerpt: i === 0 ? "Evidence located in submitted document." : null,
-          suggested: i !== 0,
-        })),
-      );
-    }
-
-    if (pkg.defects.length) {
-      await db.insert(defects).values(
-        pkg.defects.map((d) => ({
-          ...d,
-          projectId: project.id,
-          suggested: false,
-        })),
-      );
-    }
-
-    if (pkg.boq.length) {
-      await db
-        .insert(boqChecks)
-        .values(pkg.boq.map((b) => ({ ...b, projectId: project.id })));
-    }
-
-    // Deliberately NO audit_events insert here: raw inserts would create
-    // unchained rows indistinguishable from pre-chain legacy data. Seeding
-    // leaves the audit table empty so the first real writeAudit starts a
-    // clean hash chain at seq 1.
-    console.log(`  ✓ ${pkg.client.name} — ${pkg.project.tenderTitle}`);
-  }
+  });
 
   console.log(`Done. Seeded ${packages.length} packages.`);
   await pool.end();

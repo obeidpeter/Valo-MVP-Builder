@@ -23,6 +23,8 @@ export const AUDIT_GENESIS_HASH = "0".repeat(64);
 
 export interface AuditChainPayload {
   seq: number;
+  /** Tenant chain identity; prevents hashes from being replayed across organisations. */
+  organisationId: string;
   userId: string | null;
   userName: string | null;
   projectId: string | null;
@@ -42,6 +44,7 @@ export interface AuditChainPayload {
 export function canonicalAuditPayload(p: AuditChainPayload): string {
   return JSON.stringify([
     p.seq,
+    p.organisationId,
     p.userId,
     p.userName,
     p.projectId,
@@ -53,7 +56,10 @@ export function canonicalAuditPayload(p: AuditChainPayload): string {
   ]);
 }
 
-export function computeAuditHash(prevHash: string, payload: AuditChainPayload): string {
+export function computeAuditHash(
+  prevHash: string,
+  payload: AuditChainPayload,
+): string {
   return createHash("sha256")
     .update(prevHash)
     .update("\n")
@@ -123,7 +129,8 @@ export function verifyAuditChain(
         checked: i,
         error: {
           seq: row.seq,
-          reason: "hash mismatch: event payload was altered after it was written",
+          reason:
+            "hash mismatch: event payload was altered after it was written",
         },
       };
     }
@@ -148,7 +155,8 @@ export function verifyAuditChain(
         checked: sorted.length,
         error: {
           seq: expectedHead.seq,
-          reason: "anchored head hash mismatch: the event at the recorded head seq is not the recorded event",
+          reason:
+            "anchored head hash mismatch: the event at the recorded head seq is not the recorded event",
         },
       };
     }

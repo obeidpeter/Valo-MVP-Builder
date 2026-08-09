@@ -34,7 +34,10 @@ before(async () => {
 
   // Pin the retention window to 14 days for a deterministic boundary.
   await getActiveConfigRow();
-  const [cfg] = await db.select().from(appConfig).where(eq(appConfig.id, APP_CONFIG_ID));
+  const [cfg] = await db
+    .select()
+    .from(appConfig)
+    .where(eq(appConfig.id, APP_CONFIG_ID));
   originalRetentionDays = cfg.retentionDefaultDays;
   await db
     .update(appConfig)
@@ -82,7 +85,9 @@ before(async () => {
 });
 
 after(async () => {
-  await db.delete(retentionRequests).where(eq(retentionRequests.projectId, concludedOldId));
+  await db
+    .delete(retentionRequests)
+    .where(eq(retentionRequests.projectId, concludedOldId));
   await db.delete(auditEvents).where(eq(auditEvents.projectId, concludedOldId));
   await db.delete(projects).where(eq(projects.clientId, clientId));
   await db.delete(clients).where(eq(clients.id, clientId));
@@ -127,6 +132,10 @@ describe("retention automation scheduler", () => {
     // candidate, so nothing new is opened and the count stays at one.
     const result = await runRetentionScan();
     assert.ok(!result.opened.some((c) => c.projectId === concludedOldId));
-    assert.equal(await pendingFor(concludedOldId), 1, "still exactly one request");
+    assert.equal(
+      await pendingFor(concludedOldId),
+      1,
+      "still exactly one request",
+    );
   });
 });

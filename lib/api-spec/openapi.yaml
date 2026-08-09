@@ -2,8 +2,18 @@ openapi: 3.1.0
 info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: Valo Bid Autopsy Workbench API
+  version: 2.5.0
+  description: |
+    Valo multi-tenant tender platform API.
+
+    Except for health and organisation discovery/bootstrap operations, protected
+    tenant operations resolve an organisation access context on the server. The
+    `X-Valo-Organisation-Id` header selects a tenant; it is mandatory when a
+    caller has more than one active direct membership, when accessing a client
+    through an approved partner relationship, and whenever break-glass access is
+    used. The header is only a selector: the server independently validates the
+    authenticated user's active membership, role grants, access windows, partner
+    relationship, commercial activation, and break-glass approval.
 servers:
   - url: /api
     description: Base API path
@@ -38,9 +48,20 @@ tags:
     description: Internal workflow controls, notifications, retention and alerts
   - name: Storage
     description: Object storage upload and serving endpoints.
+  - name: Organisations
+    description: Organisation discovery, bootstrap and membership administration
+  - name: Partner Access
+    description: Two-sided consultancy partner relationship lifecycle
+  - name: Break Glass
+    description: Short-lived, independently approved emergency read access
+  - name: Feature Flags
+    description: Tenant feature configuration and platform-controlled commercial activation
+security:
+  - clerkBearer: []
 paths:
   /healthz:
     get:
+      security: []
       operationId: healthCheck
       tags: [health]
       summary: Health check
@@ -104,6 +125,494 @@ paths:
                 $ref: "#/components/schemas/User"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /organisations:
+    get:
+      operationId: listOrganisations
+      tags: [Organisations]
+      summary: List the caller's active organisation memberships
+      description: |
+        Discovery endpoint used before tenant selection. It returns only active,
+        unexpired memberships in active organisations, with only active and
+        unexpired role grants. No organisation context header is required.
+      responses:
+        "200":
+          description: Active organisation access available to the caller
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OrganisationAccessSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      operationId: createOrganisation
+      tags: [Organisations]
+      summary: Bootstrap an organisation
+      description: |
+        Creates an organisation, a direct membership for the caller, and the
+        organisation-type owner role in one transaction. Restricted platform
+        administrator identity bootstrap authority is required; this operation
+        does not select or grant access to any existing tenant.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrganisationCreate"
+      responses:
+        "201":
+          description: Organisation and bootstrap membership created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganisationCreated"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /organisations/{organisationId}/memberships:
+    parameters:
+      - $ref: "#/components/parameters/OrganisationIdParam"
+      - $ref: "#/components/parameters/OrganisationContextHeader"
+    get:
+      operationId: listOrganisationMemberships
+      tags: [Organisations]
+      summary: List organisation memberships and role grants
+      description: |
+        Requires `membership:read`. The resolved tenant must match the path
+        organisation. The header may be omitted only when the server can
+        unambiguously select the caller's sole active direct membership.
+      responses:
+        "200":
+          description: Memberships and non-revoked role grants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OrganisationMembershipView"
+        "400":
+          $ref: "#/components/responses/TenantSelectionRequired"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      operationId: createOrganisationMembership
+      tags: [Organisations]
+      summary: Add or reactivate a membership and grant a role
+      description: |
+        Requires `membership:manage` from a direct membership in the selected
+        organisation. Delegation ceilings and organisation-role compatibility
+        are enforced by the server. Partner and break-glass contexts cannot
+        administer memberships.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrganisationMembershipCreate"
+      responses:
+        "201":
+          description: Membership role granted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganisationMembershipGrantResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /organisations/{organisationId}/memberships/{membershipId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganisationIdParam"
+      - $ref: "#/components/parameters/MembershipIdParam"
+      - $ref: "#/components/parameters/OrganisationContextHeader"
+    patch:
+      operationId: updateOrganisationMembership
+      tags: [Organisations]
+      summary: Update membership status or access expiry
+      description: |
+        Requires `membership:manage` from a direct membership. The optimistic
+        membership version must be supplied in `If-Match`; stale versions fail
+        without mutation. An ETag containing the new version is returned.
+      parameters:
+        - $ref: "#/components/parameters/IfMatchVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrganisationMembershipUpdate"
+      responses:
+        "200":
+          description: Updated membership record
+          headers:
+            ETag:
+              $ref: "#/components/headers/VersionETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganisationMembershipRecord"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "428":
+          $ref: "#/components/responses/PreconditionRequired"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /partner-relationships:
+    parameters:
+      - $ref: "#/components/parameters/OrganisationContextHeader"
+    get:
+      operationId: listPartnerRelationships
+      tags: [Partner Access]
+      summary: List partner relationships for the selected organisation
+      description: |
+        Requires `partner_relationship:read`. Results are limited to rows where
+        the selected organisation is either the consultancy partner or client.
+      responses:
+        "200":
+          description: Partner relationships visible to the selected organisation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PartnerRelationship"
+        "400":
+          $ref: "#/components/responses/TenantSelectionRequired"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      operationId: createPartnerRelationship
+      tags: [Partner Access]
+      summary: Request a consultancy partner relationship
+      description: |
+        Requires `partner_relationship:manage` from a direct membership in a
+        consultancy partner organisation. The target must be an active client
+        organisation. Creation does not grant client-tenant access; the client
+        must separately approve the pending relationship.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PartnerRelationshipCreate"
+      responses:
+        "201":
+          description: Pending relationship created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerRelationship"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /partner-relationships/{id}/approve:
+    post:
+      operationId: approvePartnerRelationship
+      tags: [Partner Access]
+      summary: Approve a pending partner relationship
+      description: |
+        Requires `partner_relationship:manage` from a direct membership in the
+        client organisation named by the relationship. The client tenant must
+        have `partner_edition` commercially activated. The relationship version
+        supplied in `If-Match` prevents stale approval.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+        - $ref: "#/components/parameters/OrganisationContextHeader"
+        - $ref: "#/components/parameters/IfMatchVersion"
+      responses:
+        "200":
+          description: Active partner relationship
+          headers:
+            ETag:
+              $ref: "#/components/headers/VersionETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerRelationship"
+        "400":
+          $ref: "#/components/responses/TenantSelectionRequired"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "428":
+          $ref: "#/components/responses/PreconditionRequired"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /break-glass/sessions:
+    get:
+      operationId: listBreakGlassSessions
+      tags: [Break Glass]
+      summary: List the caller's break-glass requests
+      description: |
+        Returns only sessions requested by the authenticated user. It does not
+        expose another requester's sessions or approve access. No tenant context
+        header is used for lifecycle discovery.
+      responses:
+        "200":
+          description: Break-glass requests owned by the caller
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BreakGlassSession"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      operationId: createBreakGlassSession
+      tags: [Break Glass]
+      summary: Request short-lived emergency read access
+      description: |
+        Requires an active `valo_operations_administrator` grant in a Valo
+        organisation. Permissions must be a non-empty subset of the read-only
+        emergency allow-list. Creation remains pending and grants no access
+        until a distinct restricted platform administrator approves it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BreakGlassSessionCreate"
+      responses:
+        "201":
+          description: Pending break-glass request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BreakGlassSession"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /break-glass/sessions/{id}/approve:
+    post:
+      operationId: approveBreakGlassSession
+      tags: [Break Glass]
+      summary: Independently approve a pending break-glass request
+      description: |
+        Restricted platform administrator identity authority is required. The
+        approver must be different from the requester. Approval starts a fresh
+        access window capped at 60 minutes; the returned session identifier must
+        later accompany the target organisation header on emergency requests.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Active, independently approved break-glass session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BreakGlassSession"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /break-glass/sessions/{id}:
+    delete:
+      operationId: revokeBreakGlassSession
+      tags: [Break Glass]
+      summary: Revoke or cancel a break-glass session
+      description: |
+        The requester, approver, or a restricted platform administrator may
+        close a pending or active session. Unknown and unauthorised identifiers
+        share a 404 response to prevent enumeration.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Break-glass session revoked; no response body
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /platform/organisations/{organisationId}/feature-flags/{key}:
+    patch:
+      operationId: updatePlatformCommercialFeatureFlag
+      tags: [Feature Flags]
+      summary: Set platform-controlled commercial activation for a tenant
+      description: |
+        Restricted platform administrator identity authority is required. The
+        path selects the target organisation without granting access to its
+        tenant data. Enabling requires a commercial activation reference. If a
+        tenant flag already exists, its current version is required in
+        `If-Match`; creation does not require that header.
+      parameters:
+        - $ref: "#/components/parameters/OrganisationIdParam"
+        - $ref: "#/components/parameters/FeatureKeyParam"
+        - $ref: "#/components/parameters/IfMatchVersionOptional"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommercialFeatureFlagUpdate"
+      responses:
+        "200":
+          description: Saved platform-controlled feature flag record
+          headers:
+            ETag:
+              $ref: "#/components/headers/VersionETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeatureFlagRecord"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "428":
+          $ref: "#/components/responses/PreconditionRequired"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /feature-flags:
+    get:
+      operationId: listFeatureFlags
+      tags: [Feature Flags]
+      summary: List effective feature flags for the selected tenant
+      description: |
+        Requires `feature_flag:read`. Tenant overrides take precedence over
+        global rows; commercially gated keys with no stored row are returned as
+        disabled defaults. The response identifies whether each value came from
+        the tenant, a global default, or the secure default.
+      parameters:
+        - $ref: "#/components/parameters/OrganisationContextHeader"
+      responses:
+        "200":
+          description: Effective feature flags for the verified tenant context
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TenantFeatureFlag"
+        "400":
+          $ref: "#/components/responses/TenantSelectionRequired"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /feature-flags/{key}:
+    patch:
+      operationId: updateFeatureFlag
+      tags: [Feature Flags]
+      summary: Update a feature flag for the selected tenant
+      description: |
+        Requires `feature_flag:manage`. Break-glass contexts can never mutate a
+        feature flag. Enabling requires a commercial activation reference. If a
+        tenant flag already exists, its version is required in `If-Match`; a new
+        tenant override may be created without that header.
+      parameters:
+        - $ref: "#/components/parameters/FeatureKeyParam"
+        - $ref: "#/components/parameters/OrganisationContextHeader"
+        - $ref: "#/components/parameters/IfMatchVersionOptional"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TenantFeatureFlagUpdate"
+      responses:
+        "200":
+          description: Saved tenant feature flag
+          headers:
+            ETag:
+              $ref: "#/components/headers/VersionETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantFeatureFlagSaved"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "428":
+          $ref: "#/components/responses/PreconditionRequired"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
   /clients:
     get:
       operationId: listClients
@@ -1426,22 +1935,28 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UploadUrlRequest'
+              $ref: "#/components/schemas/UploadUrlRequest"
       responses:
-        '200':
+        "200":
           description: Presigned upload URL generated.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UploadUrlResponse'
-        '400':
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "400":
           $ref: "#/components/responses/BadRequest"
-        '500':
+        "413":
+          description: The declared upload size exceeds the deployment intake limit.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
           description: Failed to generate upload URL.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
+                $ref: "#/components/schemas/ErrorEnvelope"
   /storage/objects/{objectPath}:
     get:
       tags: [Storage]
@@ -1454,16 +1969,22 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Object content streamed with correct Content-Type.
           content:
-            '*/*':
+            "*/*":
               schema:
                 type: string
                 format: binary
-        '404':
+        "404":
           $ref: "#/components/responses/NotFound"
 components:
+  securitySchemes:
+    clerkBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Clerk session token. Authentication never implies access to a tenant.
   parameters:
     IdParam:
       name: id
@@ -1471,6 +1992,84 @@ components:
       required: true
       schema:
         type: string
+        format: uuid
+    OrganisationIdParam:
+      name: organisationId
+      in: path
+      required: true
+      description: Organisation identifier. A tenant-scoped operation also verifies the resolved context matches it.
+      schema:
+        type: string
+        format: uuid
+    MembershipIdParam:
+      name: membershipId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    FeatureKeyParam:
+      name: key
+      in: path
+      required: true
+      description: Lower-case feature key.
+      schema:
+        type: string
+        minLength: 3
+        maxLength: 80
+        pattern: "^[a-z][a-z0-9_]{2,79}$"
+    OrganisationContextHeader:
+      name: X-Valo-Organisation-Id
+      in: header
+      required: false
+      description: |
+        Selects the organisation access context. It is required when the caller
+        has multiple active direct memberships and always required for a
+        partner-managed client tenant or break-glass access. It may be omitted
+        only when the server can unambiguously select the caller's sole active
+        direct membership. This value never grants access by itself: the server
+        revalidates membership, role grants, access windows, relationship and
+        commercial state for every request.
+      schema:
+        type: string
+        format: uuid
+    BreakGlassSessionHeader:
+      name: X-Valo-Break-Glass-Session
+      in: header
+      required: false
+      description: |
+        Selects a separately approved emergency session for a tenant request.
+        It is valid only when `X-Valo-Organisation-Id` names the session target,
+        the authenticated user is the requester, approval came from a distinct
+        user, the session is active and unexpired, and the operation needs one
+        of the session's read-only permissions. It never enables write actions.
+      schema:
+        type: string
+        format: uuid
+    IfMatchVersion:
+      name: If-Match
+      in: header
+      required: true
+      description: Current positive integer resource version, optionally quoted or weakly prefixed.
+      schema:
+        type: string
+        pattern: '^(?:W/)?"?[1-9][0-9]*"?$'
+      example: '"3"'
+    IfMatchVersionOptional:
+      name: If-Match
+      in: header
+      required: false
+      description: Required when updating an existing row; omitted when creating the first tenant override.
+      schema:
+        type: string
+        pattern: '^(?:W/)?"?[1-9][0-9]*"?$'
+      example: '"3"'
+  headers:
+    VersionETag:
+      description: Quoted optimistic-concurrency version for the returned resource.
+      schema:
+        type: string
+      example: '"4"'
   responses:
     BadRequest:
       description: Invalid request
@@ -1485,7 +2084,7 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorEnvelope"
     Forbidden:
-      description: Insufficient role
+      description: Account, tenant context, role or permission does not authorise the request
       content:
         application/json:
           schema:
@@ -1498,6 +2097,24 @@ components:
             $ref: "#/components/schemas/ErrorEnvelope"
     Conflict:
       description: Request conflicts with current resource state
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    TenantSelectionRequired:
+      description: Tenant selection is missing or incompatible with another context header
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    PreconditionRequired:
+      description: A current resource version is required in If-Match
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    InternalServerError:
+      description: Authentication or tenant-context resolution failed unexpectedly
       content:
         application/json:
           schema:
@@ -1516,6 +2133,604 @@ components:
       properties:
         error:
           type: string
+    OrganisationType:
+      type: string
+      enum: [client, valo, consultancy_partner]
+    OrganisationRole:
+      type: string
+      description: Canonical organisation-scoped role. Legacy identity aliases are never emitted as grants.
+      enum:
+        - client_organisation_owner
+        - client_administrator
+        - bid_manager
+        - contributor
+        - client_reviewer_approver
+        - valo_operations_administrator
+        - restricted_platform_administrator
+        - consultancy_partner_administrator
+        - consultancy_partner_analyst_reviewer
+        - read_only_auditor
+        - valo_analyst
+        - valo_quality_adviser
+    OrganisationAccessSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - slug
+        - type
+        - status
+        - countryCode
+        - membershipId
+        - accessExpiresAt
+        - roles
+        - version
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        type:
+          $ref: "#/components/schemas/OrganisationType"
+        status:
+          type: string
+          enum: [active]
+        countryCode:
+          type: string
+          minLength: 2
+          maxLength: 2
+          example: NG
+        membershipId:
+          type: string
+          format: uuid
+        accessExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        roles:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/OrganisationRole"
+        version:
+          type: integer
+          minimum: 1
+    Organisation:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - slug
+        - type
+        - status
+        - countryCode
+        - createdBy
+        - version
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        type:
+          $ref: "#/components/schemas/OrganisationType"
+        status:
+          type: string
+        countryCode:
+          type: string
+        createdBy:
+          type: string
+          format: uuid
+          nullable: true
+        version:
+          type: integer
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    OrganisationCreate:
+      type: object
+      additionalProperties: false
+      required: [name, slug, type]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 160
+        slug:
+          type: string
+          minLength: 1
+          maxLength: 63
+          pattern: "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"
+        type:
+          $ref: "#/components/schemas/OrganisationType"
+    OrganisationCreated:
+      allOf:
+        - $ref: "#/components/schemas/Organisation"
+        - type: object
+          additionalProperties: false
+          required: [membershipId]
+          properties:
+            membershipId:
+              type: string
+              format: uuid
+    OrganisationMemberUser:
+      type: object
+      additionalProperties: false
+      required: [id, email, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          nullable: true
+    OrganisationRoleGrantView:
+      type: object
+      additionalProperties: false
+      required: [id, role, startsAt, expiresAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          $ref: "#/components/schemas/OrganisationRole"
+        startsAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+    OrganisationMembershipView:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - user
+        - status
+        - accessStartsAt
+        - accessExpiresAt
+        - roles
+        - version
+      properties:
+        id:
+          type: string
+          format: uuid
+        user:
+          $ref: "#/components/schemas/OrganisationMemberUser"
+        status:
+          type: string
+          enum: [active, suspended, revoked]
+        accessStartsAt:
+          type: string
+          format: date-time
+          nullable: true
+        accessExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        roles:
+          type: array
+          description: Non-revoked grants; callers must still evaluate startsAt and expiresAt.
+          items:
+            $ref: "#/components/schemas/OrganisationRoleGrantView"
+        version:
+          type: integer
+          minimum: 1
+    OrganisationMembershipCreate:
+      type: object
+      additionalProperties: false
+      required: [userId, role]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        role:
+          $ref: "#/components/schemas/OrganisationRole"
+        accessExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Must be in the future when supplied.
+        roleExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Must be in the future when supplied.
+    OrganisationMembershipGrantResult:
+      type: object
+      additionalProperties: false
+      required: [id, role]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Membership identifier.
+        role:
+          $ref: "#/components/schemas/OrganisationRole"
+    OrganisationMembershipUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        status:
+          type: string
+          enum: [active, suspended, revoked]
+        accessExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: A non-null value must be in the future; null clears the expiry.
+    OrganisationMembershipRecord:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - organisationId
+        - userId
+        - status
+        - accessStartsAt
+        - accessExpiresAt
+        - delegatedByMembershipId
+        - version
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        organisationId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [active, suspended, revoked]
+        accessStartsAt:
+          type: string
+          format: date-time
+          nullable: true
+        accessExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        delegatedByMembershipId:
+          type: string
+          format: uuid
+          nullable: true
+        version:
+          type: integer
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    PartnerRelationship:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - partnerOrganisationId
+        - clientOrganisationId
+        - status
+        - clientOwnershipRule
+        - qaResponsibility
+        - coSigningRequired
+        - accessStartsAt
+        - accessExpiresAt
+        - approvedByMembershipId
+        - version
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        partnerOrganisationId:
+          type: string
+          format: uuid
+        clientOrganisationId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, active]
+        clientOwnershipRule:
+          type: string
+          enum: [client_retained]
+        qaResponsibility:
+          type: string
+          maxLength: 500
+          nullable: true
+        coSigningRequired:
+          type: boolean
+        accessStartsAt:
+          type: string
+          format: date-time
+          nullable: true
+        accessExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        approvedByMembershipId:
+          type: string
+          format: uuid
+          nullable: true
+        version:
+          type: integer
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    PartnerRelationshipCreate:
+      type: object
+      additionalProperties: false
+      required: [clientOrganisationId]
+      properties:
+        clientOrganisationId:
+          type: string
+          format: uuid
+        qaResponsibility:
+          type: string
+          maxLength: 500
+          nullable: true
+        coSigningRequired:
+          type: boolean
+          default: false
+        accessExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Must be in the future when supplied.
+    BreakGlassPermission:
+      type: string
+      description: Read-only permission eligible for an emergency session.
+      enum:
+        - organisation:read
+        - client:read
+        - project:read
+        - document:read
+        - requirement:read
+        - evidence:read
+        - defect:read
+        - report:read
+        - draft:read
+        - package:read
+        - entitlement:read
+        - processing_job:read
+        - evaluation:read
+        - rule_pack:read
+        - partner_report:read
+        - audit:read
+    BreakGlassSession:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - targetOrganisationId
+        - requestedByUserId
+        - approvedByUserId
+        - reason
+        - incidentReference
+        - requestedPermissions
+        - status
+        - startsAt
+        - expiresAt
+        - revokedAt
+        - revokedByUserId
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        targetOrganisationId:
+          type: string
+          format: uuid
+        requestedByUserId:
+          type: string
+          format: uuid
+        approvedByUserId:
+          type: string
+          format: uuid
+          nullable: true
+        reason:
+          type: string
+          minLength: 20
+          maxLength: 1000
+        incidentReference:
+          type: string
+          minLength: 3
+          maxLength: 120
+        requestedPermissions:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/BreakGlassPermission"
+        status:
+          type: string
+          enum: [pending, active, revoked]
+        startsAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+        revokedByUserId:
+          type: string
+          format: uuid
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    BreakGlassSessionCreate:
+      type: object
+      additionalProperties: false
+      required:
+        - targetOrganisationId
+        - reason
+        - incidentReference
+        - durationMinutes
+        - permissions
+      properties:
+        targetOrganisationId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          minLength: 20
+          maxLength: 1000
+        incidentReference:
+          type: string
+          minLength: 3
+          maxLength: 120
+        durationMinutes:
+          type: integer
+          minimum: 5
+          maximum: 60
+        permissions:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/BreakGlassPermission"
+    TenantFeatureFlag:
+      type: object
+      additionalProperties: false
+      required: [key, enabled, configuration, source, version]
+      properties:
+        key:
+          type: string
+          pattern: "^[a-z][a-z0-9_]{2,79}$"
+        enabled:
+          type: boolean
+        configuration:
+          description: Parsed JSON configuration, or null when unconfigured.
+        source:
+          type: string
+          enum: [tenant, global, default]
+        version:
+          type: integer
+          minimum: 0
+    TenantFeatureFlagSaved:
+      type: object
+      additionalProperties: false
+      required: [key, enabled, configuration, version]
+      properties:
+        key:
+          type: string
+          pattern: "^[a-z][a-z0-9_]{2,79}$"
+        enabled:
+          type: boolean
+        configuration:
+          description: Parsed JSON configuration, or null when unconfigured.
+        version:
+          type: integer
+          minimum: 1
+    TenantFeatureFlagUpdate:
+      type: object
+      additionalProperties: false
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+        activationReference:
+          type: string
+          minLength: 5
+          description: Required by the server whenever enabled is true.
+        configuration:
+          description: Any JSON-serialisable value up to 20,000 encoded characters; omitted or null clears it.
+    CommercialFeatureFlagUpdate:
+      type: object
+      additionalProperties: false
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+        activationReference:
+          type: string
+          minLength: 5
+          description: Required by the server whenever enabled is true.
+    FeatureFlagRecord:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - organisationId
+        - key
+        - enabled
+        - configuration
+        - commercialGate
+        - updatedByUserId
+        - version
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        organisationId:
+          type: string
+          format: uuid
+          nullable: true
+        key:
+          type: string
+          pattern: "^[a-z][a-z0-9_]{2,79}$"
+        enabled:
+          type: boolean
+        configuration:
+          type: string
+          nullable: true
+          description: Raw JSON text stored by the platform-control endpoint.
+        commercialGate:
+          type: string
+          nullable: true
+        updatedByUserId:
+          type: string
+          format: uuid
+          nullable: true
+        version:
+          type: integer
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
     User:
       type: object
       required: [id, email, role, status]
@@ -1597,8 +2812,15 @@ components:
     ScorecardCounts:
       type: object
       required:
-        [engineConfirmed, engineEdited, engineRejected, engineUnreviewed,
-         manualVerified, mandatoryEngineVerified, mandatoryVerifiedTotal]
+        [
+          engineConfirmed,
+          engineEdited,
+          engineRejected,
+          engineUnreviewed,
+          manualVerified,
+          mandatoryEngineVerified,
+          mandatoryVerifiedTotal,
+        ]
       properties:
         engineConfirmed: { type: integer }
         engineEdited: { type: integer }
@@ -1772,7 +2994,8 @@ components:
           enum: [founder, advisor]
     ProjectCost:
       type: object
-      required: [projectId, runs, promptTokens, completionTokens, estimatedKobo, tasks]
+      required:
+        [projectId, runs, promptTokens, completionTokens, estimatedKobo, tasks]
       properties:
         projectId: { type: string }
         runs: { type: integer }
@@ -1791,7 +3014,15 @@ components:
               completionTokens: { type: integer }
     MonthlyCostReport:
       type: object
-      required: [month, totalRuns, totalPromptTokens, totalCompletionTokens, totalEstimatedKobo, engagements]
+      required:
+        [
+          month,
+          totalRuns,
+          totalPromptTokens,
+          totalCompletionTokens,
+          totalEstimatedKobo,
+          engagements,
+        ]
       properties:
         month: { type: string }
         unitAssumptionKobo:
@@ -1807,7 +3038,14 @@ components:
           type: array
           items:
             type: object
-            required: [runs, promptTokens, completionTokens, estimatedKobo, withinUnitAssumption]
+            required:
+              [
+                runs,
+                promptTokens,
+                completionTokens,
+                estimatedKobo,
+                withinUnitAssumption,
+              ]
             properties:
               projectId: { type: string, nullable: true }
               tenderTitle: { type: string, nullable: true }
@@ -1818,7 +3056,8 @@ components:
               withinUnitAssumption: { type: boolean }
     AccessReviewRow:
       type: object
-      required: [at, actor, client, project, action, objectType, objectId, details]
+      required:
+        [at, actor, client, project, action, objectType, objectId, details]
       properties:
         at: { type: string }
         actor: { type: string }
@@ -1854,7 +3093,15 @@ components:
         clientId: { type: string }
         claimType:
           type: string
-          enum: [project, personnel, equipment, certification, past_performance, other]
+          enum:
+            [
+              project,
+              personnel,
+              equipment,
+              certification,
+              past_performance,
+              other,
+            ]
         description: { type: string, nullable: true }
         evidenceDocId: { type: string, nullable: true }
         evidenceDocName: { type: string, nullable: true }
@@ -1871,7 +3118,15 @@ components:
       properties:
         claimType:
           type: string
-          enum: [project, personnel, equipment, certification, past_performance, other]
+          enum:
+            [
+              project,
+              personnel,
+              equipment,
+              certification,
+              past_performance,
+              other,
+            ]
         description: { type: string }
         evidenceDocId: { type: string }
     CapabilityItemUpdate:
@@ -1879,7 +3134,15 @@ components:
       properties:
         claimType:
           type: string
-          enum: [project, personnel, equipment, certification, past_performance, other]
+          enum:
+            [
+              project,
+              personnel,
+              equipment,
+              certification,
+              past_performance,
+              other,
+            ]
         description: { type: string }
         evidenceDocId: { type: string, nullable: true }
         approvedStatus:
@@ -2050,7 +3313,17 @@ components:
         submissionStatus: { type: string, nullable: true }
         status:
           type: string
-          enum: [intake, extraction, review, defects, reporting, signed_off, exported, archived]
+          enum:
+            [
+              intake,
+              extraction,
+              review,
+              defects,
+              reporting,
+              signed_off,
+              exported,
+              archived,
+            ]
         reviewerId: { type: string, nullable: true }
         reviewerName: { type: string, nullable: true }
         slaClass:
@@ -2087,7 +3360,17 @@ components:
         riskOverrideBy: { type: string, nullable: true }
         outcome:
           type: string
-          enum: [none, free_autopsy, paid_autopsy, assisted_bid_offer, retainer_offer, paid_mandate, lost, no_response]
+          enum:
+            [
+              none,
+              free_autopsy,
+              paid_autopsy,
+              assisted_bid_offer,
+              retainer_offer,
+              paid_mandate,
+              lost,
+              no_response,
+            ]
         mandateQuality:
           type: string
           enum: [none, autopsy_only, assisted_bid, retainer]
@@ -2114,7 +3397,17 @@ components:
           nullable: true
         status:
           type: string
-          enum: [intake, extraction, review, defects, reporting, signed_off, exported, archived]
+          enum:
+            [
+              intake,
+              extraction,
+              review,
+              defects,
+              reporting,
+              signed_off,
+              exported,
+              archived,
+            ]
         reviewerName: { type: string, nullable: true }
         slaClass:
           type: string
@@ -2133,7 +3426,17 @@ components:
           nullable: true
         outcome:
           type: string
-          enum: [none, free_autopsy, paid_autopsy, assisted_bid_offer, retainer_offer, paid_mandate, lost, no_response]
+          enum:
+            [
+              none,
+              free_autopsy,
+              paid_autopsy,
+              assisted_bid_offer,
+              retainer_offer,
+              paid_mandate,
+              lost,
+              no_response,
+            ]
         nextAction: { type: string, nullable: true }
         defectCount: { type: integer }
         fatalDefectCount: { type: integer }
@@ -2186,7 +3489,17 @@ components:
         submissionStatus: { type: string }
         status:
           type: string
-          enum: [intake, extraction, review, defects, reporting, signed_off, exported, archived]
+          enum:
+            [
+              intake,
+              extraction,
+              review,
+              defects,
+              reporting,
+              signed_off,
+              exported,
+              archived,
+            ]
         reviewerId: { type: string }
         slaClass:
           type: string
@@ -2204,7 +3517,17 @@ components:
         restrictedMode: { type: boolean }
         outcome:
           type: string
-          enum: [none, free_autopsy, paid_autopsy, assisted_bid_offer, retainer_offer, paid_mandate, lost, no_response]
+          enum:
+            [
+              none,
+              free_autopsy,
+              paid_autopsy,
+              assisted_bid_offer,
+              retainer_offer,
+              paid_mandate,
+              lost,
+              no_response,
+            ]
         mandateQuality:
           type: string
           enum: [none, autopsy_only, assisted_bid, retainer]
@@ -2213,7 +3536,14 @@ components:
         responsivenessReview: { type: string }
     DashboardMetrics:
       type: object
-      required: [totalProjects, openProjects, paidMandates, packagesShared, materialDefectRate]
+      required:
+        [
+          totalProjects,
+          openProjects,
+          paidMandates,
+          packagesShared,
+          materialDefectRate,
+        ]
       properties:
         totalProjects: { type: integer }
         openProjects: { type: integer }
@@ -2250,8 +3580,13 @@ components:
         key:
           type: string
           enum:
-            [decisionMakerConversations, packagesUnderNda, materialDefectRate,
-             paidMandates, mandateQuality]
+            [
+              decisionMakerConversations,
+              packagesUnderNda,
+              materialDefectRate,
+              paidMandates,
+              mandateQuality,
+            ]
         label: { type: string }
         description: { type: string }
         value: { type: number }
@@ -2275,7 +3610,8 @@ components:
         totalCount: { type: integer }
     Document:
       type: object
-      required: [id, projectId, type, filename, objectPath, redactionStatus, createdAt]
+      required:
+        [id, projectId, type, filename, objectPath, redactionStatus, createdAt]
       properties:
         id: { type: string }
         projectId: { type: string }
@@ -2361,7 +3697,8 @@ components:
 
     Requirement:
       type: object
-      required: [id, projectId, text, category, isMandatory, reviewStatus, createdAt]
+      required:
+        [id, projectId, text, category, isMandatory, reviewStatus, createdAt]
       properties:
         id: { type: string }
         projectId: { type: string }
@@ -2372,7 +3709,8 @@ components:
         text: { type: string }
         category:
           type: string
-          enum: [eligibility, administrative, technical, financial_format, other]
+          enum:
+            [eligibility, administrative, technical, financial_format, other]
         expectedEvidence: { type: string, nullable: true }
         isMandatory: { type: boolean }
         confidence:
@@ -2422,7 +3760,8 @@ components:
         text: { type: string, minLength: 1 }
         category:
           type: string
-          enum: [eligibility, administrative, technical, financial_format, other]
+          enum:
+            [eligibility, administrative, technical, financial_format, other]
         expectedEvidence: { type: string }
         isMandatory: { type: boolean }
     RequirementUpdate:
@@ -2433,7 +3772,8 @@ components:
         text: { type: string, minLength: 1 }
         category:
           type: string
-          enum: [eligibility, administrative, technical, financial_format, other]
+          enum:
+            [eligibility, administrative, technical, financial_format, other]
         expectedEvidence: { type: string }
         isMandatory: { type: boolean }
         confidence:
@@ -2503,7 +3843,17 @@ components:
         requirementText: { type: string, nullable: true }
         type:
           type: string
-          enum: [omission, expiry, arithmetic, formatting, responsiveness, eligibility, unsupported_claim, validity]
+          enum:
+            [
+              omission,
+              expiry,
+              arithmetic,
+              formatting,
+              responsiveness,
+              eligibility,
+              unsupported_claim,
+              validity,
+            ]
         severity:
           type: string
           enum: [fatal, likely_fatal, scoring_risk, cosmetic]
@@ -2534,7 +3884,17 @@ components:
         requirementId: { type: string }
         type:
           type: string
-          enum: [omission, expiry, arithmetic, formatting, responsiveness, eligibility, unsupported_claim, validity]
+          enum:
+            [
+              omission,
+              expiry,
+              arithmetic,
+              formatting,
+              responsiveness,
+              eligibility,
+              unsupported_claim,
+              validity,
+            ]
         severity:
           type: string
           enum: [fatal, likely_fatal, scoring_risk, cosmetic]
@@ -2551,7 +3911,17 @@ components:
         requirementId: { type: string }
         type:
           type: string
-          enum: [omission, expiry, arithmetic, formatting, responsiveness, eligibility, unsupported_claim, validity]
+          enum:
+            [
+              omission,
+              expiry,
+              arithmetic,
+              formatting,
+              responsiveness,
+              eligibility,
+              unsupported_claim,
+              validity,
+            ]
         severity:
           type: string
           enum: [fatal, likely_fatal, scoring_risk, cosmetic]
@@ -2582,7 +3952,15 @@ components:
         computedExtensionKobo: { type: integer, nullable: true }
         checkType:
           type: string
-          enum: [extension_mismatch, section_total, grand_total, words_vs_figures, blank_line, suspicious_zero]
+          enum:
+            [
+              extension_mismatch,
+              section_total,
+              grand_total,
+              words_vs_figures,
+              blank_line,
+              suspicious_zero,
+            ]
         finding: { type: string }
         severity:
           type: string
@@ -2706,12 +4084,15 @@ components:
         name:
           type: string
           minLength: 1
+          maxLength: 255
         size:
           type: integer
           minimum: 1
+          maximum: 104857600
         contentType:
           type: string
           minLength: 1
+          maxLength: 255
     UploadUrlResponse:
       type: object
       required: [uploadURL, objectPath]
@@ -2722,4 +4103,4 @@ components:
         objectPath:
           type: string
         metadata:
-          $ref: '#/components/schemas/UploadUrlRequest'
+          $ref: "#/components/schemas/UploadUrlRequest"

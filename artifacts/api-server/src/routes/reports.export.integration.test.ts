@@ -4,13 +4,18 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { createRequire } from "node:module";
 import type { Archiver, ArchiverOptions } from "archiver";
-import express, { type Request, type Response, type NextFunction } from "express";
+import express, {
+  type Request,
+  type Response,
+  type NextFunction,
+} from "express";
 import JSZip from "jszip";
 import { eq } from "drizzle-orm";
 import {
   db,
   pool,
   users,
+  organisations,
   clients,
   projects,
   documents,
@@ -48,11 +53,15 @@ let baseUrl: string;
 let clientId: string;
 let projectId: string;
 let adminId: string;
+let organisationId: string;
 
 // The bytes an object-storage download() is faked to return for the signed
 // report's .docx, so we can assert the exact payload lands in the ZIP / stream
 // without touching real object storage.
-const FAKE_DOCX_BYTES = Buffer.from("PK\u0003\u0004 valo signed report .docx payload", "utf8");
+const FAKE_DOCX_BYTES = Buffer.from(
+  "PK\u0003\u0004 valo signed report .docx payload",
+  "utf8",
+);
 const seeded = {
   reqs: [] as { id: string; reviewStatus: string; expected: string }[],
   evidence: [] as { id: string; suggested: boolean; expected: string }[],
@@ -60,7 +69,10 @@ const seeded = {
 };
 
 /** Parse a CSV string into headers + row objects, honouring quoted fields. */
-function parseCsv(csv: string): { headers: string[]; rows: Record<string, string>[] } {
+function parseCsv(csv: string): {
+  headers: string[];
+  rows: Record<string, string>[];
+} {
   const records: string[][] = [];
   let field = "";
   let record: string[] = [];
@@ -99,9 +111,9 @@ function parseCsv(csv: string): { headers: string[]; rows: Record<string, string
     records.push(record);
   }
   const headers = records[0] ?? [];
-  const rows = records.slice(1).map((cells) =>
-    Object.fromEntries(headers.map((h, i) => [h, cells[i]])),
-  );
+  const rows = records
+    .slice(1)
+    .map((cells) => Object.fromEntries(headers.map((h, i) => [h, cells[i]])));
   return { headers, rows };
 }
 
@@ -120,9 +132,19 @@ before(async () => {
     .returning();
   adminId = admin.id;
 
+  const [organisation] = await db
+    .insert(organisations)
+    .values({
+      name: `__EXPORT_IT_ORG__ ${stamp}`,
+      slug: `export-it-${Date.now()}`,
+      type: "client",
+    })
+    .returning();
+  organisationId = organisation.id;
+
   const [client] = await db
     .insert(clients)
-    .values({ name: `__EXPORT_IT__ ${stamp}` })
+    .values({ name: `__EXPORT_IT__ ${stamp}`, organisationId })
     .returning();
   clientId = client.id;
 
@@ -130,10 +152,12 @@ before(async () => {
     .insert(projects)
     .values({
       clientId: client.id,
+      organisationId,
       tenderTitle: "Export Integration VMT-2026-999",
       status: "signed_off",
       reviewerId: admin.id,
-      physicalArchiveInstruction: "Return all hard copies to client within 7 days",
+      physicalArchiveInstruction:
+        "Return all hard copies to client within 7 days",
     })
     .returning();
   projectId = project.id;
@@ -152,10 +176,30 @@ before(async () => {
   const reqRows = await db
     .insert(requirements)
     .values([
-      { projectId: project.id, sourceDocId: doc.id, text: "Tax clearance certificate", reviewStatus: "suggested" },
-      { projectId: project.id, sourceDocId: doc.id, text: "B-BBEE certificate, with a comma", reviewStatus: "accepted" },
-      { projectId: project.id, sourceDocId: doc.id, text: "Bid bond", reviewStatus: "pending" },
-      { projectId: project.id, sourceDocId: doc.id, text: "Reference letters", reviewStatus: "rejected" },
+      {
+        projectId: project.id,
+        sourceDocId: doc.id,
+        text: "Tax clearance certificate",
+        reviewStatus: "suggested",
+      },
+      {
+        projectId: project.id,
+        sourceDocId: doc.id,
+        text: "B-BBEE certificate, with a comma",
+        reviewStatus: "accepted",
+      },
+      {
+        projectId: project.id,
+        sourceDocId: doc.id,
+        text: "Bid bond",
+        reviewStatus: "pending",
+      },
+      {
+        projectId: project.id,
+        sourceDocId: doc.id,
+        text: "Reference letters",
+        reviewStatus: "rejected",
+      },
     ])
     .returning();
   seeded.reqs = reqRows.map((r) => ({
@@ -168,8 +212,19 @@ before(async () => {
   const evRows = await db
     .insert(evidenceItems)
     .values([
-      { projectId: project.id, requirementId: reqRows[0].id, evidenceStatus: "present", excerpt: "Quote with, comma and \"quotes\"", suggested: true },
-      { projectId: project.id, requirementId: reqRows[1].id, evidenceStatus: "missing", suggested: false },
+      {
+        projectId: project.id,
+        requirementId: reqRows[0].id,
+        evidenceStatus: "present",
+        excerpt: 'Quote with, comma and "quotes"',
+        suggested: true,
+      },
+      {
+        projectId: project.id,
+        requirementId: reqRows[1].id,
+        evidenceStatus: "missing",
+        suggested: false,
+      },
     ])
     .returning();
   seeded.evidence = evRows.map((e) => ({
@@ -182,8 +237,24 @@ before(async () => {
   const defRows = await db
     .insert(defects)
     .values([
-      { projectId: project.id, requirementId: reqRows[1].id, type: "missing_document", severity: "fatal", description: "Missing B-BBEE", status: "suggested", suggested: true },
-      { projectId: project.id, requirementId: reqRows[0].id, type: "other", severity: "major", description: "Late submission", status: "open", suggested: false },
+      {
+        projectId: project.id,
+        requirementId: reqRows[1].id,
+        type: "missing_document",
+        severity: "fatal",
+        description: "Missing B-BBEE",
+        status: "suggested",
+        suggested: true,
+      },
+      {
+        projectId: project.id,
+        requirementId: reqRows[0].id,
+        type: "other",
+        severity: "major",
+        description: "Late submission",
+        status: "open",
+        suggested: false,
+      },
     ])
     .returning();
   seeded.defects = defRows.map((d) => ({
@@ -202,6 +273,7 @@ before(async () => {
   });
 
   await db.insert(auditEvents).values({
+    organisationId,
     projectId: project.id,
     eventType: "project.created",
     objectType: "project",
@@ -242,10 +314,14 @@ before(async () => {
 });
 
 after(async () => {
-  if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
+  if (server)
+    await new Promise<void>((resolve) => server.close(() => resolve()));
   if (clientId) await db.delete(clients).where(eq(clients.id, clientId)); // cascades project + registers
-  if (projectId) await db.delete(auditEvents).where(eq(auditEvents.projectId, projectId));
+  if (projectId)
+    await db.delete(auditEvents).where(eq(auditEvents.projectId, projectId));
   if (adminId) await db.delete(users).where(eq(users.id, adminId));
+  if (organisationId)
+    await db.delete(organisations).where(eq(organisations.id, organisationId));
   await pool.end();
 });
 
@@ -269,7 +345,11 @@ describe("GET /projects/:id/export (live route)", () => {
       })
       .returning();
     try {
-      currentUser = { id: adminId, role: "admin", name: "Export Admin" } as LocalUser;
+      currentUser = {
+        id: adminId,
+        role: "admin",
+        name: "Export Admin",
+      } as LocalUser;
       const res = await fetch(`${baseUrl}/projects/${gated.id}/export`);
       assert.equal(res.status, 409);
     } finally {
@@ -279,7 +359,11 @@ describe("GET /projects/:id/export (live route)", () => {
   });
 
   test("admin download yields a ZIP whose CSVs preserve seeded review_state", async () => {
-    currentUser = { id: adminId, role: "admin", name: "Export Admin" } as LocalUser;
+    currentUser = {
+      id: adminId,
+      role: "admin",
+      name: "Export Admin",
+    } as LocalUser;
     const res = await fetch(`${baseUrl}/projects/${projectId}/export`);
     assert.equal(res.status, 200);
     assert.equal(res.headers.get("content-type"), "application/zip");
@@ -305,17 +389,25 @@ describe("GET /projects/:id/export (live route)", () => {
 
     // --- requirements.csv ---
     const reqCsv = parseCsv(await read("requirements.csv"));
-    assert.ok(reqCsv.headers.includes("review_state"), "requirements review_state column");
+    assert.ok(
+      reqCsv.headers.includes("review_state"),
+      "requirements review_state column",
+    );
     assert.equal(reqCsv.rows.length, seeded.reqs.length);
     for (const s of seeded.reqs) {
       const row = reqCsv.rows.find((r) => r.id === s.id);
       assert.ok(row, `requirement ${s.id} present in CSV`);
-      assert.equal(row!.review_state, s.expected, `requirement ${s.reviewStatus}`);
+      assert.equal(
+        row!.review_state,
+        s.expected,
+        `requirement ${s.reviewStatus}`,
+      );
     }
     // No suggested requirement is ever stamped confirmed (the core leak guard).
     for (const row of reqCsv.rows) {
       const src = seeded.reqs.find((r) => r.id === row.id)!;
-      if (src.reviewStatus === "suggested") assert.notEqual(row.review_state, "confirmed");
+      if (src.reviewStatus === "suggested")
+        assert.notEqual(row.review_state, "confirmed");
     }
 
     // --- evidence.csv ---
@@ -353,11 +445,17 @@ describe("GET /projects/:id/export (live route)", () => {
 
   test("exporting a signed-off project transitions status to 'exported'", async () => {
     // The previous test already exported; verify the persisted side effect.
-    const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
+    const [project] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, projectId));
     assert.equal(project.status, "exported");
 
     // And an audit trail of the export was recorded.
-    const events = await db.select().from(auditEvents).where(eq(auditEvents.projectId, projectId));
+    const events = await db
+      .select()
+      .from(auditEvents)
+      .where(eq(auditEvents.projectId, projectId));
     assert.ok(events.some((e) => e.eventType === "project.exported"));
   });
 
@@ -375,7 +473,8 @@ describe("GET /projects/:id/export (live route)", () => {
         tenderTitle: `Export storage-failure ${stamp}`,
         status: "signed_off",
         reviewerId: adminId,
-        physicalArchiveInstruction: "Return all hard copies to client within 7 days",
+        physicalArchiveInstruction:
+          "Return all hard copies to client within 7 days",
       })
       .returning();
 
@@ -389,7 +488,11 @@ describe("GET /projects/:id/export (live route)", () => {
     });
 
     try {
-      currentUser = { id: adminId, role: "admin", name: "Export Admin" } as LocalUser;
+      currentUser = {
+        id: adminId,
+        role: "admin",
+        name: "Export Admin",
+      } as LocalUser;
       const res = await fetch(`${baseUrl}/projects/${proj.id}/export`);
       assert.equal(res.status, 200);
       assert.equal(res.headers.get("content-type"), "application/zip");
@@ -410,7 +513,10 @@ describe("GET /projects/:id/export (live route)", () => {
         "requirements.csv",
         "scorecard.json",
       ]);
-      assert.ok(!files.some((f) => f.endsWith(".docx")), "no DOCX attached on storage failure");
+      assert.ok(
+        !files.some((f) => f.endsWith(".docx")),
+        "no DOCX attached on storage failure",
+      );
       currentUser = null;
     } finally {
       await db.delete(auditEvents).where(eq(auditEvents.projectId, proj.id));
@@ -452,7 +558,10 @@ describe("mid-stream archive failure aborts the download", () => {
       // Enough data to flush headers + partial body before we fail.
       archive.append(Buffer.alloc(300_000, 65), { name: "data.bin" });
       void archive.finalize();
-      setTimeout(() => archive.emit("error", new Error("simulated mid-stream failure")), 2);
+      setTimeout(
+        () => archive.emit("error", new Error("simulated mid-stream failure")),
+        2,
+      );
     });
 
     await new Promise<void>((resolve) => srv.listen(0, () => resolve()));
@@ -478,9 +587,17 @@ describe("mid-stream archive failure aborts the download", () => {
 
       // ...but the client must NOT be able to read a complete body: the aborted
       // connection surfaces as a read failure, so the truncation is detectable.
-      assert.equal(bodyReadSucceeded, false, "client body read must fail on a mid-stream abort");
+      assert.equal(
+        bodyReadSucceeded,
+        false,
+        "client body read must fail on a mid-stream abort",
+      );
       // And it certainly must never be handed a valid-looking, complete ZIP.
-      assert.equal(validZip, false, "a mid-stream failure must never produce a valid ZIP");
+      assert.equal(
+        validZip,
+        false,
+        "a mid-stream failure must never produce a valid ZIP",
+      );
     } finally {
       await new Promise<void>((resolve) => srv.close(() => resolve()));
     }
@@ -549,7 +666,11 @@ describe("object-storage-backed report attach & download", () => {
   });
 
   test("export ZIP attaches the latest signed-off report's .docx with its bytes", async () => {
-    currentUser = { id: adminId, role: "admin", name: "Export Admin" } as LocalUser;
+    currentUser = {
+      id: adminId,
+      role: "admin",
+      name: "Export Admin",
+    } as LocalUser;
     const res = await fetch(`${baseUrl}/projects/${projectId}/export`);
     assert.equal(res.status, 200);
 
@@ -573,14 +694,23 @@ describe("object-storage-backed report attach & download", () => {
     ]);
 
     // The attached .docx must be the exact bytes returned by object storage.
-    const docxBytes = await zip.file("bid-autopsy-report-v2.docx")!.async("nodebuffer");
-    assert.ok(docxBytes.equals(FAKE_DOCX_BYTES), "attached .docx bytes match storage payload");
+    const docxBytes = await zip
+      .file("bid-autopsy-report-v2.docx")!
+      .async("nodebuffer");
+    assert.ok(
+      docxBytes.equals(FAKE_DOCX_BYTES),
+      "attached .docx bytes match storage payload",
+    );
 
     currentUser = null;
   });
 
   test("download of a signed-off report streams the .docx bytes + filename", async () => {
-    currentUser = { id: adminId, role: "admin", name: "Export Admin" } as LocalUser;
+    currentUser = {
+      id: adminId,
+      role: "admin",
+      name: "Export Admin",
+    } as LocalUser;
     const res = await fetch(`${baseUrl}/reports/${signedReportId}/download`);
     assert.equal(res.status, 200);
     assert.equal(res.headers.get("content-type"), DOCX_MIME);
@@ -590,13 +720,20 @@ describe("object-storage-backed report attach & download", () => {
     );
 
     const body = Buffer.from(await res.arrayBuffer());
-    assert.ok(body.equals(FAKE_DOCX_BYTES), "downloaded bytes match storage payload");
+    assert.ok(
+      body.equals(FAKE_DOCX_BYTES),
+      "downloaded bytes match storage payload",
+    );
 
     // The successful export is audited.
-    const events = await db.select().from(auditEvents).where(eq(auditEvents.projectId, projectId));
+    const events = await db
+      .select()
+      .from(auditEvents)
+      .where(eq(auditEvents.projectId, projectId));
     assert.ok(
       events.some(
-        (e) => e.eventType === "report.exported" && e.objectId === signedReportId,
+        (e) =>
+          e.eventType === "report.exported" && e.objectId === signedReportId,
       ),
       "report.exported audit event written",
     );
@@ -605,14 +742,23 @@ describe("object-storage-backed report attach & download", () => {
   });
 
   test("download of a not-signed-off report is denied (403) and audited", async () => {
-    currentUser = { id: adminId, role: "admin", name: "Export Admin" } as LocalUser;
+    currentUser = {
+      id: adminId,
+      role: "admin",
+      name: "Export Admin",
+    } as LocalUser;
     const res = await fetch(`${baseUrl}/reports/${draftReportId}/download`);
     assert.equal(res.status, 403);
 
-    const events = await db.select().from(auditEvents).where(eq(auditEvents.projectId, projectId));
+    const events = await db
+      .select()
+      .from(auditEvents)
+      .where(eq(auditEvents.projectId, projectId));
     assert.ok(
       events.some(
-        (e) => e.eventType === "report.export_denied" && e.objectId === draftReportId,
+        (e) =>
+          e.eventType === "report.export_denied" &&
+          e.objectId === draftReportId,
       ),
       "report.export_denied audit event written",
     );
@@ -621,8 +767,14 @@ describe("object-storage-backed report attach & download", () => {
   });
 
   test("download-pdf of a signed-off report streams the .pdf bytes + filename", async () => {
-    currentUser = { id: adminId, role: "admin", name: "Export Admin" } as LocalUser;
-    const res = await fetch(`${baseUrl}/reports/${signedReportId}/download-pdf`);
+    currentUser = {
+      id: adminId,
+      role: "admin",
+      name: "Export Admin",
+    } as LocalUser;
+    const res = await fetch(
+      `${baseUrl}/reports/${signedReportId}/download-pdf`,
+    );
     assert.equal(res.status, 200);
     assert.equal(res.headers.get("content-type"), PDF_MIME);
     assert.equal(
@@ -631,13 +783,20 @@ describe("object-storage-backed report attach & download", () => {
     );
 
     const body = Buffer.from(await res.arrayBuffer());
-    assert.ok(body.equals(FAKE_DOCX_BYTES), "downloaded bytes match storage payload");
+    assert.ok(
+      body.equals(FAKE_DOCX_BYTES),
+      "downloaded bytes match storage payload",
+    );
 
     // The successful PDF export is audited with report.exported, mirroring DOCX.
-    const events = await db.select().from(auditEvents).where(eq(auditEvents.projectId, projectId));
+    const events = await db
+      .select()
+      .from(auditEvents)
+      .where(eq(auditEvents.projectId, projectId));
     assert.ok(
       events.some(
-        (e) => e.eventType === "report.exported" && e.objectId === signedReportId,
+        (e) =>
+          e.eventType === "report.exported" && e.objectId === signedReportId,
       ),
       "report.exported audit event written for PDF",
     );
@@ -646,14 +805,23 @@ describe("object-storage-backed report attach & download", () => {
   });
 
   test("download-pdf of a not-signed-off report is denied (403) and audited", async () => {
-    currentUser = { id: adminId, role: "admin", name: "Export Admin" } as LocalUser;
+    currentUser = {
+      id: adminId,
+      role: "admin",
+      name: "Export Admin",
+    } as LocalUser;
     const res = await fetch(`${baseUrl}/reports/${draftReportId}/download-pdf`);
     assert.equal(res.status, 403);
 
-    const events = await db.select().from(auditEvents).where(eq(auditEvents.projectId, projectId));
+    const events = await db
+      .select()
+      .from(auditEvents)
+      .where(eq(auditEvents.projectId, projectId));
     assert.ok(
       events.some(
-        (e) => e.eventType === "report.export_denied" && e.objectId === draftReportId,
+        (e) =>
+          e.eventType === "report.export_denied" &&
+          e.objectId === draftReportId,
       ),
       "report.export_denied audit event written for PDF",
     );

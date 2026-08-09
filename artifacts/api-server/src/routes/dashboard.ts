@@ -1,7 +1,17 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { sql, eq, and, inArray } from "drizzle-orm";
-import { db, projects, clients, documents, defects, reports } from "@workspace/db";
-import { requireMember } from "../middlewares/auth";
+import {
+  db,
+  projects,
+  clients,
+  documents,
+  defects,
+  reports,
+} from "@workspace/db";
+import {
+  getOrganisationId,
+  requirePermissionOrLegacy,
+} from "../middlewares/tenancy";
 import { assembleGate0 } from "../lib/deterministic";
 
 // A "quality" mandate (Build Brief §17) is a real advisory engagement, not
@@ -12,13 +22,20 @@ const NDA_OK_STATUSES = ["signed", "not_required"];
 
 const router: IRouter = Router();
 
-const OPEN_STATUSES = ["intake", "extraction", "review", "defects", "reporting"];
+const OPEN_STATUSES = [
+  "intake",
+  "extraction",
+  "review",
+  "defects",
+  "reporting",
+];
 const PAID_OUTCOMES = ["paid_autopsy", "paid_mandate", "retainer_offer"];
 
 router.get(
   "/dashboard/metrics",
-  requireMember,
-  async (_req: Request, res: Response) => {
+  requirePermissionOrLegacy("analytics:read"),
+  async (req: Request, res: Response) => {
+    const organisationId = getOrganisationId(req);
     const allProjects = await db
       .select({
         id: projects.id,
@@ -27,12 +44,23 @@ router.get(
         segment: projects.segment,
         mandateQuality: projects.mandateQuality,
       })
-      .from(projects);
+      .from(projects)
+      .where(
+        organisationId
+          ? eq(projects.organisationId, organisationId)
+          : undefined,
+      );
 
     const totalProjects = allProjects.length;
-    const openProjects = allProjects.filter((p) => OPEN_STATUSES.includes(p.status)).length;
-    const paidMandates = allProjects.filter((p) => p.outcome === "paid_mandate").length;
-    const packagesShared = allProjects.filter((p) => PAID_OUTCOMES.includes(p.outcome) || p.status === "exported").length;
+    const openProjects = allProjects.filter((p) =>
+      OPEN_STATUSES.includes(p.status),
+    ).length;
+    const paidMandates = allProjects.filter(
+      (p) => p.outcome === "paid_mandate",
+    ).length;
+    const packagesShared = allProjects.filter(
+      (p) => PAID_OUTCOMES.includes(p.outcome) || p.status === "exported",
+    ).length;
     // Gate 0 mandate quality: only PAID mandates that are an assisted bid or
     // retainer count (Build Brief §17 — "≥1 paid mandate is assisted-bid/
     // retainer, not autopsy-only"). A quality label on a non-paid project must
@@ -46,7 +74,14 @@ router.get(
     const [{ signedOff }] = await db
       .select({ signedOff: sql<number>`count(*)::int` })
       .from(reports)
-      .where(eq(reports.status, "signed_off"));
+      .where(
+        and(
+          eq(reports.status, "signed_off"),
+          organisationId
+            ? eq(reports.organisationId, organisationId)
+            : undefined,
+        ),
+      );
 
     // Material defect rate: share of projects with at least one fatal/likely_fatal defect.
     const projectIds = allProjects.map((p) => p.id);
@@ -64,6 +99,7 @@ router.get(
           and(
             inArray(defects.severity, ["fatal", "likely_fatal"]),
             eq(defects.status, "open"),
+            inArray(defects.projectId, projectIds),
           ),
         );
       materialDefectPackages = withMaterial.length;
@@ -71,10 +107,16 @@ router.get(
       const withAny = await db
         .selectDistinct({ projectId: defects.projectId })
         .from(defects)
-        .where(eq(defects.status, "open"));
+        .where(
+          and(
+            eq(defects.status, "open"),
+            inArray(defects.projectId, projectIds),
+          ),
+        );
       auditedPackages = withAny.length;
     }
-    const materialDefectRate = auditedPackages > 0 ? materialDefectPackages / auditedPackages : 0;
+    const materialDefectRate =
+      auditedPackages > 0 ? materialDefectPackages / auditedPackages : 0;
 
     // Gate 0 decision-maker conversations: sum across clients, kept distinct
     // from junior contacts (Build Brief §17).
@@ -82,7 +124,10 @@ router.get(
       .select({
         dmConversations: sql<number>`coalesce(sum(${clients.decisionMakerConversations}), 0)::int`,
       })
-      .from(clients);
+      .from(clients)
+      .where(
+        organisationId ? eq(clients.organisationId, organisationId) : undefined,
+      );
 
     // Gate 0 "packages shared under NDA": projects that are a tender+bid pair
     // (at least one tender document AND one bid document) whose client NDA is
@@ -94,6 +139,9 @@ router.get(
       .where(
         and(
           inArray(clients.ndaStatus, NDA_OK_STATUSES),
+          organisationId
+            ? eq(projects.organisationId, organisationId)
+            : undefined,
           sql`exists (select 1 from ${documents} d where d.project_id = ${projects.id} and d.type = 'tender')`,
           sql`exists (select 1 from ${documents} d where d.project_id = ${projects.id} and d.type = 'bid')`,
         ),

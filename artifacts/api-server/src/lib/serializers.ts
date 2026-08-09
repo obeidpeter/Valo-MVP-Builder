@@ -45,6 +45,7 @@ export function serializeUser(u: any) {
 export function serializeClient(c: any, projectCount?: number) {
   return {
     id: c.id,
+    organisationId: c.organisationId ?? null,
     name: c.name,
     sector: c.sector ?? null,
     segment: c.segment ?? null,
@@ -55,16 +56,22 @@ export function serializeClient(c: any, projectCount?: number) {
     decisionMakerConversations: c.decisionMakerConversations ?? 0,
     juniorConversations: c.juniorConversations ?? 0,
     projectCount: projectCount ?? null,
+    version: c.version ?? 1,
     createdAt: iso(c.createdAt) ?? new Date(0).toISOString(),
   };
 }
 
 export function serializeProject(
   p: any,
-  extra: { clientName?: string | null; ndaStatus?: string | null; reviewerName?: string | null } = {},
+  extra: {
+    clientName?: string | null;
+    ndaStatus?: string | null;
+    reviewerName?: string | null;
+  } = {},
 ) {
   return {
     id: p.id,
+    organisationId: p.organisationId ?? null,
     clientId: p.clientId,
     clientName: extra.clientName ?? null,
     ndaStatus: extra.ndaStatus ?? null,
@@ -105,6 +112,7 @@ export function serializeProject(
     limitations: p.limitations ?? null,
     responsivenessReview: p.responsivenessReview ?? null,
     responsivenessSuggested: p.responsivenessSuggested ?? false,
+    version: p.version ?? 1,
     createdAt: iso(p.createdAt) ?? new Date(0).toISOString(),
   };
 }
@@ -219,10 +227,7 @@ export function serializeBoqCheck(b: any) {
   };
 }
 
-export function serializeReport(
-  r: any,
-  generatedByName?: string | null,
-) {
+export function serializeReport(r: any, generatedByName?: string | null) {
   return {
     id: r.id,
     projectId: r.projectId,
@@ -265,10 +270,15 @@ export function serializeVaultItem(
     daysToExpiry: telemetry.daysToExpiry,
     createdAt: iso(v.createdAt) ?? new Date(0).toISOString(),
   };
-  return clientName === undefined ? base : { ...base, clientName: clientName ?? null };
+  return clientName === undefined
+    ? base
+    : { ...base, clientName: clientName ?? null };
 }
 
-export function serializeCapabilityItem(c: any, evidenceDocName?: string | null) {
+export function serializeCapabilityItem(
+  c: any,
+  evidenceDocName?: string | null,
+) {
   return {
     id: c.id,
     clientId: c.clientId,

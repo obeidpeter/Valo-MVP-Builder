@@ -1,8 +1,15 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq } from "drizzle-orm";
-import { db, projects, defects, requirements, evidenceItems } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
+import {
+  db,
+  projects,
+  defects,
+  requirements,
+  evidenceItems,
+} from "@workspace/db";
 import { OverrideRiskBody } from "@workspace/api-zod";
-import { requireMember, requireRoles, getLocalUser } from "../middlewares/auth";
+import { getLocalUser } from "../middlewares/auth";
+import { requirePermissionOrLegacy } from "../middlewares/tenancy";
 import { writeAudit } from "../lib/audit";
 import { computeRisk, type Severity } from "../lib/deterministic";
 import { getActiveConfig } from "../lib/appConfig";
@@ -10,17 +17,32 @@ import { getActiveConfig } from "../lib/appConfig";
 const router: IRouter = Router();
 
 async function computeAndPersist(projectId: string) {
-  const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
+  const [project] = await db
+    .select()
+    .from(projects)
+    .where(eq(projects.id, projectId));
   if (!project) return null;
 
-  const defs = await db.select().from(defects).where(eq(defects.projectId, projectId));
-  const reqs = await db.select().from(requirements).where(eq(requirements.projectId, projectId));
-  const ev = await db.select().from(evidenceItems).where(eq(evidenceItems.projectId, projectId));
+  const defs = await db
+    .select()
+    .from(defects)
+    .where(eq(defects.projectId, projectId));
+  const reqs = await db
+    .select()
+    .from(requirements)
+    .where(eq(requirements.projectId, projectId));
+  const ev = await db
+    .select()
+    .from(evidenceItems)
+    .where(eq(evidenceItems.projectId, projectId));
 
   const config = await getActiveConfig();
   const result = computeRisk(
     {
-      defects: defs.map((d) => ({ severity: d.severity as Severity, status: d.status })),
+      defects: defs.map((d) => ({
+        severity: d.severity as Severity,
+        status: d.status,
+      })),
       requirements: reqs.map((r) => ({
         id: r.id,
         isMandatory: r.isMandatory,
@@ -56,18 +78,22 @@ async function computeAndPersist(projectId: string) {
   };
 }
 
-router.get("/projects/:id/risk", requireMember, async (req: Request, res: Response) => {
-  const assessment = await computeAndPersist(String(req.params.id));
-  if (!assessment) {
-    res.status(404).json({ error: "Not found" });
-    return;
-  }
-  res.json(assessment);
-});
+router.get(
+  "/projects/:id/risk",
+  requirePermissionOrLegacy("defect:read"),
+  async (req: Request, res: Response) => {
+    const assessment = await computeAndPersist(String(req.params.id));
+    if (!assessment) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    res.json(assessment);
+  },
+);
 
 router.post(
   "/projects/:id/risk/override",
-  requireRoles("admin", "reviewer"),
+  requirePermissionOrLegacy("defect:review"),
   async (req: Request, res: Response) => {
     const parsed = OverrideRiskBody.safeParse(req.body);
     if (!parsed.success) {
@@ -82,6 +108,8 @@ router.post(
         riskOverrideBand: parsed.data.band,
         riskOverrideNote: parsed.data.note,
         riskOverrideBy: reviewerName,
+        version: sql`${projects.version} + 1`,
+        updatedAt: new Date(),
       })
       .where(eq(projects.id, String(req.params.id)))
       .returning();
@@ -104,12 +132,18 @@ router.post(
 
 router.delete(
   "/projects/:id/risk/override",
-  requireRoles("admin", "reviewer"),
+  requirePermissionOrLegacy("defect:review"),
   async (req: Request, res: Response) => {
     const user = getLocalUser(req);
     const [updated] = await db
       .update(projects)
-      .set({ riskOverrideBand: null, riskOverrideNote: null, riskOverrideBy: null })
+      .set({
+        riskOverrideBand: null,
+        riskOverrideNote: null,
+        riskOverrideBy: null,
+        version: sql`${projects.version} + 1`,
+        updatedAt: new Date(),
+      })
       .where(eq(projects.id, String(req.params.id)))
       .returning();
     if (!updated) {

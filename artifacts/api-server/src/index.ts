@@ -1,5 +1,30 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { initializeProductionAdapterReadiness } from "./lib/productionReadiness";
+import { parseBootstrapOrganisationConfig } from "./lib/bootstrap";
+
+const adapterReadiness = initializeProductionAdapterReadiness();
+parseBootstrapOrganisationConfig({
+  enabled: process.env.VALO_BOOTSTRAP_ORGANISATION_ENABLED,
+  name: process.env.VALO_BOOTSTRAP_ORGANISATION_NAME,
+  slug: process.env.VALO_BOOTSTRAP_ORGANISATION_SLUG,
+});
+for (const [feature, issues] of Object.entries(
+  adapterReadiness.featureIssues,
+)) {
+  if (issues.length > 0) {
+    logger.warn(
+      {
+        feature,
+        issues: issues.map((issue) => ({
+          kind: issue.kind,
+          code: issue.code,
+        })),
+      },
+      "Production feature disabled by adapter readiness",
+    );
+  }
+}
 
 const rawPort = process.env["PORT"];
 

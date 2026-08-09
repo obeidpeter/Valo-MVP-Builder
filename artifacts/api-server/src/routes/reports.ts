@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { createRequire } from "node:module";
 import type { Archiver, ArchiverError, ArchiverOptions } from "archiver";
-import { eq, desc, sql } from "drizzle-orm";
+import { and, eq, desc, sql } from "drizzle-orm";
 import {
   db,
   reports,
@@ -14,18 +14,42 @@ import {
   boqChecks,
   auditEvents,
   documents,
+  drafts,
+  draftVersions,
+  draftClaims,
+  claimEvidenceLinks,
+  redTeamRuns,
+  redTeamFindings,
 } from "@workspace/db";
 import { SignOffReportBody } from "@workspace/api-zod";
-import { requireMember, requireRoles, getLocalUser } from "../middlewares/auth";
+import { getLocalUser } from "../middlewares/auth";
+import {
+  getOrganisationId,
+  getAccessContext,
+  requirePermissionOrLegacy,
+} from "../middlewares/tenancy";
 import { serializeReport } from "../lib/serializers";
-import { writeAudit } from "../lib/audit";
+import { writeAudit, writeAuditTx } from "../lib/audit";
 import { buildReportDocx, DOCX_MIME, type ReportData } from "../lib/docx";
 import { buildReportPdf, PDF_MIME } from "../lib/pdf";
-import { ENGINE_VERSION, PROMPT_PACK_VERSION, MODEL_ID, TAXONOMY_VERSION } from "../lib/provenance";
-import { computeRisk, blockingSignOffDefects, type Severity } from "../lib/deterministic";
+import {
+  ENGINE_VERSION,
+  PROMPT_PACK_VERSION,
+  MODEL_ID,
+  TAXONOMY_VERSION,
+} from "../lib/provenance";
+import { computeRisk, type Severity } from "../lib/deterministic";
+import { evaluateSubmissionReadiness } from "../lib/submissionReadiness";
 import { getActiveConfig } from "../lib/appConfig";
 import { computeScorecard } from "../lib/scorecard";
 import { ObjectStorageService } from "../lib/objectStorage";
+import {
+  canGenerateReportForProjectStatus,
+  isLatestReportVersion,
+  packageExportDenial,
+  reportExportDenial,
+  reportSignerDenial,
+} from "../lib/reportPolicy";
 
 const router: IRouter = Router();
 const objectStorage = new ObjectStorageService();
@@ -46,15 +70,30 @@ async function gatherReportData(projectId: string): Promise<ReportData | null> {
     .where(eq(projects.id, projectId));
   if (!row) return null;
 
-  const reqs = await db.select().from(requirements).where(eq(requirements.projectId, projectId));
-  const ev = await db.select().from(evidenceItems).where(eq(evidenceItems.projectId, projectId));
-  const defs = await db.select().from(defects).where(eq(defects.projectId, projectId));
-  const boqs = await db.select().from(boqChecks).where(eq(boqChecks.projectId, projectId));
+  const reqs = await db
+    .select()
+    .from(requirements)
+    .where(eq(requirements.projectId, projectId));
+  const ev = await db
+    .select()
+    .from(evidenceItems)
+    .where(eq(evidenceItems.projectId, projectId));
+  const defs = await db
+    .select()
+    .from(defects)
+    .where(eq(defects.projectId, projectId));
+  const boqs = await db
+    .select()
+    .from(boqChecks)
+    .where(eq(boqChecks.projectId, projectId));
 
   const config = await getActiveConfig();
   const risk = computeRisk(
     {
-      defects: defs.map((d) => ({ severity: d.severity as Severity, status: d.status })),
+      defects: defs.map((d) => ({
+        severity: d.severity as Severity,
+        status: d.status,
+      })),
       requirements: reqs.map((r) => ({
         id: r.id,
         isMandatory: r.isMandatory,
@@ -91,45 +130,139 @@ async function gatherReportData(projectId: string): Promise<ReportData | null> {
   };
 }
 
-router.get("/projects/:id/reports", requireMember, async (req: Request, res: Response) => {
-  const projectId = String(req.params.id);
-  const rows = await db
-    .select({ report: reports, generatedByName: users.name })
+async function latestReportForProject(projectId: string) {
+  const [latest] = await db
+    .select()
     .from(reports)
-    .leftJoin(users, eq(reports.generatedBy, users.id))
     .where(eq(reports.projectId, projectId))
-    .orderBy(desc(reports.version));
-  await writeAudit({
-    user: getLocalUser(req),
-    projectId,
-    eventType: "report.viewed",
-    objectType: "project",
-    objectId: projectId,
-    details: `${rows.length} report version(s)`,
-  });
-  res.json(rows.map((r) => serializeReport(r.report, r.generatedByName)));
-});
+    .orderBy(desc(reports.version))
+    .limit(1);
+  return latest;
+}
+
+async function gatherSupplementalReleaseGates(projectId: string): Promise<{
+  unsupportedClaimIds: string[];
+  requiresRedTeam: true;
+  redTeamApproved: boolean;
+}> {
+  const claimRows = await db
+    .select({
+      id: draftClaims.id,
+      claimKind: draftClaims.claimKind,
+      groundingStatus: draftClaims.groundingStatus,
+      evidenceLinkId: claimEvidenceLinks.id,
+    })
+    .from(draftClaims)
+    .innerJoin(draftVersions, eq(draftClaims.draftVersionId, draftVersions.id))
+    .innerJoin(drafts, eq(draftVersions.draftId, drafts.id))
+    .leftJoin(
+      claimEvidenceLinks,
+      eq(claimEvidenceLinks.draftClaimId, draftClaims.id),
+    )
+    .where(eq(drafts.projectId, projectId));
+  const evidenceLinkedClaimIds = new Set(
+    claimRows.filter((row) => row.evidenceLinkId).map((row) => row.id),
+  );
+  const unsupportedClaimIds = [
+    ...new Set(
+      claimRows
+        .filter(
+          (row) =>
+            row.claimKind.toLowerCase().includes("fact") &&
+            (row.groundingStatus !== "approved" ||
+              !evidenceLinkedClaimIds.has(row.id)),
+        )
+        .map((row) => row.id),
+    ),
+  ];
+
+  const [latestRedTeamRun] = await db
+    .select()
+    .from(redTeamRuns)
+    .where(eq(redTeamRuns.projectId, projectId))
+    .orderBy(desc(redTeamRuns.createdAt))
+    .limit(1);
+  let redTeamApproved = false;
+  if (
+    latestRedTeamRun?.status === "approved" &&
+    latestRedTeamRun.approvedByUserId &&
+    latestRedTeamRun.approvedAt &&
+    latestRedTeamRun.approvedByUserId !== latestRedTeamRun.initiatedByUserId
+  ) {
+    const findings = await db
+      .select({ status: redTeamFindings.status })
+      .from(redTeamFindings)
+      .where(eq(redTeamFindings.redTeamRunId, latestRedTeamRun.id));
+    redTeamApproved = findings.every(
+      (finding) => finding.status === "resolved",
+    );
+  }
+  return { unsupportedClaimIds, requiresRedTeam: true, redTeamApproved };
+}
+
+router.get(
+  "/projects/:id/reports",
+  requirePermissionOrLegacy("report:read"),
+  async (req: Request, res: Response) => {
+    const projectId = String(req.params.id);
+    const rows = await db
+      .select({ report: reports, generatedByName: users.name })
+      .from(reports)
+      .leftJoin(users, eq(reports.generatedBy, users.id))
+      .where(eq(reports.projectId, projectId))
+      .orderBy(desc(reports.version));
+    await writeAudit({
+      user: getLocalUser(req),
+      projectId,
+      eventType: "report.viewed",
+      objectType: "project",
+      objectId: projectId,
+      details: `${rows.length} report version(s)`,
+    });
+    res.json(rows.map((r) => serializeReport(r.report, r.generatedByName)));
+  },
+);
 
 router.post(
   "/projects/:id/generate-report",
-  requireMember,
+  requirePermissionOrLegacy("report:generate"),
   async (req: Request, res: Response) => {
-    const data = await gatherReportData(String(req.params.id));
+    const projectId = String(req.params.id);
+    // Serialise project-local max(version)+1 allocation inside the request's
+    // tenant transaction. The unique index is the final concurrency backstop.
+    await db.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${projectId}, 0))`,
+    );
+    const data = await gatherReportData(projectId);
     if (!data) {
       res.status(404).json({ error: "Not found" });
       return;
     }
+    if (!canGenerateReportForProjectStatus(data.project.status)) {
+      res.status(409).json({
+        error:
+          "Report generation is only available during review, defects, or reporting.",
+      });
+      return;
+    }
     const user = getLocalUser(req);
+    const organisationId = getOrganisationId(req);
     const [{ maxVersion }] = await db
-      .select({ maxVersion: sql<number>`coalesce(max(${reports.version}), 0)::int` })
+      .select({
+        maxVersion: sql<number>`coalesce(max(${reports.version}), 0)::int`,
+      })
       .from(reports)
-      .where(eq(reports.projectId, String(req.params.id)));
+      .where(eq(reports.projectId, projectId));
     const version = Number(maxVersion) + 1;
     data.version = version;
     data.generatedByName = user?.name ?? null;
 
-    const uploadRendered = async (buffer: Buffer, mime: string): Promise<string> => {
-      const uploadURL = await objectStorage.getObjectEntityUploadURL();
+    const uploadRendered = async (
+      buffer: Buffer,
+      mime: string,
+    ): Promise<string> => {
+      const uploadURL =
+        await objectStorage.getObjectEntityUploadURL(organisationId);
       const putRes = await fetch(uploadURL, {
         method: "PUT",
         headers: { "Content-Type": mime },
@@ -158,40 +291,58 @@ router.post(
       return;
     }
 
-    const [created] = await db
-      .insert(reports)
-      .values({
-        projectId: String(req.params.id),
-        version,
-        status: "draft",
-        docxPath,
-        pdfPath,
-        engineVersion: ENGINE_VERSION,
-        promptPackVersion: PROMPT_PACK_VERSION,
-        modelId: MODEL_ID,
-        taxonomyVersion: TAXONOMY_VERSION,
-        generatedBy: user?.id ?? null,
-      })
-      .returning();
+    const created = await db.transaction(
+      async (tx) => {
+        const [report] = await tx
+          .insert(reports)
+          .values({
+            organisationId,
+            projectId,
+            version,
+            status: "draft",
+            docxPath,
+            pdfPath,
+            engineVersion: ENGINE_VERSION,
+            promptPackVersion: PROMPT_PACK_VERSION,
+            modelId: MODEL_ID,
+            taxonomyVersion: TAXONOMY_VERSION,
+            generatedBy: user?.id ?? null,
+          })
+          .returning();
 
-    if (data.project.status === "defects" || data.project.status === "review") {
-      await db.update(projects).set({ status: "reporting" }).where(eq(projects.id, String(req.params.id)));
-    }
-    await writeAudit({
-      user,
-      projectId: String(req.params.id),
-      eventType: "report.generated",
-      objectType: "report",
-      objectId: created.id,
-      details: `v${version}`,
-    });
+        if (
+          data.project.status === "defects" ||
+          data.project.status === "review"
+        ) {
+          await tx
+            .update(projects)
+            .set({
+              status: "reporting",
+              version: sql`${projects.version} + 1`,
+              updatedAt: new Date(),
+            })
+            .where(eq(projects.id, projectId));
+        }
+        await writeAuditTx(tx, {
+          user,
+          organisationId,
+          projectId,
+          eventType: "report.generated",
+          objectType: "report",
+          objectId: report.id,
+          details: `v${version}`,
+        });
+        return report;
+      },
+      { isolationLevel: "read committed" },
+    );
     res.status(201).json(serializeReport(created, user?.name));
   },
 );
 
 router.post(
   "/reports/:id/sign-off",
-  requireRoles("admin", "reviewer"),
+  requirePermissionOrLegacy("report:sign_off"),
   async (req: Request, res: Response) => {
     const parsed = SignOffReportBody.safeParse(req.body);
     if (!parsed.success) {
@@ -213,146 +364,323 @@ router.post(
     // "process warranty" enforced in code — there is deliberately no override
     // path. The reviewer must resolve (remediate/waive) or downgrade the
     // defect first, which is itself an audited action.
-    const projectDefects = await db
-      .select()
-      .from(defects)
-      .where(eq(defects.projectId, report.projectId));
-    const blocking = blockingSignOffDefects(
-      projectDefects.map((d) => ({ ...d, severity: d.severity as Severity })),
-    );
-    if (blocking.length > 0) {
+    if (report.status !== "draft") {
+      res.status(409).json({
+        error: `Only a draft report can be signed off (current: ${report.status}).`,
+      });
+      return;
+    }
+    const latestReport = await latestReportForProject(report.projectId);
+    if (!isLatestReportVersion(report, latestReport)) {
+      await writeAudit({
+        user,
+        organisationId: getOrganisationId(req),
+        projectId: report.projectId,
+        eventType: "report.sign_off_denied",
+        objectType: "report",
+        objectId: report.id,
+        details:
+          "A newer report version exists; stale versions cannot be signed off.",
+      });
+      res
+        .status(409)
+        .json({ error: "Only the latest report version can be signed off." });
+      return;
+    }
+
+    const [governance] = await db
+      .select({ project: projects, ndaStatus: clients.ndaStatus })
+      .from(projects)
+      .leftJoin(clients, eq(projects.clientId, clients.id))
+      .where(eq(projects.id, report.projectId));
+    if (!governance) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+    const signerDenial = reportSignerDenial({
+      assignedReviewerId: governance.project.reviewerId,
+      signerId: user?.id,
+      accessSource: getAccessContext(req)?.source,
+      membershipId: getAccessContext(req)?.membershipId,
+    });
+    if (signerDenial) {
+      await writeAudit({
+        user,
+        organisationId: getOrganisationId(req),
+        projectId: report.projectId,
+        eventType: "report.sign_off_denied",
+        objectType: "report",
+        objectId: report.id,
+        details: `Signer authority denied: ${signerDenial}.`,
+      });
+      res.status(403).json({
+        error:
+          "Only the assigned reviewer acting through an active direct grant may sign off.",
+      });
+      return;
+    }
+    if (governance.project.status !== "reporting") {
+      await writeAudit({
+        user,
+        organisationId: getOrganisationId(req),
+        projectId: report.projectId,
+        eventType: "report.sign_off_denied",
+        objectType: "report",
+        objectId: report.id,
+        details: `Project is ${governance.project.status}; expected reporting.`,
+      });
+      res
+        .status(409)
+        .json({ error: "Project must be in reporting state before sign-off." });
+      return;
+    }
+
+    const [
+      projectDocuments,
+      projectRequirements,
+      projectEvidence,
+      projectDefects,
+      projectBoqChecks,
+      supplementalGates,
+    ] = await Promise.all([
+      db
+        .select()
+        .from(documents)
+        .where(eq(documents.projectId, report.projectId)),
+      db
+        .select()
+        .from(requirements)
+        .where(eq(requirements.projectId, report.projectId)),
+      db
+        .select()
+        .from(evidenceItems)
+        .where(eq(evidenceItems.projectId, report.projectId)),
+      db.select().from(defects).where(eq(defects.projectId, report.projectId)),
+      db
+        .select()
+        .from(boqChecks)
+        .where(eq(boqChecks.projectId, report.projectId)),
+      gatherSupplementalReleaseGates(report.projectId),
+    ]);
+
+    const readiness = evaluateSubmissionReadiness({
+      project: {
+        ndaStatus: governance.ndaStatus,
+        reviewerId: governance.project.reviewerId,
+        conflictStatus: governance.project.conflictStatus,
+        paymentStatus: governance.project.paymentStatus,
+        paymentConfirmedByFounder: governance.project.paymentConfirmedByFounder,
+        paymentConfirmedByAdvisor: governance.project.paymentConfirmedByAdvisor,
+        paymentFounderConfirmedBy: governance.project.paymentFounderConfirmedBy,
+        paymentAdvisorConfirmedBy: governance.project.paymentAdvisorConfirmedBy,
+      },
+      report: {
+        generatedBy: report.generatedBy,
+        engineVersion: report.engineVersion,
+        promptPackVersion: report.promptPackVersion,
+        modelId: report.modelId,
+        taxonomyVersion: report.taxonomyVersion,
+      },
+      signerId: user?.id,
+      documents: projectDocuments,
+      requirements: projectRequirements,
+      evidence: projectEvidence,
+      defects: projectDefects,
+      boqChecks: projectBoqChecks,
+      ...supplementalGates,
+      requireIndependentSignOff: true,
+    });
+    if (!readiness.ready) {
       await writeAudit({
         user,
         projectId: report.projectId,
         eventType: "report.sign_off_denied",
         objectType: "report",
         objectId: report.id,
-        details: `Sign-off blocked: ${blocking.length} open fatal/likely-fatal defect(s) must be resolved first.`,
+        details: JSON.stringify({
+          blockerCodes: readiness.blockers.map((blocker) => blocker.code),
+        }),
       });
       res.status(409).json({
         error:
-          "Report cannot be signed off while fatal or likely-fatal defects remain open. Resolve or downgrade them first.",
-        blockingDefects: blocking.map((d) => ({
-          id: d.id,
-          severity: d.severity,
-          description: d.description,
-        })),
+          "Report cannot be signed off until every submission-readiness invariant passes.",
+        blockers: readiness.blockers,
       });
       return;
     }
 
     const reviewerName = user?.name || user?.email || "Unknown reviewer";
-    const [updated] = await db
-      .update(reports)
-      .set({
-        status: "signed_off",
-        reviewerName,
-        attestation: parsed.data.attestation,
-        reviewerId: user?.id ?? null,
-        signedOffAt: new Date(),
-      })
-      .where(eq(reports.id, report.id))
-      .returning();
+    const updated = await db.transaction(
+      async (tx) => {
+        const [signed] = await tx
+          .update(reports)
+          .set({
+            status: "signed_off",
+            reviewerName,
+            attestation: parsed.data.attestation,
+            reviewerId: user?.id ?? null,
+            signedOffAt: new Date(),
+            optimisticLockVersion: sql`${reports.optimisticLockVersion} + 1`,
+            updatedAt: new Date(),
+          })
+          .where(and(eq(reports.id, report.id), eq(reports.status, "draft")))
+          .returning();
+        if (!signed) return undefined;
+
+        const [signedProject] = await tx
+          .update(projects)
+          .set({
+            status: "signed_off",
+            version: sql`${projects.version} + 1`,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(projects.id, signed.projectId),
+              eq(projects.status, "reporting"),
+            ),
+          )
+          .returning({ id: projects.id });
+        if (!signedProject) {
+          throw new Error("Project state changed during report sign-off");
+        }
+        await writeAuditTx(tx, {
+          user,
+          projectId: signed.projectId,
+          eventType: "report.signed_off",
+          objectType: "report",
+          objectId: signed.id,
+          details: `by ${reviewerName}`,
+        });
+        return signed;
+      },
+      { isolationLevel: "read committed" },
+    );
     if (!updated) {
       res.status(404).json({ error: "Not found" });
       return;
     }
-    await db.update(projects).set({ status: "signed_off" }).where(eq(projects.id, updated.projectId));
-    await writeAudit({
-      user,
-      projectId: updated.projectId,
-      eventType: "report.signed_off",
-      objectType: "report",
-      objectId: updated.id,
-      details: `by ${reviewerName}`,
-    });
     res.json(serializeReport(updated, user?.name));
   },
 );
 
-router.get("/reports/:id/download", requireMember, async (req: Request, res: Response) => {
-  const user = getLocalUser(req);
-  const [report] = await db.select().from(reports).where(eq(reports.id, String(req.params.id)));
-  if (!report || !report.docxPath) {
-    res.status(404).json({ error: "Not found" });
-    return;
-  }
-  if (report.status !== "signed_off") {
-    await writeAudit({
-      user,
-      projectId: report.projectId,
-      eventType: "report.export_denied",
-      objectType: "report",
-      objectId: report.id,
-      details: `Export blocked: report is "${report.status}", not signed off.`,
-    });
-    res.status(403).json({ error: "Report must be signed off before it can be exported" });
-    return;
-  }
-  try {
-    const file = await objectStorage.getObjectEntityFile(report.docxPath);
-    const [buffer] = await file.download();
-    res.setHeader("Content-Type", DOCX_MIME);
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="bid-autopsy-report-v${report.version}.docx"`,
+router.get(
+  "/reports/:id/download",
+  requirePermissionOrLegacy("report:export"),
+  async (req: Request, res: Response) => {
+    const user = getLocalUser(req);
+    const [report] = await db
+      .select()
+      .from(reports)
+      .where(eq(reports.id, String(req.params.id)));
+    if (!report || !report.docxPath) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const exportDenial = reportExportDenial(
+      report,
+      await latestReportForProject(report.projectId),
     );
-    await writeAudit({
-      user,
-      projectId: report.projectId,
-      eventType: "report.exported",
-      objectType: "report",
-      objectId: report.id,
-      details: `Exported signed-off report v${report.version}.`,
-    });
-    res.send(buffer);
-  } catch (error) {
-    req.log.error({ err: error }, "report download failed");
-    res.status(404).json({ error: "Report file not found" });
-  }
-});
+    if (exportDenial) {
+      await writeAudit({
+        user,
+        organisationId: getOrganisationId(req),
+        projectId: report.projectId,
+        eventType: "report.export_denied",
+        objectType: "report",
+        objectId: report.id,
+        details: `Export blocked: ${exportDenial}.`,
+      });
+      res.status(exportDenial === "stale_version" ? 409 : 403).json({
+        error:
+          exportDenial === "stale_version"
+            ? "Only the latest signed report version can be exported"
+            : "Report must be signed off before it can be exported",
+      });
+      return;
+    }
+    try {
+      const file = await objectStorage.getObjectEntityFile(report.docxPath);
+      const [buffer] = await file.download();
+      res.setHeader("Content-Type", DOCX_MIME);
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="bid-autopsy-report-v${report.version}.docx"`,
+      );
+      await writeAudit({
+        user,
+        projectId: report.projectId,
+        eventType: "report.exported",
+        objectType: "report",
+        objectId: report.id,
+        details: `Exported signed-off report v${report.version}.`,
+      });
+      res.send(buffer);
+    } catch (error) {
+      req.log.error({ err: error }, "report download failed");
+      res.status(404).json({ error: "Report file not found" });
+    }
+  },
+);
 
-router.get("/reports/:id/download-pdf", requireMember, async (req: Request, res: Response) => {
-  const user = getLocalUser(req);
-  const [report] = await db.select().from(reports).where(eq(reports.id, String(req.params.id)));
-  if (!report || !report.pdfPath) {
-    res.status(404).json({ error: "Not found" });
-    return;
-  }
-  if (report.status !== "signed_off") {
-    await writeAudit({
-      user,
-      projectId: report.projectId,
-      eventType: "report.export_denied",
-      objectType: "report",
-      objectId: report.id,
-      details: `PDF export blocked: report is "${report.status}", not signed off.`,
-    });
-    res.status(403).json({ error: "Report must be signed off before it can be exported" });
-    return;
-  }
-  try {
-    const file = await objectStorage.getObjectEntityFile(report.pdfPath);
-    const [buffer] = await file.download();
-    res.setHeader("Content-Type", PDF_MIME);
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="bid-autopsy-report-v${report.version}.pdf"`,
+router.get(
+  "/reports/:id/download-pdf",
+  requirePermissionOrLegacy("report:export"),
+  async (req: Request, res: Response) => {
+    const user = getLocalUser(req);
+    const [report] = await db
+      .select()
+      .from(reports)
+      .where(eq(reports.id, String(req.params.id)));
+    if (!report || !report.pdfPath) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const exportDenial = reportExportDenial(
+      report,
+      await latestReportForProject(report.projectId),
     );
-    await writeAudit({
-      user,
-      projectId: report.projectId,
-      eventType: "report.exported",
-      objectType: "report",
-      objectId: report.id,
-      details: `Exported signed-off report v${report.version} (PDF).`,
-    });
-    res.send(buffer);
-  } catch (error) {
-    req.log.error({ err: error }, "report pdf download failed");
-    res.status(404).json({ error: "Report file not found" });
-  }
-});
+    if (exportDenial) {
+      await writeAudit({
+        user,
+        organisationId: getOrganisationId(req),
+        projectId: report.projectId,
+        eventType: "report.export_denied",
+        objectType: "report",
+        objectId: report.id,
+        details: `PDF export blocked: ${exportDenial}.`,
+      });
+      res.status(exportDenial === "stale_version" ? 409 : 403).json({
+        error:
+          exportDenial === "stale_version"
+            ? "Only the latest signed report version can be exported"
+            : "Report must be signed off before it can be exported",
+      });
+      return;
+    }
+    try {
+      const file = await objectStorage.getObjectEntityFile(report.pdfPath);
+      const [buffer] = await file.download();
+      res.setHeader("Content-Type", PDF_MIME);
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="bid-autopsy-report-v${report.version}.pdf"`,
+      );
+      await writeAudit({
+        user,
+        projectId: report.projectId,
+        eventType: "report.exported",
+        objectType: "report",
+        objectId: report.id,
+        details: `Exported signed-off report v${report.version} (PDF).`,
+      });
+      res.send(buffer);
+    } catch (error) {
+      req.log.error({ err: error }, "report pdf download failed");
+      res.status(404).json({ error: "Report file not found" });
+    }
+  },
+);
 
 export function toCsv(rows: Record<string, unknown>[]): string {
   if (rows.length === 0) return "";
@@ -367,7 +695,10 @@ export function toCsv(rows: Record<string, unknown>[]): string {
     if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  return [headers.join(","), ...rows.map((r) => headers.map((h) => escape(r[h])).join(","))].join("\n");
+  return [
+    headers.join(","),
+    ...rows.map((r) => headers.map((h) => escape(r[h])).join(",")),
+  ].join("\n");
 }
 
 export type ReviewState = "confirmed" | "suggested";
@@ -380,11 +711,15 @@ export type ReviewState = "confirmed" | "suggested";
  *   - a requirement is confirmed unless its `reviewStatus` is still "suggested"
  *   - evidence and defects carry an explicit `suggested` boolean
  */
-export function requirementReviewState(row: { reviewStatus: string }): ReviewState {
+export function requirementReviewState(row: {
+  reviewStatus: string;
+}): ReviewState {
   return row.reviewStatus === "suggested" ? "suggested" : "confirmed";
 }
 
-export function suggestedFlagReviewState(row: { suggested: boolean }): ReviewState {
+export function suggestedFlagReviewState(row: {
+  suggested: boolean;
+}): ReviewState {
   return row.suggested ? "suggested" : "confirmed";
 }
 
@@ -398,36 +733,110 @@ export function withReviewState<T extends Record<string, unknown>>(
 
 router.get(
   "/projects/:id/export",
-  requireRoles("admin"),
+  requirePermissionOrLegacy("report:export"),
   async (req: Request, res: Response) => {
     const projectId = String(req.params.id);
-    const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
-    if (!project) {
+    const [governance] = await db
+      .select({ project: projects, ndaStatus: clients.ndaStatus })
+      .from(projects)
+      .leftJoin(clients, eq(projects.clientId, clients.id))
+      .where(eq(projects.id, projectId));
+    if (!governance) {
       res.status(404).json({ error: "Not found" });
       return;
     }
-    if (
-      project.status === "signed_off" &&
-      (!project.physicalArchiveInstruction || project.physicalArchiveInstruction.trim().length === 0)
-    ) {
+    const project = governance.project;
+    const projectReports = await db
+      .select()
+      .from(reports)
+      .where(eq(reports.projectId, projectId))
+      .orderBy(desc(reports.version));
+    const latestReport = projectReports[0];
+    const packageDenial = packageExportDenial({
+      projectStatus: project.status,
+      physicalArchiveInstruction: project.physicalArchiveInstruction,
+      latestReport,
+    });
+    if (packageDenial) {
       await writeAudit({
         user: getLocalUser(req),
+        organisationId: getOrganisationId(req),
         projectId,
         eventType: "project.export_denied",
         objectType: "project",
         objectId: projectId,
-        details: "Physical archive return/destroy instruction is required before package export.",
+        details: `Package export blocked: ${packageDenial}.`,
       });
       res.status(409).json({
-        error: "Record the physical archive return/destroy instruction before exporting the package.",
+        error:
+          "Package export requires the latest signed report and archive handling instruction.",
       });
       return;
     }
-    const reqs = await db.select().from(requirements).where(eq(requirements.projectId, projectId));
-    const ev = await db.select().from(evidenceItems).where(eq(evidenceItems.projectId, projectId));
-    const defs = await db.select().from(defects).where(eq(defects.projectId, projectId));
-    const boqs = await db.select().from(boqChecks).where(eq(boqChecks.projectId, projectId));
-    const audits = await db.select().from(auditEvents).where(eq(auditEvents.projectId, projectId));
+    const [reqs, ev, defs, boqs, audits, projectDocuments, supplementalGates] =
+      await Promise.all([
+        db
+          .select()
+          .from(requirements)
+          .where(eq(requirements.projectId, projectId)),
+        db
+          .select()
+          .from(evidenceItems)
+          .where(eq(evidenceItems.projectId, projectId)),
+        db.select().from(defects).where(eq(defects.projectId, projectId)),
+        db.select().from(boqChecks).where(eq(boqChecks.projectId, projectId)),
+        db
+          .select()
+          .from(auditEvents)
+          .where(eq(auditEvents.projectId, projectId)),
+        db.select().from(documents).where(eq(documents.projectId, projectId)),
+        gatherSupplementalReleaseGates(projectId),
+      ]);
+    const readiness = evaluateSubmissionReadiness({
+      project: {
+        ndaStatus: governance.ndaStatus,
+        reviewerId: project.reviewerId,
+        conflictStatus: project.conflictStatus,
+        paymentStatus: project.paymentStatus,
+        paymentConfirmedByFounder: project.paymentConfirmedByFounder,
+        paymentConfirmedByAdvisor: project.paymentConfirmedByAdvisor,
+        paymentFounderConfirmedBy: project.paymentFounderConfirmedBy,
+        paymentAdvisorConfirmedBy: project.paymentAdvisorConfirmedBy,
+      },
+      report: {
+        generatedBy: latestReport!.generatedBy,
+        engineVersion: latestReport!.engineVersion,
+        promptPackVersion: latestReport!.promptPackVersion,
+        modelId: latestReport!.modelId,
+        taxonomyVersion: latestReport!.taxonomyVersion,
+      },
+      signerId: latestReport!.reviewerId,
+      documents: projectDocuments,
+      requirements: reqs,
+      evidence: ev,
+      defects: defs,
+      boqChecks: boqs,
+      ...supplementalGates,
+      requireIndependentSignOff: true,
+    });
+    if (!readiness.ready) {
+      await writeAudit({
+        user: getLocalUser(req),
+        organisationId: getOrganisationId(req),
+        projectId,
+        eventType: "project.export_denied",
+        objectType: "project",
+        objectId: projectId,
+        details: JSON.stringify({
+          blockerCodes: readiness.blockers.map((blocker) => blocker.code),
+        }),
+      });
+      res.status(409).json({
+        error: "Package export readiness changed or is incomplete.",
+        blockers: readiness.blockers,
+      });
+      return;
+    }
     // Document manifest for the export: intake metadata + SHA-256 so the
     // recipient can independently verify file integrity. Deliberately excludes
     // contentText (bulky, and the files themselves are the source of truth).
@@ -448,28 +857,37 @@ router.get(
       })
       .from(documents)
       .where(eq(documents.projectId, projectId));
-    const signedReports = await db
-      .select()
-      .from(reports)
-      .where(eq(reports.projectId, projectId))
-      .orderBy(desc(reports.version));
-
     // Fetch the signed DOCX *before* committing to the response stream. This is
     // the only fallible, mid-stream I/O in the export, and once we've flushed
     // 200 + zip headers we can no longer turn a failure into a real error
     // status. Downloading it up front means a fatal fetch failure produces a
     // clean non-200, and the archive is only ever streamed from in-memory data.
-    // A missing DOCX stays non-fatal (the export is still useful without it).
-    const latestSigned = signedReports.find((r) => r.status === "signed_off" && r.docxPath);
-    let reportDocx: { name: string; buffer: Buffer } | null = null;
-    if (latestSigned?.docxPath) {
-      try {
-        const file = await objectStorage.getObjectEntityFile(latestSigned.docxPath);
-        const [buffer] = await file.download();
-        reportDocx = { name: `bid-autopsy-report-v${latestSigned.version}.docx`, buffer };
-      } catch (error) {
-        req.log.warn({ err: error }, "could not attach report to export");
-      }
+    // The package is not valid without the governed report artefact.
+    let reportDocx: { name: string; buffer: Buffer };
+    try {
+      const file = await objectStorage.getObjectEntityFile(
+        latestReport!.docxPath!,
+      );
+      const [buffer] = await file.download();
+      reportDocx = {
+        name: `bid-autopsy-report-v${latestReport!.version}.docx`,
+        buffer,
+      };
+    } catch (error) {
+      req.log.error({ err: error }, "could not attach signed report to export");
+      await writeAudit({
+        user: getLocalUser(req),
+        organisationId: getOrganisationId(req),
+        projectId,
+        eventType: "project.export_denied",
+        objectType: "project",
+        objectId: projectId,
+        details: "Latest signed report artefact could not be loaded.",
+      });
+      res
+        .status(502)
+        .json({ error: "Latest signed report artefact is unavailable." });
+      return;
     }
 
     // Flag review state so recipients can tell reviewer-confirmed findings from
@@ -522,20 +940,31 @@ router.get(
       { name: "scorecard.json" },
     );
 
-    if (reportDocx) {
-      archive.append(reportDocx.buffer, { name: reportDocx.name });
-    }
+    archive.append(reportDocx.buffer, { name: reportDocx.name });
 
-    await writeAudit({
-      user: getLocalUser(req),
-      projectId,
-      eventType: "project.exported",
-      objectType: "project",
-      objectId: projectId,
-    });
-    if (project.status === "signed_off") {
-      await db.update(projects).set({ status: "exported" }).where(eq(projects.id, projectId));
-    }
+    await db.transaction(
+      async (tx) => {
+        if (project.status === "signed_off") {
+          await tx
+            .update(projects)
+            .set({
+              status: "exported",
+              version: sql`${projects.version} + 1`,
+              updatedAt: new Date(),
+            })
+            .where(eq(projects.id, projectId));
+        }
+        await writeAuditTx(tx, {
+          user: getLocalUser(req),
+          organisationId: getOrganisationId(req),
+          projectId,
+          eventType: "project.exported",
+          objectType: "project",
+          objectId: projectId,
+        });
+      },
+      { isolationLevel: "read committed" },
+    );
 
     await archive.finalize();
   },

@@ -1,0 +1,9 @@
+node_modules/
+**/dist/
+**/*.tsbuildinfo
+coverage/
+attached_assets/
+lib/api-zod/src/generated/
+lib/api-client-react/src/generated/
+lib/db/migrations/
+pnpm-lock.yaml

@@ -1,5 +1,5 @@
-import { desc, isNotNull, sql } from "drizzle-orm";
-import { db, auditEvents } from "@workspace/db";
+import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { db, auditEvents, projects } from "@workspace/db";
 import type { LocalUser } from "../middlewares/auth";
 import {
   AUDIT_GENESIS_HASH,
@@ -20,6 +20,7 @@ type AuditTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export interface AuditParams {
   user?: LocalUser | null;
+  organisationId?: string | null;
   projectId?: string | null;
   eventType: string;
   objectType?: string | null;
@@ -34,7 +35,22 @@ export interface AuditParams {
  * atomic (e.g. the retention scheduler, whose whole purpose is to record that
  * it opened a request). The caller's transaction MUST be read-committed.
  */
-export async function writeAuditTx(tx: AuditTx, params: AuditParams): Promise<void> {
+export async function writeAuditTx(
+  tx: AuditTx,
+  params: AuditParams,
+): Promise<void> {
+  let organisationId = params.organisationId ?? null;
+  if (!organisationId && params.projectId) {
+    const [project] = await tx
+      .select({ organisationId: projects.organisationId })
+      .from(projects)
+      .where(eq(projects.id, params.projectId));
+    organisationId = project?.organisationId ?? null;
+  }
+  if (!organisationId) {
+    throw new Error("Audit events require an explicit tenant organisation");
+  }
+
   // Bound lock/statement waits so a wedged lock-holder fails fast rather than
   // stalling. SET LOCAL reverts at transaction end.
   await tx.execute(sql`SET LOCAL lock_timeout = '2s'`);
@@ -45,12 +61,18 @@ export async function writeAuditTx(tx: AuditTx, params: AuditParams): Promise<vo
   const [last] = await tx
     .select({ seq: auditEvents.seq, hash: auditEvents.hash })
     .from(auditEvents)
-    .where(isNotNull(auditEvents.seq))
+    .where(
+      and(
+        eq(auditEvents.organisationId, organisationId),
+        isNotNull(auditEvents.seq),
+      ),
+    )
     .orderBy(desc(auditEvents.seq))
     .limit(1);
 
   const payload: AuditChainPayload = {
     seq: (last?.seq ?? 0) + 1,
+    organisationId,
     userId: params.user?.id ?? null,
     userName: params.user?.name ?? params.user?.email ?? null,
     projectId: params.projectId ?? null,
@@ -63,8 +85,8 @@ export async function writeAuditTx(tx: AuditTx, params: AuditParams): Promise<vo
     createdAt: new Date().toISOString(),
   };
   const prevHash = last?.hash ?? AUDIT_GENESIS_HASH;
-
   await tx.insert(auditEvents).values({
+    organisationId,
     userId: payload.userId,
     userName: payload.userName,
     projectId: payload.projectId,
@@ -80,15 +102,11 @@ export async function writeAuditTx(tx: AuditTx, params: AuditParams): Promise<vo
 }
 
 export async function writeAudit(params: AuditParams): Promise<void> {
-  try {
-    await db.transaction(async (tx) => writeAuditTx(tx, params), {
-      // Pin the isolation level: the max-seq read AFTER acquiring the lock
-      // must see the previous holder's commit. Under a server configured with
-      // default_transaction_isolation=repeatable read, the snapshot would be
-      // taken before the lock wait ended and the chain could fork.
-      isolationLevel: "read committed",
-    });
-  } catch {
-    // Audit logging must never break the primary request path.
-  }
+  await db.transaction(async (tx) => writeAuditTx(tx, params), {
+    // Pin the isolation level: the max-seq read AFTER acquiring the lock
+    // must see the previous holder's commit. Under a server configured with
+    // default_transaction_isolation=repeatable read, the snapshot would be
+    // taken before the lock wait ended and the chain could fork.
+    isolationLevel: "read committed",
+  });
 }

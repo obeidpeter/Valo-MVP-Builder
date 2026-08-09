@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "packId": "valo-observability-v2.5",
+  "status": "deployment_adapter_required",
+  "defaults": {
+    "evaluationWindowMinutes": 5,
+    "owner": "valo_operations",
+    "runbookBase": "docs/implementation-v2.5/runbooks"
+  },
+  "alerts": [
+    {
+      "id": "api_error_rate",
+      "severity": "critical",
+      "signal": "http.server.error_ratio",
+      "condition": ">= 0.05 for 10m",
+      "runbook": "INCIDENT_RESPONSE.md"
+    },
+    {
+      "id": "processing_job_failure_rate",
+      "severity": "critical",
+      "signal": "valo.processing_jobs.failure_ratio",
+      "condition": ">= 0.10 for 10m",
+      "runbook": "INCIDENT_RESPONSE.md"
+    },
+    {
+      "id": "extraction_quality_regression",
+      "severity": "critical",
+      "signal": "valo.extraction.mandatory_recall",
+      "condition": "< 0.95 on promoted holdout",
+      "runbook": "ROLLBACK.md"
+    },
+    {
+      "id": "tenant_access_denials_spike",
+      "severity": "high",
+      "signal": "valo.security.tenant_denials",
+      "condition": "> baseline + 3 sigma for 10m",
+      "runbook": "INCIDENT_RESPONSE.md"
+    },
+    {
+      "id": "sla_breach",
+      "severity": "high",
+      "signal": "valo.engagement.sla_breaches",
+      "condition": "> 0 for 15m",
+      "runbook": "INCIDENT_RESPONSE.md"
+    },
+    {
+      "id": "notification_delivery_failure",
+      "severity": "high",
+      "signal": "valo.notifications.final_failure_count",
+      "condition": "> 0 for 15m",
+      "runbook": "INCIDENT_RESPONSE.md"
+    },
+    {
+      "id": "unit_cost_budget",
+      "severity": "medium",
+      "signal": "valo.ai.cost_per_completed_package",
+      "condition": "> configured tenant budget",
+      "runbook": "INCIDENT_RESPONSE.md"
+    },
+    {
+      "id": "deployment_health",
+      "severity": "critical",
+      "signal": "http.healthz.success",
+      "condition": "< 1 for 3 consecutive probes",
+      "runbook": "ROLLBACK.md"
+    },
+    {
+      "id": "backup_freshness",
+      "severity": "critical",
+      "signal": "valo.backup.age_hours",
+      "condition": "> configured RPO",
+      "runbook": "BACKUP.md"
+    },
+    {
+      "id": "audit_anchor_failure",
+      "severity": "critical",
+      "signal": "valo.audit.anchor_failures",
+      "condition": "> 0",
+      "runbook": "INCIDENT_RESPONSE.md"
+    },
+    {
+      "id": "break_glass_use",
+      "severity": "high",
+      "signal": "valo.security.break_glass_activated",
+      "condition": "> 0",
+      "runbook": "INCIDENT_RESPONSE.md"
+    }
+  ]
+}

@@ -1,109 +1,152 @@
 /**
- * Audit-chain verifier (FR-WFM-02): recomputes the hash chain over the entire
- * audit_events table.
+ * Verifies every organisation's independent audit chain under the same RLS
+ * context used by runtime requests.
  *
- * What it proves, stated precisely:
- *   - Any ALTERED event, and any DELETED or REORDERED interior event, is
- *     detected unconditionally.
- *   - TAIL TRUNCATION (deleting the newest events) is detectable only against
- *     a previously recorded head anchor. The script prints the current head
- *     (`HEAD seq=<n> hash=<hex>`) after every run — record it outside the
- *     database (runbook, CI log) and pass it back on the next run via
- *     AUDIT_EXPECTED_HEAD="<seq>:<hash>" to close that gap.
- *   - Unchained rows written after the chain started (writes bypassing
- *     writeAudit) are flagged, keyed on the DB-assigned row_no ordinal rather
- *     than the attacker-writable created_at timestamp.
- *
- * Usage: pnpm --filter @workspace/api-server run verify:audit
- *        AUDIT_EXPECTED_HEAD="42:ab12..." pnpm --filter @workspace/api-server run verify:audit
- * Requires DATABASE_URL. Exit code 0 = chain intact, 1 = chain broken.
+ * Usage:
+ *   pnpm --filter @workspace/api-server run verify:audit
+ *   AUDIT_ORGANISATION_ID=<uuid> AUDIT_EXPECTED_HEAD="42:<64-hex>" ...
+ *   AUDIT_EXPECTED_HEADS='{"<org-uuid>":"42:<64-hex>"}' ...
  */
-import { asc, isNull, isNotNull } from "drizzle-orm";
-import { db, auditEvents, pool } from "@workspace/db";
+import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
+import {
+  auditEvents,
+  db,
+  organisations,
+  pool,
+  withTenantDatabase,
+} from "@workspace/db";
 import {
   verifyAuditChain,
-  type AuditChainRow,
   type AuditChainHead,
+  type AuditChainRow,
 } from "../src/lib/auditChain";
 
-function parseExpectedHead(raw: string | undefined): AuditChainHead | undefined {
+function parseExpectedHead(
+  raw: string | undefined,
+): AuditChainHead | undefined {
   if (!raw) return undefined;
-  const m = /^(\d+):([0-9a-f]{64})$/i.exec(raw.trim());
-  if (!m) {
-    throw new Error(
-      `AUDIT_EXPECTED_HEAD must look like "<seq>:<64-hex-hash>", got: ${raw}`,
-    );
+  const match = /^(\d+):([0-9a-f]{64})$/i.exec(raw.trim());
+  if (!match) {
+    throw new Error(`Invalid audit head: ${raw}`);
   }
-  return { seq: Number(m[1]), hash: m[2].toLowerCase() };
+  return { seq: Number(match[1]), hash: match[2].toLowerCase() };
 }
 
-async function main(): Promise<number> {
-  const expectedHead = parseExpectedHead(process.env.AUDIT_EXPECTED_HEAD);
+function expectedHeads(): Map<string, AuditChainHead> {
+  const heads = new Map<string, AuditChainHead>();
+  const rawMap = process.env.AUDIT_EXPECTED_HEADS;
+  if (rawMap) {
+    const parsed = JSON.parse(rawMap) as Record<string, string>;
+    for (const [organisationId, rawHead] of Object.entries(parsed)) {
+      heads.set(organisationId, parseExpectedHead(rawHead)!);
+    }
+  }
+  const single = process.env.AUDIT_EXPECTED_HEAD;
+  if (single) {
+    const organisationId = process.env.AUDIT_ORGANISATION_ID?.trim();
+    if (!organisationId) {
+      throw new Error("AUDIT_EXPECTED_HEAD requires AUDIT_ORGANISATION_ID");
+    }
+    heads.set(organisationId, parseExpectedHead(single)!);
+  }
+  return heads;
+}
 
-  const chained = await db
-    .select()
-    .from(auditEvents)
-    .where(isNotNull(auditEvents.hash))
-    .orderBy(asc(auditEvents.seq));
-  const legacy = await db
-    .select({ rowNo: auditEvents.rowNo, createdAt: auditEvents.createdAt })
-    .from(auditEvents)
-    .where(isNull(auditEvents.hash));
+async function verifyOrganisation(
+  organisationId: string,
+  expectedHead: AuditChainHead | undefined,
+): Promise<boolean> {
+  const { chained, legacy } = await withTenantDatabase(
+    organisationId,
+    async () => {
+      const [chained, legacy] = await Promise.all([
+        db
+          .select()
+          .from(auditEvents)
+          .where(
+            and(
+              eq(auditEvents.organisationId, organisationId),
+              isNotNull(auditEvents.hash),
+            ),
+          )
+          .orderBy(asc(auditEvents.seq)),
+        db
+          .select({ rowNo: auditEvents.rowNo })
+          .from(auditEvents)
+          .where(
+            and(
+              eq(auditEvents.organisationId, organisationId),
+              isNull(auditEvents.hash),
+            ),
+          ),
+      ]);
+      return { chained, legacy };
+    },
+  );
 
-  const rows: AuditChainRow[] = chained.map((r) => ({
-    seq: r.seq ?? -1,
-    userId: r.userId,
-    userName: r.userName,
-    projectId: r.projectId,
-    eventType: r.eventType,
-    objectType: r.objectType,
-    objectId: r.objectId,
-    details: r.details,
-    createdAt: r.createdAt.toISOString(),
-    prevHash: r.prevHash ?? "",
-    hash: r.hash ?? "",
+  const rows: AuditChainRow[] = chained.map((row) => ({
+    seq: row.seq ?? -1,
+    organisationId,
+    userId: row.userId,
+    userName: row.userName,
+    projectId: row.projectId,
+    eventType: row.eventType,
+    objectType: row.objectType,
+    objectId: row.objectId,
+    details: row.details,
+    createdAt: row.createdAt.toISOString(),
+    prevHash: row.prevHash ?? "",
+    hash: row.hash ?? "",
   }));
-
   const result = verifyAuditChain(rows, expectedHead);
-  console.log(`Chained events checked: ${result.checked}/${rows.length}`);
-  console.log(`Legacy (pre-chain) events: ${legacy.length}`);
-
   let failed = !result.ok;
+  console.log(
+    `[${organisationId}] chained=${result.checked}/${rows.length} legacy=${legacy.length}`,
+  );
   if (result.error) {
-    console.error(`FAIL at seq ${result.error.seq}: ${result.error.reason}`);
+    console.error(
+      `[${organisationId}] FAIL seq=${result.error.seq}: ${result.error.reason}`,
+    );
   }
 
-  // An unchained row written after chaining began means writes are bypassing
-  // writeAudit (or someone inserted directly). Keyed on the DB-assigned
-  // row_no ordinal: unlike created_at, a plain INSERT cannot backdate it.
   if (chained.length > 0 && legacy.length > 0) {
     const chainStartRowNo = chained.reduce(
-      (min, r) => Math.min(min, r.rowNo),
+      (minimum, row) => Math.min(minimum, row.rowNo),
       Infinity,
     );
-    const strays = legacy.filter((l) => l.rowNo > chainStartRowNo);
-    if (strays.length > 0) {
+    const strayCount = legacy.filter(
+      (row) => row.rowNo > chainStartRowNo,
+    ).length;
+    if (strayCount > 0) {
       failed = true;
       console.error(
-        `FAIL: ${strays.length} unchained event(s) written after the chain started (row_no > ${chainStartRowNo}) — writes are bypassing the chain.`,
+        `[${organisationId}] FAIL: ${strayCount} unchained event(s) follow the chain start`,
       );
     }
   }
 
-  // Print the current head so operators can record it outside the DB and pass
-  // it back next run — the only way tail truncation becomes detectable.
-  if (rows.length > 0) {
-    const head = rows.reduce((max, r) => (r.seq > max.seq ? r : max), rows[0]);
-    console.log(`HEAD seq=${head.seq} hash=${head.hash}`);
-    console.log(
-      `Record this head; next run: AUDIT_EXPECTED_HEAD="${head.seq}:${head.hash}"`,
-    );
-  } else {
-    console.log("HEAD (empty chain)");
-  }
+  const head = rows[rows.length - 1];
+  console.log(
+    head
+      ? `[${organisationId}] HEAD seq=${head.seq} hash=${head.hash}`
+      : `[${organisationId}] HEAD (empty chain)`,
+  );
+  return !failed;
+}
 
-  console.log(failed ? "AUDIT CHAIN: BROKEN" : "AUDIT CHAIN: INTACT");
-  return failed ? 1 : 0;
+async function main(): Promise<number> {
+  const requestedOrganisationId = process.env.AUDIT_ORGANISATION_ID?.trim();
+  const tenantRows = requestedOrganisationId
+    ? [{ id: requestedOrganisationId }]
+    : await db.select({ id: organisations.id }).from(organisations);
+  const heads = expectedHeads();
+  let intact = true;
+  for (const tenant of tenantRows) {
+    intact =
+      (await verifyOrganisation(tenant.id, heads.get(tenant.id))) && intact;
+  }
+  console.log(intact ? "AUDIT CHAINS: INTACT" : "AUDIT CHAINS: BROKEN");
+  return intact ? 0 : 1;
 }
 
 main()
@@ -111,8 +154,8 @@ main()
     await pool.end();
     process.exit(code);
   })
-  .catch(async (err) => {
-    console.error("verify-audit-chain crashed:", err);
-    await pool.end().catch(() => {});
+  .catch(async (error: unknown) => {
+    console.error("verify-audit-chain crashed:", error);
+    await pool.end().catch(() => undefined);
     process.exit(1);
   });

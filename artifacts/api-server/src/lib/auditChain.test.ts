@@ -16,6 +16,7 @@ function buildChain(n: number): AuditChainRow[] {
   for (let seq = 1; seq <= n; seq++) {
     const payload: AuditChainPayload = {
       seq,
+      organisationId: "org-1",
       userId: seq % 2 === 0 ? "u-2" : "u-1",
       userName: "Reviewer",
       projectId: "p-1",
@@ -36,6 +37,7 @@ describe("auditChain - canonical payload", () => {
   test("is a fixed-order JSON array, immune to object key order", () => {
     const payload: AuditChainPayload = {
       seq: 1,
+      organisationId: "org-1",
       userId: "u",
       userName: null,
       projectId: null,
@@ -47,21 +49,35 @@ describe("auditChain - canonical payload", () => {
     };
     assert.equal(
       canonicalAuditPayload(payload),
-      '[1,"u",null,null,"e",null,null,"d","2026-01-01T00:00:00.000Z"]',
+      '[1,"org-1","u",null,null,"e",null,null,"d","2026-01-01T00:00:00.000Z"]',
     );
   });
 
   test("JSON encoding defeats delimiter injection between fields", () => {
     // Craft two payloads whose fields would collide under naive "|" joining.
     const a: AuditChainPayload = {
-      seq: 1, userId: null, userName: null, projectId: null,
-      eventType: 'x","y', objectType: null, objectId: null,
-      details: null, createdAt: "t",
+      seq: 1,
+      organisationId: "org-1",
+      userId: null,
+      userName: null,
+      projectId: null,
+      eventType: 'x","y',
+      objectType: null,
+      objectId: null,
+      details: null,
+      createdAt: "t",
     };
     const b: AuditChainPayload = {
-      seq: 1, userId: null, userName: null, projectId: null,
-      eventType: "x", objectType: '"y', objectId: null,
-      details: null, createdAt: "t",
+      seq: 1,
+      organisationId: "org-1",
+      userId: null,
+      userName: null,
+      projectId: null,
+      eventType: "x",
+      objectType: '"y',
+      objectId: null,
+      details: null,
+      createdAt: "t",
     };
     assert.notEqual(
       computeAuditHash(AUDIT_GENESIS_HASH, a),
@@ -141,6 +157,7 @@ describe("auditChain - verifyAuditChain", () => {
     const rehealed = [...full.slice(0, 4)];
     const forgedPayload: AuditChainPayload = {
       seq: 5,
+      organisationId: "org-1",
       userId: null,
       userName: null,
       projectId: null,
@@ -151,7 +168,11 @@ describe("auditChain - verifyAuditChain", () => {
       createdAt: new Date(1700000099000).toISOString(),
     };
     const forgedHash = computeAuditHash(rehealed[3].hash, forgedPayload);
-    rehealed.push({ ...forgedPayload, prevHash: rehealed[3].hash, hash: forgedHash });
+    rehealed.push({
+      ...forgedPayload,
+      prevHash: rehealed[3].hash,
+      hash: forgedHash,
+    });
     const r = verifyAuditChain(rehealed, head);
     assert.equal(r.ok, false);
     assert.match(r.error?.reason ?? "", /head hash mismatch/);
