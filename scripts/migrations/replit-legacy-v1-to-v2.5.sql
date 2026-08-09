@@ -245,7 +245,12 @@ BEGIN
   EXCEPTION WHEN invalid_text_representation THEN
     RAISE EXCEPTION 'expected counts is not valid JSON';
   END;
-  IF expected_count_keys IS DISTINCT FROM legacy_tables THEN
+  IF cardinality(expected_count_keys) IS DISTINCT FROM cardinality(legacy_tables)
+     OR NOT COALESCE(
+       expected_count_keys @> legacy_tables
+       AND legacy_tables @> expected_count_keys,
+       false
+     ) THEN
     RAISE EXCEPTION 'expected counts must contain exactly the 19 legacy table names';
   END IF;
   IF EXISTS (
@@ -290,7 +295,12 @@ BEGIN
     FROM pg_type AS t JOIN pg_namespace AS n ON n.oid=t.typnamespace
     WHERE n.nspname='public' AND t.typtype='e';
 
-  legacy_match := actual_tables = legacy_tables
+  legacy_match := COALESCE(
+      cardinality(actual_tables)=cardinality(legacy_tables)
+      AND actual_tables @> legacy_tables
+      AND legacy_tables @> actual_tables,
+      false
+    )
     AND NOT has_hash_version
     AND any_rls_table_count = 0
     AND policy_count = 0
@@ -302,9 +312,19 @@ BEGIN
     AND to_regclass('drizzle.__drizzle_migrations') IS NULL;
 
   complete_match := false;
-  IF actual_tables = target_tables
+  IF COALESCE(
+       cardinality(actual_tables)=cardinality(target_tables)
+       AND actual_tables @> target_tables
+       AND target_tables @> actual_tables,
+       false
+     )
      AND has_hash_version
-     AND actual_rls_tables = rls_tables
+     AND COALESCE(
+       cardinality(actual_rls_tables)=cardinality(rls_tables)
+       AND actual_rls_tables @> rls_tables
+       AND rls_tables @> actual_rls_tables,
+       false
+     )
      AND policy_count = 104
      AND to_regnamespace('valo_legacy_bridge_archive') IS NULL THEN
     SELECT EXISTS (
@@ -7383,8 +7403,12 @@ BEGIN
     WHERE n.nspname='public' AND c.relkind IN ('r','p')
       AND c.relrowsecurity AND c.relforcerowsecurity;
   SELECT count(*) INTO policy_count FROM pg_policies WHERE schemaname='public';
-  IF actual_rls_tables IS DISTINCT FROM expected_rls_tables
-     OR cardinality(actual_rls_tables) <> 85
+  IF cardinality(actual_rls_tables) IS DISTINCT FROM 85
+     OR NOT COALESCE(
+       actual_rls_tables @> expected_rls_tables
+       AND expected_rls_tables @> actual_rls_tables,
+       false
+     )
      OR policy_count <> 104 THEN
     RAISE EXCEPTION 'RLS reconciliation failed: tables %, policies %',
       cardinality(actual_rls_tables), policy_count;
