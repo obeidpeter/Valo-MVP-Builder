@@ -200,6 +200,7 @@ export function serializeDefect(d: any, requirementText?: string | null) {
     owner: d.owner ?? null,
     status: d.status,
     suggested: d.suggested ?? false,
+    version: d.version,
     createdAt: iso(d.createdAt) ?? new Date(0).toISOString(),
   };
 }

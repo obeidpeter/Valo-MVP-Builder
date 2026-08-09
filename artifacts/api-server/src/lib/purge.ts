@@ -17,18 +17,21 @@ export interface BlobPurgePlan {
   vaultRetained: string[];
 }
 
-export async function planProjectBlobPurge(projectId: string): Promise<BlobPurgePlan> {
+export async function planProjectBlobPurge(
+  projectId: string,
+): Promise<BlobPurgePlan> {
   const docs = await db
     .select({ objectPath: documents.objectPath })
     .from(documents)
     .where(eq(documents.projectId, projectId));
   const reps = await db
-    .select({ docxPath: reports.docxPath })
+    .select({ docxPath: reports.docxPath, pdfPath: reports.pdfPath })
     .from(reports)
     .where(eq(reports.projectId, projectId));
   const candidates = [
     ...docs.map((d) => d.objectPath),
     ...reps.map((r) => r.docxPath).filter((p): p is string => !!p),
+    ...reps.map((r) => r.pdfPath).filter((p): p is string => !!p),
   ];
   const protectedPaths = await vaultReferencedPaths(candidates);
   return {
@@ -38,7 +41,9 @@ export async function planProjectBlobPurge(projectId: string): Promise<BlobPurge
 }
 
 /** The subset of `paths` that some vault item still points at. */
-export async function vaultReferencedPaths(paths: string[]): Promise<Set<string>> {
+export async function vaultReferencedPaths(
+  paths: string[],
+): Promise<Set<string>> {
   if (paths.length === 0) return new Set();
   const rows = await db
     .select({ objectPath: vaultItems.objectPath })

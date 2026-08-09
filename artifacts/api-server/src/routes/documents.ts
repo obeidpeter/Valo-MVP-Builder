@@ -1,11 +1,12 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { Router, type IRouter, type Request, type Response } from "express";
-import { and, eq, desc } from "drizzle-orm";
+import { and, desc, eq, isNull, ne, or } from "drizzle-orm";
 import { db, documents, users, projects, clients } from "@workspace/db";
 import { CreateDocumentBody, UpdateDocumentBody } from "@workspace/api-zod";
 import { getLocalUser } from "../middlewares/auth";
 import {
   getOrganisationId,
+  hasRequestPermission,
   requirePermissionOrLegacy,
 } from "../middlewares/tenancy";
 import { serializeDocument } from "../lib/serializers";
@@ -15,28 +16,58 @@ import {
   extractDocumentTextFromBuffer,
   type ExtractionResult,
 } from "../lib/extractText";
-import { ObjectStorageService } from "../lib/objectStorage";
-import { vaultReferencedPaths } from "../lib/purge";
+import {
+  ObjectNotFoundError,
+  ObjectPromotionCleanupError,
+  ObjectQuarantinePartialMoveError,
+  ObjectStorageService,
+} from "../lib/objectStorage";
 import { inspectDocumentIntake } from "../lib/documentIntakeSecurity";
 import { productionFeatureIssues } from "../lib/productionReadiness";
+import {
+  EXCLUDED_EXTRACTION_NOTES,
+  initialExtractionState,
+  stateAfterRedactionChange,
+} from "../lib/documentExtractionPolicy";
+import { isOwnedStagedUploadPath } from "../lib/stagedUploadCleanup";
+import { lockStagedUploadObject } from "../lib/stagedUploadLock";
+import { storagePathReferenceKinds } from "../lib/storageReferences";
+import { holdTenantDatabaseUntilComplete } from "../middlewares/databaseTenancy";
 
 const sha256Hex = (buf: Buffer): string =>
   createHash("sha256").update(buf).digest("hex");
+
+class PromotedObjectIntegrityError extends Error {
+  constructor(
+    public readonly expectedSha256: string,
+    public readonly actualSha256: string,
+  ) {
+    super("Promoted document bytes did not match the inspected intake bytes");
+    this.name = "PromotedObjectIntegrityError";
+  }
+}
 
 const NDA_ALLOWED = new Set(["signed", "not_required"]);
 
 /** Look up the client NDA status backing a project (null = project missing). */
 async function projectNdaStatus(
   projectId: string,
+  lockClient = false,
 ): Promise<{ ndaStatus: string | null; conflictStatus: string | null } | null> {
-  const [row] = await db
+  const query = db
     .select({
       ndaStatus: clients.ndaStatus,
       conflictStatus: projects.conflictStatus,
     })
     .from(projects)
-    .leftJoin(clients, eq(projects.clientId, clients.id))
+    .innerJoin(clients, eq(projects.clientId, clients.id))
     .where(eq(projects.id, projectId));
+  // A final registration read takes a row SHARE lock on the client. Concurrent
+  // NDA UPDATE then waits until the document transaction commits, closing the
+  // recheck→promotion/insert race without blocking ordinary list reads.
+  const [row] = lockClient
+    ? await query.for("share", { of: clients })
+    : await query;
   return row ?? null;
 }
 
@@ -72,12 +103,13 @@ router.post(
     const user = getLocalUser(req);
     const organisationId = getOrganisationId(req);
     if (
-      organisationId &&
-      !parsed.data.objectPath.startsWith(`/objects/tenants/${organisationId}/`)
+      !organisationId ||
+      !isOwnedStagedUploadPath(parsed.data.objectPath, organisationId)
     ) {
-      res
-        .status(400)
-        .json({ error: "Uploaded object is outside the active organisation" });
+      res.status(400).json({
+        error:
+          "Uploaded object is outside the active organisation's staging namespace",
+      });
       return;
     }
 
@@ -129,19 +161,58 @@ router.post(
       });
       return;
     }
+    if (parsed.data.redactionStatus !== "excluded") {
+      await writeAudit({
+        user,
+        projectId,
+        eventType: "document.intake_denied",
+        objectType: "project",
+        objectId: projectId,
+        details: `Document registration for "${parsed.data.filename}" was denied because new uploads must begin excluded; extraction requires a later reviewer decision and deliberate start.`,
+      });
+      res.status(400).json({
+        error:
+          "New documents must be registered as excluded. A reviewer can make the saved document included or redacted before deliberately starting extraction.",
+      });
+      return;
+    }
 
-    // Download the stored object once: hash it for the intake manifest
-    // (FR-INT-02) and extract text from the same bytes, so the hash is
-    // guaranteed to describe exactly what extraction saw. Fail closed: a
-    // document that cannot be read (and therefore cannot be hashed) must not
-    // enter the corpus as a success with no integrity baseline.
+    // Take the object lock before the first storage read or any secure-intake
+    // disposition. Reusing an already-registered object path must never let a
+    // caller trigger duplicate handling that purges/quarantines another
+    // document's blob.
+    await lockStagedUploadObject(parsed.data.objectPath);
+    const pathReferences = await storagePathReferenceKinds(
+      parsed.data.objectPath,
+    );
+    if (pathReferences.length > 0) {
+      await writeAudit({
+        user,
+        projectId,
+        eventType: "document.intake_denied",
+        objectType: "staged_upload",
+        objectId: parsed.data.objectPath.split("/").at(-1) ?? null,
+        details: `Registration denied because this staged object path is already referenced by persisted tenant artefact categories (${pathReferences.join(", ")}); storage was not read, deleted or quarantined.`,
+      });
+      res.status(409).json({
+        error:
+          "This uploaded object is already referenced by a tenant artefact and was not changed.",
+        disposition: "referenced",
+      });
+      return;
+    }
+
+    // Download the stored object once for its intake hash and security
+    // inspection (FR-INT-02). No parser/model extraction runs during create.
+    // Fail closed: an unreadable object cannot enter the corpus without an
+    // integrity baseline.
     let buffer: Buffer;
     try {
       buffer = await downloadDocumentBuffer(parsed.data.objectPath);
     } catch (error) {
       req.log.warn(
         { err: error, objectPath: parsed.data.objectPath },
-        "could not read uploaded object for hashing/extraction",
+        "could not read uploaded object for hashing and security inspection",
       );
       await writeAudit({
         user,
@@ -188,6 +259,9 @@ router.post(
     if (!inspection.mayProcess || providerIssues.length > 0) {
       let storedObjectDisposition = "retained outside the document corpus";
       let quarantinedPath: string | null = null;
+      let possibleQuarantinedPath: string | null = null;
+      let quarantineRetained: boolean | null = false;
+      let cleanupConfirmed = false;
       try {
         if (
           inspection.disposition === "rejected" ||
@@ -197,30 +271,70 @@ router.post(
             parsed.data.objectPath,
           );
           storedObjectDisposition = deleted ? "purged" : "already absent";
+          cleanupConfirmed = true;
         } else {
           quarantinedPath = await objectStorage.quarantineObjectEntity(
             parsed.data.objectPath,
+            buffer,
+            parsed.data.contentType ?? null,
           );
           storedObjectDisposition = "moved to inaccessible quarantine";
+          quarantineRetained = true;
+          cleanupConfirmed = true;
         }
       } catch (error) {
         req.log.error(
           { err: error, objectPath: parsed.data.objectPath },
           "failed to move rejected intake into quarantine",
         );
-        try {
-          const deleted = await objectStorage.deleteObjectEntity(
-            parsed.data.objectPath,
-          );
-          storedObjectDisposition = deleted
-            ? "purged after quarantine move failed"
-            : "not found after quarantine move failed";
-        } catch (deleteError) {
-          req.log.error(
-            { err: deleteError, objectPath: parsed.data.objectPath },
-            "failed to purge rejected intake after quarantine move failed",
-          );
-          storedObjectDisposition = "quarantine move and purge both failed";
+        if (error instanceof ObjectQuarantinePartialMoveError) {
+          // The exact inspected copy is either confirmed retained, or its
+          // write/cleanup acknowledgement is explicitly unknown. A second
+          // source cleanup must never erase that fact from response or audit.
+          quarantinedPath = error.quarantineCopyConfirmed
+            ? error.quarantinePath
+            : null;
+          possibleQuarantinedPath = error.quarantineCopyConfirmed
+            ? null
+            : error.quarantinePath;
+          quarantineRetained = error.quarantineCopyConfirmed ? true : null;
+          storedObjectDisposition = error.quarantineCopyConfirmed
+            ? "security-quarantine copy retained; original staging cleanup could not be confirmed"
+            : "security-quarantine copy may be retained; copy and original staging dispositions could not be confirmed";
+          try {
+            const deleted = await objectStorage.deleteObjectEntity(
+              parsed.data.objectPath,
+            );
+            storedObjectDisposition = error.quarantineCopyConfirmed
+              ? deleted
+                ? "original staging object purged; security-quarantine copy retained"
+                : "original staging object already absent; security-quarantine copy retained"
+              : deleted
+                ? "original staging object purged; security-quarantine copy disposition remains unconfirmed"
+                : "original staging object already absent; security-quarantine copy disposition remains unconfirmed";
+            cleanupConfirmed = error.quarantineCopyConfirmed;
+          } catch (deleteError) {
+            req.log.error(
+              { err: deleteError, objectPath: parsed.data.objectPath },
+              "failed to confirm staging cleanup after quarantine copy succeeded",
+            );
+          }
+        } else {
+          try {
+            const deleted = await objectStorage.deleteObjectEntity(
+              parsed.data.objectPath,
+            );
+            storedObjectDisposition = deleted
+              ? "purged after quarantine move failed"
+              : "not found after quarantine move failed";
+            cleanupConfirmed = true;
+          } catch (deleteError) {
+            req.log.error(
+              { err: deleteError, objectPath: parsed.data.objectPath },
+              "failed to purge rejected intake after quarantine move failed",
+            );
+            storedObjectDisposition = "quarantine move and purge both failed";
+          }
         }
       }
       const eventDisposition = providerIssues.length
@@ -249,6 +363,7 @@ router.post(
           archiveReason: inspection.archiveReason,
           storedObjectDisposition,
           quarantinedPath,
+          possibleQuarantinedPath,
         }),
       });
       const scannerUnavailable =
@@ -273,6 +388,9 @@ router.post(
             kind: issue.kind,
             code: issue.code,
           })),
+          storedObjectDisposition,
+          quarantineRetained,
+          cleanupConfirmed,
         });
       return;
     }
@@ -280,7 +398,7 @@ router.post(
 
     // Re-check the NDA gate after the (slow) download so a mid-flight NDA
     // revocation cannot slip a document in behind the earlier check.
-    const regate = await projectNdaStatus(projectId);
+    const regate = await projectNdaStatus(projectId, true);
     if (!regate || !regate.ndaStatus || !NDA_ALLOWED.has(regate.ndaStatus)) {
       await denyNda(regate?.ndaStatus ?? null);
       return;
@@ -305,76 +423,186 @@ router.post(
       return;
     }
 
-    const [created] = await db
-      .insert(documents)
-      .values({
-        ...parsed.data,
-        organisationId,
+    const extractionState = initialExtractionState("excluded");
+    const documentId = randomUUID();
+    let finalizedObjectPath: string | null = null;
+    let created: typeof documents.$inferSelect;
+    try {
+      // Write the exact inspected buffer to a create-only, server-controlled
+      // path and revoke the staged path before the row can be committed. A
+      // still-live signed PUT can therefore never replace registered bytes.
+      finalizedObjectPath = await objectStorage.promoteStagedUploadToDocument(
+        parsed.data.objectPath,
+        documentId,
+        buffer,
+        parsed.data.contentType ?? null,
+      );
+
+      // Verify the stable object before registration as an independent storage
+      // integrity check. Manual extraction repeats this SHA-256 gate later.
+      const finalizedBuffer = await downloadDocumentBuffer(finalizedObjectPath);
+      const finalizedSha256 = sha256Hex(finalizedBuffer);
+      if (
+        finalizedBuffer.length !== buffer.length ||
+        finalizedSha256 !== sha256
+      ) {
+        throw new PromotedObjectIntegrityError(sha256, finalizedSha256);
+      }
+
+      [created] = await db
+        .insert(documents)
+        .values({
+          ...parsed.data,
+          id: documentId,
+          objectPath: finalizedObjectPath,
+          redactionStatus: "excluded",
+          organisationId,
+          projectId,
+          uploadedBy: user?.id ?? null,
+          sha256,
+          // Record the measured size of the bytes we hashed, not the client's
+          // claim — the manifest must be internally consistent.
+          size: buffer.length,
+          ...extractionState,
+        })
+        .returning();
+
+      // Intake manifest: filename, SHA-256, measured size, received-at all
+      // live in the audit chain so the record is tamper-evident from intake
+      // onward. Registration never starts extraction.
+      await writeAudit({
+        user,
         projectId,
-        uploadedBy: user?.id ?? null,
-        sha256,
-        // Record the measured size of the bytes we hashed, not the client's
-        // claim — the manifest must be internally consistent.
-        size: buffer.length,
-        extractionStatus: "pending",
-      })
-      .returning();
+        eventType: "document.created",
+        objectType: "document",
+        objectId: created.id,
+        details: `${created.type}: ${created.filename} | sha256=${sha256} | size=${buffer.length}B | redaction=${created.redactionStatus} | extraction=${created.extractionStatus} | storage=promoted`,
+      });
 
-    // Intake manifest: filename, SHA-256, measured size, received-at all live
-    // in the audit chain so the record is tamper-evident from intake onward.
-    // (Hashing is synchronous and fail-closed above; only the slow text
-    // extraction is deferred so a large scanned PDF cannot time out intake.)
-    await writeAudit({
-      user,
-      projectId,
-      eventType: "document.created",
-      objectType: "document",
-      objectId: created.id,
-      details: `${created.type}: ${created.filename} | sha256=${sha256} | size=${buffer.length}B`,
-    });
+      await writeAudit({
+        user,
+        projectId,
+        eventType: "document.extraction_skipped",
+        objectType: "document",
+        objectId: created.id,
+        details: EXCLUDED_EXTRACTION_NOTES,
+      });
+    } catch (error) {
+      const cleanupPath =
+        error instanceof ObjectPromotionCleanupError
+          ? error.destinationPath
+          : finalizedObjectPath;
+      let cleanupConfirmed = cleanupPath === null;
+      let storedObjectDisposition = cleanupPath
+        ? "promoted copy cleanup not yet attempted"
+        : "no promoted copy was retained; original staging cleanup is pending";
+      if (cleanupPath) {
+        try {
+          const deleted = await objectStorage.deleteObjectEntity(cleanupPath);
+          cleanupConfirmed = true;
+          storedObjectDisposition = deleted
+            ? "promoted copy purged"
+            : "promoted copy already absent";
+        } catch (cleanupError) {
+          req.log.error(
+            { err: cleanupError, objectPath: cleanupPath },
+            "could not confirm cleanup of failed document promotion",
+          );
+          storedObjectDisposition =
+            "promoted copy cleanup could not be confirmed";
+        }
+      }
 
-    // Kick off text extraction OFF the request path. The row is already
-    // persisted with extractionStatus "pending"; the UI polls until it flips.
-    void runExtraction(
-      created.id,
-      buffer,
-      created.contentType,
-      created.projectId,
-      created.filename,
-      req,
-    );
+      req.log.error(
+        { err: error, objectPath: parsed.data.objectPath },
+        "document promotion or registration failed",
+      );
+      await writeAudit({
+        user,
+        projectId,
+        eventType: "document.intake_failed",
+        objectType: "project",
+        objectId: projectId,
+        details: JSON.stringify({
+          filename: parsed.data.filename,
+          reason:
+            error instanceof PromotedObjectIntegrityError
+              ? "promoted_object_integrity_mismatch"
+              : error instanceof ObjectNotFoundError
+                ? "staged_or_promoted_object_missing"
+                : "promotion_or_registration_failed",
+          storedObjectDisposition,
+          cleanupConfirmed,
+        }),
+      });
+
+      if (!cleanupConfirmed) {
+        res.status(503).json({
+          error:
+            "The document was not registered, and cleanup of its promoted storage copy could not be confirmed. Contact an administrator before retrying.",
+          storedObjectDisposition,
+          cleanupConfirmed: false,
+        });
+        return;
+      }
+      if (error instanceof PromotedObjectIntegrityError) {
+        res.status(422).json({
+          error:
+            "The promoted object failed its integrity check, so no document was registered.",
+          storedObjectDisposition,
+          cleanupConfirmed: true,
+        });
+        return;
+      }
+      if (error instanceof ObjectNotFoundError) {
+        res.status(422).json({
+          error:
+            "The uploaded object disappeared during secure finalisation, so no document was registered. Upload the file again.",
+          storedObjectDisposition,
+          cleanupConfirmed: true,
+        });
+        return;
+      }
+      res.status(503).json({
+        error:
+          "Secure document finalisation failed, so no document was registered.",
+        storedObjectDisposition,
+        cleanupConfirmed: true,
+      });
+      return;
+    }
 
     res.status(201).json(serializeDocument(created, user?.name));
   },
 );
 
 /**
- * Run (or re-run) text extraction for a stored document and persist the
- * result. Fire-and-forget: never rejects, so a slow or failing extraction can
- * never crash the request that scheduled it. Marks the row "extracting" while
- * in flight so the UI can show progress.
+ * Run text extraction only after the route atomically changed the persisted
+ * state to "extracting". Completion/failure writes use the same state as a
+ * compare-and-set token, so a stale worker cannot overwrite a later policy
+ * state. The route awaits this function while its project lock is held.
  */
-async function runExtraction(
+async function runClaimedExtraction(
   documentId: string,
   buffer: Buffer,
   contentType: string | null,
   projectId: string,
   filename: string,
   req: Request,
+  signal: AbortSignal,
 ): Promise<void> {
   try {
-    await db
-      .update(documents)
-      .set({ extractionStatus: "extracting" })
-      .where(eq(documents.id, documentId));
+    signal.throwIfAborted();
     const extraction: ExtractionResult = await extractDocumentTextFromBuffer(
       buffer,
       contentType,
       {
         projectId,
         filename,
+        signal,
       },
     );
+    signal.throwIfAborted();
     await db
       .update(documents)
       .set({
@@ -385,8 +613,19 @@ async function runExtraction(
         extractionConfidence: extraction.confidence,
         extractionNotes: extraction.notes,
       })
-      .where(eq(documents.id, documentId));
+      .where(
+        and(
+          eq(documents.id, documentId),
+          eq(documents.extractionStatus, "extracting"),
+          ne(documents.redactionStatus, "excluded"),
+        ),
+      );
+    signal.throwIfAborted();
   } catch (error) {
+    // A disconnected request retains the project lock until the parser/model
+    // attempt settles, then rolls the whole claim/result transaction back.
+    // Never convert cancellation into a committed ordinary failure state.
+    if (signal.aborted) signal.throwIfAborted();
     req.log.error({ err: error, documentId }, "async extraction failed");
     await db
       .update(documents)
@@ -395,107 +634,318 @@ async function runExtraction(
         extractionMethod: "none",
         extractionNotes: `async extraction crashed: ${(error instanceof Error ? error.message : String(error)).slice(0, 200)}`,
       })
-      .where(eq(documents.id, documentId))
+      .where(
+        and(
+          eq(documents.id, documentId),
+          eq(documents.extractionStatus, "extracting"),
+          ne(documents.redactionStatus, "excluded"),
+        ),
+      )
       .catch(() => {});
   }
 }
 
 router.post(
   "/documents/:id/extract",
-  requirePermissionOrLegacy("document:upload"),
+  requirePermissionOrLegacy("evidence:approve"),
   async (req: Request, res: Response) => {
-    const [doc] = await db
-      .select()
-      .from(documents)
-      .where(eq(documents.id, String(req.params.id)));
-    if (!doc) {
-      res.status(404).json({ error: "Not found" });
-      return;
-    }
-    let buffer: Buffer;
+    const releaseTenantWork = holdTenantDatabaseUntilComplete(req);
+    const disconnectController = new AbortController();
+    const abortOnDisconnect = () => disconnectController.abort();
+    res.once("close", abortOnDisconnect);
+    let routeError: unknown;
     try {
-      buffer = await downloadDocumentBuffer(doc.objectPath);
-    } catch (error) {
-      req.log.error(
-        { err: error, objectPath: doc.objectPath },
-        "re-extract: object unreadable",
+      const [doc] = await db
+        .select()
+        .from(documents)
+        .where(eq(documents.id, String(req.params.id)));
+      if (!doc) {
+        res.status(404).json({ error: "Not found" });
+        return;
+      }
+      if (doc.extractionStatus === "quarantined") {
+        await writeAudit({
+          user: getLocalUser(req),
+          projectId: doc.projectId,
+          eventType: "document.extraction_denied",
+          objectType: "document",
+          objectId: doc.id,
+          details:
+            "Manual extraction was denied because secure re-inspection placed this document in a logical quarantine; only a future explicit security-release workflow may clear it.",
+        });
+        res.status(409).json({
+          error:
+            "This document is security-quarantined. It cannot be extracted or released through ordinary redaction controls.",
+          redactionStatus: doc.redactionStatus,
+          extractionStatus: doc.extractionStatus,
+        });
+        return;
+      }
+      if (doc.redactionStatus === "excluded") {
+        await db
+          .update(documents)
+          .set(stateAfterRedactionChange("excluded"))
+          .where(eq(documents.id, doc.id));
+        await writeAudit({
+          user: getLocalUser(req),
+          projectId: doc.projectId,
+          eventType: "document.extraction_denied",
+          objectType: "document",
+          objectId: doc.id,
+          details:
+            "Manual extraction was denied because the document is excluded; no storage read, parser, or model OCR was invoked.",
+        });
+        res.status(409).json({
+          error:
+            "This document is excluded from processing. A reviewer must change it to included or redacted before deliberately starting extraction.",
+          redactionStatus: doc.redactionStatus,
+        });
+        return;
+      }
+      if (doc.extractionStatus === "extracting") {
+        await writeAudit({
+          user: getLocalUser(req),
+          projectId: doc.projectId,
+          eventType: "document.extraction_denied",
+          objectType: "document",
+          objectId: doc.id,
+          details:
+            "A duplicate extraction request was denied because this document is already processing.",
+        });
+        res.status(409).json({
+          error: "This document is already being extracted.",
+          extractionStatus: doc.extractionStatus,
+        });
+        return;
+      }
+      let buffer: Buffer;
+      try {
+        disconnectController.signal.throwIfAborted();
+        buffer = await downloadDocumentBuffer(doc.objectPath);
+      } catch (error) {
+        req.log.error(
+          { err: error, objectPath: doc.objectPath },
+          "re-extract: object unreadable",
+        );
+        await db
+          .update(documents)
+          .set({ extractionStatus: "failed" })
+          .where(eq(documents.id, doc.id));
+        res.status(404).json({ error: "Stored object could not be read" });
+        return;
+      }
+      disconnectController.signal.throwIfAborted();
+      const actualSha256 = sha256Hex(buffer);
+      if (!doc.sha256 || actualSha256 !== doc.sha256) {
+        const reason = doc.sha256
+          ? "Stored bytes no longer match the intake manifest."
+          : "This legacy document has no trusted intake hash.";
+        await db
+          .update(documents)
+          .set({
+            extractionStatus: "failed",
+            extractionMethod: "none",
+            extractionNotes: `${reason} Extraction was blocked before secure inspection, parsing, or model OCR.`,
+          })
+          .where(eq(documents.id, doc.id));
+        await writeAudit({
+          user: getLocalUser(req),
+          projectId: doc.projectId,
+          eventType: "document.extraction_integrity_denied",
+          objectType: "document",
+          objectId: doc.id,
+          details: JSON.stringify({
+            expectedSha256: doc.sha256,
+            actualSha256,
+            parserOrModelInvoked: false,
+          }),
+        });
+        res.status(409).json({
+          error: `${reason} Extraction was not started.`,
+          expectedSha256: doc.sha256,
+          actualSha256,
+        });
+        return;
+      }
+      disconnectController.signal.throwIfAborted();
+      const inspection = await inspectDocumentIntake({
+        tenantId: doc.organisationId ?? "legacy",
+        filename: doc.filename,
+        declaredMime: doc.contentType ?? "application/octet-stream",
+        bytes: buffer,
+        idempotencyKey: `reextract:${doc.id}:${doc.sha256}`,
+      });
+      disconnectController.signal.throwIfAborted();
+      const providerIssues =
+        process.env.NODE_ENV === "production"
+          ? productionFeatureIssues("document_intake")
+          : [];
+      const securityFindings = inspection.findings.filter(
+        (finding) =>
+          finding.code !== "malware_scan_incomplete" &&
+          finding.severity !== "notice",
       );
-      await db
-        .update(documents)
-        .set({ extractionStatus: "failed" })
-        .where(eq(documents.id, doc.id));
-      res.status(404).json({ error: "Stored object could not be read" });
-      return;
-    }
-    const inspection = await inspectDocumentIntake({
-      tenantId: doc.organisationId ?? "legacy",
-      filename: doc.filename,
-      declaredMime: doc.contentType ?? "application/octet-stream",
-      bytes: buffer,
-      idempotencyKey: `reextract:${doc.id}:${doc.sha256 ?? sha256Hex(buffer)}`,
-    });
-    const providerIssues =
-      process.env.NODE_ENV === "production"
-        ? productionFeatureIssues("document_intake")
-        : [];
-    if (!inspection.mayProcess || providerIssues.length > 0) {
-      await db
-        .update(documents)
-        .set({
+      const scannerUnavailable = inspection.findings.some(
+        (finding) => finding.code === "malware_scan_incomplete",
+      );
+      const securityBlocked =
+        securityFindings.length > 0 ||
+        (!inspection.mayProcess && !scannerUnavailable);
+      if (securityBlocked) {
+        const notes =
+          `Secure re-inspection security-blocked this source: ${securityFindings
+            .map((finding) => finding.code)
+            .join(", ")}`.slice(0, 500);
+        await db
+          .update(documents)
+          .set({
+            redactionStatus: "excluded",
+            extractionStatus: "quarantined",
+            extractionMethod: "none",
+            extractionConfidence: null,
+            extractionNotes: notes,
+            contentText: null,
+            extractedChars: null,
+          })
+          .where(eq(documents.id, doc.id));
+        await writeAudit({
+          user: getLocalUser(req),
+          projectId: doc.projectId,
+          eventType: "document.reinspection_security_blocked",
+          objectType: "document",
+          objectId: doc.id,
+          details: JSON.stringify({
+            findings: inspection.findings.map((finding) => finding.code),
+            malwareState: inspection.malware.state,
+            extractionStatus: "quarantined",
+            redactionStatus: "excluded",
+            storageMoved: false,
+            genericObjectDownloadAllowed: false,
+          }),
+        });
+        res.status(422).json({
+          error:
+            "Secure re-inspection blocked this source. It is now excluded and inaccessible through generic object downloads pending an explicit security-release workflow.",
+          extractionStatus: "quarantined",
+        });
+        return;
+      }
+      if (scannerUnavailable || providerIssues.length > 0) {
+        const notes = `Secure re-inspection could not complete: ${[
+          ...(scannerUnavailable ? ["malware_scan_incomplete"] : []),
+          ...providerIssues.map(
+            (issue) => `provider_${issue.kind}_${issue.code}`,
+          ),
+        ].join(", ")}`.slice(0, 500);
+        await db
+          .update(documents)
+          .set({
+            extractionStatus: "failed",
+            extractionMethod: "none",
+            extractionConfidence: null,
+            extractionNotes: notes,
+          })
+          .where(eq(documents.id, doc.id));
+        await writeAudit({
+          user: getLocalUser(req),
+          projectId: doc.projectId,
+          eventType: "document.reinspection_blocked",
+          objectType: "document",
+          objectId: doc.id,
+          details: JSON.stringify({
+            findings: inspection.findings.map((finding) => finding.code),
+            providerIssues: providerIssues.map((issue) => ({
+              kind: issue.kind,
+              code: issue.code,
+            })),
+            malwareState: inspection.malware.state,
+            storageMoved: false,
+          }),
+        });
+        res.status(503).json({
+          error:
+            "Secure re-inspection is temporarily unavailable. The source was not described as quarantined and extraction was not started.",
           extractionStatus: "failed",
-          extractionMethod: "none",
-          extractionNotes: `Secure re-inspection blocked extraction: ${[
-            ...inspection.findings.map((finding) => finding.code),
-            ...providerIssues.map(
-              (issue) => `provider_${issue.kind}_${issue.code}`,
+        });
+        return;
+      }
+      disconnectController.signal.throwIfAborted();
+      const [claimed] = await db
+        .update(documents)
+        .set({ extractionStatus: "extracting" })
+        .where(
+          and(
+            eq(documents.id, doc.id),
+            ne(documents.redactionStatus, "excluded"),
+            or(
+              isNull(documents.extractionStatus),
+              ne(documents.extractionStatus, "extracting"),
             ),
-          ].join(", ")}`.slice(0, 500),
-        })
-        .where(eq(documents.id, doc.id));
+          ),
+        )
+        .returning();
+      if (!claimed) {
+        const [current] = await db
+          .select()
+          .from(documents)
+          .where(eq(documents.id, doc.id));
+        await writeAudit({
+          user: getLocalUser(req),
+          projectId: doc.projectId,
+          eventType: "document.extraction_denied",
+          objectType: "document",
+          objectId: doc.id,
+          details:
+            "Extraction lost its atomic eligibility claim; no parser or model OCR was invoked.",
+        });
+        res.status(409).json({
+          error:
+            current?.redactionStatus === "excluded"
+              ? "This document became excluded before extraction could start. No parser or model OCR was invoked."
+              : "This document is already being extracted.",
+          redactionStatus: current?.redactionStatus,
+          extractionStatus: current?.extractionStatus,
+        });
+        return;
+      }
       await writeAudit({
         user: getLocalUser(req),
         projectId: doc.projectId,
-        eventType: "document.reextract_quarantined",
+        eventType: "document.reextract",
         objectType: "document",
         objectId: doc.id,
-        details: JSON.stringify({
-          findings: inspection.findings.map((finding) => finding.code),
-          providerIssues: providerIssues.map((issue) => ({
-            kind: issue.kind,
-            code: issue.code,
-          })),
-          malwareState: inspection.malware.state,
-        }),
+        details: doc.filename,
       });
-      res.status(503).json({
-        error:
-          "Secure re-inspection did not clear this file, so extraction remains blocked.",
-      });
-      return;
+      // Keep the request-long tenant transaction and project advisory lock held
+      // across parser/model execution and persistence. This deliberately avoids
+      // a faux background task inheriting a released AsyncLocal transaction and
+      // prevents an exclusion request from interleaving after the claim but
+      // before model OCR. A durable queue can replace this only with equivalent
+      // tenant context, cancellation and generation semantics.
+      await runClaimedExtraction(
+        claimed.id,
+        buffer,
+        claimed.contentType,
+        claimed.projectId,
+        claimed.filename,
+        req,
+        disconnectController.signal,
+      );
+      const [completed] = await db
+        .select()
+        .from(documents)
+        .where(eq(documents.id, claimed.id));
+      res.status(200).json(serializeDocument(completed ?? claimed));
+    } catch (error) {
+      routeError = error;
+      throw error;
+    } finally {
+      if (disconnectController.signal.aborted && !routeError) {
+        routeError = disconnectController.signal.reason;
+      }
+      res.off("close", abortOnDisconnect);
+      releaseTenantWork(routeError);
     }
-    await db
-      .update(documents)
-      .set({ extractionStatus: "pending" })
-      .where(eq(documents.id, doc.id));
-    await writeAudit({
-      user: getLocalUser(req),
-      projectId: doc.projectId,
-      eventType: "document.reextract",
-      objectType: "document",
-      objectId: doc.id,
-      details: doc.filename,
-    });
-    void runExtraction(
-      doc.id,
-      buffer,
-      doc.contentType,
-      doc.projectId,
-      doc.filename,
-      req,
-    );
-    res
-      .status(202)
-      .json(serializeDocument({ ...doc, extractionStatus: "pending" }));
   },
 );
 
@@ -594,12 +1044,93 @@ router.patch(
       res.status(400).json({ error: "Invalid request" });
       return;
     }
+    const [existing] = await db
+      .select()
+      .from(documents)
+      .where(eq(documents.id, String(req.params.id)));
+    if (!existing) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    if (
+      existing.extractionStatus === "quarantined" &&
+      parsed.data.redactionStatus !== undefined
+    ) {
+      await writeAudit({
+        user: getLocalUser(req),
+        projectId: existing.projectId,
+        eventType: "document.redaction_change_denied",
+        objectType: "document",
+        objectId: existing.id,
+        details:
+          "Ordinary redaction controls cannot alter a logical security-quarantine state; a future explicit security-release workflow is required.",
+      });
+      res.status(409).json({
+        error:
+          "This document is security-quarantined. Its redaction cannot be changed through ordinary document controls.",
+        redactionStatus: existing.redactionStatus,
+        extractionStatus: existing.extractionStatus,
+      });
+      return;
+    }
+    const redactionChange = parsed.data.redactionStatus !== undefined;
+    if (redactionChange && !hasRequestPermission(req, "evidence:approve")) {
+      await writeAudit({
+        user: getLocalUser(req),
+        projectId: existing.projectId,
+        eventType: "document.redaction_change_denied",
+        objectType: "document",
+        objectId: existing.id,
+        details:
+          "A non-reviewer attempted to change document redaction policy; redaction and extraction state were not changed.",
+      });
+      res.status(403).json({
+        error: "Reviewer approval is required to change document redaction.",
+      });
+      return;
+    }
+    const extractionState = stateAfterRedactionChange(
+      parsed.data.redactionStatus,
+      existing.redactionStatus,
+    );
+    const excluding = parsed.data.redactionStatus === "excluded";
+    const updatePredicate = excluding
+      ? and(
+          eq(documents.id, String(req.params.id)),
+          or(
+            isNull(documents.extractionStatus),
+            ne(documents.extractionStatus, "extracting"),
+          ),
+        )
+      : eq(documents.id, String(req.params.id));
     const [updated] = await db
       .update(documents)
-      .set({ ...parsed.data })
-      .where(eq(documents.id, String(req.params.id)))
+      .set({ ...parsed.data, ...extractionState })
+      .where(updatePredicate)
       .returning();
     if (!updated) {
+      const [current] = await db
+        .select()
+        .from(documents)
+        .where(eq(documents.id, String(req.params.id)));
+      if (excluding && current?.extractionStatus === "extracting") {
+        await writeAudit({
+          user: getLocalUser(req),
+          projectId: current.projectId,
+          eventType: "document.redaction_change_denied",
+          objectType: "document",
+          objectId: current.id,
+          details:
+            "Exclusion was denied because extraction had already atomically entered processing; redaction and extraction state were not changed.",
+        });
+        res.status(409).json({
+          error:
+            "Extraction is already processing. Wait for it to finish or fail, then exclude the document. Its redaction status was not changed.",
+          redactionStatus: current.redactionStatus,
+          extractionStatus: current.extractionStatus,
+        });
+        return;
+      }
       res.status(404).json({ error: "Not found" });
       return;
     }
@@ -609,6 +1140,14 @@ router.patch(
       eventType: "document.updated",
       objectType: "document",
       objectId: updated.id,
+      details: JSON.stringify({
+        changedFields: Object.keys(parsed.data),
+        redactionFrom: existing.redactionStatus,
+        redactionTo: updated.redactionStatus,
+        extractionStatus: updated.extractionStatus,
+        derivedContentCleared: parsed.data.redactionStatus === "excluded",
+        extractionAutoStarted: false,
+      }),
     });
     res.json(serializeDocument(updated));
   },
@@ -618,20 +1157,63 @@ router.delete(
   "/documents/:id",
   requirePermissionOrLegacy("document:delete"),
   async (req: Request, res: Response) => {
+    const [existing] = await db
+      .select()
+      .from(documents)
+      .where(eq(documents.id, String(req.params.id)));
+    if (!existing) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    // A cross-project registration uses a different project lock, so row and
+    // blob deletion must also hold the shared object-path lock. Otherwise a
+    // create could observe the deleted row and register just before this route
+    // purged the shared blob.
+    await lockStagedUploadObject(existing.objectPath);
+    if (existing.extractionStatus === "quarantined") {
+      const otherReferences = await storagePathReferenceKinds(
+        existing.objectPath,
+        { excludeDocumentId: existing.id },
+      );
+      if (otherReferences.length > 0) {
+        await writeAudit({
+          user: getLocalUser(req),
+          projectId: existing.projectId,
+          eventType: "document.security_quarantine_delete_denied",
+          objectType: "document",
+          objectId: existing.id,
+          details: `Logical quarantine marker retained because the blocked path is also referenced by: ${otherReferences.join(", ")}.`,
+        });
+        res.status(409).json({
+          error:
+            "This security-quarantined document cannot be deleted while another tenant artefact references its blocked storage path.",
+          references: otherReferences,
+        });
+        return;
+      }
+    }
     const [deleted] = await db
       .delete(documents)
-      .where(eq(documents.id, String(req.params.id)))
+      .where(
+        and(
+          eq(documents.id, String(req.params.id)),
+          eq(documents.objectPath, existing.objectPath),
+        ),
+      )
       .returning();
     if (!deleted) {
       res.status(404).json({ error: "Not found" });
       return;
     }
-    // A blob a Certificate Vault item points at belongs to the client's
-    // vault, not to this document row — keep the file, drop only the row.
-    const vaultOwned =
-      (await vaultReferencedPaths([deleted.objectPath])).size > 0;
+    // Keep the blob whenever any other persisted tenant artefact still owns
+    // this path (vault, version, report, package or branding). The document
+    // row itself is gone before this fail-closed reference inventory runs.
+    const remainingReferences = await storagePathReferenceKinds(
+      deleted.objectPath,
+    );
+    const referencedElsewhere = remainingReferences.length > 0;
     let blobDeleted = false;
-    if (!vaultOwned) {
+    if (!referencedElsewhere) {
       try {
         blobDeleted = await objectStorage.deleteObjectEntity(
           deleted.objectPath,
@@ -650,8 +1232,8 @@ router.delete(
       objectType: "document",
       objectId: deleted.id,
       details: `${deleted.filename} (file ${
-        vaultOwned
-          ? "retained as client vault artefact"
+        referencedElsewhere
+          ? `retained for ${remainingReferences.join(", ")}`
           : blobDeleted
             ? "purged"
             : "not found"

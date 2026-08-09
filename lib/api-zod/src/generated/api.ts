@@ -80,10 +80,13 @@ export const UpdateUserResponse = zod.object({
 
 
 /**
- * Discovery endpoint used before tenant selection. It returns only active,
- * unexpired memberships in active organisations, with only active and
- * unexpired role grants. No organisation context header is required.
- * @summary List the caller's active organisation memberships
+ * Discovery endpoint used before tenant selection. It returns active
+ * direct memberships and client contexts reached through an active
+ * consultancy-partner relationship with partner edition enabled. Every
+ * row includes the server-computed effective permission set; projected
+ * rows contain only the restricted partner-derived permissions. No
+ * organisation context header is required.
+ * @summary List the caller's active organisation access contexts
  */
 export const listOrganisationsResponseCountryCodeMin = 2;
 export const listOrganisationsResponseCountryCodeMax = 2;
@@ -98,9 +101,13 @@ export const ListOrganisationsResponseItem = zod.object({
   "type": zod.enum(['client', 'valo', 'consultancy_partner']),
   "status": zod.enum(['active']),
   "countryCode": zod.string().min(listOrganisationsResponseCountryCodeMin).max(listOrganisationsResponseCountryCodeMax),
-  "membershipId": zod.string().uuid(),
+  "membershipId": zod.string().uuid().describe('Direct or partner-source membership used to authorise this context.'),
+  "membershipOrganisationId": zod.string().uuid().describe('Organisation that owns the authorising membership.'),
+  "accessSource": zod.enum(['membership', 'partner']),
+  "partnerRelationshipId": zod.string().uuid().nullable(),
   "accessExpiresAt": zod.coerce.date().nullable(),
   "roles": zod.array(zod.enum(['client_organisation_owner', 'client_administrator', 'bid_manager', 'contributor', 'client_reviewer_approver', 'valo_operations_administrator', 'restricted_platform_administrator', 'consultancy_partner_administrator', 'consultancy_partner_analyst_reviewer', 'read_only_auditor', 'valo_analyst', 'valo_quality_adviser']).describe('Canonical organisation-scoped role. Legacy identity aliases are never emitted as grants.')),
+  "permissions": zod.array(zod.string()).describe('Server-computed effective permissions for this exact tenant context.'),
   "version": zod.number().min(1)
 })
 export const ListOrganisationsResponse = zod.array(ListOrganisationsResponseItem)
@@ -188,8 +195,10 @@ export const ListOrganisationMembershipsResponse = zod.array(ListOrganisationMem
 /**
  * Requires `membership:manage` from a direct membership in the selected
  * organisation. Delegation ceilings and organisation-role compatibility
- * are enforced by the server. Partner and break-glass contexts cannot
- * administer memberships.
+ * are re-evaluated from locked, live grants by the server. A lower-level
+ * administrator cannot reactivate a membership that retains a live or
+ * scheduled higher-authority grant, and self-service role grants are
+ * denied. Partner and break-glass contexts cannot administer memberships.
  * @summary Add or reactivate a membership and grant a role
  */
 export const CreateOrganisationMembershipParams = zod.object({
@@ -203,8 +212,8 @@ export const CreateOrganisationMembershipHeader = zod.object({
 export const CreateOrganisationMembershipBody = zod.object({
   "userId": zod.string().uuid(),
   "role": zod.enum(['client_organisation_owner', 'client_administrator', 'bid_manager', 'contributor', 'client_reviewer_approver', 'valo_operations_administrator', 'restricted_platform_administrator', 'consultancy_partner_administrator', 'consultancy_partner_analyst_reviewer', 'read_only_auditor', 'valo_analyst', 'valo_quality_adviser']).describe('Canonical organisation-scoped role. Legacy identity aliases are never emitted as grants.'),
-  "accessExpiresAt": zod.coerce.date().nullish().describe('Must be in the future when supplied.'),
-  "roleExpiresAt": zod.coerce.date().nullish().describe('Must be in the future when supplied.')
+  "accessExpiresAt": zod.coerce.date().nullish().describe('Must be in the future when supplied. For an existing membership,\nomission preserves its current expiry, null explicitly clears it\nto indefinite access, and a timestamp replaces it under the same\nlocked authority check. Reactivation is refused if a preserved\nexpiry is no longer in the future.\n'),
+  "roleExpiresAt": zod.coerce.date().nullish().describe('Must be in the future when supplied. For a reactivated membership\nwith a retained matching grant, omission preserves that grant\'s\nexpiry, null clears it, and a timestamp replaces it under the same\nlocked authority check.\n')
 })
 
 export const CreateOrganisationMembershipResponse = zod.object({
@@ -216,7 +225,10 @@ export const CreateOrganisationMembershipResponse = zod.object({
 /**
  * Requires `membership:manage` from a direct membership. The optimistic
  * membership version must be supplied in `If-Match`; stale versions fail
- * without mutation. An ETag containing the new version is returned.
+ * without mutation. Live grants, self-change safeguards, and the last
+ * active administrator/owner invariant are checked under an organisation
+ * transaction lock. Denied hierarchy changes are audited. An ETag
+ * containing the new version is returned.
  * @summary Update membership status or access expiry
  */
 export const UpdateOrganisationMembershipParams = zod.object({
@@ -1754,7 +1766,7 @@ export const ListDocumentsResponseItem = zod.object({
   "uploadedByName": zod.string().nullish(),
   "contentText": zod.string().nullish(),
   "extractedChars": zod.number().nullish(),
-  "extractionStatus": zod.enum(['pending', 'extracting', 'extracted', 'failed', 'skipped']).nullish(),
+  "extractionStatus": zod.enum(['pending', 'extracting', 'extracted', 'failed', 'skipped', 'quarantined']).nullish(),
   "extractionMethod": zod.enum(['textual', 'text_layer', 'multimodal_ocr', 'none']).nullish(),
   "extractionConfidence": zod.number().nullish(),
   "extractionNotes": zod.string().nullish(),
@@ -1782,7 +1794,7 @@ export const CreateDocumentBody = zod.object({
   "size": zod.number().optional(),
   "source": zod.string().optional(),
   "dateReceived": zod.string().optional(),
-  "redactionStatus": zod.enum(['excluded', 'redacted', 'included'])
+  "redactionStatus": zod.enum(['excluded'])
 })
 
 export const CreateDocumentResponse = zod.object({
@@ -1801,7 +1813,7 @@ export const CreateDocumentResponse = zod.object({
   "uploadedByName": zod.string().nullish(),
   "contentText": zod.string().nullish(),
   "extractedChars": zod.number().nullish(),
-  "extractionStatus": zod.enum(['pending', 'extracting', 'extracted', 'failed', 'skipped']).nullish(),
+  "extractionStatus": zod.enum(['pending', 'extracting', 'extracted', 'failed', 'skipped', 'quarantined']).nullish(),
   "extractionMethod": zod.enum(['textual', 'text_layer', 'multimodal_ocr', 'none']).nullish(),
   "extractionConfidence": zod.number().nullish(),
   "extractionNotes": zod.string().nullish(),
@@ -1829,7 +1841,7 @@ export const GetDocumentResponse = zod.object({
   "uploadedByName": zod.string().nullish(),
   "contentText": zod.string().nullish(),
   "extractedChars": zod.number().nullish(),
-  "extractionStatus": zod.enum(['pending', 'extracting', 'extracted', 'failed', 'skipped']).nullish(),
+  "extractionStatus": zod.enum(['pending', 'extracting', 'extracted', 'failed', 'skipped', 'quarantined']).nullish(),
   "extractionMethod": zod.enum(['textual', 'text_layer', 'multimodal_ocr', 'none']).nullish(),
   "extractionConfidence": zod.number().nullish(),
   "extractionNotes": zod.string().nullish(),
@@ -1864,7 +1876,7 @@ export const UpdateDocumentResponse = zod.object({
   "uploadedByName": zod.string().nullish(),
   "contentText": zod.string().nullish(),
   "extractedChars": zod.number().nullish(),
-  "extractionStatus": zod.enum(['pending', 'extracting', 'extracted', 'failed', 'skipped']).nullish(),
+  "extractionStatus": zod.enum(['pending', 'extracting', 'extracted', 'failed', 'skipped', 'quarantined']).nullish(),
   "extractionMethod": zod.enum(['textual', 'text_layer', 'multimodal_ocr', 'none']).nullish(),
   "extractionConfidence": zod.number().nullish(),
   "extractionNotes": zod.string().nullish(),
@@ -1880,7 +1892,7 @@ export const DeleteDocumentResponse = zod.void()
 
 
 /**
- * @summary (Re-)run text extraction for a document, asynchronously
+ * @summary Deliberately run reviewer-authorised text extraction under the project lock
  */
 export const ExtractDocumentParams = zod.object({
   "id": zod.coerce.string().uuid()
@@ -1902,7 +1914,7 @@ export const ExtractDocumentResponse = zod.object({
   "uploadedByName": zod.string().nullish(),
   "contentText": zod.string().nullish(),
   "extractedChars": zod.number().nullish(),
-  "extractionStatus": zod.enum(['pending', 'extracting', 'extracted', 'failed', 'skipped']).nullish(),
+  "extractionStatus": zod.enum(['pending', 'extracting', 'extracted', 'failed', 'skipped', 'quarantined']).nullish(),
   "extractionMethod": zod.enum(['textual', 'text_layer', 'multimodal_ocr', 'none']).nullish(),
   "extractionConfidence": zod.number().nullish(),
   "extractionNotes": zod.string().nullish(),
@@ -2305,6 +2317,9 @@ export const ListDefectsParams = zod.object({
   "id": zod.coerce.string().uuid()
 })
 
+
+
+
 export const ListDefectsResponseItem = zod.object({
   "id": zod.string(),
   "projectId": zod.string(),
@@ -2318,6 +2333,7 @@ export const ListDefectsResponseItem = zod.object({
   "owner": zod.string().nullish(),
   "status": zod.enum(['open', 'remediated', 'waived', 'suggested']),
   "suggested": zod.boolean().optional(),
+  "version": zod.number().min(1),
   "createdAt": zod.string()
 })
 export const ListDefectsResponse = zod.array(ListDefectsResponseItem)
@@ -2329,6 +2345,9 @@ export const ListDefectsResponse = zod.array(ListDefectsResponseItem)
 export const SuggestDefectsParams = zod.object({
   "id": zod.coerce.string().uuid()
 })
+
+
+
 
 export const SuggestDefectsResponse = zod.object({
   "created": zod.number(),
@@ -2346,6 +2365,7 @@ export const SuggestDefectsResponse = zod.object({
   "owner": zod.string().nullish(),
   "status": zod.enum(['open', 'remediated', 'waived', 'suggested']),
   "suggested": zod.boolean().optional(),
+  "version": zod.number().min(1),
   "createdAt": zod.string()
 }))
 })
@@ -2366,6 +2386,9 @@ export const CreateDefectBody = zod.object({
   "status": zod.enum(['open', 'remediated', 'waived', 'suggested']).optional()
 })
 
+
+
+
 export const CreateDefectResponse = zod.object({
   "id": zod.string(),
   "projectId": zod.string(),
@@ -2379,12 +2402,20 @@ export const CreateDefectResponse = zod.object({
   "owner": zod.string().nullish(),
   "status": zod.enum(['open', 'remediated', 'waived', 'suggested']),
   "suggested": zod.boolean().optional(),
+  "version": zod.number().min(1),
   "createdAt": zod.string()
 })
 
 
 export const UpdateDefectParams = zod.object({
   "id": zod.coerce.string().uuid()
+})
+
+export const updateDefectHeaderIfMatchRegExp = new RegExp('^(?:W/)?"?[1-9][0-9]*"?$');
+
+
+export const UpdateDefectHeader = zod.object({
+  "If-Match": zod.string().regex(updateDefectHeaderIfMatchRegExp).describe('Current positive integer resource version, optionally quoted or weakly prefixed.')
 })
 
 
@@ -2402,6 +2433,9 @@ export const UpdateDefectBody = zod.object({
   "suggested": zod.boolean().optional()
 })
 
+
+
+
 export const UpdateDefectResponse = zod.object({
   "id": zod.string(),
   "projectId": zod.string(),
@@ -2415,6 +2449,7 @@ export const UpdateDefectResponse = zod.object({
   "owner": zod.string().nullish(),
   "status": zod.enum(['open', 'remediated', 'waived', 'suggested']),
   "suggested": zod.boolean().optional(),
+  "version": zod.number().min(1),
   "createdAt": zod.string()
 })
 
@@ -2509,6 +2544,9 @@ export const BoqCheckToDefectParams = zod.object({
   "id": zod.coerce.string().uuid()
 })
 
+
+
+
 export const BoqCheckToDefectResponse = zod.object({
   "id": zod.string(),
   "projectId": zod.string(),
@@ -2522,6 +2560,7 @@ export const BoqCheckToDefectResponse = zod.object({
   "owner": zod.string().nullish(),
   "status": zod.enum(['open', 'remediated', 'waived', 'suggested']),
   "suggested": zod.boolean().optional(),
+  "version": zod.number().min(1),
   "createdAt": zod.string()
 })
 
@@ -2677,6 +2716,7 @@ export const ListReportsResponseItem = zod.object({
   "version": zod.number(),
   "status": zod.enum(['draft', 'signed_off']),
   "docxPath": zod.string().nullish(),
+  "pdfPath": zod.string().nullish(),
   "reviewerId": zod.string().nullish(),
   "reviewerName": zod.string().nullish(),
   "attestation": zod.string().nullish(),
@@ -2705,6 +2745,7 @@ export const GenerateReportResponse = zod.object({
   "version": zod.number(),
   "status": zod.enum(['draft', 'signed_off']),
   "docxPath": zod.string().nullish(),
+  "pdfPath": zod.string().nullish(),
   "reviewerId": zod.string().nullish(),
   "reviewerName": zod.string().nullish(),
   "attestation": zod.string().nullish(),
@@ -2739,6 +2780,7 @@ export const SignOffReportResponse = zod.object({
   "version": zod.number(),
   "status": zod.enum(['draft', 'signed_off']),
   "docxPath": zod.string().nullish(),
+  "pdfPath": zod.string().nullish(),
   "reviewerId": zod.string().nullish(),
   "reviewerName": zod.string().nullish(),
   "attestation": zod.string().nullish(),
@@ -2761,6 +2803,16 @@ export const DownloadReportParams = zod.object({
 })
 
 export const DownloadReportResponse = zod.unknown()
+
+
+/**
+ * @summary Download the generated PDF
+ */
+export const DownloadReportPdfParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const DownloadReportPdfResponse = zod.unknown()
 
 
 /**
@@ -2937,7 +2989,26 @@ export const RequestUploadUrlResponse = zod.object({
 
 
 /**
- * @summary Serve an object entity from PRIVATE_OBJECT_DIR
+ * Deletes only an opaque object in the authenticated organisation's upload staging namespace. The server rejects signed URLs, cross-tenant paths, quarantine paths, and objects already referenced by any persisted tenant artefact.
+ * @summary Discard an unreferenced staged upload after document registration fails
+ */
+export const discardUploadBodyObjectPathMax = 512;
+
+
+
+export const DiscardUploadBody = zod.object({
+  "objectPath": zod.string().min(1).max(discardUploadBodyObjectPathMax)
+})
+
+export const DiscardUploadResponse = zod.object({
+  "disposition": zod.enum(['deleted', 'already_absent']),
+  "quarantineMayRetainCopy": zod.boolean()
+})
+
+
+/**
+ * Fails closed for unreferenced staging objects, document-version quarantine objects, report renders, package outputs, and partner-branding objects. Controlled outputs are available only through their guarded download/export routes.
+ * @summary Serve a registered document or vault source object
  */
 export const GetStorageObjectParams = zod.object({
   "objectPath": zod.coerce.string()

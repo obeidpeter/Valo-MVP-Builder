@@ -7,7 +7,7 @@ Valo is an internal bid-compliance workbench for tender intake, reviewer-confirm
 - Supported runtime: Node.js 22 through 24 and pnpm 10.34.0. Replit selects Node.js 24 in `.replit`; CI validates Node.js 22.
 - Replit's **Project** workflow runs the API on port 5000 and the Vite workbench on port 3000, proxying `/api` to the API.
 - API liveness is `GET /api/healthz`. It proves only that the process can answer; it does not prove database, storage, identity-provider, model-provider, RLS, or migration readiness.
-- Production builds are `pnpm --filter @workspace/api-server build` and `PORT=3000 BASE_PATH=/ pnpm --filter @workspace/valo-workbench build`. Start the compiled API with `PORT=<assigned-port> NODE_ENV=production pnpm --filter @workspace/api-server start`; serve `artifacts/valo-workbench/dist/public` as the web artefact.
+- Production publishing runs the `.replit` build command with `PORT=3000 BASE_PATH=/ NODE_ENV=production pnpm run build`, then starts the compiled API with Replit's assigned `PORT`. The checked-in run command pins the current `https://valo-mvp-builder.replit.app` origin and one-hop Replit proxy posture; update the exact allowlist before activating any approved custom domain. In production the API serves `artifacts/valo-workbench/dist/public`, including SPA deep-link fallback; only the nine implemented public paths are indexable and every authentication, workspace, or unknown fallback response carries `X-Robots-Tag: noindex, nofollow`.
 
 Useful local/Replit checks:
 
@@ -39,7 +39,7 @@ deployment records, or build logs. At minimum, configure and verify:
   `valo_app_runtime` login. The two URLs target the same database but must not
   reuse an identity or credential. Remove `DATABASE_URL` from the long-running
   production service after migration wherever Replit permits it.
-- `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, and build-time `VITE_CLERK_PUBLISHABLE_KEY` (plus `VITE_CLERK_PROXY_URL` when the deployment uses the Clerk proxy URL explicitly).
+- `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, and build-time `VITE_CLERK_PUBLISHABLE_KEY`. The production frontend always uses the same-origin `/api/__clerk` proxy so its CSP and credential boundary remain fixed. `VITE_CLERK_PROXY_URL` is development-only.
 - `CORS_ALLOWED_ORIGINS` as an exact comma-separated allowlist of deployed web origins; `*` is deliberately rejected. Set `TRUST_PROXY=1` only behind Replit's trusted proxy.
 - `AI_INTEGRATIONS_OPENAI_API_KEY` and `AI_INTEGRATIONS_OPENAI_BASE_URL` where the model adapter is used. `OPENAI_ADAPTER_PRODUCTION_APPROVED=true` is an explicit approval attestation, not a substitute for provider-health and live proof evidence.
 - Replit Object Storage configuration, including `PRIVATE_OBJECT_DIR` and any intentional `PUBLIC_OBJECT_SEARCH_PATHS`. Tender and bid content belongs in private tenant-prefixed paths.

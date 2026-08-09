@@ -16,7 +16,7 @@ import { getActiveConfig } from "../lib/appConfig";
 
 const router: IRouter = Router();
 
-async function computeAndPersist(projectId: string) {
+async function computeAssessment(projectId: string) {
   const [project] = await db
     .select()
     .from(projects)
@@ -57,11 +57,6 @@ async function computeAndPersist(projectId: string) {
     config.risk,
   );
 
-  await db
-    .update(projects)
-    .set({ riskScore: result.score, riskBand: result.band })
-    .where(eq(projects.id, projectId));
-
   const band = project.riskOverrideBand || result.band;
   return {
     score: result.score,
@@ -82,7 +77,7 @@ router.get(
   "/projects/:id/risk",
   requirePermissionOrLegacy("defect:read"),
   async (req: Request, res: Response) => {
-    const assessment = await computeAndPersist(String(req.params.id));
+    const assessment = await computeAssessment(String(req.params.id));
     if (!assessment) {
       res.status(404).json({ error: "Not found" });
       return;
@@ -125,7 +120,7 @@ router.post(
       objectId: updated.id,
       details: `${parsed.data.band} by ${reviewerName}: ${parsed.data.note}`,
     });
-    const assessment = await computeAndPersist(String(req.params.id));
+    const assessment = await computeAssessment(String(req.params.id));
     res.json(assessment);
   },
 );
@@ -158,7 +153,7 @@ router.delete(
       objectId: updated.id,
       details: `Cleared by ${user?.name || user?.email || "Unknown reviewer"}`,
     });
-    const assessment = await computeAndPersist(String(req.params.id));
+    const assessment = await computeAssessment(String(req.params.id));
     res.json(assessment);
   },
 );

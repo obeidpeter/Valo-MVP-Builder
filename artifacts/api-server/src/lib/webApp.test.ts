@@ -1,0 +1,166 @@
+import assert from "node:assert/strict";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { describe, it } from "node:test";
+import express from "express";
+import {
+  isApplicationWebPath,
+  isIndexablePublicWebPath,
+  registerProductionWebApp,
+  WEB_APP_CONTENT_SECURITY_POLICY,
+} from "./webApp";
+
+describe("production web route indexing", () => {
+  it("allows only the implemented public routes to be indexed", () => {
+    for (const path of [
+      "/",
+      "/product",
+      "/solutions",
+      "/how-it-works",
+      "/security",
+      "/about",
+      "/contact",
+      "/privacy",
+      "/terms",
+    ]) {
+      assert.equal(isIndexablePublicWebPath(path), true, path);
+    }
+  });
+
+  it("fails closed for authentication, workspace, and unknown paths", () => {
+    for (const path of [
+      "/sign-in",
+      "/accept-invitation",
+      "/app",
+      "/projects/example-sensitive-id",
+      "/organisation-settings",
+      "/not-an-implemented-public-page",
+    ]) {
+      assert.equal(isIndexablePublicWebPath(path), false, path);
+    }
+    assert.equal(isApplicationWebPath("/sign-in"), true);
+    assert.equal(isApplicationWebPath("/projects/example-sensitive-id"), true);
+    assert.equal(
+      isApplicationWebPath("/not-an-implemented-public-page"),
+      false,
+    );
+  });
+
+  it("serves the SPA with a Clerk-compatible, deny-by-default CSP", () => {
+    assert.match(WEB_APP_CONTENT_SECURITY_POLICY, /default-src 'self'/);
+    assert.match(WEB_APP_CONTENT_SECURITY_POLICY, /object-src 'none'/);
+    assert.match(WEB_APP_CONTENT_SECURITY_POLICY, /frame-ancestors 'none'/);
+    assert.match(
+      WEB_APP_CONTENT_SECURITY_POLICY,
+      /style-src 'self' 'unsafe-inline'/,
+    );
+    assert.match(
+      WEB_APP_CONTENT_SECURITY_POLICY,
+      /https:\/\/\*\.protect\.clerk\.com/,
+    );
+    assert.doesNotMatch(WEB_APP_CONTENT_SECURITY_POLICY, /unsafe-eval/);
+  });
+
+  it("serves public deep links and noindexes every non-public fallback", async () => {
+    const fixtureDirectory = await mkdtemp(
+      path.join(tmpdir(), "valo-web-app-"),
+    );
+    try {
+      await mkdir(path.join(fixtureDirectory, "assets"));
+      await writeFile(
+        path.join(fixtureDirectory, "index.html"),
+        `<!doctype html><html><head>
+          <title>Valo fixture</title>
+          <meta name="description" content="fixture" />
+          <meta name="robots" content="index, follow" />
+          <link rel="canonical" href="https://valo-mvp-builder.replit.app/" />
+          <meta property="og:title" content="fixture" />
+          <meta property="og:description" content="fixture" />
+          <meta property="og:url" content="https://valo-mvp-builder.replit.app/" />
+          <meta name="twitter:title" content="fixture" />
+          <meta name="twitter:description" content="fixture" />
+        </head><body><div id="root"></div></body></html>`,
+      );
+      await writeFile(
+        path.join(fixtureDirectory, "assets", "app-fixture.js"),
+        "export {};",
+      );
+
+      const app = express();
+      app.get("/api/healthz", (_request, response) => {
+        response.json({ status: "ok" });
+      });
+      registerProductionWebApp(app, fixtureDirectory);
+
+      const server = await new Promise<ReturnType<typeof app.listen>>(
+        (resolve) => {
+          const listener = app.listen(0, "127.0.0.1", () => resolve(listener));
+        },
+      );
+      try {
+        const address = server.address();
+        assert.ok(address && typeof address === "object");
+        const origin = `http://127.0.0.1:${address.port}`;
+
+        const publicResponse = await fetch(`${origin}/product`);
+        assert.equal(publicResponse.status, 200);
+        assert.equal(publicResponse.headers.get("x-robots-tag"), null);
+        assert.equal(
+          publicResponse.headers.get("content-security-policy"),
+          WEB_APP_CONTENT_SECURITY_POLICY,
+        );
+        const publicHtml = await publicResponse.text();
+        assert.match(publicHtml, /<title>Product \| Valo<\/title>/);
+        assert.match(
+          publicHtml,
+          /rel="canonical" href="https:\/\/valo-mvp-builder\.replit\.app\/product"/,
+        );
+        assert.match(
+          publicHtml,
+          /<h1>A controlled workspace for evidence-heavy pursuits\.<\/h1>/,
+        );
+        assert.match(publicHtml, /data-public-prerender="true"/);
+
+        for (const pathname of [
+          "/sign-in",
+          "/projects/example-sensitive-id",
+          "/not-a-public-page",
+        ]) {
+          const privateResponse = await fetch(`${origin}${pathname}`);
+          assert.equal(
+            privateResponse.status,
+            pathname === "/not-a-public-page" ? 404 : 200,
+          );
+          assert.equal(
+            privateResponse.headers.get("x-robots-tag"),
+            "noindex, nofollow",
+          );
+          const privateHtml = await privateResponse.text();
+          assert.doesNotMatch(privateHtml, /rel="canonical"/);
+          assert.doesNotMatch(privateHtml, /property="og:url"/);
+        }
+
+        const assetResponse = await fetch(`${origin}/assets/app-fixture.js`);
+        assert.equal(assetResponse.status, 200);
+        assert.match(
+          assetResponse.headers.get("cache-control") ?? "",
+          /immutable/,
+        );
+
+        const apiResponse = await fetch(`${origin}/api/healthz`);
+        assert.equal(apiResponse.status, 200);
+        assert.deepEqual(await apiResponse.json(), { status: "ok" });
+        const missingApiResponse = await fetch(`${origin}/api/not-found`);
+        assert.equal(missingApiResponse.status, 404);
+        assert.doesNotMatch(await missingApiResponse.text(), /Valo fixture/);
+      } finally {
+        await new Promise<void>((resolve, reject) => {
+          server.close((error) => (error ? reject(error) : resolve()));
+        });
+      }
+    } finally {
+      await rm(fixtureDirectory, { recursive: true, force: true });
+    }
+  });
+});

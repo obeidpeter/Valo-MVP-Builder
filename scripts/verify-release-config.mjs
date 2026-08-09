@@ -9,8 +9,24 @@ async function loadJson(relativePath) {
   return JSON.parse(source);
 }
 
+async function loadText(relativePath) {
+  return readFile(resolve(root, relativePath), "utf8");
+}
+
 const rulePack = await loadJson("config/rules/nigeria/v2026-08-08.json");
 const alerts = await loadJson("config/observability/alerts.v2.5.json");
+const replitConfiguration = await loadText(".replit");
+
+assert.match(
+  replitConfiguration,
+  /^build = "PORT=3000 BASE_PATH=\/ NODE_ENV=production pnpm run build"$/m,
+  "Replit publishing must build both production artifacts",
+);
+assert.match(
+  replitConfiguration,
+  /^run = "CORS_ALLOWED_ORIGINS=https:\/\/valo-mvp-builder\.replit\.app TRUST_PROXY=1 NODE_ENV=production pnpm --filter @workspace\/api-server start"$/m,
+  "Replit publishing must start the combined production web/API service with the exact public origin and trusted proxy posture",
+);
 
 assert.equal(
   rulePack.jurisdiction,

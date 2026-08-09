@@ -32,5 +32,7 @@ export interface Defect {
   owner?: string | null;
   status: DefectStatus;
   suggested?: boolean;
+  /** @minimum 1 */
+  version: number;
   createdAt: string;
 }

@@ -12,7 +12,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -20,9 +27,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Loader2, ShieldPlus, Pencil, Trash2, Vault } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useOrganisationPermission } from "@/contexts/organisation-context";
 
 /**
  * Certificate Vault artefact taxonomy (build brief §11 / TRD Appendix-B):
@@ -48,13 +62,17 @@ const NO_SOURCE_DOCUMENT = "__none__";
 const BAND_STYLES: Record<string, string> = {
   expired: "bg-destructive/10 text-destructive border-destructive/30",
   critical: "bg-destructive/10 text-destructive border-destructive/30",
-  warning: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30",
-  upcoming: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30",
+  warning:
+    "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30",
+  upcoming:
+    "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30",
   ok: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
   unknown: "bg-muted text-muted-foreground border-border",
 };
 
-export function expiryBadgeLabel(item: Pick<VaultItem, "expiryBand" | "daysToExpiry">): string {
+export function expiryBadgeLabel(
+  item: Pick<VaultItem, "expiryBand" | "daysToExpiry">,
+): string {
   const d = item.daysToExpiry;
   switch (item.expiryBand) {
     case "expired":
@@ -71,9 +89,16 @@ export function expiryBadgeLabel(item: Pick<VaultItem, "expiryBand" | "daysToExp
   }
 }
 
-export function ExpiryBadge({ item }: { item: Pick<VaultItem, "expiryBand" | "daysToExpiry"> }) {
+export function ExpiryBadge({
+  item,
+}: {
+  item: Pick<VaultItem, "expiryBand" | "daysToExpiry">;
+}) {
   return (
-    <Badge variant="outline" className={`text-[10px] ${BAND_STYLES[item.expiryBand] ?? BAND_STYLES.unknown}`}>
+    <Badge
+      variant="outline"
+      className={`text-xs ${BAND_STYLES[item.expiryBand] ?? BAND_STYLES.unknown}`}
+    >
       {expiryBadgeLabel(item)}
     </Badge>
   );
@@ -100,6 +125,7 @@ const EMPTY_FORM: FormState = {
 };
 
 export function ClientVault({ clientId }: { clientId: string }) {
+  const canWriteEvidence = useOrganisationPermission("evidence:write");
   const { data: items, isLoading } = useListVaultItems(clientId);
   const { data: clientDocs } = useListClientDocuments(clientId);
   const createItem = useCreateVaultItem();
@@ -113,7 +139,9 @@ export function ClientVault({ clientId }: { clientId: string }) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
   const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: getListVaultItemsQueryKey(clientId) });
+    queryClient.invalidateQueries({
+      queryKey: getListVaultItemsQueryKey(clientId),
+    });
 
   const openCreate = () => {
     setEditingId(null);
@@ -130,14 +158,17 @@ export function ClientVault({ clientId }: { clientId: string }) {
       issuer: item.issuer ?? "",
       issueDate: item.issueDate ?? "",
       expiryDate: item.expiryDate ?? "",
-      renewalLeadDays: item.renewalLeadDays != null ? String(item.renewalLeadDays) : "",
+      renewalLeadDays:
+        item.renewalLeadDays != null ? String(item.renewalLeadDays) : "",
       sourceDocumentId: item.sourceDocumentId ?? NO_SOURCE_DOCUMENT,
     });
     setDialogOpen(true);
   };
 
   const artefactType =
-    form.artefactTypeChoice === OTHER ? form.artefactTypeOther.trim() : form.artefactTypeChoice;
+    form.artefactTypeChoice === OTHER
+      ? form.artefactTypeOther.trim()
+      : form.artefactTypeChoice;
 
   const handleSave = () => {
     if (!artefactType) {
@@ -149,10 +180,14 @@ export function ClientVault({ clientId }: { clientId: string }) {
       issuer: form.issuer.trim() || undefined,
       issueDate: form.issueDate || undefined,
       expiryDate: form.expiryDate || undefined,
-      renewalLeadDays: form.renewalLeadDays ? Number(form.renewalLeadDays) : undefined,
+      renewalLeadDays: form.renewalLeadDays
+        ? Number(form.renewalLeadDays)
+        : undefined,
     };
     const sourceDocumentId =
-      form.sourceDocumentId === NO_SOURCE_DOCUMENT ? undefined : form.sourceDocumentId;
+      form.sourceDocumentId === NO_SOURCE_DOCUMENT
+        ? undefined
+        : form.sourceDocumentId;
     const opts = {
       onSuccess: () => {
         setDialogOpen(false);
@@ -163,14 +198,20 @@ export function ClientVault({ clientId }: { clientId: string }) {
     };
     if (editingId) {
       updateItem.mutate(
-        { id: editingId, data: { ...payload, sourceDocumentId: sourceDocumentId ?? null } },
+        {
+          id: editingId,
+          data: { ...payload, sourceDocumentId: sourceDocumentId ?? null },
+        },
         opts,
       );
     } else {
-      createItem.mutate({
-        id: clientId,
-        data: sourceDocumentId ? { ...payload, sourceDocumentId } : payload,
-      }, opts);
+      createItem.mutate(
+        {
+          id: clientId,
+          data: sourceDocumentId ? { ...payload, sourceDocumentId } : payload,
+        },
+        opts,
+      );
     }
   };
 
@@ -180,7 +221,10 @@ export function ClientVault({ clientId }: { clientId: string }) {
       {
         onSuccess: refresh,
         onError: () =>
-          toast({ variant: "destructive", title: `Could not delete ${item.artefactType}` }),
+          toast({
+            variant: "destructive",
+            title: `Could not delete ${item.artefactType}`,
+          }),
       },
     );
   };
@@ -190,11 +234,15 @@ export function ClientVault({ clientId }: { clientId: string }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-serif tracking-tight font-medium">Certificate Vault</h2>
-        <Button size="sm" variant="outline" onClick={openCreate}>
-          <ShieldPlus className="w-4 h-4 mr-2" />
-          Add Artefact
-        </Button>
+        <h2 className="text-xl font-serif tracking-tight font-medium">
+          Certificate Vault
+        </h2>
+        {canWriteEvidence && (
+          <Button size="sm" variant="outline" onClick={openCreate}>
+            <ShieldPlus className="w-4 h-4 mr-2" />
+            Add Artefact
+          </Button>
+        )}
       </div>
 
       <div className="bg-card border border-border rounded-lg shadow-xs overflow-hidden">
@@ -219,16 +267,29 @@ export function ClientVault({ clientId }: { clientId: string }) {
             <TableBody>
               {items.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.artefactType}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{item.issuer || "—"}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{item.issueDate || "—"}</TableCell>
-                  <TableCell className="text-sm">{item.expiryDate || "—"}</TableCell>
+                  <TableCell className="font-medium">
+                    {item.artefactType}
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {item.renewalLeadDays != null ? `${item.renewalLeadDays}d` : "—"}
+                    {item.issuer || "—"}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {item.issueDate || "—"}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {item.expiryDate || "—"}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {item.renewalLeadDays != null
+                      ? `${item.renewalLeadDays}d`
+                      : "—"}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {item.sha256 ? (
-                      <span title={item.objectPath ?? undefined} className="font-mono">
+                      <span
+                        title={item.objectPath ?? undefined}
+                        className="font-mono"
+                      >
                         {item.sha256.slice(0, 12)}...
                       </span>
                     ) : (
@@ -239,14 +300,26 @@ export function ClientVault({ clientId }: { clientId: string }) {
                     <ExpiryBadge item={item} />
                   </TableCell>
                   <TableCell>
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(item)}>
-                        <Pencil className="w-4 h-4 text-muted-foreground" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(item)}>
-                        <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-                      </Button>
-                    </div>
+                    {canWriteEvidence && (
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Edit ${item.artefactType}`}
+                          onClick={() => openEdit(item)}
+                        >
+                          <Pencil className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Delete ${item.artefactType}`}
+                          onClick={() => handleDelete(item)}
+                        >
+                          <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+                        </Button>
+                      </div>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -263,7 +336,10 @@ export function ClientVault({ clientId }: { clientId: string }) {
         )}
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog
+        open={canWriteEvidence && dialogOpen}
+        onOpenChange={setDialogOpen}
+      >
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle className="font-serif">
@@ -272,10 +348,14 @@ export function ClientVault({ clientId }: { clientId: string }) {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase">Artefact Type</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase">
+                Artefact Type
+              </label>
               <Select
                 value={form.artefactTypeChoice}
-                onValueChange={(val) => setForm({ ...form, artefactTypeChoice: val })}
+                onValueChange={(val) =>
+                  setForm({ ...form, artefactTypeChoice: val })
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -293,12 +373,16 @@ export function ClientVault({ clientId }: { clientId: string }) {
                 <Input
                   placeholder="Artefact type"
                   value={form.artefactTypeOther}
-                  onChange={(e) => setForm({ ...form, artefactTypeOther: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, artefactTypeOther: e.target.value })
+                  }
                 />
               )}
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase">Issuer</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase">
+                Issuer
+              </label>
               <Input
                 placeholder="Issuing body"
                 value={form.issuer}
@@ -307,19 +391,27 @@ export function ClientVault({ clientId }: { clientId: string }) {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground uppercase">Issue Date</label>
+                <label className="text-xs font-medium text-muted-foreground uppercase">
+                  Issue Date
+                </label>
                 <Input
                   type="date"
                   value={form.issueDate}
-                  onChange={(e) => setForm({ ...form, issueDate: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, issueDate: e.target.value })
+                  }
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground uppercase">Expiry Date</label>
+                <label className="text-xs font-medium text-muted-foreground uppercase">
+                  Expiry Date
+                </label>
                 <Input
                   type="date"
                   value={form.expiryDate}
-                  onChange={(e) => setForm({ ...form, expiryDate: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, expiryDate: e.target.value })
+                  }
                 />
               </div>
             </div>
@@ -332,25 +424,38 @@ export function ClientVault({ clientId }: { clientId: string }) {
                 min={0}
                 placeholder="e.g. 60 — how long renewal takes"
                 value={form.renewalLeadDays}
-                onChange={(e) => setForm({ ...form, renewalLeadDays: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, renewalLeadDays: e.target.value })
+                }
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase">Source Document</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase">
+                Source Document
+              </label>
               <Select
                 value={form.sourceDocumentId}
-                onValueChange={(sourceDocumentId) => setForm({ ...form, sourceDocumentId })}
+                onValueChange={(sourceDocumentId) =>
+                  setForm({ ...form, sourceDocumentId })
+                }
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NO_SOURCE_DOCUMENT}>No linked source document</SelectItem>
+                  <SelectItem value={NO_SOURCE_DOCUMENT}>
+                    No linked source document
+                  </SelectItem>
                   {(clientDocs ?? []).map((doc) => (
-                    <SelectItem key={doc.id} value={doc.id}>{doc.filename}</SelectItem>
+                    <SelectItem key={doc.id} value={doc.id}>
+                      {doc.filename}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-[11px] text-muted-foreground">
-                Linking a document records its storage path and SHA-256 hash on the vault item.
+              <p className="text-xs text-muted-foreground">
+                Linking a document records its storage path and SHA-256 hash on
+                the vault item.
               </p>
             </div>
           </div>

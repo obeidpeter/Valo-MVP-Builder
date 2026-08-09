@@ -4,6 +4,7 @@ import {
   useDeleteDocument,
   useUpdateDocument,
   useRequestUploadUrl,
+  useDiscardUpload,
   useVerifyDocument,
   useExtractDocument,
   getListDocumentsQueryKey,
@@ -12,17 +13,54 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  FileText, Loader2, Upload, Trash2, Lock, ShieldCheck, ShieldAlert, ShieldQuestion, RefreshCw,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  FileText,
+  Loader2,
+  Upload,
+  Trash2,
+  Lock,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldQuestion,
+  RefreshCw,
 } from "lucide-react";
 import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { errorMessage } from "@/lib/errors";
+import {
+  completeDocumentUpload,
+  DocumentRegistrationError,
+  SignedUploadOutcomeUnknownError,
+} from "@/lib/document-upload";
+import {
+  useOrganisationAccess,
+  useOrganisationPermission,
+} from "@/contexts/organisation-context";
 
 const NDA_ALLOWED = new Set(["signed", "not_required"]);
-const DOC_TYPES = ["tender", "bid", "certificate", "boq", "evidence", "other"] as const;
+const DOC_TYPES = [
+  "tender",
+  "bid",
+  "certificate",
+  "boq",
+  "evidence",
+  "other",
+] as const;
 const REDACTION = ["excluded", "redacted", "included"] as const;
 const PENDING_EXTRACTION = new Set(["pending", "extracting"]);
 
@@ -37,91 +75,118 @@ export function DocumentsTab({
   conflictStatus?: string | null;
   restrictedMode?: boolean | null;
 }) {
+  const canUploadDocument = useOrganisationPermission("document:upload");
+  const canReviewDocuments = useOrganisationPermission("evidence:approve");
+  const canDeleteDocument = useOrganisationPermission("document:delete");
+  const organisationAccess = useOrganisationAccess();
   const ndaCleared = !!ndaStatus && NDA_ALLOWED.has(ndaStatus);
-  const intakeBlockedByConflict = conflictStatus === "blocked" || conflictStatus === "declined";
+  const intakeBlockedByConflict =
+    conflictStatus === "blocked" || conflictStatus === "declined";
   // Poll while any document is still extracting so the status flips live.
   const { data: documents, isLoading } = useListDocuments(projectId, {
     query: {
       refetchInterval: (query: { state: { data?: Document[] } }) =>
-        query.state.data?.some((d) => PENDING_EXTRACTION.has(d.extractionStatus ?? "")) ? 2500 : false,
+        query.state.data?.some((d) =>
+          PENDING_EXTRACTION.has(d.extractionStatus ?? ""),
+        )
+          ? 2500
+          : false,
     } as never,
   });
   const deleteDocument = useDeleteDocument();
   const createDocument = useCreateDocument();
   const updateDocument = useUpdateDocument();
   const requestUploadUrl = useRequestUploadUrl();
+  const discardUpload = useDiscardUpload();
   const verifyDocument = useVerifyDocument();
   const extractDocument = useExtractDocument();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const [isUploading, setIsUploading] = useState(false);
-  const [integrity, setIntegrity] = useState<Record<string, "ok" | "failed">>({});
+  const [failedUpload, setFailedUpload] = useState<{
+    file: File;
+    message: string;
+    retryAllowed: boolean;
+  } | null>(null);
+  const [integrity, setIntegrity] = useState<Record<string, "ok" | "failed">>(
+    {},
+  );
   const [verifyingIds, setVerifyingIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey(projectId) });
+    queryClient.invalidateQueries({
+      queryKey: getListDocumentsQueryKey(projectId),
+    });
 
   const handleUploadClick = () => fileInputRef.current?.click();
 
-  /** Infer a sensible default document type from the filename. */
-  const guessType = (name: string): (typeof DOC_TYPES)[number] => {
-    const n = name.toLowerCase();
-    if (/\b(boq|bill.*quant)\b/.test(n) || /\.(xlsx|xls|csv)$/.test(n)) return "boq";
-    if (/tender|rfp|itt|invitation/.test(n)) return "tender";
-    if (/bid|proposal|submission/.test(n)) return "bid";
-    if (/cert|licen|clearance|pencom|cac/.test(n)) return "certificate";
-    return "other";
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const uploadFile = async (file: File) => {
+    const releaseCriticalWorkflow = organisationAccess?.beginCriticalWorkflow();
     try {
       setIsUploading(true);
-      const { uploadURL, objectPath } = await requestUploadUrl.mutateAsync({
-        data: { name: file.name, size: file.size, contentType: file.type },
-      });
-      await fetch(uploadURL, {
-        method: "PUT",
-        headers: { "Content-Type": file.type || "application/octet-stream" },
-        body: file,
-      });
-      await createDocument.mutateAsync({
-        id: projectId,
-        data: {
-          type: guessType(file.name),
-          filename: file.name,
-          objectPath,
-          contentType: file.type,
-          size: file.size,
-          // Default excluded per confidentiality doctrine; the reviewer
-          // promotes to included/redacted below so the AI steps can read it.
-          redactionStatus: "excluded",
-        },
+      setFailedUpload(null);
+      await completeDocumentUpload({
+        projectId,
+        file,
+        requestUploadTarget: (data) => requestUploadUrl.mutateAsync({ data }),
+        createDocumentRecord: (input) => createDocument.mutateAsync(input),
+        discardUploadedObject: (data) => discardUpload.mutateAsync({ data }),
       });
       refresh();
     } catch (err) {
       console.error("Upload failed", err);
+      // A lost create response can hide a committed document. Reconcile the
+      // list before presenting retry controls; blind retry remains disabled
+      // unless the server explicitly confirmed finalisation failure/cleanup.
+      refresh();
+      const message = errorMessage(
+        err,
+        "The file transfer did not complete. No document record was created.",
+      );
+      const retryAllowed =
+        !(
+          err instanceof DocumentRegistrationError ||
+          err instanceof SignedUploadOutcomeUnknownError
+        ) || err.retrySafe;
+      setFailedUpload({ file, message, retryAllowed });
       toast({
         variant: "destructive",
         title: "Upload failed",
-        description: errorMessage(err, "The document could not be uploaded."),
+        description: message,
       });
     } finally {
+      releaseCriticalWorkflow?.();
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  const patchDoc = (id: string, data: { type?: string; redactionStatus?: string }, label: string) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) void uploadFile(file);
+  };
+
+  const handleRetryUpload = () => {
+    if (failedUpload) void uploadFile(failedUpload.file);
+  };
+
+  const patchDoc = (
+    id: string,
+    data: { type?: string; redactionStatus?: string },
+    label: string,
+  ) => {
     updateDocument.mutate(
       { id, data: data as never },
       {
         onSuccess: refresh,
         onError: (err) =>
-          toast({ variant: "destructive", title: `Could not update ${label}`, description: errorMessage(err, "") }),
+          toast({
+            variant: "destructive",
+            title: `Could not update ${label}`,
+            description: errorMessage(err, ""),
+          }),
       },
     );
   };
@@ -135,7 +200,10 @@ export function DocumentsTab({
           toast({
             variant: "destructive",
             title: "Could not delete document",
-            description: errorMessage(err, "Only an admin can delete documents."),
+            description: errorMessage(
+              err,
+              "Only an admin can delete documents.",
+            ),
           }),
       },
     );
@@ -146,8 +214,14 @@ export function DocumentsTab({
       { id },
       {
         onSuccess: refresh,
-        onError: (err) =>
-          toast({ variant: "destructive", title: "Could not start extraction", description: errorMessage(err, "") }),
+        onError: (err) => {
+          refresh();
+          toast({
+            variant: "destructive",
+            title: "Could not start extraction",
+            description: errorMessage(err, ""),
+          });
+        },
       },
     );
   };
@@ -158,7 +232,10 @@ export function DocumentsTab({
       const result = await verifyDocument.mutateAsync({ id });
       if (result.ok) {
         setIntegrity((prev) => ({ ...prev, [id]: "ok" }));
-        toast({ title: "Integrity verified", description: `${filename} matches its intake SHA-256.` });
+        toast({
+          title: "Integrity verified",
+          description: `${filename} matches its intake SHA-256.`,
+        });
       } else if (result.actualSha256 == null) {
         toast({
           variant: "destructive",
@@ -193,18 +270,42 @@ export function DocumentsTab({
     // Extraction telemetry (FR-OCR-01/02): the badge names the method and
     // confidence, and the tooltip carries the per-document extraction notes.
     const title = doc.extractionNotes ?? undefined;
+    if (s === "quarantined") {
+      return (
+        <Badge
+          variant="outline"
+          title={title}
+          className="text-xs text-destructive border-destructive/30 bg-destructive/10"
+        >
+          security quarantined
+        </Badge>
+      );
+    }
+    if (doc.redactionStatus === "excluded") {
+      return (
+        <Badge
+          variant="outline"
+          title={title}
+          className="text-xs text-amber-700 border-amber-300 bg-amber-50"
+        >
+          excluded · no model
+        </Badge>
+      );
+    }
     if (s === "extracted") {
       const viaOcr = doc.extractionMethod === "multimodal_ocr";
       const pct =
-        doc.extractionConfidence != null ? ` ${(doc.extractionConfidence * 100).toFixed(0)}%` : "";
+        doc.extractionConfidence != null
+          ? ` ${(doc.extractionConfidence * 100).toFixed(0)}%`
+          : "";
       return (
         <Badge
           variant="outline"
           title={title}
           className={
             viaOcr
-              ? "text-[10px] text-amber-700 border-amber-300 bg-amber-50"
-              : "text-[10px] text-emerald-600 border-emerald-200 bg-emerald-50"
+              ? "text-xs text-amber-700 border-amber-300 bg-amber-50"
+              : "text-xs text-emerald-600 border-emerald-200 bg-emerald-50"
           }
         >
           {viaOcr ? `OCR${pct} — verify` : `text ready${pct}`}
@@ -213,48 +314,128 @@ export function DocumentsTab({
     }
     if (s === "extracting" || s === "pending")
       return (
-        <Badge variant="outline" className="text-[10px] text-amber-700 border-amber-300 bg-amber-50">
+        <Badge
+          variant="outline"
+          className="text-xs text-amber-700 border-amber-300 bg-amber-50"
+        >
           <Loader2 className="w-3 h-3 mr-1 animate-spin" /> extracting
         </Badge>
       );
     if (s === "skipped")
-      return <Badge variant="outline" title={title} className="text-[10px] text-muted-foreground">no text (paste?)</Badge>;
-    return <Badge variant="outline" title={title} className="text-[10px] text-destructive border-destructive/30 bg-destructive/10">failed</Badge>;
+      return (
+        <Badge
+          variant="outline"
+          title={title}
+          className="text-xs text-teal-700 border-teal-300 bg-teal-50"
+        >
+          ready to extract
+        </Badge>
+      );
+    return (
+      <Badge
+        variant="outline"
+        title={title}
+        className="text-xs text-destructive border-destructive/30 bg-destructive/10"
+      >
+        failed
+      </Badge>
+    );
   };
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-serif font-medium">Project Documents</h2>
-        <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
-        <Button onClick={handleUploadClick} disabled={isUploading || !ndaCleared || intakeBlockedByConflict}>
-          {isUploading ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          ) : !ndaCleared ? (
-            <Lock className="w-4 h-4 mr-2" />
-          ) : (
-            <Upload className="w-4 h-4 mr-2" />
-          )}
-          Upload Document
-        </Button>
+        {canUploadDocument && (
+          <>
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              aria-label="Choose a document to upload"
+              onChange={handleFileChange}
+            />
+            <Button
+              onClick={handleUploadClick}
+              disabled={isUploading || !ndaCleared || intakeBlockedByConflict}
+              aria-describedby={
+                failedUpload ? "document-upload-error" : undefined
+              }
+            >
+              {isUploading ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : !ndaCleared ? (
+                <Lock className="w-4 h-4 mr-2" />
+              ) : (
+                <Upload className="w-4 h-4 mr-2" />
+              )}
+              Upload Document
+            </Button>
+          </>
+        )}
       </div>
 
-      {!ndaCleared && (
+      {canUploadDocument && failedUpload && (
+        <div
+          id="document-upload-error"
+          role="alert"
+          aria-live="assertive"
+          className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <div className="space-y-2">
+            <div>
+              <p className="font-medium">Upload unsuccessful</p>
+              <p className="mt-0.5 text-destructive/90">
+                <span className="font-medium">{failedUpload.file.name}:</span>{" "}
+                {failedUpload.message}
+              </p>
+            </div>
+            {failedUpload.retryAllowed ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleRetryUpload}
+                disabled={isUploading || !ndaCleared || intakeBlockedByConflict}
+              >
+                {isUploading ? (
+                  <Loader2
+                    className="mr-2 h-4 w-4 animate-spin"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
+                )}
+                Retry upload
+              </Button>
+            ) : (
+              <p className="font-medium">
+                Retry is paused to avoid creating another untracked object.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {canUploadDocument && !ndaCleared && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
           <Lock className="w-4 h-4 mt-0.5 shrink-0" />
           <p>
-            Uploads are locked until this client's NDA position is recorded.
-            Set the client's NDA status to <strong>signed</strong> or <strong>not required</strong> to enable document uploads.
+            Uploads are locked until this client's NDA position is recorded. Set
+            the client's NDA status to <strong>signed</strong> or{" "}
+            <strong>not required</strong> to enable document uploads.
           </p>
         </div>
       )}
 
-      {intakeBlockedByConflict && (
+      {canUploadDocument && intakeBlockedByConflict && (
         <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0" />
           <p>
-            Uploads are locked because this engagement has a {conflictStatus} conflict decision.
-            Resolve the conflict status to clear or consented before intake continues.
+            Uploads are locked because this engagement has a {conflictStatus}{" "}
+            conflict decision. Resolve the conflict status to clear or consented
+            before intake continues.
           </p>
         </div>
       )}
@@ -262,18 +443,27 @@ export function DocumentsTab({
       {restrictedMode && (
         <div className="flex items-start gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm text-blue-700 dark:text-blue-300">
           <ShieldCheck className="w-4 h-4 mt-0.5 shrink-0" />
-          <p>Restricted mode is active for this project. Keep only approved redacted material available to AI steps.</p>
+          <p>
+            Restricted mode is active for this project. Keep only approved
+            redacted material available to AI steps.
+          </p>
         </div>
       )}
 
-      <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-4 py-2.5 text-xs text-muted-foreground">
-        <FileText className="w-4 h-4 mt-0.5 shrink-0" />
-        <p>
-          Documents are uploaded <strong>excluded</strong> by default (financial pages stay out of AI analysis).
-          Set a tender/bid document's redaction to <strong>included</strong> or <strong>redacted</strong> so
-          AI Extraction and Evidence mapping can read it — excluded documents are skipped by both.
-        </p>
-      </div>
+      {canReviewDocuments && (
+        <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-4 py-2.5 text-xs text-muted-foreground">
+          <FileText className="w-4 h-4 mt-0.5 shrink-0" />
+          <p>
+            Documents are uploaded <strong>excluded</strong> by default
+            (financial pages stay out of AI analysis). Set a tender/bid
+            document's redaction to <strong>included</strong> or{" "}
+            <strong>redacted</strong>, then choose its deliberate{" "}
+            <strong>Start extraction</strong> action before AI Extraction or
+            Evidence mapping can read it. Excluded documents are skipped by both
+            and never sent to model OCR.
+          </p>
+        </div>
+      )}
 
       <div className="bg-card border border-border rounded-lg shadow-xs overflow-hidden">
         {isLoading ? (
@@ -298,51 +488,101 @@ export function DocumentsTab({
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
-                      <span className="truncate max-w-[240px]">{doc.filename}</span>
+                      <span className="truncate max-w-[240px]">
+                        {doc.filename}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Select value={doc.type} onValueChange={(v) => patchDoc(doc.id, { type: v }, "type")}>
-                      <SelectTrigger className="h-7 text-xs capitalize"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {DOC_TYPES.map((t) => (
-                          <SelectItem key={t} value={t} className="capitalize text-xs">{t}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {canUploadDocument ? (
+                      <Select
+                        value={doc.type}
+                        onValueChange={(v) =>
+                          patchDoc(doc.id, { type: v }, "type")
+                        }
+                      >
+                        <SelectTrigger className="h-7 text-xs capitalize">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DOC_TYPES.map((t) => (
+                            <SelectItem
+                              key={t}
+                              value={t}
+                              className="capitalize text-xs"
+                            >
+                              {t}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <span className="text-xs capitalize">{doc.type}</span>
+                    )}
                   </TableCell>
                   <TableCell>
-                    <Select
-                      value={doc.redactionStatus}
-                      onValueChange={(v) => patchDoc(doc.id, { redactionStatus: v }, "redaction status")}
-                    >
-                      <SelectTrigger
-                        className={`h-7 text-xs capitalize ${doc.redactionStatus === "excluded" ? "text-amber-700" : ""}`}
+                    {canReviewDocuments &&
+                    doc.extractionStatus !== "quarantined" ? (
+                      <Select
+                        value={doc.redactionStatus}
+                        onValueChange={(v) =>
+                          patchDoc(
+                            doc.id,
+                            { redactionStatus: v },
+                            "redaction status",
+                          )
+                        }
                       >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {REDACTION.map((r) => (
-                          <SelectItem key={r} value={r} className="capitalize text-xs">{r}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                        <SelectTrigger
+                          className={`h-7 text-xs capitalize ${doc.redactionStatus === "excluded" ? "text-amber-700" : ""}`}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {REDACTION.map((r) => (
+                            <SelectItem
+                              key={r}
+                              value={r}
+                              className="capitalize text-xs"
+                            >
+                              {r}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <span className="text-xs capitalize">
+                        {doc.redactionStatus}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5">
                       {extractionBadge(doc)}
-                      {doc.extractionStatus === "failed" && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          title="Retry extraction"
-                          onClick={() => handleReextract(doc.id)}
-                          disabled={extractDocument.isPending}
-                        >
-                          <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
-                        </Button>
-                      )}
+                      {canReviewDocuments &&
+                        doc.redactionStatus !== "excluded" &&
+                        (doc.extractionStatus === "failed" ||
+                          doc.extractionStatus === "skipped") && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            title={
+                              doc.extractionStatus === "failed"
+                                ? "Retry extraction"
+                                : "Start extraction"
+                            }
+                            aria-label={
+                              doc.extractionStatus === "failed"
+                                ? `Retry extraction for ${doc.filename}`
+                                : `Start extraction for ${doc.filename}`
+                            }
+                            onClick={() => handleReextract(doc.id)}
+                            disabled={extractDocument.isPending}
+                          >
+                            <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
+                          </Button>
+                        )}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -365,19 +605,33 @@ export function DocumentsTab({
                           <ShieldQuestion className="w-4 h-4 mr-1 text-muted-foreground" />
                         )}
                         <span className="text-xs">
-                          {integrity[doc.id] === "ok" ? "Verified" : integrity[doc.id] === "failed" ? "FAILED" : "Verify"}
+                          {integrity[doc.id] === "ok"
+                            ? "Verified"
+                            : integrity[doc.id] === "failed"
+                              ? "FAILED"
+                              : "Verify"}
                         </span>
                       </Button>
                     ) : (
-                      <span className="text-xs text-muted-foreground" title="Uploaded before integrity manifests — no intake hash on record.">
+                      <span
+                        className="text-xs text-muted-foreground"
+                        title="Uploaded before integrity manifests — no intake hash on record."
+                      >
                         No hash
                       </span>
                     )}
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(doc.id)}>
-                      <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-                    </Button>
+                    {canDeleteDocument && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Delete ${doc.filename}`}
+                        onClick={() => handleDelete(doc.id)}
+                      >
+                        <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

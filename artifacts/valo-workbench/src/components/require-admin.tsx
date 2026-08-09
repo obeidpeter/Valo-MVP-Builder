@@ -11,7 +11,7 @@ export default function RequireAdmin({
 }: {
   children: React.ReactNode;
 }) {
-  const { data: user, isLoading } = useGetMe();
+  const { isLoading } = useGetMe();
   const organisationAccess = useOrganisationAccess();
 
   if (isLoading || organisationAccess?.isLoading) {
@@ -25,11 +25,12 @@ export default function RequireAdmin({
   const decision = getPlatformAccessDecision(
     organisationAccess?.activeOrganisation
       ? organisationAccess.effectiveRoles
-      : user
-        ? [String(user.role)]
-        : undefined,
+      : undefined,
     "settings",
     platformFeatureFlags(),
+    organisationAccess?.activeOrganisation
+      ? organisationAccess.effectivePermissions
+      : [],
   );
 
   if (!decision.allowed) {

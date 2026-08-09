@@ -12,7 +12,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -20,9 +27,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Loader2, FilePlus2, Library } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useOrganisationPermission } from "@/contexts/organisation-context";
 
 const CATEGORY_LABELS: Record<string, string> = {
   goods: "Goods",
@@ -33,14 +47,18 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  active: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
+  active:
+    "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
   draft: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30",
   superseded: "bg-muted text-muted-foreground border-border",
 };
 
 export function StatusBadge({ status }: { status: string }) {
   return (
-    <Badge variant="outline" className={`text-[10px] capitalize ${STATUS_STYLES[status] ?? STATUS_STYLES.superseded}`}>
+    <Badge
+      variant="outline"
+      className={`text-xs capitalize ${STATUS_STYLES[status] ?? STATUS_STYLES.superseded}`}
+    >
       {status}
     </Badge>
   );
@@ -63,6 +81,7 @@ const EMPTY_FORM: FormState = {
 };
 
 export default function SbdCorpus() {
+  const canReviewRequirements = useOrganisationPermission("requirement:review");
   const { data: templates, isLoading } = useListSbdTemplates();
   const createTemplate = useCreateSbdTemplate();
   const queryClient = useQueryClient();
@@ -99,7 +118,8 @@ export default function SbdCorpus() {
           setDialogOpen(false);
           refresh();
         },
-        onError: () => toast({ variant: "destructive", title: "Could not create template" }),
+        onError: () =>
+          toast({ variant: "destructive", title: "Could not create template" }),
       },
     );
   };
@@ -108,16 +128,20 @@ export default function SbdCorpus() {
     <div className="p-6 md:p-10 max-w-6xl mx-auto w-full space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-serif tracking-tight font-medium">SBD Corpus</h1>
+          <h1 className="text-2xl font-serif tracking-tight font-medium">
+            SBD Corpus
+          </h1>
           <p className="text-muted-foreground text-sm mt-1 max-w-2xl">
-            Normalised Standard Bidding Documents, held as versioned templates with agency-format
-            quirks captured as structured annotations.
+            Normalised Standard Bidding Documents, held as versioned templates
+            with agency-format quirks captured as structured annotations.
           </p>
         </div>
-        <Button size="sm" onClick={openCreate}>
-          <FilePlus2 className="w-4 h-4 mr-2" />
-          New Template
-        </Button>
+        {canReviewRequirements && (
+          <Button size="sm" onClick={openCreate}>
+            <FilePlus2 className="w-4 h-4 mr-2" />
+            New Template
+          </Button>
+        )}
       </div>
 
       <div className="bg-card border border-border rounded-lg shadow-xs overflow-hidden">
@@ -140,7 +164,10 @@ export default function SbdCorpus() {
             </TableHeader>
             <TableBody>
               {templates.map((t: SbdTemplate) => (
-                <TableRow key={t.id} className="cursor-pointer hover:bg-muted/20">
+                <TableRow
+                  key={t.id}
+                  className="cursor-pointer hover:bg-muted/20"
+                >
                   <TableCell className="font-mono text-sm">
                     <Link href={`/sbd/${t.id}`} className="hover:underline">
                       {t.code}
@@ -172,12 +199,18 @@ export default function SbdCorpus() {
           <div className="p-12 text-center text-muted-foreground">
             <Library className="w-12 h-12 mx-auto mb-3 text-muted" />
             <p>No Standard Bidding Documents in the corpus yet.</p>
-            <p className="text-sm mt-1">Add the BPP revised SBDs to normalise them into reusable templates.</p>
+            <p className="text-sm mt-1">
+              Add the BPP revised SBDs to normalise them into reusable
+              templates.
+            </p>
           </div>
         )}
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog
+        open={canReviewRequirements && dialogOpen}
+        onOpenChange={setDialogOpen}
+      >
         <DialogContent className="sm:max-w-[520px]">
           <DialogHeader>
             <DialogTitle className="font-serif">New SBD Template</DialogTitle>
@@ -185,7 +218,9 @@ export default function SbdCorpus() {
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground uppercase">Code</label>
+                <label className="text-xs font-medium text-muted-foreground uppercase">
+                  Code
+                </label>
                 <Input
                   placeholder="e.g. SBD-GOODS"
                   value={form.code}
@@ -193,8 +228,13 @@ export default function SbdCorpus() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground uppercase">Category</label>
-                <Select value={form.category} onValueChange={(val) => setForm({ ...form, category: val })}>
+                <label className="text-xs font-medium text-muted-foreground uppercase">
+                  Category
+                </label>
+                <Select
+                  value={form.category}
+                  onValueChange={(val) => setForm({ ...form, category: val })}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -209,7 +249,9 @@ export default function SbdCorpus() {
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase">Title</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase">
+                Title
+              </label>
               <Input
                 placeholder="Standard Bidding Document — Procurement of Goods"
                 value={form.title}
@@ -217,15 +259,21 @@ export default function SbdCorpus() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase">Issuing Circular</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase">
+                Issuing Circular
+              </label>
               <Input
                 placeholder="e.g. BPP Circular Ref. …"
                 value={form.issuingCircular}
-                onChange={(e) => setForm({ ...form, issuingCircular: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, issuingCircular: e.target.value })
+                }
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase">Summary</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase">
+                Summary
+              </label>
               <Textarea
                 placeholder="Scope and notes on this document family."
                 value={form.summary}
@@ -238,7 +286,9 @@ export default function SbdCorpus() {
               Cancel
             </Button>
             <Button onClick={handleSave} disabled={createTemplate.isPending}>
-              {createTemplate.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {createTemplate.isPending && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
               Create Template
             </Button>
           </DialogFooter>

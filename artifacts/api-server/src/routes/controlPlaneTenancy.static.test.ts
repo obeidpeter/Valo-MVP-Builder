@@ -14,7 +14,12 @@ describe("control-plane RLS integration", () => {
       source,
       /withTenantDatabase\(\s*organisationId,\s*\(\) =>\s*db\.transaction/,
     );
-    assert.match(source, /withTenantDatabase\(organisationId, async \(\) =>/);
+    const tenantContexts =
+      source.match(/withTenantDatabase\(\s*organisationId/g) ?? [];
+    assert.ok(
+      tenantContexts.length >= 4,
+      `expected the organisation lifecycle to enter tenant context, found ${tenantContexts.length} calls`,
+    );
   });
 
   test("partner and break-glass audit lifecycles set their authorised target context", () => {

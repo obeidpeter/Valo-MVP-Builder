@@ -1,2 +1,22 @@
 User-agent: *
 Allow: /
+Disallow: /app
+Disallow: /dashboard
+Disallow: /clients
+Disallow: /projects
+Disallow: /sbd
+Disallow: /operations
+Disallow: /portal
+Disallow: /partner
+Disallow: /evidence-readiness
+Disallow: /reports
+Disallow: /billing
+Disallow: /notifications
+Disallow: /organisation-settings
+Disallow: /settings
+Disallow: /account
+Disallow: /sign-in
+Disallow: /accept-invitation
+Disallow: /sso-callback
+
+Sitemap: https://valo-mvp-builder.replit.app/sitemap.xml

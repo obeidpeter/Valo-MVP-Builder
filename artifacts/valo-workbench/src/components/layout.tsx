@@ -1,19 +1,22 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { UserButton } from "@clerk/clerk-react";
-import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
+import { getGetMeQueryKey, useGetMe } from "@workspace/api-client-react";
 import {
   Bell,
   BookOpenCheck,
-  Briefcase,
+  BriefcaseBusiness,
   Building2,
-  CheckCircle,
+  CheckCircle2,
+  CircleHelp,
+  ClipboardCheck,
   CreditCard,
-  FileCheck2,
+  FileStack,
   LayoutDashboard,
   Library,
   LockKeyhole,
   Menu,
+  ScrollText,
   Settings,
   ShieldCheck,
   Users,
@@ -40,34 +43,68 @@ import {
   OrganisationSelectionGate,
   OrganisationSwitcher,
 } from "@/components/organisation-switcher";
+import { ValoMark } from "@/components/valo-mark";
+import { GlobalCommand } from "@/components/global-command";
 
 const ICONS: Record<string, LucideIcon> = {
-  "/": LayoutDashboard,
+  "/app": LayoutDashboard,
   "/clients": Users,
-  "/projects": Briefcase,
-  "/sbd": Library,
+  "/projects": BriefcaseBusiness,
+  "/sbd": BookOpenCheck,
   "/portal": Building2,
   "/partner": ShieldCheck,
-  "/operations": BookOpenCheck,
-  "/evidence-readiness": FileCheck2,
+  "/operations": ClipboardCheck,
+  "/evidence-readiness": Library,
+  "/reports": FileStack,
   "/billing": CreditCard,
   "/notifications": Bell,
-  "/security": LockKeyhole,
-  "/settings": Settings,
+  "/app/security": LockKeyhole,
+  "/organisation-settings": Settings,
+  "/settings": ScrollText,
 };
 
 const NAV_GROUPS: PlatformNavItem["group"][] = [
   "Workspace",
-  "Review",
-  "Commercial",
+  "Delivery",
+  "Oversight",
   "Administration",
 ];
 
+const ROLE_LABELS: Record<string, string> = {
+  admin: "Administrator",
+  reviewer: "Reviewer",
+  analyst: "Analyst",
+  client_owner: "Client owner",
+  client_admin: "Client administrator",
+  client_organisation_owner: "Client owner",
+  client_administrator: "Client administrator",
+  bid_manager: "Bid lead",
+  contributor: "Contributor",
+  client_reviewer: "Client reviewer",
+  client_reviewer_approver: "Reviewer and approver",
+  client_auditor: "Client auditor",
+  read_only_auditor: "Read-only auditor",
+  valo_analyst: "Valo analyst",
+  valo_quality_adviser: "Valo quality adviser",
+  valo_operations_admin: "Valo operations administrator",
+  valo_operations_administrator: "Valo operations administrator",
+  platform_admin_restricted: "Restricted platform administrator",
+  restricted_platform_administrator: "Restricted platform administrator",
+  partner_admin: "Partner administrator",
+  consultancy_partner_administrator: "Partner administrator",
+  partner_analyst: "Partner analyst",
+  partner_reviewer: "Partner reviewer",
+  consultancy_partner_analyst_reviewer: "Partner analyst and reviewer",
+};
+
 function roleLabel(role: string): string {
-  return role
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
+  return (
+    ROLE_LABELS[role] ??
+    role
+      .split("_")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ")
+  );
 }
 
 function AppNavigation({
@@ -80,21 +117,22 @@ function AppNavigation({
   onNavigate?: () => void;
 }) {
   return (
-    <nav aria-label="Primary navigation" className="space-y-5">
+    <nav aria-label="Primary navigation" className="space-y-6">
       {NAV_GROUPS.map((group) => {
         const groupItems = items.filter((item) => item.group === group);
         if (groupItems.length === 0) return null;
         return (
           <div key={group}>
-            <p className="mb-1 px-3 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-[0.13em] text-sidebar-foreground/65">
               {group}
             </p>
             <ul className="space-y-1">
               {groupItems.map((item) => {
-                const Icon = ICONS[item.href] ?? CheckCircle;
+                const Icon = ICONS[item.href] ?? CheckCircle2;
                 const active =
                   location === item.href ||
-                  (item.href !== "/" && location.startsWith(item.href + "/"));
+                  (item.href !== "/app" &&
+                    location.startsWith(item.href + "/"));
                 return (
                   <li key={item.href}>
                     <Link
@@ -102,19 +140,22 @@ function AppNavigation({
                       onClick={onNavigate}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "flex min-h-10 items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        "flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
                         active
-                          ? "bg-primary/10 font-medium text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                          ? "bg-sidebar-accent font-medium text-sidebar-primary"
+                          : "text-sidebar-foreground/72 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground",
                       )}
                     >
-                      <Icon aria-hidden="true" className="size-4 shrink-0" />
+                      <Icon
+                        aria-hidden="true"
+                        className="size-[1.1rem] shrink-0"
+                      />
                       <span className="min-w-0 flex-1 truncate">
                         {item.label}
                       </span>
                       {item.state === "pending_activation" ? (
                         <span
-                          className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-900"
+                          className="rounded-full border border-amber-300/35 bg-amber-300/10 px-2 py-0.5 text-xs font-semibold text-amber-200"
                           title="Commercial activation pending"
                         >
                           Pending
@@ -129,6 +170,27 @@ function AppNavigation({
         );
       })}
     </nav>
+  );
+}
+
+function UtilityLink({
+  href,
+  label,
+  icon: Icon,
+}: {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-label={label}
+      title={label}
+      className="inline-flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <Icon aria-hidden="true" className="size-[1.1rem]" />
+    </Link>
   );
 }
 
@@ -153,9 +215,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     },
   });
 
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [location]);
+  useEffect(() => setMobileOpen(false), [location]);
 
   if (isLoading || organisationAccess?.isLoading) {
     return (
@@ -192,25 +252,45 @@ export default function Layout({ children }: { children: ReactNode }) {
           <StatusPanel
             state="blocked"
             title="Account disabled"
-            description="This account cannot access any organisation or tender workspace. An authorised administrator must review the account status."
+            description="This account cannot access any organisation or pursuit workspace. An authorised administrator must review the account status."
           />
-          <UserButton afterSignOutUrl="/sign-in" />
+          <UserButton afterSignOutUrl="/" />
         </div>
       </div>
     );
   }
 
-  if (organisationAccess?.isError) {
-    return <OrganisationLoadError />;
+  if (!organisationAccess) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-5">
+        <div className="w-full max-w-lg">
+          <StatusPanel
+            state="error"
+            title="Organisation access could not be verified"
+            description="The trusted organisation access context is unavailable. No tenant workspace or action has been opened."
+          />
+        </div>
+      </div>
+    );
+  }
+  if (organisationAccess.isError) return <OrganisationLoadError />;
+  if (organisationAccess.needsSelection) return <OrganisationSelectionGate />;
+  if (!organisationAccess.activeOrganisation) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-5">
+        <div className="w-full max-w-lg space-y-6 text-center">
+          <StatusPanel
+            state="pending"
+            title="Pending organisation access"
+            description="No active organisation membership is available for this identity and session. Protected organisation and pursuit data remain unavailable."
+          />
+          <UserButton afterSignOutUrl="/" />
+        </div>
+      </div>
+    );
   }
 
-  if (organisationAccess?.needsSelection) {
-    return <OrganisationSelectionGate />;
-  }
-
-  const effectiveRoles = organisationAccess?.activeOrganisation
-    ? organisationAccess.effectiveRoles
-    : [String(user.role)];
+  const effectiveRoles = organisationAccess.effectiveRoles;
   const pendingRole =
     effectiveRoles.length === 0 ||
     effectiveRoles.every((role) => role === "none");
@@ -222,9 +302,9 @@ export default function Layout({ children }: { children: ReactNode }) {
           <StatusPanel
             state="pending"
             title="Pending access"
-            description="Your identity is registered, but no platform role has been assigned. Protected organisation and tender data remain unavailable."
+            description="Your identity is registered, but no organisation role has been assigned. Protected organisation and pursuit data remain unavailable."
           />
-          <UserButton afterSignOutUrl="/sign-in" />
+          <UserButton afterSignOutUrl="/" />
         </div>
       </div>
     );
@@ -245,48 +325,54 @@ export default function Layout({ children }: { children: ReactNode }) {
     );
   }
 
-  const navItems = navigationForRole(normalizedRoles, platformFeatureFlags());
-  const assignedRoleLabel = normalizedRoles.map(roleLabel).join(" / ");
+  const navItems = navigationForRole(
+    normalizedRoles,
+    platformFeatureFlags(),
+    organisationAccess.effectivePermissions,
+  );
+  const assignedRoleLabel = normalizedRoles.map(roleLabel).join(" · ");
+  const navIncludes = (href: string) =>
+    navItems.some((item) => item.href === href);
 
   return (
     <div className="min-h-screen bg-background">
       <a
         href="#main-content"
-        className="sr-only z-50 rounded-md bg-background px-4 py-2 text-sm font-medium shadow focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:outline-none focus:ring-2 focus:ring-ring"
+        className="sr-only z-50 rounded-md bg-card px-4 py-2 text-sm font-medium shadow-sm focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
       >
         Skip to main content
       </a>
       {!online ? <OfflineBanner /> : null}
 
       <div className="flex min-h-screen">
-        <aside className="hidden w-72 shrink-0 flex-col border-r border-border bg-card md:flex">
-          <div className="flex items-center gap-3 border-b border-border p-5">
-            <div
-              className="flex size-9 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground"
-              aria-hidden="true"
+        <aside className="hidden w-[17rem] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">
+          <div className="border-b border-sidebar-border p-5">
+            <Link
+              href="/app"
+              aria-label="Valo Command Centre"
+              className="block w-fit rounded-md text-sidebar-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
             >
-              V
-            </div>
-            <div>
-              <p className="font-serif font-semibold tracking-tight">
-                Valo Platform
-              </p>
-              <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                Evidence-led tender controls
-              </p>
-            </div>
+              <ValoMark />
+            </Link>
+            <p className="mt-3 text-xs leading-5 text-sidebar-foreground/55">
+              Evidence-led tender controls
+            </p>
           </div>
           <div className="flex-1 overflow-y-auto p-4">
             <AppNavigation items={navItems} location={location} />
           </div>
-          <div className="border-t border-border p-4">
-            <div className="flex items-center gap-3 rounded-md bg-muted/50 p-3">
-              <UserButton afterSignOutUrl="/sign-in" />
+          <div className="border-t border-sidebar-border p-4">
+            <div className="flex items-center gap-3 rounded-lg bg-sidebar-accent/70 p-3">
+              <UserButton
+                afterSignOutUrl="/"
+                userProfileMode="navigation"
+                userProfileUrl="/account"
+              />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">
                   {user.name || user.email}
                 </p>
-                <p className="truncate text-[10px] uppercase tracking-wide text-muted-foreground">
+                <p className="mt-0.5 truncate text-xs text-sidebar-foreground/55">
                   {assignedRoleLabel}
                 </p>
               </div>
@@ -295,62 +381,88 @@ export default function Layout({ children }: { children: ReactNode }) {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90">
-            <div className="flex min-h-16 items-center justify-between gap-3 px-4 sm:px-6">
-              <div className="flex min-w-0 items-center gap-3">
-                <button
-                  type="button"
-                  className="inline-flex size-10 items-center justify-center rounded-md border border-border md:hidden"
-                  aria-expanded={mobileOpen}
-                  aria-controls="mobile-primary-navigation"
-                  aria-label={
-                    mobileOpen
-                      ? "Close navigation menu"
-                      : "Open navigation menu"
-                  }
-                  onClick={() => setMobileOpen((open) => !open)}
-                >
-                  {mobileOpen ? (
-                    <X aria-hidden="true" className="size-5" />
-                  ) : (
-                    <Menu aria-hidden="true" className="size-5" />
-                  )}
-                </button>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold md:hidden">
-                    Valo Platform
-                  </p>
-                  <p className="hidden truncate text-sm font-medium md:block">
-                    {assignedRoleLabel}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {organisationAccess?.activeOrganisation?.name ??
-                      "Server-authorised workspace"}
-                  </p>
-                </div>
+          <header className="sticky top-0 z-30 border-b border-border bg-background">
+            <div className="flex min-h-16 items-center gap-3 px-4 sm:px-6">
+              <button
+                type="button"
+                className="inline-flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-card lg:hidden"
+                aria-expanded={mobileOpen}
+                aria-controls="mobile-primary-navigation"
+                aria-label={
+                  mobileOpen ? "Close navigation menu" : "Open navigation menu"
+                }
+                onClick={() => setMobileOpen((open) => !open)}
+              >
+                {mobileOpen ? (
+                  <X aria-hidden="true" className="size-5" />
+                ) : (
+                  <Menu aria-hidden="true" className="size-5" />
+                )}
+              </button>
+              <div className="min-w-0 shrink sm:max-w-60">
+                <p className="truncate text-sm font-semibold">
+                  {organisationAccess.activeOrganisation.name}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {assignedRoleLabel}
+                </p>
               </div>
-              <div className="flex items-center gap-3">
-                <OrganisationSwitcher />
+              <div className="hidden min-w-0 flex-1 justify-center sm:flex">
+                <GlobalCommand navigation={navItems} />
+              </div>
+              <div className="ml-auto flex shrink-0 items-center gap-0.5">
+                {navIncludes("/operations") ? (
+                  <UtilityLink
+                    href="/operations"
+                    label="Tasks and reviews"
+                    icon={ClipboardCheck}
+                  />
+                ) : null}
+                {navIncludes("/notifications") ? (
+                  <UtilityLink
+                    href="/notifications"
+                    label="Notifications"
+                    icon={Bell}
+                  />
+                ) : null}
+                <UtilityLink
+                  href="/how-it-works"
+                  label="Help and workflow guide"
+                  icon={CircleHelp}
+                />
+                <div className="hidden px-2 xl:block">
+                  <OrganisationSwitcher />
+                </div>
                 <StateBadge
                   state={online ? "active" : "offline"}
                   label={online ? "Connected" : "Offline"}
-                  className="hidden sm:inline-flex"
+                  className="hidden 2xl:inline-flex"
                 />
-                <div className="md:hidden">
-                  <UserButton afterSignOutUrl="/sign-in" />
+                <div className="ml-1 lg:hidden">
+                  <UserButton
+                    afterSignOutUrl="/"
+                    userProfileMode="navigation"
+                    userProfileUrl="/account"
+                  />
                 </div>
               </div>
+            </div>
+            <div className="px-4 pb-3 sm:hidden">
+              <GlobalCommand navigation={navItems} />
             </div>
             {mobileOpen ? (
               <div
                 id="mobile-primary-navigation"
-                className="max-h-[70dvh] overflow-y-auto border-t border-border bg-card p-4 md:hidden"
+                className="max-h-[75dvh] overflow-y-auto border-t border-sidebar-border bg-sidebar p-4 text-sidebar-foreground lg:hidden"
               >
                 <AppNavigation
                   items={navItems}
                   location={location}
                   onNavigate={() => setMobileOpen(false)}
                 />
+                <div className="mt-6 border-t border-sidebar-border pt-4 xl:hidden">
+                  <OrganisationSwitcher />
+                </div>
               </div>
             ) : null}
           </header>

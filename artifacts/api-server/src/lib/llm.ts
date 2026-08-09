@@ -78,7 +78,12 @@ const GUARDRAILS =
 async function callJson(
   system: string,
   user: string,
+  opts?: { signal?: AbortSignal },
 ): Promise<{ data: any; usage: LlmUsage }> {
+  // Configured adapters do not promise revocable provider processing. Check
+  // immediately before disclosure and again after the provider settles; route
+  // callers keep their tenant transaction/lock held across that full window.
+  opts?.signal?.throwIfAborted();
   const idempotencyKey = createHash("sha256")
     .update(`${MODEL}\0${PROMPT_VERSION}\0${system}\0${user}`)
     .digest("hex");
@@ -97,6 +102,7 @@ async function callJson(
     attemptsPerAdapter: 2,
     retryable: isRetryableModelError,
   });
+  opts?.signal?.throwIfAborted();
   return {
     data: JSON.parse(response.content),
     usage: {
@@ -115,8 +121,17 @@ async function callJson(
  */
 export async function extractPdfTextMultimodal(
   buffer: Buffer,
-  opts?: { projectId?: string | null; filename?: string },
+  opts?: {
+    projectId?: string | null;
+    filename?: string;
+    signal?: AbortSignal;
+  },
 ): Promise<string> {
+  // Provider adapters do not claim revocable processing once a request has
+  // been accepted. Check cancellation immediately before disclosure; if the
+  // request disconnects after this point, the caller keeps its project lock
+  // until the provider attempt actually settles.
+  opts?.signal?.throwIfAborted();
   const filename = opts?.filename ?? "document.pdf";
   const dataUrl = `data:application/pdf;base64,${buffer.toString("base64")}`;
   const system =
@@ -126,6 +141,7 @@ export async function extractPdfTextMultimodal(
     'Return JSON {"text": string} with the verbatim transcription, or {"text": ""} if unreadable.';
   const inputTag = `pdf:${filename}:${buffer.length}b`;
   try {
+    opts?.signal?.throwIfAborted();
     const { response } = await executeJsonWithFallback({
       request: {
         model: MODEL,
@@ -152,6 +168,7 @@ export async function extractPdfTextMultimodal(
       attemptsPerAdapter: 2,
       retryable: isRetryableModelError,
     });
+    opts?.signal?.throwIfAborted();
     const parsed = JSON.parse(response.content);
     const text = typeof parsed?.text === "string" ? parsed.text.trim() : "";
     await logRun({
@@ -202,7 +219,9 @@ export interface ExtractedRequirement {
 export async function extractRequirements(
   projectId: string,
   docs: DocForLlm[],
+  opts?: { signal?: AbortSignal },
 ): Promise<{ requirements: ExtractedRequirement[]; model: string }> {
+  opts?.signal?.throwIfAborted();
   const corpus = docs
     .map(
       (d) =>
@@ -227,7 +246,9 @@ export async function extractRequirements(
     const { data: parsed, usage } = await callJson(
       system,
       `Documents:\n\n${input}`,
+      opts,
     );
+    opts?.signal?.throwIfAborted();
     // Schema containment (FR-EXT-02): model output never reaches the caller
     // unsanitized — enums clamped, strings capped, doc references restricted
     // to the supplied set.
@@ -272,7 +293,9 @@ export async function mapEvidence(
   projectId: string,
   requirements: { id: string; text: string; expectedEvidence: string | null }[],
   docs: DocForLlm[],
+  opts?: { signal?: AbortSignal },
 ): Promise<{ items: MappedEvidence[]; model: string }> {
+  opts?.signal?.throwIfAborted();
   const reqList = requirements
     .map(
       (r) =>
@@ -302,7 +325,8 @@ export async function mapEvidence(
     `Requirements:\n${reqList}\n\nBid documents:\n${corpus}`,
   );
   try {
-    const { data: parsed, usage } = await callJson(system, input);
+    const { data: parsed, usage } = await callJson(system, input, opts);
+    opts?.signal?.throwIfAborted();
     const items = sanitizeMappedEvidence(
       parsed?.items,
       new Set(requirements.map((r) => r.id)),

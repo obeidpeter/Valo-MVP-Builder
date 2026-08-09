@@ -58,6 +58,8 @@ Legend: `O` own organisation; `A` assigned engagement; `P` partner-managed clien
 6. Break-glass requires an incident/support ticket, tenant, scope, reason, approving identity, expiry, prominent tenant notification unless legally prohibited, and after-action review.
 7. Time-limited grants expire server-side and are rechecked on every request/job, not only at login.
 8. Partner roles receive access through both partner-client relationship and engagement assignment; either revocation denies access.
+9. Membership administration is re-authorised from live rows inside a serialised organisation transaction. An actor cannot mutate or reactivate a target with any non-revoked, unexpired (including scheduled) role above the actor's delegation ceiling.
+10. Self-service role grants, self-suspension/revocation, and self-managed access-expiry changes are denied. A lifecycle change must not leave the organisation without an active administrator or, for a client organisation, an active owner at the effective time.
 
 ## Authorisation decision inputs
 

@@ -10,13 +10,18 @@ import {
 import { CreateEvidenceBody, UpdateEvidenceBody } from "@workspace/api-zod";
 import { getLocalUser } from "../middlewares/auth";
 import {
-  getAccessContext,
   getOrganisationId,
+  hasRequestPermission,
   requirePermissionOrLegacy,
 } from "../middlewares/tenancy";
 import { serializeEvidence } from "../lib/serializers";
 import { writeAuditTx } from "../lib/audit";
 import { mapEvidence } from "../lib/llm";
+import {
+  evidencePatchRequiresApproval,
+  isApprovedEvidence,
+} from "../lib/reviewIntegrityPolicy";
+import { holdTenantDatabaseUntilComplete } from "../middlewares/databaseTenancy";
 
 const router: IRouter = Router();
 
@@ -50,110 +55,126 @@ router.post(
   "/projects/:id/map-evidence",
   requirePermissionOrLegacy("evidence:write"),
   async (req: Request, res: Response) => {
-    const [project] = await db
-      .select()
-      .from(projects)
-      .where(eq(projects.id, String(req.params.id)));
-    if (!project) {
-      res.status(404).json({ error: "Not found" });
-      return;
-    }
-    const organisationId = getOrganisationId(req);
-    const confirmedReqs = await db
-      .select()
-      .from(requirements)
-      .where(eq(requirements.projectId, project.id));
-    const usable = confirmedReqs.filter((r) =>
-      ["confirmed", "edited"].includes(r.reviewStatus),
-    );
-    if (usable.length === 0) {
-      res
-        .status(400)
-        .json({ error: "No confirmed requirements to map evidence against" });
-      return;
-    }
-    const bidDocs = (
-      await db
-        .select()
-        .from(documents)
-        .where(eq(documents.projectId, project.id))
-    ).filter(
-      (d) =>
-        d.contentText &&
-        d.redactionStatus !== "excluded" &&
-        d.type !== "tender",
-    );
-    const docsForLlm = bidDocs.length > 0 ? bidDocs : [];
-
+    const releaseTenantWork = holdTenantDatabaseUntilComplete(req);
+    const disconnectController = new AbortController();
+    const abortOnDisconnect = () => disconnectController.abort();
+    res.once("close", abortOnDisconnect);
+    let workflowError: unknown;
     try {
-      const { items, model } = await mapEvidence(
-        project.id,
-        usable.map((r) => ({
-          id: r.id,
-          text: r.text,
-          expectedEvidence: r.expectedEvidence,
-        })),
-        docsForLlm.map((d) => ({
-          id: d.id,
-          filename: d.filename,
-          type: d.type,
-          contentText: d.contentText,
-        })),
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(eq(projects.id, String(req.params.id)));
+      if (!project) {
+        res.status(404).json({ error: "Not found" });
+        return;
+      }
+      const organisationId = getOrganisationId(req);
+      const confirmedReqs = await db
+        .select()
+        .from(requirements)
+        .where(eq(requirements.projectId, project.id));
+      const usable = confirmedReqs.filter((r) =>
+        ["confirmed", "edited"].includes(r.reviewStatus),
       );
-      const validDocIds = new Set(bidDocs.map((d) => d.id));
-      const inserted = await db.transaction(
-        async (tx) => {
-          const created = items.length
-            ? await tx
-                .insert(evidenceItems)
-                .values(
-                  items.map((i) => ({
-                    organisationId,
-                    projectId: project.id,
-                    requirementId: i.requirementId,
-                    documentId:
-                      i.documentId && validDocIds.has(i.documentId)
-                        ? i.documentId
-                        : null,
-                    evidenceStatus: i.evidenceStatus ?? "pending",
-                    excerpt: i.excerpt ?? null,
-                    notes: i.notes ?? null,
-                    suggested: true,
-                  })),
-                )
-                .returning()
-            : [];
-          if (project.status === "extraction") {
-            await tx
-              .update(projects)
-              .set({
-                status: "review",
-                version: sql`${projects.version} + 1`,
-                updatedAt: new Date(),
-              })
-              .where(eq(projects.id, project.id));
-          }
-          await writeAuditTx(tx, {
-            user: getLocalUser(req),
-            organisationId,
-            projectId: project.id,
-            eventType: "evidence.mapped",
-            objectType: "project",
-            objectId: project.id,
-            details: `${created.length} suggested`,
-          });
-          return created;
-        },
-        { isolationLevel: "read committed" },
+      if (usable.length === 0) {
+        res
+          .status(400)
+          .json({ error: "No confirmed requirements to map evidence against" });
+        return;
+      }
+      const bidDocs = (
+        await db
+          .select()
+          .from(documents)
+          .where(eq(documents.projectId, project.id))
+      ).filter(
+        (d) =>
+          d.contentText &&
+          d.redactionStatus !== "excluded" &&
+          d.type !== "tender",
       );
-      res.json({
-        created: inserted.length,
-        model,
-        items: inserted.map((e) => serializeEvidence(e)),
-      });
+      const docsForLlm = bidDocs.length > 0 ? bidDocs : [];
+
+      try {
+        const { items, model } = await mapEvidence(
+          project.id,
+          usable.map((r) => ({
+            id: r.id,
+            text: r.text,
+            expectedEvidence: r.expectedEvidence,
+          })),
+          docsForLlm.map((d) => ({
+            id: d.id,
+            filename: d.filename,
+            type: d.type,
+            contentText: d.contentText,
+          })),
+          { signal: disconnectController.signal },
+        );
+        const validDocIds = new Set(bidDocs.map((d) => d.id));
+        const inserted = await db.transaction(
+          async (tx) => {
+            const created = items.length
+              ? await tx
+                  .insert(evidenceItems)
+                  .values(
+                    items.map((i) => ({
+                      organisationId,
+                      projectId: project.id,
+                      requirementId: i.requirementId,
+                      documentId:
+                        i.documentId && validDocIds.has(i.documentId)
+                          ? i.documentId
+                          : null,
+                      evidenceStatus: i.evidenceStatus ?? "pending",
+                      excerpt: i.excerpt ?? null,
+                      notes: i.notes ?? null,
+                      suggested: true,
+                    })),
+                  )
+                  .returning()
+              : [];
+            if (project.status === "extraction") {
+              await tx
+                .update(projects)
+                .set({
+                  status: "review",
+                  version: sql`${projects.version} + 1`,
+                  updatedAt: new Date(),
+                })
+                .where(eq(projects.id, project.id));
+            }
+            await writeAuditTx(tx, {
+              user: getLocalUser(req),
+              organisationId,
+              projectId: project.id,
+              eventType: "evidence.mapped",
+              objectType: "project",
+              objectId: project.id,
+              details: `${created.length} suggested`,
+            });
+            return created;
+          },
+          { isolationLevel: "read committed" },
+        );
+        res.json({
+          created: inserted.length,
+          model,
+          items: inserted.map((e) => serializeEvidence(e)),
+        });
+      } catch (error) {
+        workflowError = error;
+        req.log.error({ err: error }, "evidence mapping failed");
+        if (!disconnectController.signal.aborted && !res.headersSent)
+          res.status(502).json({ error: "LLM evidence mapping failed" });
+      }
     } catch (error) {
-      req.log.error({ err: error }, "evidence mapping failed");
-      res.status(502).json({ error: "LLM evidence mapping failed" });
+      workflowError = error;
+      throw error;
+    } finally {
+      res.off("close", abortOnDisconnect);
+      releaseTenantWork(workflowError);
     }
   },
 );
@@ -167,9 +188,8 @@ router.post(
       res.status(400).json({ error: "Invalid request" });
       return;
     }
-    const context = getAccessContext(req);
     const isApproval = parsed.data.evidenceStatus !== "pending";
-    if (isApproval && context && !context.permissions.has("evidence:approve")) {
+    if (isApproval && !hasRequestPermission(req, "evidence:approve")) {
       res.status(403).json({ error: "Evidence approval permission required" });
       return;
     }
@@ -211,28 +231,43 @@ router.patch(
       res.status(400).json({ error: "Invalid request" });
       return;
     }
-    const context = getAccessContext(req);
-    const isApproval =
-      parsed.data.evidenceStatus !== undefined &&
-      parsed.data.evidenceStatus !== "pending";
-    if (isApproval && context && !context.permissions.has("evidence:approve")) {
-      res.status(403).json({ error: "Evidence approval permission required" });
-      return;
-    }
     const user = getLocalUser(req);
-    const updated = await db.transaction(
+    const canApprove = hasRequestPermission(req, "evidence:approve");
+    const result = await db.transaction(
       async (tx) => {
+        const [existing] = await tx
+          .select()
+          .from(evidenceItems)
+          .where(eq(evidenceItems.id, String(req.params.id)))
+          .for("update");
+        if (!existing) return { kind: "not_found" } as const;
+        const requiresApproval = evidencePatchRequiresApproval(
+          existing,
+          parsed.data,
+        );
+        if (requiresApproval && !canApprove) return { kind: "denied" } as const;
+        const establishesApproval =
+          !isApprovedEvidence(existing) &&
+          ((parsed.data.evidenceStatus !== undefined &&
+            parsed.data.evidenceStatus !== "pending") ||
+            parsed.data.suggested === false);
+        const confirmationPatch =
+          parsed.data.evidenceStatus === "pending"
+            ? { confirmedBy: null }
+            : establishesApproval
+              ? { confirmedBy: user?.id ?? null }
+              : {};
+
         const [evidence] = await tx
           .update(evidenceItems)
           .set({
             ...parsed.data,
-            ...(isApproval ? { confirmedBy: user?.id ?? null } : {}),
+            ...confirmationPatch,
             version: sql`${evidenceItems.version} + 1`,
             updatedAt: new Date(),
           })
           .where(eq(evidenceItems.id, String(req.params.id)))
           .returning();
-        if (!evidence) return undefined;
         await writeAuditTx(tx, {
           user,
           organisationId: getOrganisationId(req),
@@ -241,15 +276,19 @@ router.patch(
           objectType: "evidence",
           objectId: evidence.id,
         });
-        return evidence;
+        return { kind: "updated", evidence } as const;
       },
       { isolationLevel: "read committed" },
     );
-    if (!updated) {
+    if (result.kind === "not_found") {
       res.status(404).json({ error: "Not found" });
       return;
     }
-    res.json(serializeEvidence(updated));
+    if (result.kind === "denied") {
+      res.status(403).json({ error: "Evidence approval permission required" });
+      return;
+    }
+    res.json(serializeEvidence(result.evidence));
   },
 );
 
@@ -257,13 +296,21 @@ router.delete(
   "/evidence/:id",
   requirePermissionOrLegacy("evidence:write"),
   async (req: Request, res: Response) => {
-    const deleted = await db.transaction(
+    const canApprove = hasRequestPermission(req, "evidence:approve");
+    const result = await db.transaction(
       async (tx) => {
+        const [existing] = await tx
+          .select()
+          .from(evidenceItems)
+          .where(eq(evidenceItems.id, String(req.params.id)))
+          .for("update");
+        if (!existing) return { kind: "not_found" } as const;
+        if (isApprovedEvidence(existing) && !canApprove)
+          return { kind: "denied" } as const;
         const [evidence] = await tx
           .delete(evidenceItems)
           .where(eq(evidenceItems.id, String(req.params.id)))
           .returning();
-        if (!evidence) return undefined;
         await writeAuditTx(tx, {
           user: getLocalUser(req),
           organisationId: getOrganisationId(req),
@@ -272,12 +319,16 @@ router.delete(
           objectType: "evidence",
           objectId: evidence.id,
         });
-        return evidence;
+        return { kind: "deleted", evidence } as const;
       },
       { isolationLevel: "read committed" },
     );
-    if (!deleted) {
+    if (result.kind === "not_found") {
       res.status(404).json({ error: "Not found" });
+      return;
+    }
+    if (result.kind === "denied") {
+      res.status(403).json({ error: "Evidence approval permission required" });
       return;
     }
     res.status(204).end();

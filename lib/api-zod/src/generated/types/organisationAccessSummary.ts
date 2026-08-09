@@ -15,6 +15,7 @@
  *
  * OpenAPI spec version: 2.5.0
  */
+import type { OrganisationAccessSummaryAccessSource } from './organisationAccessSummaryAccessSource';
 import type { OrganisationAccessSummaryStatus } from './organisationAccessSummaryStatus';
 import type { OrganisationRole } from './organisationRole';
 import type { OrganisationType } from './organisationType';
@@ -30,9 +31,16 @@ export interface OrganisationAccessSummary {
      * @maxLength 2
      */
   countryCode: string;
+  /** Direct or partner-source membership used to authorise this context. */
   membershipId: string;
+  /** Organisation that owns the authorising membership. */
+  membershipOrganisationId: string;
+  accessSource: OrganisationAccessSummaryAccessSource;
+  partnerRelationshipId: string | null;
   accessExpiresAt: Date | null;
   roles: OrganisationRole[];
+  /** Server-computed effective permissions for this exact tenant context. */
+  permissions: string[];
   /** @minimum 1 */
   version: number;
 }

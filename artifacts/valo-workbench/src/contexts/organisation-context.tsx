@@ -1,8 +1,10 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -13,6 +15,7 @@ import {
   useGetMe,
 } from "@workspace/api-client-react";
 import { useIsMutating, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/clerk-react";
 
 export type OrganisationType = "client" | "valo" | "consultancy_partner";
 
@@ -24,8 +27,12 @@ export interface OrganisationAccess {
   status: string;
   countryCode: string;
   membershipId: string;
+  membershipOrganisationId: string;
+  accessSource: "membership" | "partner";
+  partnerRelationshipId: string | null;
   accessExpiresAt: string | null;
   roles: string[];
+  permissions: string[];
   version: number;
 }
 
@@ -33,12 +40,15 @@ interface OrganisationContextValue {
   organisations: OrganisationAccess[];
   activeOrganisation: OrganisationAccess | null;
   effectiveRoles: string[];
+  effectivePermissions: string[];
   isLoading: boolean;
   isError: boolean;
   error: unknown;
   needsSelection: boolean;
   isSwitching: boolean;
   hasPendingMutation: boolean;
+  hasCriticalWorkflow: boolean;
+  beginCriticalWorkflow: () => () => void;
   selectOrganisation: (organisationId: string) => Promise<boolean>;
   refetch: () => void;
 }
@@ -46,7 +56,7 @@ interface OrganisationContextValue {
 const OrganisationContext = createContext<OrganisationContextValue | null>(
   null,
 );
-const SESSION_KEY = "valo:selected-organisation";
+const SESSION_KEY_PREFIX = "valo:selected-organisation";
 const QUERY_PREFIX = "organisation-access";
 let activeContextOrganisationId: string | null = null;
 
@@ -72,7 +82,13 @@ function parseOrganisation(value: unknown): OrganisationAccess | null {
     value.status !== "active" ||
     typeof value.membershipId !== "string" ||
     value.membershipId.trim() === "" ||
-    !Array.isArray(value.roles)
+    typeof value.membershipOrganisationId !== "string" ||
+    value.membershipOrganisationId.trim() === "" ||
+    (value.accessSource !== "membership" && value.accessSource !== "partner") ||
+    (value.partnerRelationshipId !== null &&
+      typeof value.partnerRelationshipId !== "string") ||
+    !Array.isArray(value.roles) ||
+    !Array.isArray(value.permissions)
   ) {
     return null;
   }
@@ -95,6 +111,14 @@ function parseOrganisation(value: unknown): OrganisationAccess | null {
       value.roles.filter((role): role is string => typeof role === "string"),
     ),
   );
+  const permissions = Array.from(
+    new Set(
+      value.permissions.filter(
+        (permission): permission is string =>
+          typeof permission === "string" && permission.trim() !== "",
+      ),
+    ),
+  );
   return {
     id: value.id,
     name: value.name,
@@ -104,9 +128,16 @@ function parseOrganisation(value: unknown): OrganisationAccess | null {
     countryCode:
       typeof value.countryCode === "string" ? value.countryCode : "NG",
     membershipId: value.membershipId,
+    membershipOrganisationId: value.membershipOrganisationId,
+    accessSource: value.accessSource,
+    partnerRelationshipId:
+      typeof value.partnerRelationshipId === "string"
+        ? value.partnerRelationshipId
+        : null,
     accessExpiresAt:
       typeof value.accessExpiresAt === "string" ? value.accessExpiresAt : null,
     roles,
+    permissions,
     version: typeof value.version === "number" ? value.version : 0,
   };
 }
@@ -125,18 +156,23 @@ async function listOrganisationAccess(): Promise<OrganisationAccess[]> {
   return parsed as OrganisationAccess[];
 }
 
-function savedOrganisationId(): string | null {
+function selectionStorageKey(identityScope: string): string {
+  return `${SESSION_KEY_PREFIX}:${encodeURIComponent(identityScope)}`;
+}
+
+function savedOrganisationId(identityScope: string): string | null {
   try {
-    return sessionStorage.getItem(SESSION_KEY);
+    return sessionStorage.getItem(selectionStorageKey(identityScope));
   } catch {
     return null;
   }
 }
 
-function saveOrganisationId(value: string | null): void {
+function saveOrganisationId(identityScope: string, value: string | null): void {
   try {
-    if (value) sessionStorage.setItem(SESSION_KEY, value);
-    else sessionStorage.removeItem(SESSION_KEY);
+    const key = selectionStorageKey(identityScope);
+    if (value) sessionStorage.setItem(key, value);
+    else sessionStorage.removeItem(key);
   } catch {
     // Storage can be disabled. The in-memory selection remains authoritative
     // for this page lifetime and the server still validates every request.
@@ -144,6 +180,9 @@ function saveOrganisationId(value: string | null): void {
 }
 
 export function OrganisationProvider({ children }: { children: ReactNode }) {
+  const { userId, sessionId } = useAuth();
+  const identityScope =
+    userId && sessionId ? `${userId}:${sessionId}` : "unverified";
   const meQuery = useGetMe({
     query: {
       queryKey: getGetMeQueryKey(),
@@ -158,10 +197,17 @@ export function OrganisationProvider({ children }: { children: ReactNode }) {
   const user = meQuery.data;
   const queryClient = useQueryClient();
   const pendingMutations = useIsMutating();
-  const [selectedId, setSelectedId] = useState(savedOrganisationId);
+  const [selection, setSelection] = useState(() => ({
+    identityScope,
+    organisationId: savedOrganisationId(identityScope),
+  }));
   const [isSwitching, setIsSwitching] = useState(false);
+  const [criticalWorkflowCount, setCriticalWorkflowCount] = useState(0);
+  const criticalWorkflowCountRef = useRef(0);
+  const selectedId =
+    selection.identityScope === identityScope ? selection.organisationId : null;
   const accessQuery = useQuery({
-    queryKey: [QUERY_PREFIX, user?.id ?? "anonymous"],
+    queryKey: [QUERY_PREFIX, identityScope, user?.id ?? "anonymous"],
     queryFn: listOrganisationAccess,
     enabled: Boolean(user && user.status === "active"),
     staleTime: 30_000,
@@ -181,12 +227,22 @@ export function OrganisationProvider({ children }: { children: ReactNode }) {
   activeContextOrganisationId = activeOrganisation?.id ?? null;
 
   useEffect(() => {
+    setSelection({
+      identityScope,
+      organisationId: savedOrganisationId(identityScope),
+    });
+    criticalWorkflowCountRef.current = 0;
+    setCriticalWorkflowCount(0);
+    activeContextOrganisationId = null;
+  }, [identityScope]);
+
+  useEffect(() => {
     if (!accessQuery.isSuccess || !selectedId) return;
     if (!organisations.some((organisation) => organisation.id === selectedId)) {
-      setSelectedId(null);
-      saveOrganisationId(null);
+      setSelection({ identityScope, organisationId: null });
+      saveOrganisationId(identityScope, null);
     }
-  }, [accessQuery.isSuccess, organisations, selectedId]);
+  }, [accessQuery.isSuccess, identityScope, organisations, selectedId]);
 
   useEffect(
     () => () => {
@@ -195,11 +251,27 @@ export function OrganisationProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const beginCriticalWorkflow = useCallback(() => {
+    let released = false;
+    criticalWorkflowCountRef.current += 1;
+    setCriticalWorkflowCount(criticalWorkflowCountRef.current);
+    return () => {
+      if (released) return;
+      released = true;
+      criticalWorkflowCountRef.current = Math.max(
+        0,
+        criticalWorkflowCountRef.current - 1,
+      );
+      setCriticalWorkflowCount(criticalWorkflowCountRef.current);
+    };
+  }, []);
+
   const selectOrganisation = async (
     organisationId: string,
   ): Promise<boolean> => {
     if (
       isSwitching ||
+      criticalWorkflowCountRef.current > 0 ||
       queryClient.isMutating() > 0 ||
       !organisations.some((organisation) => organisation.id === organisationId)
     ) {
@@ -212,11 +284,11 @@ export function OrganisationProvider({ children }: { children: ReactNode }) {
         predicate: (query) => query.queryKey[0] !== QUERY_PREFIX,
       });
       activeContextOrganisationId = organisationId;
-      saveOrganisationId(organisationId);
+      saveOrganisationId(identityScope, organisationId);
       queryClient.removeQueries({
         predicate: (query) => query.queryKey[0] !== QUERY_PREFIX,
       });
-      setSelectedId(organisationId);
+      setSelection({ identityScope, organisationId });
       return true;
     } finally {
       setIsSwitching(false);
@@ -228,6 +300,7 @@ export function OrganisationProvider({ children }: { children: ReactNode }) {
       organisations,
       activeOrganisation,
       effectiveRoles: activeOrganisation?.roles ?? [],
+      effectivePermissions: activeOrganisation?.permissions ?? [],
       isLoading:
         meQuery.isLoading ||
         (Boolean(user && user.status === "active") && accessQuery.isLoading),
@@ -236,6 +309,8 @@ export function OrganisationProvider({ children }: { children: ReactNode }) {
       needsSelection: organisations.length > 1 && !activeOrganisation,
       isSwitching,
       hasPendingMutation: pendingMutations > 0,
+      hasCriticalWorkflow: criticalWorkflowCount > 0,
+      beginCriticalWorkflow,
       selectOrganisation,
       refetch: () => {
         void accessQuery.refetch();
@@ -244,6 +319,9 @@ export function OrganisationProvider({ children }: { children: ReactNode }) {
     [
       accessQuery,
       activeOrganisation,
+      beginCriticalWorkflow,
+      criticalWorkflowCount,
+      identityScope,
       isSwitching,
       meQuery.error,
       meQuery.isError,
@@ -263,4 +341,9 @@ export function OrganisationProvider({ children }: { children: ReactNode }) {
 
 export function useOrganisationAccess(): OrganisationContextValue | null {
   return useContext(OrganisationContext);
+}
+
+export function useOrganisationPermission(permission: string): boolean {
+  const access = useContext(OrganisationContext);
+  return Boolean(access?.activeOrganisation?.permissions.includes(permission));
 }

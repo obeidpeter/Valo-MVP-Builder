@@ -31,6 +31,7 @@ export interface ExtractionResult {
 export interface ExtractionContext {
   projectId?: string | null;
   filename?: string;
+  signal?: AbortSignal;
 }
 
 function isTextual(contentType: string | null | undefined): boolean {
@@ -79,6 +80,7 @@ export async function extractDocumentTextFromBuffer(
   context?: ExtractionContext,
 ): Promise<ExtractionResult> {
   try {
+    context?.signal?.throwIfAborted();
     if (isTextual(contentType)) {
       const text = buf.toString("utf-8");
       return {
@@ -91,13 +93,16 @@ export async function extractDocumentTextFromBuffer(
     }
 
     if (contentType?.includes("pdf")) {
+      context?.signal?.throwIfAborted();
       // @ts-expect-error - no type declarations for the pdf-parse internal entrypoint
       const mod = await import("pdf-parse/lib/pdf-parse.js");
       const pdfParse = (mod as any).default ?? mod;
       let text = "";
       let pdfParseError: string | null = null;
       try {
+        context?.signal?.throwIfAborted();
         const parsed = await pdfParse(buf);
+        context?.signal?.throwIfAborted();
         text = (parsed?.text ?? "").trim();
       } catch (error) {
         pdfParseError = error instanceof Error ? error.message : String(error);
@@ -109,10 +114,13 @@ export async function extractDocumentTextFromBuffer(
       if (text.length < LOW_TEXT_THRESHOLD) {
         let ocrError: string | null = null;
         try {
+          context?.signal?.throwIfAborted();
           const ocr = await extractPdfTextMultimodal(buf, {
             projectId: context?.projectId ?? null,
             filename: context?.filename,
+            signal: context?.signal,
           });
+          context?.signal?.throwIfAborted();
           if (ocr.length > text.length) {
             return {
               text: ocr,
@@ -131,6 +139,7 @@ export async function extractDocumentTextFromBuffer(
         } catch (error) {
           ocrError = error instanceof Error ? error.message : String(error);
         }
+        context?.signal?.throwIfAborted();
         if (!text) {
           return {
             text: null,
@@ -166,6 +175,7 @@ export async function extractDocumentTextFromBuffer(
           };
     }
 
+    context?.signal?.throwIfAborted();
     return {
       text: null,
       status: "skipped",
@@ -174,6 +184,7 @@ export async function extractDocumentTextFromBuffer(
       notes: `unsupported content type (${contentType ?? "unknown"}); paste text manually or upload a PDF`,
     };
   } catch (error) {
+    if (context?.signal?.aborted) context.signal.throwIfAborted();
     return {
       text: null,
       status: "failed",

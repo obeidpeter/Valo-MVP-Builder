@@ -3,9 +3,8 @@ import { Redirect } from "wouter";
 import Dashboard from "@/pages/dashboard";
 import { LoadingPanel, StatusPanel } from "@/components/platform-states";
 import {
-  isClientRole,
   isInternalRole,
-  isPartnerRole,
+  platformFeatureFlags,
   platformHomeForRole,
 } from "@/lib/platform-access";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
@@ -34,13 +33,25 @@ export default function RoleHome() {
     );
   }
 
-  const roles = organisationAccess?.activeOrganisation
-    ? organisationAccess.effectiveRoles
-    : [String(user.role)];
-  if (isClientRole(roles)) return <Redirect to="/portal" />;
-  if (isPartnerRole(roles)) return <Redirect to="/partner" />;
-  const home = platformHomeForRole(roles);
-  if (home !== "/") return <Redirect to={home} />;
+  if (!organisationAccess?.activeOrganisation) {
+    return (
+      <div className="p-6 sm:p-8">
+        <StatusPanel
+          state="pending"
+          title="No organisation workspace selected"
+          description="Choose an active organisation, or wait for access to be assigned. Legacy account roles do not open tenant data."
+        />
+      </div>
+    );
+  }
+
+  const roles = organisationAccess.effectiveRoles;
+  const home = platformHomeForRole(
+    roles,
+    platformFeatureFlags(),
+    organisationAccess.effectivePermissions,
+  );
+  if (home !== "/app") return <Redirect to={home} />;
   if (isInternalRole(roles)) return <Dashboard />;
 
   return (

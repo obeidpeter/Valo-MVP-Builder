@@ -1,10 +1,27 @@
-import { useListClients, useCreateClient, getListClientsQueryKey } from "@workspace/api-client-react";
+import {
+  useListClients,
+  useCreateClient,
+  getListClientsQueryKey,
+} from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { Loader2, Plus, Building2, ExternalLink } from "lucide-react";
@@ -13,6 +30,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useOrganisationPermission } from "@/contexts/organisation-context";
 
 const createClientSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -32,6 +50,7 @@ export default function Clients() {
   const { data: clients, isLoading } = useListClients();
   const createClient = useCreateClient();
   const queryClient = useQueryClient();
+  const canCreateClient = useOrganisationPermission("client:create");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const form = useForm<CreateClientForm>({
@@ -48,127 +67,165 @@ export default function Clients() {
   });
 
   const onSubmit = (data: CreateClientForm) => {
-    createClient.mutate({ data }, {
-      onSuccess: () => {
-        setIsCreateOpen(false);
-        form.reset();
-        queryClient.invalidateQueries({ queryKey: getListClientsQueryKey() });
-      }
-    });
+    createClient.mutate(
+      { data },
+      {
+        onSuccess: () => {
+          setIsCreateOpen(false);
+          form.reset();
+          queryClient.invalidateQueries({ queryKey: getListClientsQueryKey() });
+        },
+      },
+    );
   };
 
   return (
     <div className="p-8 max-w-7xl mx-auto w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-serif tracking-tight font-semibold">Clients</h1>
-          <p className="text-muted-foreground mt-1">Manage client profiles and NDAs.</p>
+          <h1 className="text-3xl font-serif tracking-tight font-semibold">
+            Clients
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Manage client profiles and NDAs.
+          </p>
         </div>
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary text-primary-foreground">
-              <Plus className="w-4 h-4 mr-2" />
-              New Client
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Create New Client</DialogTitle>
-              <DialogDescription>
-                Add a new client profile to the system.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Company Name</Label>
-                <Input id="name" {...form.register("name")} />
-                {form.formState.errors.name && (
-                  <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+        {canCreateClient ? (
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-primary text-primary-foreground">
+                <Plus className="w-4 h-4 mr-2" />
+                New Client
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Create New Client</DialogTitle>
+                <DialogDescription>
+                  Add a new client profile to the system.
+                </DialogDescription>
+              </DialogHeader>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4 pt-4"
+              >
                 <div className="space-y-2">
-                  <Label htmlFor="segment">Segment</Label>
-                  <Select 
-                    onValueChange={(val) => form.setValue("segment", val as any)} 
-                    defaultValue={form.getValues("segment")}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select segment" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="federal">Federal</SelectItem>
-                      <SelectItem value="nipex_ncdmb">NIPEX / NCDMB</SelectItem>
-                      <SelectItem value="donor">Donor</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="name">Company Name</Label>
+                  <Input id="name" {...form.register("name")} />
+                  {form.formState.errors.name && (
+                    <p className="text-xs text-destructive">
+                      {form.formState.errors.name.message}
+                    </p>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="segment">Segment</Label>
+                    <Select
+                      onValueChange={(val) =>
+                        form.setValue("segment", val as any)
+                      }
+                      defaultValue={form.getValues("segment")}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select segment" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="federal">Federal</SelectItem>
+                        <SelectItem value="nipex_ncdmb">
+                          NIPEX / NCDMB
+                        </SelectItem>
+                        <SelectItem value="donor">Donor</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ndaStatus">NDA Status</Label>
+                    <Select
+                      onValueChange={(val) =>
+                        form.setValue("ndaStatus", val as any)
+                      }
+                      defaultValue={form.getValues("ndaStatus")}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="signed">Signed</SelectItem>
+                        <SelectItem value="not_required">
+                          Not Required
+                        </SelectItem>
+                        <SelectItem value="declined">Declined</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ndaStatus">NDA Status</Label>
-                  <Select 
-                    onValueChange={(val) => form.setValue("ndaStatus", val as any)} 
-                    defaultValue={form.getValues("ndaStatus")}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="signed">Signed</SelectItem>
-                      <SelectItem value="not_required">Not Required</SelectItem>
-                      <SelectItem value="declined">Declined</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="sector">Sector</Label>
-                <Input id="sector" {...form.register("sector")} placeholder="e.g. Oil & Gas, IT" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="decisionMakerConversations">Decision-maker talks</Label>
+                  <Label htmlFor="sector">Sector</Label>
                   <Input
-                    id="decisionMakerConversations"
-                    type="number"
-                    min={0}
-                    {...form.register("decisionMakerConversations")}
-                    placeholder="0"
+                    id="sector"
+                    {...form.register("sector")}
+                    placeholder="e.g. Oil & Gas, IT"
                   />
-                  <p className="text-[11px] text-muted-foreground">Owners / MDs (Gate 0 metric)</p>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="juniorConversations">Junior contacts</Label>
-                  <Input
-                    id="juniorConversations"
-                    type="number"
-                    min={0}
-                    {...form.register("juniorConversations")}
-                    placeholder="0"
-                  />
-                  <p className="text-[11px] text-muted-foreground">Junior bid staff</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="decisionMakerConversations">
+                      Decision-maker talks
+                    </Label>
+                    <Input
+                      id="decisionMakerConversations"
+                      type="number"
+                      min={0}
+                      {...form.register("decisionMakerConversations")}
+                      placeholder="0"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Owners / MDs (Gate 0 metric)
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="juniorConversations">Junior contacts</Label>
+                    <Input
+                      id="juniorConversations"
+                      type="number"
+                      min={0}
+                      {...form.register("juniorConversations")}
+                      placeholder="0"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Junior bid staff
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="contactName">Contact Name</Label>
-                  <Input id="contactName" {...form.register("contactName")} />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="contactName">Contact Name</Label>
+                    <Input id="contactName" {...form.register("contactName")} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="contactEmail">Contact Email</Label>
+                    <Input
+                      id="contactEmail"
+                      type="email"
+                      {...form.register("contactEmail")}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="contactEmail">Contact Email</Label>
-                  <Input id="contactEmail" type="email" {...form.register("contactEmail")} />
+                <div className="flex justify-end pt-4">
+                  <Button type="submit" disabled={createClient.isPending}>
+                    {createClient.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : null}
+                    Create Client
+                  </Button>
                 </div>
-              </div>
-              <div className="flex justify-end pt-4">
-                <Button type="submit" disabled={createClient.isPending}>
-                  {createClient.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                  Create Client
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+              </form>
+            </DialogContent>
+          </Dialog>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -185,13 +242,23 @@ export default function Clients() {
                     <div className="bg-primary/5 p-2 rounded-md">
                       <Building2 className="w-5 h-5 text-primary" />
                     </div>
-                    <Badge variant={client.ndaStatus === 'signed' ? 'default' : client.ndaStatus === 'pending' ? 'secondary' : 'outline'}>
-                      {client.ndaStatus.replace('_', ' ')}
+                    <Badge
+                      variant={
+                        client.ndaStatus === "signed"
+                          ? "default"
+                          : client.ndaStatus === "pending"
+                            ? "secondary"
+                            : "outline"
+                      }
+                    >
+                      {client.ndaStatus.replace("_", " ")}
                     </Badge>
                   </div>
-                  <h3 className="font-serif text-xl font-medium tracking-tight mb-1">{client.name}</h3>
+                  <h3 className="font-serif text-xl font-medium tracking-tight mb-1">
+                    {client.name}
+                  </h3>
                   <div className="text-sm text-muted-foreground capitalize flex items-center gap-2 mb-4">
-                    <span>{client.segment?.replace('_', ' ')}</span>
+                    <span>{client.segment?.replace("_", " ")}</span>
                     {client.sector && (
                       <>
                         <span>&bull;</span>
@@ -200,7 +267,9 @@ export default function Clients() {
                     )}
                   </div>
                   <div className="mt-auto pt-4 border-t border-border flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">{client.projectCount || 0} projects</span>
+                    <span className="text-muted-foreground">
+                      {client.projectCount || 0} projects
+                    </span>
                     <ExternalLink className="w-4 h-4 text-muted-foreground" />
                   </div>
                 </CardContent>
@@ -211,7 +280,11 @@ export default function Clients() {
           <div className="col-span-full py-12 text-center text-muted-foreground bg-card border border-dashed border-border rounded-lg">
             <Building2 className="w-12 h-12 mx-auto mb-3 text-muted" />
             <p>No clients found.</p>
-            <p className="text-sm">Create your first client to get started.</p>
+            <p className="text-sm">
+              {canCreateClient
+                ? "Create your first client to get started."
+                : "No client records are available in this context."}
+            </p>
           </div>
         )}
       </div>
