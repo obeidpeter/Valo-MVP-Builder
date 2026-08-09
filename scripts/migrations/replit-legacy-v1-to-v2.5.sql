@@ -5696,10 +5696,10 @@ BEGIN
     RAISE EXCEPTION 'legacy membership/role grant reconciliation failed';
   END IF;
   IF EXISTS (
-    SELECT 1 FROM public.role_grants AS grant
-    JOIN public.organisation_memberships AS membership ON membership.id=grant.membership_id
+    SELECT 1 FROM public.role_grants AS grant_record
+    JOIN public.organisation_memberships AS membership ON membership.id=grant_record.membership_id
     JOIN public.users AS identity ON identity.id=membership.user_id
-    WHERE grant.role <> CASE identity.role
+    WHERE grant_record.role <> CASE identity.role
       WHEN 'admin' THEN 'valo_operations_administrator'
       WHEN 'reviewer' THEN 'valo_quality_adviser'
       WHEN 'analyst' THEN 'valo_analyst'
