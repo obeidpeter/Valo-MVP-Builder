@@ -18,7 +18,7 @@ describe("report download tenant context", () => {
     async (_label, organisationId) => {
       setRequestContextGetter(() => ({ organisationId }));
       const fetchMock = vi.fn().mockResolvedValue(
-        new Response(new Blob(["report"]), {
+        new Response("report", {
           status: 200,
           headers: { "content-type": "application/pdf" },
         }),
