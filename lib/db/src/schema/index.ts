@@ -9,6 +9,7 @@ import {
   timestamp,
   uuid,
   foreignKey,
+  check,
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
@@ -748,9 +749,9 @@ export const auditEvents = pgTable(
     organisationId: uuid("organisation_id")
       .notNull()
       .references(() => organisations.id, { onDelete: "restrict" }),
-    userId: uuid("user_id").references(() => users.id, {
-      onDelete: "set null",
-    }),
+    // Historical actor identity is a hash-covered snapshot. It deliberately
+    // has no users FK: deleting an identity must never rewrite an audit row.
+    userId: uuid("user_id"),
     userName: text("user_name"),
     projectId: uuid("project_id"),
     eventType: text("event_type").notNull(),
@@ -759,13 +760,16 @@ export const auditEvents = pgTable(
     details: text("details"),
     // Tamper-evident hash chain (FR-WFM-02). `seq` is a contiguous 1-based
     // position assigned under an advisory lock; `hash` = SHA-256 over the
-    // previous event's hash plus this event's canonical payload. Null on rows
-    // that predate the chain (legacy prefix). The unique index is a backstop:
-    // if serialisation ever fails, the fork errors out instead of silently
-    // corrupting the chain.
-    seq: integer("seq"),
-    prevHash: text("prev_hash"),
-    hash: text("hash"),
+    // previous event's hash plus this event's canonical payload. Every active
+    // row is chained; preserved v1 evidence lives only in legacyAuditEvents.
+    // The unique index is a backstop: if serialisation ever fails, the fork
+    // errors out instead of silently corrupting the chain.
+    seq: integer("seq").notNull(),
+    prevHash: text("prev_hash").notNull(),
+    hash: text("hash").notNull(),
+    // The active chain is always v2 and binds the organisation ID. Legacy v1
+    // bytes live only in legacy_audit_events with an explicit assessment.
+    hashVersion: integer("hash_version").notNull().default(2),
     // DB-assigned monotonic ordinal (cannot be backdated by a plain INSERT the
     // way created_at can); the verifier uses it to spot unchained rows written
     // after the chain started.
@@ -776,9 +780,96 @@ export const auditEvents = pgTable(
   // contiguous chain beginning at seq=1. The tenant key is therefore part of
   // the uniqueness boundary; a global seq constraint makes tenant #2 collide.
   (t) => [
-    uniqueIndex("audit_events_organisation_seq_unique")
-      .on(t.organisationId, t.seq)
-      .where(sql`${t.seq} is not null`),
+    check("audit_events_hash_version_check", sql`${t.hashVersion} = 2`),
+    check("audit_events_seq_positive_check", sql`${t.seq} > 0`),
+    check(
+      "audit_events_prev_hash_format_check",
+      sql`${t.prevHash} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check("audit_events_hash_format_check", sql`${t.hash} ~ '^[0-9a-f]{64}$'`),
+    uniqueIndex("audit_events_organisation_seq_unique").on(
+      t.organisationId,
+      t.seq,
+    ),
+  ],
+);
+
+/**
+ * One immutable assessment of a migrated legacy audit stream. The active v2
+ * chain does not claim continuity across a known legacy payload mutation.
+ */
+export const legacyAuditIntegrityAssessments = pgTable(
+  "legacy_audit_integrity_assessments",
+  {
+    id: uuid("id").primaryKey(),
+    organisationId: uuid("organisation_id")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "restrict" }),
+    sourceCommit: text("source_commit").notNull(),
+    sourceEventCount: integer("source_event_count").notNull(),
+    verifiedRanges: text("verified_ranges").notNull(),
+    discontinuityRanges: text("discontinuity_ranges").notNull(),
+    finding: text("finding").notNull(),
+    probableCause: text("probable_cause"),
+    externalHeadSeq: integer("external_head_seq").notNull(),
+    externalHeadHash: text("external_head_hash").notNull(),
+    sourceBackupSha256: text("source_backup_sha256").notNull(),
+    sourceAuditExportSha256: text("source_audit_export_sha256").notNull(),
+    rehearsalEvidenceSha256: text("rehearsal_evidence_sha256").notNull(),
+    archiveDigest: text("archive_digest").notNull(),
+    assessedAt: timestamp("assessed_at", { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("legacy_audit_assessments_org_digest_unique").on(
+      t.organisationId,
+      t.archiveDigest,
+    ),
+  ],
+);
+
+/** Byte-preserving, read-only archive of the pre-tenancy audit relation. */
+export const legacyAuditEvents = pgTable(
+  "legacy_audit_events",
+  {
+    id: uuid("id").primaryKey(),
+    organisationId: uuid("organisation_id")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "restrict" }),
+    assessmentId: uuid("assessment_id")
+      .notNull()
+      .references(() => legacyAuditIntegrityAssessments.id, {
+        onDelete: "restrict",
+      }),
+    // These UUIDs are historical values only; no mutable parent FKs exist.
+    userId: uuid("user_id"),
+    userName: text("user_name"),
+    projectId: uuid("project_id"),
+    eventType: text("event_type").notNull(),
+    objectType: text("object_type"),
+    objectId: text("object_id"),
+    details: text("details"),
+    seq: integer("seq").notNull(),
+    prevHash: text("prev_hash").notNull(),
+    hash: text("hash").notNull(),
+    rowNo: pgBigint("row_no", { mode: "number" }).notNull(),
+    integrityStatus: text("integrity_status").notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    check(
+      "legacy_audit_events_integrity_status_check",
+      sql`${t.integrityStatus} in ('payload_hash_verified', 'known_discontinuity')`,
+    ),
+    uniqueIndex("legacy_audit_events_org_seq_unique").on(
+      t.organisationId,
+      t.seq,
+    ),
+    uniqueIndex("legacy_audit_events_org_row_no_unique").on(
+      t.organisationId,
+      t.rowNo,
+    ),
   ],
 );
 

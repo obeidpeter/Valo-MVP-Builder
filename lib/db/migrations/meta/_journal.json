@@ -15,6 +15,13 @@
       "when": 1786221441937,
       "tag": "0001_tenant_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786251600000,
+      "tag": "0002_audit_integrity_boundary",
+      "breakpoints": true
     }
   ]
 }

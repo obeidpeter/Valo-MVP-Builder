@@ -10,7 +10,7 @@ import express, {
   type Response,
   type NextFunction,
 } from "express";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import {
   db,
   users,
@@ -146,9 +146,14 @@ after(async () => {
   await new Promise<void>((resolve, reject) =>
     server.close((err) => (err ? reject(err) : resolve())),
   );
-  for (const id of projectIds) {
-    await db.delete(auditEvents).where(eq(auditEvents.projectId, id));
-  }
+  await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`SELECT set_config('valo.audit_test_cleanup', 'approved', true)`,
+    );
+    for (const id of projectIds) {
+      await tx.delete(auditEvents).where(eq(auditEvents.projectId, id));
+    }
+  });
   await db.delete(clients).where(eq(clients.id, clientId)); // cascades projects + conflict records
   await db.delete(users).where(eq(users.id, founderId));
   await db.delete(users).where(eq(users.id, advisorId));

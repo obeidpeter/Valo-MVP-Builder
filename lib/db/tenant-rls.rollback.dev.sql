@@ -88,6 +88,8 @@ DECLARE
     'invoice_lines',
     'invoices',
     'legal_holds',
+    'legacy_audit_events',
+    'legacy_audit_integrity_assessments',
     'llm_runs',
     'model_configurations',
     'nda_records',
@@ -134,6 +136,7 @@ DECLARE
   ]::text[];
   migration_policy_names constant text[] := ARRAY[
     'tenant_isolation',
+    'tenant_select',
     'tenant_or_global_select',
     'tenant_insert',
     'tenant_update',
@@ -156,6 +159,9 @@ $rollback$;
 
 DROP FUNCTION IF EXISTS valo_security.set_current_organisation_id(uuid);
 DROP FUNCTION IF EXISTS valo_security.current_organisation_id();
-DROP SCHEMA IF EXISTS valo_security;
+
+-- Audit immutability is independent of tenant RLS and deliberately survives
+-- this development-only rollback. Therefore valo_security is retained with
+-- only the append-only trigger functions if no other objects remain.
 
 COMMIT;

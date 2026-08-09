@@ -13,6 +13,7 @@ import {
   defects,
   boqChecks,
   auditEvents,
+  legacyAuditEvents,
   documents,
   drafts,
   draftVersions,
@@ -773,25 +774,34 @@ router.get(
       });
       return;
     }
-    const [reqs, ev, defs, boqs, audits, projectDocuments, supplementalGates] =
-      await Promise.all([
-        db
-          .select()
-          .from(requirements)
-          .where(eq(requirements.projectId, projectId)),
-        db
-          .select()
-          .from(evidenceItems)
-          .where(eq(evidenceItems.projectId, projectId)),
-        db.select().from(defects).where(eq(defects.projectId, projectId)),
-        db.select().from(boqChecks).where(eq(boqChecks.projectId, projectId)),
-        db
-          .select()
-          .from(auditEvents)
-          .where(eq(auditEvents.projectId, projectId)),
-        db.select().from(documents).where(eq(documents.projectId, projectId)),
-        gatherSupplementalReleaseGates(projectId),
-      ]);
+    const [
+      reqs,
+      ev,
+      defs,
+      boqs,
+      activeAudits,
+      archivedAudits,
+      projectDocuments,
+      supplementalGates,
+    ] = await Promise.all([
+      db
+        .select()
+        .from(requirements)
+        .where(eq(requirements.projectId, projectId)),
+      db
+        .select()
+        .from(evidenceItems)
+        .where(eq(evidenceItems.projectId, projectId)),
+      db.select().from(defects).where(eq(defects.projectId, projectId)),
+      db.select().from(boqChecks).where(eq(boqChecks.projectId, projectId)),
+      db.select().from(auditEvents).where(eq(auditEvents.projectId, projectId)),
+      db
+        .select()
+        .from(legacyAuditEvents)
+        .where(eq(legacyAuditEvents.projectId, projectId)),
+      db.select().from(documents).where(eq(documents.projectId, projectId)),
+      gatherSupplementalReleaseGates(projectId),
+    ]);
     const readiness = evaluateSubmissionReadiness({
       project: {
         ndaStatus: governance.ndaStatus,
@@ -919,7 +929,20 @@ router.get(
     archive.append(toCsv(evCsv), { name: "evidence.csv" });
     archive.append(toCsv(defsCsv), { name: "defects.csv" });
     archive.append(toCsv(boqs), { name: "boq_checks.csv" });
-    archive.append(toCsv(audits), { name: "audit_events.csv" });
+    archive.append(
+      toCsv([
+        ...activeAudits.map((event) => ({
+          ...event,
+          auditSource: "active_v2",
+          integrityStatus: "active_v2_record",
+        })),
+        ...archivedAudits.map((event) => ({
+          ...event,
+          auditSource: "legacy_v1_archive",
+        })),
+      ]),
+      { name: "audit_events.csv" },
+    );
     archive.append(toCsv(docManifest), { name: "documents_manifest.csv" });
     // Exportable Gate 0 Technical Scorecard (FR-EXT-04): the engine-vs-human
     // diff and mandatory recall, recomputed from the stored records at export

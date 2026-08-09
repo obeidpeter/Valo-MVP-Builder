@@ -10,7 +10,7 @@ import express, {
   type NextFunction,
 } from "express";
 import JSZip from "jszip";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import {
   db,
   pool,
@@ -33,6 +33,7 @@ import { type AccessContext } from "../middlewares/tenancy";
 import { attachTenantDatabase } from "../middlewares/databaseTenancy";
 import { normalizeLegacyRole, permissionsForRoles } from "../lib/permissions";
 import { ObjectStorageService } from "../lib/objectStorage";
+import { writeAudit } from "../lib/audit";
 import { DOCX_MIME } from "../lib/docx";
 import { PDF_MIME } from "../lib/pdf";
 import {
@@ -341,7 +342,7 @@ before(async () => {
     status: "resolved",
   });
 
-  await db.insert(auditEvents).values({
+  await writeAudit({
     organisationId,
     projectId: project.id,
     eventType: "project.created",
@@ -459,8 +460,14 @@ after(async () => {
   mock.restoreAll();
   if (server)
     await new Promise<void>((resolve) => server.close(() => resolve()));
-  if (projectId)
-    await db.delete(auditEvents).where(eq(auditEvents.projectId, projectId));
+  if (projectId) {
+    await db.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT set_config('valo.audit_test_cleanup', 'approved', true)`,
+      );
+      await tx.delete(auditEvents).where(eq(auditEvents.projectId, projectId));
+    });
+  }
   if (clientId) await db.delete(clients).where(eq(clients.id, clientId));
   if (adminId) await db.delete(users).where(eq(users.id, adminId));
   if (generatorId) await db.delete(users).where(eq(users.id, generatorId));
@@ -515,7 +522,12 @@ describe("GET /projects/:id/export (live route)", () => {
       const res = await fetch(`${baseUrl}/projects/${gated.id}/export`);
       assert.equal(res.status, 409);
     } finally {
-      await db.delete(auditEvents).where(eq(auditEvents.projectId, gated.id));
+      await db.transaction(async (tx) => {
+        await tx.execute(
+          sql`SELECT set_config('valo.audit_test_cleanup', 'approved', true)`,
+        );
+        await tx.delete(auditEvents).where(eq(auditEvents.projectId, gated.id));
+      });
       await db.delete(projects).where(eq(projects.id, gated.id));
       currentUser = null;
     }

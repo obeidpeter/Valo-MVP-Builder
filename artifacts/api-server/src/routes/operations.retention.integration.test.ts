@@ -8,7 +8,7 @@ import express, {
   type Response,
   type NextFunction,
 } from "express";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import {
   db,
   users,
@@ -237,6 +237,9 @@ after(async () => {
     server.close((err) => (err ? reject(err) : resolve())),
   );
   await withTenantDatabase(organisationId, async () => {
+    await db.execute(
+      sql`SELECT set_config('valo.audit_test_cleanup', 'approved', true)`,
+    );
     await db.delete(auditEvents).where(eq(auditEvents.projectId, projectId));
     await db.delete(projects).where(eq(projects.id, projectId));
     await db.delete(clients).where(eq(clients.id, clientId));

@@ -10,7 +10,12 @@
   "scripts": {
     "migration:generate": "drizzle-kit generate --config ./drizzle.config.ts",
     "migration:check": "drizzle-kit check --config ./drizzle.config.ts",
-    "migration:apply": "drizzle-kit migrate --config ./drizzle.config.ts"
+    "migration:apply": "drizzle-kit migrate --config ./drizzle.config.ts",
+    "migration:bridge:legacy:check": "node ./scripts/run-legacy-bridge.mjs --check",
+    "migration:bridge:legacy:catalog-evidence": "node ./scripts/run-legacy-bridge.mjs --catalog-evidence",
+    "migration:bridge:legacy": "node ./scripts/run-legacy-bridge.mjs --execute",
+    "migration:bridge:legacy:rehearse": "node ./scripts/legacy-bridge-ci-rehearsal.mjs",
+    "test": "tsx --test src/runtimeSecurity.test.ts"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",
@@ -21,6 +26,7 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "@types/pg": "^8.20.0",
-    "drizzle-kit": "^0.31.10"
+    "drizzle-kit": "^0.31.10",
+    "tsx": "catalog:"
   }
 }

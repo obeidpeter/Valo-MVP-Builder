@@ -1910,6 +1910,22 @@ paths:
             text/csv:
               schema:
                 type: string
+  /audit/legacy-integrity-assessment:
+    get:
+      operationId: getLegacyIntegrityAssessment
+      tags: [Audit]
+      summary: Read the tenant's preserved legacy-audit integrity assessment
+      responses:
+        "200":
+          description: Stored assessments for the selected organisation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LegacyAuditIntegrityAssessment"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /projects/{id}/audit:
     get:
       operationId: listAudit
@@ -3057,7 +3073,18 @@ components:
     AccessReviewRow:
       type: object
       required:
-        [at, actor, client, project, action, objectType, objectId, details]
+        [
+          at,
+          actor,
+          client,
+          project,
+          action,
+          objectType,
+          objectId,
+          details,
+          auditSource,
+          integrityStatus,
+        ]
       properties:
         at: { type: string }
         actor: { type: string }
@@ -3067,6 +3094,10 @@ components:
         objectType: { type: string }
         objectId: { type: string }
         details: { type: string }
+        auditSource:
+          $ref: "#/components/schemas/AuditSource"
+        integrityStatus:
+          $ref: "#/components/schemas/AuditIntegrityStatus"
     AccessReview:
       type: object
       required: [month, rows]
@@ -4066,7 +4097,7 @@ components:
         attestation: { type: string, minLength: 1 }
     AuditEvent:
       type: object
-      required: [id, eventType, createdAt]
+      required: [id, eventType, createdAt, auditSource, integrityStatus]
       properties:
         id: { type: string }
         userId: { type: string, nullable: true }
@@ -4077,6 +4108,57 @@ components:
         objectId: { type: string, nullable: true }
         details: { type: string, nullable: true }
         createdAt: { type: string }
+        auditSource:
+          $ref: "#/components/schemas/AuditSource"
+        integrityStatus:
+          $ref: "#/components/schemas/AuditIntegrityStatus"
+    AuditSource:
+      type: string
+      enum: [active_v2, legacy_v1_archive]
+    AuditIntegrityStatus:
+      type: string
+      enum: [active_v2_record, payload_hash_verified, known_discontinuity]
+    LegacyAuditIntegrityAssessment:
+      type: object
+      required:
+        [
+          id,
+          organisationId,
+          sourceCommit,
+          sourceEventCount,
+          verifiedRanges,
+          discontinuityRanges,
+          finding,
+          externalHeadSeq,
+          externalHeadHash,
+          sourceBackupSha256,
+          sourceAuditExportSha256,
+          rehearsalEvidenceSha256,
+          archiveDigest,
+          assessedAt,
+          createdAt,
+          integrityStatus,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        organisationId: { type: string, format: uuid }
+        sourceCommit: { type: string }
+        sourceEventCount: { type: integer }
+        verifiedRanges: { type: string }
+        discontinuityRanges: { type: string }
+        finding: { type: string }
+        probableCause: { type: string, nullable: true }
+        externalHeadSeq: { type: integer }
+        externalHeadHash: { type: string }
+        sourceBackupSha256: { type: string }
+        sourceAuditExportSha256: { type: string }
+        rehearsalEvidenceSha256: { type: string }
+        archiveDigest: { type: string }
+        assessedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        integrityStatus:
+          type: string
+          enum: [KNOWN_DISCONTINUITY]
     UploadUrlRequest:
       type: object
       required: [name, size, contentType]

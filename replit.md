@@ -17,6 +17,7 @@ pnpm run lint
 pnpm run verify:release-config
 pnpm run typecheck
 pnpm --filter @workspace/db migration:check
+pnpm --filter @workspace/db migration:bridge:legacy:check
 pnpm --filter @workspace/api-server test
 pnpm --filter @workspace/valo-workbench test
 pnpm --filter @workspace/api-server prove:doctrine:offline
@@ -29,9 +30,15 @@ Live model/prompt changes also require `pnpm --filter @workspace/api-server prov
 
 ## Required deployment configuration
 
-Keep secrets in Replit Secrets, never in source or build logs. At minimum, configure and verify:
+Keep secrets in Replit Secrets, never in source, command examples, screenshots,
+deployment records, or build logs. At minimum, configure and verify:
 
-- `DATABASE_URL` for PostgreSQL.
+- `DATABASE_URL` is the migration-owner connection used only by approved DDL
+  and migration operations. A production API must instead use a distinct
+  `VALO_RUNTIME_DATABASE_URL` that authenticates as the least-privilege
+  `valo_app_runtime` login. The two URLs target the same database but must not
+  reuse an identity or credential. Remove `DATABASE_URL` from the long-running
+  production service after migration wherever Replit permits it.
 - `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, and build-time `VITE_CLERK_PUBLISHABLE_KEY` (plus `VITE_CLERK_PROXY_URL` when the deployment uses the Clerk proxy URL explicitly).
 - `CORS_ALLOWED_ORIGINS` as an exact comma-separated allowlist of deployed web origins; `*` is deliberately rejected. Set `TRUST_PROXY=1` only behind Replit's trusted proxy.
 - `AI_INTEGRATIONS_OPENAI_API_KEY` and `AI_INTEGRATIONS_OPENAI_BASE_URL` where the model adapter is used. `OPENAI_ADAPTER_PRODUCTION_APPROVED=true` is an explicit approval attestation, not a substitute for provider-health and live proof evidence.
@@ -48,7 +55,123 @@ Keep secrets in Replit Secrets, never in source or build logs. At minimum, confi
 - The application database role must not be a PostgreSQL superuser or have `BYPASSRLS`. Use an approved migration identity for DDL and a least-privilege runtime identity for the application.
 - The RLS migration is fail-closed and can make unassigned legacy rows invisible. Reconcile and authoritatively backfill legacy organisation ownership before applying it. Never invent tenant ownership.
 
-Replit invokes `scripts/post-merge.sh` after a Git merge. It performs a frozen install and validates the migration journal, but deliberately does **not** apply migrations. The current Replit development database is a populated, push-managed legacy database with no Drizzle journal; applying the fresh `0000` baseline or FORCE-RLS `0001` directly would be unsafe. Preserve it, take a verified backup, inventory and map legacy tenant ownership, and implement/rehearse an explicit legacy bridge before any schema mutation. Never mark historical migrations as applied without proving that the live schema and constraints match them.
+Replit invokes `scripts/post-merge.sh` after a Git merge. It performs a frozen
+install and validates the migration journal, but deliberately does **not** apply
+migrations or run the legacy bridge. The current Replit development database is
+a populated, push-managed legacy database with no Drizzle journal; applying the
+fresh `0000` baseline or FORCE-RLS `0001` directly would be unsafe. Its only
+supported in-place upgrade is the reviewed one-time legacy bridge described
+below. Never mark historical migrations as applied without proving that the
+live schema and constraints match them.
+
+The current live Replit production database is also a populated copy of this
+legacy 19-table lineage; it is not a fresh database. Its upgrade therefore
+requires the same bridge under a production change window. Do not run the normal
+`0000` migration chain, `migration:apply`, `drizzle-kit push`, or an automatic
+publish schema diff against it. Development and production are separate source
+instances: capture and approve each instance's own counts, audit export/head,
+backup, restore, and rehearsal evidence rather than reusing evidence between
+them.
+
+## One-time Replit legacy bridge
+
+`scripts/migrations/replit-legacy-v1-to-v2.5.sql` upgrades only the exact
+19-table unjournalled Replit legacy lineage. Use its fail-closed runner; do not
+edit tokens manually or paste the SQL into an ordinary application workflow.
+The static check is safe and requires no database credentials:
+
+```sh
+pnpm --filter @workspace/db migration:bridge:legacy:check
+```
+
+During the isolated restore rehearsal, generate the v3 manifest's non-PII
+`legacyCatalog` object with
+`pnpm --filter @workspace/db migration:bridge:legacy:catalog-evidence`. It
+locks the restored 19-table source, emits only its canonical algorithm and
+SHA-256, and rolls back.
+
+The mutating runner requires the following values to be injected from Replit
+Secrets or another approved ephemeral secret mechanism:
+
+- `DATABASE_URL`: the approved migration-owner connection.
+- `VALO_RUNTIME_DATABASE_URL`: a separate URL for `valo_app_runtime`, with a
+  random decoded password of at least 32 characters. Build it by replacing only
+  owner userinfo so protocol, host, port, database, and every TLS/query option
+  remain identical to `DATABASE_URL`.
+- `VALO_BRIDGE_APPLICATION_QUIESCED_ACK`: set to the exact reviewed
+  acknowledgement only after the application and every writer are stopped.
+- `VALO_BRIDGE_PLATFORM_ADMIN_CLERK_USER_ID`: the explicitly approved active
+  legacy administrator identity.
+- `VALO_BRIDGE_SOURCE_BACKUP_PATH`: a private, runner-readable path to the
+  approved source backup.
+- `VALO_BRIDGE_SOURCE_AUDIT_EXPORT_PATH`: a private path to the exact ordered
+  audit NDJSON export. The runner hashes it and compares its bytes with a fresh
+  database-produced export.
+- `VALO_BRIDGE_REHEARSAL_MANIFEST_PATH`: a private path to the approved
+  authoritative v3 rehearsal manifest. It binds the target, all 19 counts and
+  table digests, normalized legacy catalog fingerprint, audit
+  classification/head, backup, and export.
+- `VALO_BRIDGE_EXPECTED_REHEARSAL_MANIFEST_SHA256`: the independently recorded
+  SHA-256 of that exact manifest. The manifest and all referenced evidence stay
+  outside the repository. On Linux every evidence path must be a regular file
+  with no group/world permissions (for example mode `0600`).
+
+Never put the values or evidence files in `.replit`, source control, a command
+line, or this document. A deployment record may contain secret-manager/private
+artifact references and runner-produced non-secret evidence hashes, but never
+URLs, passwords, raw identity values, production rows, or audit contents.
+
+Before execution, stop the legacy API and every job, workflow, and operator
+session that can write to PostgreSQL. Record the quiescence boundary, verify no
+remaining writers, take the approved backup and audit export, and prove an
+isolated restore. Reconcile that restore to the frozen counts and audit head,
+then rehearse the same command there. The bridge's `NOWAIT` table lock is a
+final collision detector, not evidence that the application was quiesced.
+
+Only after the restore and rehearsal evidence is approved may an authorised
+operator inject the inputs and run, first on the isolated restore and then in
+the recorded source-database change window:
+
+```sh
+pnpm --filter @workspace/db migration:bridge:legacy
+```
+
+The runner locks all 19 tables before any source read, then derives the database
+name, counts, audit head, and expected table digests solely from the authoritative
+manifest. It checks the exact schema fingerprint, private artifact bytes and
+computed hashes, migration artefacts,
+administrator identity, and role separation before committing. Any mismatch is
+an abort condition; do not alter the expected inputs to make a changed source
+pass. After success, retain the backup/restore and reconciliation evidence and
+configure both startup URLs as described below.
+
+Replit production startup requires `NODE_ENV=production`, the unavoidable
+managed `DATABASE_URL` for target/TLS attestation, and
+`VALO_RUNTIME_DATABASE_URL` for the actual pool. After the pool captures the
+runtime URL, application code deletes both variables from `process.env` and
+attests the authenticated runtime role before any listener or scheduled
+mutation starts. The owner credential was still injected into the process
+briefly; record that residual Replit limitation, restrict project access, and
+rotate it after the operation. Environment erasure is defense-in-depth, not an
+RCE/native-process isolation boundary.
+
+The source audit chain has a recorded known historical discontinuity. The
+original rows remain byte-preserved in `legacy_audit_events` with an explicit
+`known_discontinuity` assessment; the bridge does not rewrite or claim to repair
+that evidence. It starts the hash-version-2 active chain with a boundary event
+linked to the archived evidence and its approved hashes. Keep the exact affected
+ranges, counts, cause hypotheses, and source evidence in the private rehearsal
+manifest and database assessment, not this repository. Do not represent the
+legacy range as continuously verified.
+
+After the bridge, record its printed `ACTIVE_V2_HEAD=<seq>:<hash>` outside the
+database. The verifier requires that external active anchor plus the private
+manifest's legacy `<seq>:<hash>:<prev-hash>` anchor and archive digest via
+`AUDIT_EXPECTED_HEAD`, `AUDIT_EXPECTED_LEGACY_HEAD`, and
+`AUDIT_EXPECTED_LEGACY_ARCHIVE_SHA256` (scoped by
+`AUDIT_ORGANISATION_ID`). Run
+`pnpm --filter @workspace/api-server verify:audit`; its active-v2 and preserved
+legacy verdicts are intentionally separate.
 
 ## Feature-gated scope
 
@@ -64,9 +187,20 @@ Server-side commercial flags also default off when no tenant/global record exist
 ## Safe Replit promotion
 
 1. Merge only a reviewed commit with green GitHub CI; record the commit SHA and dependency/SBOM evidence.
-2. Sync the exact merged SHA. Confirm `postMerge` completed the frozen install and `migration:check`; it must not mutate the existing development database.
-3. Preserve the populated legacy development database. Before any future bridge, capture its schema and row inventory, create and verify a backup, authoritatively reconcile every tenant-owned row, and rehearse the bridge on a restore. Stop on journal, ownership, or RLS differences.
-4. Replit publish provisions a separate fresh production database and applies its schema diff. Confirm the target is fresh and separate before approval; do not point publish at the legacy development database. Record the resulting schema and verify it against the source migrations rather than assuming platform success proves equivalence.
+2. Sync the exact merged SHA. Confirm `postMerge` completed the frozen install
+   and `migration:check`, then run the static legacy-bridge check separately; no
+   source-synchronisation step may mutate the existing development database.
+3. Preserve the populated legacy development database. If its one-time upgrade
+   is authorised, follow the bridge procedure above with application
+   quiescence, verified backup and isolated restore, frozen source evidence, and
+   an approved rehearsal. Stop on journal, schema, count, audit, ownership, or
+   RLS differences.
+4. Treat the current production target as the confirmed copied 19-table legacy
+   database. Its bridge is mandatory and uses production-specific quiescence,
+   backup/restore, inventory, audit export/head, and rehearsal evidence. Do not
+   let Replit publish apply a schema diff or the normal `0000` migration chain;
+   verify the bridged catalog and runtime role before starting the v2.5
+   application.
 5. Run the checks above in Replit, plus live PostgreSQL isolation tests using a non-owner runtime role. Prove same-tenant success and cross-tenant denial for database and storage paths.
 6. Build and preview both artefacts. Verify sign-in, organisation selection, denied cross-tenant access, feature-off states, one synthetic intake/review/readiness/export journey, `/api/healthz`, logs, and rollback access.
 7. Publish only after the target URL, exact CORS origin, Clerk configuration, private storage paths, runtime identity, backups, flags, and required provider approvals are recorded. Keep new commercial flags off during initial promotion.

@@ -58,7 +58,8 @@ function excerptGroundedIn(excerpt: string, source: string): boolean {
     .split(/\.{2,}|\u2026/)
     .map((f) => norm(f))
     .filter((f) => f.length >= 8);
-  if (fragments.length === 0) return norm(excerpt).length > 0 && src.includes(norm(excerpt));
+  if (fragments.length === 0)
+    return norm(excerpt).length > 0 && src.includes(norm(excerpt));
   return fragments.every((f) => src.includes(f));
 }
 
@@ -76,7 +77,9 @@ function proveRiskGating(): void {
   const suggested = computeRisk({
     defects: [{ severity: "fatal", status: "suggested" }],
     requirements: [{ id: reqId, isMandatory: true, reviewStatus: "suggested" }],
-    evidence: [{ requirementId: reqId, evidenceStatus: "missing", suggested: true }],
+    evidence: [
+      { requirementId: reqId, evidenceStatus: "missing", suggested: true },
+    ],
   });
   check(
     "unconfirmed suggestions score 0 / low band",
@@ -88,7 +91,9 @@ function proveRiskGating(): void {
   const confirmed = computeRisk({
     defects: [{ severity: "fatal", status: "open" }],
     requirements: [{ id: reqId, isMandatory: true, reviewStatus: "confirmed" }],
-    evidence: [{ requirementId: reqId, evidenceStatus: "missing", suggested: false }],
+    evidence: [
+      { requirementId: reqId, evidenceStatus: "missing", suggested: false },
+    ],
   });
   check(
     "confirmed findings score higher (fatal -> critical)",
@@ -101,7 +106,9 @@ function proveRiskGating(): void {
   const mixed = computeRisk({
     defects: [],
     requirements: [{ id: reqId, isMandatory: true, reviewStatus: "confirmed" }],
-    evidence: [{ requirementId: reqId, evidenceStatus: "missing", suggested: true }],
+    evidence: [
+      { requirementId: reqId, evidenceStatus: "missing", suggested: true },
+    ],
   });
   check(
     "suggested evidence on a confirmed requirement adds no penalty",
@@ -148,6 +155,8 @@ async function proveLive(): Promise<void> {
   // OpenAI integration env vars — that keeps the offline proof runnable in CI.
   const { eq } = await import("drizzle-orm");
   const {
+    assertRuntimeDatabaseSecurity,
+    isProductionRuntime,
     db,
     clients,
     projects,
@@ -156,7 +165,12 @@ async function proveLive(): Promise<void> {
     evidenceItems,
     defects: defectsTable,
   } = await import("@workspace/db");
-  const { extractRequirements, mapEvidence, suggestDefects } = await import("../src/lib/llm");
+  if (isProductionRuntime(process.env)) {
+    throw new Error("the live doctrine proof is forbidden in production");
+  }
+  await assertRuntimeDatabaseSecurity();
+  const { extractRequirements, mapEvidence, suggestDefects } =
+    await import("../src/lib/llm");
   const stamp = new Date().toISOString();
   let clientId: string | null = null;
 
@@ -168,7 +182,11 @@ async function proveLive(): Promise<void> {
     clientId = client.id;
     const [project] = await db
       .insert(projects)
-      .values({ clientId: client.id, tenderTitle: "Doctrine Proof VMT-2026-014", status: "intake" })
+      .values({
+        clientId: client.id,
+        tenderTitle: "Doctrine Proof VMT-2026-014",
+        status: "intake",
+      })
       .returning();
     const [tenderDoc] = await db
       .insert(documents)
@@ -198,16 +216,32 @@ async function proveLive(): Promise<void> {
     // --- Flow 1: extract requirements from the tender -----------------------
     section("Doctrine proof #1: requirement suggestions cite a real source");
     const { requirements: extracted } = await extractRequirements(project.id, [
-      { id: tenderDoc.id, filename: tenderDoc.filename, type: tenderDoc.type, contentText: tenderDoc.contentText },
+      {
+        id: tenderDoc.id,
+        filename: tenderDoc.filename,
+        type: tenderDoc.type,
+        contentText: tenderDoc.contentText,
+      },
     ]);
-    check("model returned >= 3 requirements", extracted.length >= 3, `got ${extracted.length}`);
-    const noFabricatedDoc = extracted.every((r) => !r.sourceDocId || r.sourceDocId === tenderDoc.id);
+    check(
+      "model returned >= 3 requirements",
+      extracted.length >= 3,
+      `got ${extracted.length}`,
+    );
+    const noFabricatedDoc = extracted.every(
+      (r) => !r.sourceDocId || r.sourceDocId === tenderDoc.id,
+    );
     check("no requirement cites a fabricated document id", noFabricatedDoc);
     const allCited = extracted.every((r) => !!(r.pageRef || r.clauseRef));
     check(
       "every requirement carries a page/clause citation",
       allCited,
-      allCited ? undefined : `uncited: ${extracted.filter((r) => !(r.pageRef || r.clauseRef)).map((r) => r.text.slice(0, 40)).join(" | ")}`,
+      allCited
+        ? undefined
+        : `uncited: ${extracted
+            .filter((r) => !(r.pageRef || r.clauseRef))
+            .map((r) => r.text.slice(0, 40))
+            .join(" | ")}`,
     );
 
     // Persist as the route does (suggested), then confirm as a reviewer would.
@@ -216,7 +250,10 @@ async function proveLive(): Promise<void> {
       .values(
         extracted.map((r) => ({
           projectId: project.id,
-          sourceDocId: r.sourceDocId && validDocIds.has(r.sourceDocId) ? r.sourceDocId : null,
+          sourceDocId:
+            r.sourceDocId && validDocIds.has(r.sourceDocId)
+              ? r.sourceDocId
+              : null,
           pageRef: r.pageRef ?? null,
           clauseRef: r.clauseRef ?? null,
           text: r.text,
@@ -228,7 +265,10 @@ async function proveLive(): Promise<void> {
         })),
       )
       .returning();
-    check("requirements persist in 'suggested' state", insertedReqs.every((r) => r.reviewStatus === "suggested"));
+    check(
+      "requirements persist in 'suggested' state",
+      insertedReqs.every((r) => r.reviewStatus === "suggested"),
+    );
 
     const bbeeReq = insertedReqs.find((r) => /b-?bbee/i.test(r.text));
     check("a B-BBEE mandatory requirement was extracted", !!bbeeReq);
@@ -238,39 +278,75 @@ async function proveLive(): Promise<void> {
       .update(requirementsTable)
       .set({ reviewStatus: "confirmed" })
       .where(eq(requirementsTable.projectId, project.id));
-    const confirmedReqs = insertedReqs.map((r) => ({ ...r, reviewStatus: "confirmed" }));
+    const confirmedReqs = insertedReqs.map((r) => ({
+      ...r,
+      reviewStatus: "confirmed",
+    }));
 
     // --- Flow 2: map evidence from the bid ----------------------------------
-    section("Doctrine proof #2: evidence excerpts are verbatim, missing != invented");
+    section(
+      "Doctrine proof #2: evidence excerpts are verbatim, missing != invented",
+    );
     const { items } = await mapEvidence(
       project.id,
-      confirmedReqs.map((r) => ({ id: r.id, text: r.text, expectedEvidence: r.expectedEvidence })),
-      [{ id: bidDoc.id, filename: bidDoc.filename, type: bidDoc.type, contentText: bidDoc.contentText }],
+      confirmedReqs.map((r) => ({
+        id: r.id,
+        text: r.text,
+        expectedEvidence: r.expectedEvidence,
+      })),
+      [
+        {
+          id: bidDoc.id,
+          filename: bidDoc.filename,
+          type: bidDoc.type,
+          contentText: bidDoc.contentText,
+        },
+      ],
     );
     const reqIds = new Set(confirmedReqs.map((r) => r.id));
-    check("every evidence item maps to a real requirement", items.every((i) => reqIds.has(i.requirementId)));
+    check(
+      "every evidence item maps to a real requirement",
+      items.every((i) => reqIds.has(i.requirementId)),
+    );
     check(
       "no evidence item cites a fabricated document id",
       items.every((i) => !i.documentId || i.documentId === bidDoc.id),
     );
 
     const presentItems = items.filter((i) => i.evidenceStatus === "present");
-    const groundedExcerpts = presentItems.every((i) => !!i.excerpt && excerptGroundedIn(i.excerpt, BID_TEXT));
+    const groundedExcerpts = presentItems.every(
+      (i) => !!i.excerpt && excerptGroundedIn(i.excerpt, BID_TEXT),
+    );
     check(
       "every 'present' excerpt is a verbatim quote from the bid",
       presentItems.length > 0 && groundedExcerpts,
       groundedExcerpts
         ? undefined
-        : `ungrounded: ${presentItems.filter((i) => !i.excerpt || !excerptGroundedIn(i.excerpt, BID_TEXT)).map((i) => JSON.stringify(i.excerpt)).join(" | ")}`,
+        : `ungrounded: ${presentItems
+            .filter(
+              (i) => !i.excerpt || !excerptGroundedIn(i.excerpt, BID_TEXT),
+            )
+            .map((i) => JSON.stringify(i.excerpt))
+            .join(" | ")}`,
     );
 
     if (bbeeReq) {
       const bbeeEvidence = items.find((i) => i.requirementId === bbeeReq.id);
-      const notPresent = !bbeeEvidence || bbeeEvidence.evidenceStatus !== "present";
-      check("absent B-BBEE evidence is not reported 'present'", notPresent, bbeeEvidence ? `status=${bbeeEvidence.evidenceStatus}` : "no row");
+      const notPresent =
+        !bbeeEvidence || bbeeEvidence.evidenceStatus !== "present";
+      check(
+        "absent B-BBEE evidence is not reported 'present'",
+        notPresent,
+        bbeeEvidence ? `status=${bbeeEvidence.evidenceStatus}` : "no row",
+      );
       const noInventedExcerpt =
-        !bbeeEvidence || !bbeeEvidence.excerpt || excerptGroundedIn(bbeeEvidence.excerpt, BID_TEXT);
-      check("no fabricated excerpt for the absent B-BBEE certificate", noInventedExcerpt);
+        !bbeeEvidence ||
+        !bbeeEvidence.excerpt ||
+        excerptGroundedIn(bbeeEvidence.excerpt, BID_TEXT);
+      check(
+        "no fabricated excerpt for the absent B-BBEE certificate",
+        noInventedExcerpt,
+      );
     }
 
     // Persist evidence as the route does (suggested).
@@ -280,7 +356,8 @@ async function proveLive(): Promise<void> {
         items.map((i) => ({
           projectId: project.id,
           requirementId: i.requirementId,
-          documentId: i.documentId && i.documentId === bidDoc.id ? i.documentId : null,
+          documentId:
+            i.documentId && i.documentId === bidDoc.id ? i.documentId : null,
           evidenceStatus: i.evidenceStatus ?? "pending",
           excerpt: i.excerpt ?? null,
           notes: i.notes ?? null,
@@ -288,26 +365,48 @@ async function proveLive(): Promise<void> {
         })),
       )
       .returning();
-    check("evidence persists in suggested state", insertedEv.every((e) => e.suggested === true));
+    check(
+      "evidence persists in suggested state",
+      insertedEv.every((e) => e.suggested === true),
+    );
 
     // --- Flow 3: suggest defects --------------------------------------------
-    section("Doctrine proof: defect suggestions are grounded and stay suggested");
+    section(
+      "Doctrine proof: defect suggestions are grounded and stay suggested",
+    );
     const { defects: suggestedDefects } = await suggestDefects(
       project.id,
-      confirmedReqs.map((r) => ({ id: r.id, text: r.text, isMandatory: r.isMandatory })),
-      insertedEv.map((e) => ({ requirementId: e.requirementId, evidenceStatus: e.evidenceStatus, notes: e.notes })),
+      confirmedReqs.map((r) => ({
+        id: r.id,
+        text: r.text,
+        isMandatory: r.isMandatory,
+      })),
+      insertedEv.map((e) => ({
+        requirementId: e.requirementId,
+        evidenceStatus: e.evidenceStatus,
+        notes: e.notes,
+      })),
     );
-    check("at least one defect suggested", suggestedDefects.length > 0, `got ${suggestedDefects.length}`);
+    check(
+      "at least one defect suggested",
+      suggestedDefects.length > 0,
+      `got ${suggestedDefects.length}`,
+    );
     check(
       "no defect references a fabricated requirement id",
-      suggestedDefects.every((d) => !d.requirementId || reqIds.has(d.requirementId)),
+      suggestedDefects.every(
+        (d) => !d.requirementId || reqIds.has(d.requirementId),
+      ),
     );
     const insertedDefects = await db
       .insert(defectsTable)
       .values(
         suggestedDefects.map((d) => ({
           projectId: project.id,
-          requirementId: d.requirementId && reqIds.has(d.requirementId) ? d.requirementId : null,
+          requirementId:
+            d.requirementId && reqIds.has(d.requirementId)
+              ? d.requirementId
+              : null,
           type: d.type,
           severity: d.severity,
           description: d.description,
@@ -317,15 +416,31 @@ async function proveLive(): Promise<void> {
         })),
       )
       .returning();
-    check("defects persist in 'suggested' state", insertedDefects.every((d) => d.status === "suggested"));
+    check(
+      "defects persist in 'suggested' state",
+      insertedDefects.every((d) => d.status === "suggested"),
+    );
 
     // --- End-to-end risk gating on the real seeded data ---------------------
-    section("Doctrine proof #3 (live): suggested findings do not move the score");
-    const reqsForRisk = confirmedReqs.map((r) => ({ id: r.id, isMandatory: r.isMandatory, reviewStatus: "confirmed" }));
+    section(
+      "Doctrine proof #3 (live): suggested findings do not move the score",
+    );
+    const reqsForRisk = confirmedReqs.map((r) => ({
+      id: r.id,
+      isMandatory: r.isMandatory,
+      reviewStatus: "confirmed",
+    }));
     const riskWhileSuggested = computeRisk({
-      defects: insertedDefects.map((d) => ({ severity: d.severity as any, status: d.status })),
+      defects: insertedDefects.map((d) => ({
+        severity: d.severity as any,
+        status: d.status,
+      })),
       requirements: reqsForRisk,
-      evidence: insertedEv.map((e) => ({ requirementId: e.requirementId, evidenceStatus: e.evidenceStatus, suggested: e.suggested })),
+      evidence: insertedEv.map((e) => ({
+        requirementId: e.requirementId,
+        evidenceStatus: e.evidenceStatus,
+        suggested: e.suggested,
+      })),
     });
     check(
       "risk score is 0 while all findings are suggested",
@@ -334,9 +449,16 @@ async function proveLive(): Promise<void> {
     );
 
     const riskAfterConfirm = computeRisk({
-      defects: insertedDefects.map((d) => ({ severity: d.severity as any, status: "open" })),
+      defects: insertedDefects.map((d) => ({
+        severity: d.severity as any,
+        status: "open",
+      })),
       requirements: reqsForRisk,
-      evidence: insertedEv.map((e) => ({ requirementId: e.requirementId, evidenceStatus: e.evidenceStatus, suggested: false })),
+      evidence: insertedEv.map((e) => ({
+        requirementId: e.requirementId,
+        evidenceStatus: e.evidenceStatus,
+        suggested: false,
+      })),
     });
     check(
       "risk score rises once findings are confirmed",
@@ -353,7 +475,11 @@ async function proveLive(): Promise<void> {
 
 async function main(): Promise<void> {
   const offline = process.argv.includes("--offline");
-  console.log(offline ? "Running OFFLINE doctrine proof only.\n" : "Running FULL doctrine proof (offline + live OpenAI).\n");
+  console.log(
+    offline
+      ? "Running OFFLINE doctrine proof only.\n"
+      : "Running FULL doctrine proof (offline + live OpenAI).\n",
+  );
 
   proveRiskGating();
   if (!offline) {
