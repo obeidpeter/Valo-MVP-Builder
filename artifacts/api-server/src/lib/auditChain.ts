@@ -21,6 +21,13 @@ import { createHash } from "node:crypto";
 /** prevHash of the first chained event. */
 export const AUDIT_GENESIS_HASH = "0".repeat(64);
 
+/**
+ * v1 is the pre-tenancy payload; v2 binds the tenant ID into every hash.
+ * Active writers and active verification use only v2. v1 exists solely for
+ * assessing byte-preserved rows in legacy_audit_events.
+ */
+export type AuditHashVersion = 1 | 2;
+
 export interface AuditChainPayload {
   seq: number;
   /** Tenant chain identity; prevents hashes from being replayed across organisations. */
@@ -41,10 +48,12 @@ export interface AuditChainPayload {
  * and explicit — object key order must never depend on the caller — and the
  * encoding is JSON so delimiter injection via string fields is impossible.
  */
-export function canonicalAuditPayload(p: AuditChainPayload): string {
-  return JSON.stringify([
+export function canonicalAuditPayload(
+  p: AuditChainPayload,
+  hashVersion: AuditHashVersion = 2,
+): string {
+  const commonPayload = [
     p.seq,
-    p.organisationId,
     p.userId,
     p.userName,
     p.projectId,
@@ -53,21 +62,28 @@ export function canonicalAuditPayload(p: AuditChainPayload): string {
     p.objectId,
     p.details,
     p.createdAt,
-  ]);
+  ];
+  return JSON.stringify(
+    hashVersion === 1
+      ? commonPayload
+      : [p.seq, p.organisationId, ...commonPayload.slice(1)],
+  );
 }
 
 export function computeAuditHash(
   prevHash: string,
   payload: AuditChainPayload,
+  hashVersion: AuditHashVersion = 2,
 ): string {
   return createHash("sha256")
     .update(prevHash)
     .update("\n")
-    .update(canonicalAuditPayload(payload))
+    .update(canonicalAuditPayload(payload, hashVersion))
     .digest("hex");
 }
 
 export interface AuditChainRow extends AuditChainPayload {
+  hashVersion: number;
   prevHash: string;
   hash: string;
 }
@@ -122,7 +138,20 @@ export function verifyAuditChain(
         },
       };
     }
-    const recomputed = computeAuditHash(prevHash, row);
+    if (row.hashVersion !== 2) {
+      return {
+        ok: false,
+        checked: i,
+        error: {
+          seq: row.seq,
+          reason:
+            row.hashVersion === 1
+              ? "legacy v1 event must be held in the assessed legacy archive, not the active chain"
+              : `unsupported audit hash version ${row.hashVersion}`,
+        },
+      };
+    }
+    const recomputed = computeAuditHash(prevHash, row, 2);
     if (row.hash !== recomputed) {
       return {
         ok: false,
@@ -163,4 +192,66 @@ export function verifyAuditChain(
   }
 
   return { ok: true, checked: sorted.length };
+}
+
+export interface LegacyAuditArchiveAssessment {
+  status: "locally_intact" | "known_discontinuity" | "structurally_broken";
+  checked: number;
+  hashMismatchSequences: number[];
+  error?: { seq: number; reason: string };
+}
+
+/**
+ * Reassesses immutable v1 archive bytes without presenting a known mismatch as
+ * a valid chain. Linkage and the external head remain independently checked.
+ */
+export function assessLegacyAuditArchive(
+  rows: AuditChainRow[],
+  expectedHead: AuditChainHead,
+): LegacyAuditArchiveAssessment {
+  const sorted = [...rows].sort((a, b) => a.seq - b.seq);
+  let previousHash = AUDIT_GENESIS_HASH;
+  const hashMismatchSequences: number[] = [];
+  for (let index = 0; index < sorted.length; index++) {
+    const row = sorted[index];
+    const expectedSeq = index + 1;
+    if (row.seq !== expectedSeq || row.prevHash !== previousHash) {
+      return {
+        status: "structurally_broken",
+        checked: index,
+        hashMismatchSequences,
+        error: {
+          seq: row.seq,
+          reason:
+            row.seq !== expectedSeq
+              ? `sequence gap: expected ${expectedSeq}, found ${row.seq}`
+              : "broken predecessor link",
+        },
+      };
+    }
+    if (computeAuditHash(previousHash, row, 1) !== row.hash) {
+      hashMismatchSequences.push(row.seq);
+    }
+    previousHash = row.hash;
+  }
+  const anchored = sorted[expectedHead.seq - 1];
+  if (!anchored || anchored.hash !== expectedHead.hash) {
+    return {
+      status: "structurally_broken",
+      checked: sorted.length,
+      hashMismatchSequences,
+      error: {
+        seq: expectedHead.seq,
+        reason: "legacy external head is absent or changed",
+      },
+    };
+  }
+  return {
+    status:
+      hashMismatchSequences.length === 0
+        ? "locally_intact"
+        : "known_discontinuity",
+    checked: sorted.length,
+    hashMismatchSequences,
+  };
 }

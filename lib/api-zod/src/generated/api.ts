@@ -2848,9 +2848,36 @@ export const GetAccessReviewResponse = zod.object({
   "action": zod.string(),
   "objectType": zod.string(),
   "objectId": zod.string(),
-  "details": zod.string()
+  "details": zod.string(),
+  "auditSource": zod.enum(['active_v2', 'legacy_v1_archive']),
+  "integrityStatus": zod.enum(['active_v2_record', 'payload_hash_verified', 'known_discontinuity'])
 }))
 })
+
+
+/**
+ * @summary Read the tenant's preserved legacy-audit integrity assessment
+ */
+export const GetLegacyIntegrityAssessmentResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "sourceCommit": zod.string(),
+  "sourceEventCount": zod.number(),
+  "verifiedRanges": zod.string(),
+  "discontinuityRanges": zod.string(),
+  "finding": zod.string(),
+  "probableCause": zod.string().nullish(),
+  "externalHeadSeq": zod.number(),
+  "externalHeadHash": zod.string(),
+  "sourceBackupSha256": zod.string(),
+  "sourceAuditExportSha256": zod.string(),
+  "rehearsalEvidenceSha256": zod.string(),
+  "archiveDigest": zod.string(),
+  "assessedAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date(),
+  "integrityStatus": zod.enum(['KNOWN_DISCONTINUITY'])
+})
+export const GetLegacyIntegrityAssessmentResponse = zod.array(GetLegacyIntegrityAssessmentResponseItem)
 
 
 export const ListAuditParams = zod.object({
@@ -2866,7 +2893,9 @@ export const ListAuditResponseItem = zod.object({
   "objectType": zod.string().nullish(),
   "objectId": zod.string().nullish(),
   "details": zod.string().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "auditSource": zod.enum(['active_v2', 'legacy_v1_archive']),
+  "integrityStatus": zod.enum(['active_v2_record', 'payload_hash_verified', 'known_discontinuity'])
 })
 export const ListAuditResponse = zod.array(ListAuditResponseItem)
 
@@ -2915,5 +2944,3 @@ export const GetStorageObjectParams = zod.object({
 })
 
 export const GetStorageObjectResponse = zod.unknown()
-
-

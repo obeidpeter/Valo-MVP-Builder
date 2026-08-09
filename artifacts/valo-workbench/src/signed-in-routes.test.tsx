@@ -39,6 +39,11 @@ vi.mock("@workspace/api-client-react", async (importOriginal) => {
       data: { month: "2026-08", rows: [] },
       isLoading: false,
     }),
+    useGetLegacyIntegrityAssessment: () => ({
+      data: [],
+      isLoading: false,
+      isError: false,
+    }),
   };
 });
 

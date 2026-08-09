@@ -85,20 +85,22 @@ export async function writeAuditTx(
     createdAt: new Date().toISOString(),
   };
   const prevHash = last?.hash ?? AUDIT_GENESIS_HASH;
-  await tx.insert(auditEvents).values({
-    organisationId,
-    userId: payload.userId,
-    userName: payload.userName,
-    projectId: payload.projectId,
-    eventType: payload.eventType,
-    objectType: payload.objectType,
-    objectId: payload.objectId,
-    details: payload.details,
-    seq: payload.seq,
-    prevHash,
-    hash: computeAuditHash(prevHash, payload),
-    createdAt: new Date(payload.createdAt),
-  });
+  const hash = computeAuditHash(prevHash, payload);
+  // Keep DB-assigned identity/ordinal columns out of the target list entirely.
+  // Drizzle includes `row_no = DEFAULT` for a schema insert, which still needs
+  // INSERT(row_no) and would defeat the runtime role's explicit-ordinal denial.
+  await tx.execute(sql`
+    INSERT INTO public.audit_events (
+      organisation_id, user_id, user_name, project_id, event_type,
+      object_type, object_id, details, seq, prev_hash, hash, hash_version,
+      created_at
+    ) VALUES (
+      ${organisationId}::uuid, ${payload.userId}::uuid, ${payload.userName},
+      ${payload.projectId}::uuid, ${payload.eventType}, ${payload.objectType},
+      ${payload.objectId}, ${payload.details}, ${payload.seq}, ${prevHash},
+      ${hash}, 2, ${payload.createdAt}::timestamptz
+    )
+  `);
 }
 
 export async function writeAudit(params: AuditParams): Promise<void> {

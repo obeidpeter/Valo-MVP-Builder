@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
-import { useGetAccessReview } from "@workspace/api-client-react";
+import {
+  useGetAccessReview,
+  useGetLegacyIntegrityAssessment,
+} from "@workspace/api-client-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -41,11 +44,13 @@ export default function SecurityAudit() {
   const online = useOnlineStatus();
   const [month, setMonth] = useState(currentMonth);
   const query = useGetAccessReview({ month, format: "json" });
+  const assessmentQuery = useGetLegacyIntegrityAssessment();
   const review = useMemo(
     () =>
       query.data && typeof query.data !== "string" ? query.data : undefined,
     [query.data],
   );
+  const assessment = assessmentQuery.data?.[0];
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-7 p-5 sm:p-8">
@@ -53,14 +58,70 @@ export default function SecurityAudit() {
         eyebrow="Restricted administration"
         title="Security & audit"
         description="Attributed access-review evidence and the status of security queues that require independent, server-enforced controls."
-        state={!online ? "offline" : query.isError ? "error" : "active"}
+        state={
+          !online || query.isError || assessmentQuery.isError
+            ? !online
+              ? "offline"
+              : "error"
+            : "active"
+        }
       />
 
-      <StatusPanel
-        state="partial"
-        title="Immutability assurance is incomplete"
-        description="The access review is available, but this interface has no evidence that audit events are externally anchored or retained in immutable storage. A locally rewriteable chain must not be treated as sufficient tamper protection."
-      />
+      {assessmentQuery.isLoading ? (
+        <LoadingPanel label="Loading legacy audit integrity assessment" />
+      ) : assessmentQuery.isError ? (
+        <DataErrorPanel
+          title="Legacy integrity assessment could not be loaded"
+          description="Do not infer an intact legacy chain while its stored assessment is unavailable. Check connectivity and role authorisation, then retry."
+          onRetry={() => void assessmentQuery.refetch()}
+        />
+      ) : assessment ? (
+        <StatusPanel
+          state="pending"
+          title="Legacy v1 audit discontinuity is recorded"
+          description={assessment.finding}
+        >
+          <dl className="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Preserved events
+              </dt>
+              <dd className="mt-1 font-mono">{assessment.sourceEventCount}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Payload hashes verified
+              </dt>
+              <dd className="mt-1 font-mono">{assessment.verifiedRanges}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Known discontinuity
+              </dt>
+              <dd className="mt-1 font-mono">
+                {assessment.discontinuityRanges}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Assessed
+              </dt>
+              <dd className="mt-1">{auditTime(assessment.assessedAt)}</dd>
+            </div>
+          </dl>
+          {assessment.probableCause ? (
+            <p className="mt-4 border-t border-amber-200 pt-3 text-xs leading-5 text-muted-foreground">
+              Recorded probable cause: {assessment.probableCause}
+            </p>
+          ) : null}
+        </StatusPanel>
+      ) : (
+        <StatusPanel
+          state="empty"
+          title="No legacy integrity assessment is stored"
+          description="No preserved legacy stream assessment was returned for the selected organisation. This is not evidence that a legacy chain is intact."
+        />
+      )}
 
       <section
         aria-labelledby="security-controls-heading"
@@ -167,6 +228,9 @@ export default function SecurityAudit() {
                   <th scope="col" className="px-4 py-3 font-medium">
                     Details
                   </th>
+                  <th scope="col" className="px-4 py-3 font-medium">
+                    Audit provenance
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -202,6 +266,20 @@ export default function SecurityAudit() {
                     </td>
                     <td className="max-w-sm px-4 py-3 text-xs text-muted-foreground">
                       {row.details || "No additional detail"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StateBadge
+                        state={
+                          row.auditSource === "legacy_v1_archive"
+                            ? "pending"
+                            : "partial"
+                        }
+                        label={
+                          row.auditSource === "legacy_v1_archive"
+                            ? `Legacy v1 · ${row.integrityStatus.replace(/_/g, " ")}`
+                            : "Active v2 chain record"
+                        }
+                      />
                     </td>
                   </tr>
                 ))}

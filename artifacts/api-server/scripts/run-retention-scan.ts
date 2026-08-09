@@ -10,12 +10,14 @@
  * through the existing manual flow (archive gate + deletion certificate).
  *
  * Usage: pnpm --filter @workspace/api-server run retention:scan
- * Requires DATABASE_URL. Exit code 0 = scan completed, 1 = scan crashed.
+ * Production requires DATABASE_URL only for target attestation plus the
+ * constrained VALO_RUNTIME_DATABASE_URL used by the pool.
  */
-import { pool } from "@workspace/db";
+import { assertRuntimeDatabaseSecurity, pool } from "@workspace/db";
 import { runRetentionScan } from "../src/lib/retentionScan";
 
 async function main(): Promise<number> {
+  await assertRuntimeDatabaseSecurity();
   const result = await runRetentionScan();
   console.log(
     `Retention scan: ${result.scanned} concluded engagement(s) considered, ` +

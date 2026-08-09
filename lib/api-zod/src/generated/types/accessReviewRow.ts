@@ -15,6 +15,8 @@
  *
  * OpenAPI spec version: 2.5.0
  */
+import type { AuditIntegrityStatus } from './auditIntegrityStatus';
+import type { AuditSource } from './auditSource';
 
 export interface AccessReviewRow {
   at: string;
@@ -25,4 +27,6 @@ export interface AccessReviewRow {
   objectType: string;
   objectId: string;
   details: string;
+  auditSource: AuditSource;
+  integrityStatus: AuditIntegrityStatus;
 }

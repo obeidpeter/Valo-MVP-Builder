@@ -15,19 +15,10 @@
  *
  * OpenAPI spec version: 2.5.0
  */
-import type { AuditIntegrityStatus } from './auditIntegrityStatus';
-import type { AuditSource } from './auditSource';
 
-export interface AuditEvent {
-  id: string;
-  userId?: string | null;
-  userName?: string | null;
-  projectId?: string | null;
-  eventType: string;
-  objectType?: string | null;
-  objectId?: string | null;
-  details?: string | null;
-  createdAt: string;
-  auditSource: AuditSource;
-  integrityStatus: AuditIntegrityStatus;
-}
+export type LegacyAuditIntegrityAssessmentIntegrityStatus = typeof LegacyAuditIntegrityAssessmentIntegrityStatus[keyof typeof LegacyAuditIntegrityAssessmentIntegrityStatus];
+
+
+export const LegacyAuditIntegrityAssessmentIntegrityStatus = {
+  KNOWN_DISCONTINUITY: 'KNOWN_DISCONTINUITY',
+} as const;

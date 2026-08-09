@@ -15,19 +15,24 @@
  *
  * OpenAPI spec version: 2.5.0
  */
-import type { AuditIntegrityStatus } from './auditIntegrityStatus';
-import type { AuditSource } from './auditSource';
+import type { LegacyAuditIntegrityAssessmentIntegrityStatus } from './legacyAuditIntegrityAssessmentIntegrityStatus';
 
-export interface AuditEvent {
+export interface LegacyAuditIntegrityAssessment {
   id: string;
-  userId?: string | null;
-  userName?: string | null;
-  projectId?: string | null;
-  eventType: string;
-  objectType?: string | null;
-  objectId?: string | null;
-  details?: string | null;
-  createdAt: string;
-  auditSource: AuditSource;
-  integrityStatus: AuditIntegrityStatus;
+  organisationId: string;
+  sourceCommit: string;
+  sourceEventCount: number;
+  verifiedRanges: string;
+  discontinuityRanges: string;
+  finding: string;
+  probableCause?: string | null;
+  externalHeadSeq: number;
+  externalHeadHash: string;
+  sourceBackupSha256: string;
+  sourceAuditExportSha256: string;
+  rehearsalEvidenceSha256: string;
+  archiveDigest: string;
+  assessedAt: Date;
+  createdAt: Date;
+  integrityStatus: LegacyAuditIntegrityAssessmentIntegrityStatus;
 }

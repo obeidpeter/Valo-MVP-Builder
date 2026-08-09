@@ -843,6 +843,8 @@ export interface AccessReviewRow {
   objectType: string;
   objectId: string;
   details: string;
+  auditSource: AuditSource;
+  integrityStatus: AuditIntegrityStatus;
 }
 
 export interface AccessReview {
@@ -2300,6 +2302,52 @@ export interface AuditEvent {
   objectId?: string | null;
   details?: string | null;
   createdAt: string;
+  auditSource: AuditSource;
+  integrityStatus: AuditIntegrityStatus;
+}
+
+export type AuditSource = typeof AuditSource[keyof typeof AuditSource];
+
+
+export const AuditSource = {
+  active_v2: 'active_v2',
+  legacy_v1_archive: 'legacy_v1_archive',
+} as const;
+
+export type AuditIntegrityStatus = typeof AuditIntegrityStatus[keyof typeof AuditIntegrityStatus];
+
+
+export const AuditIntegrityStatus = {
+  active_v2_record: 'active_v2_record',
+  payload_hash_verified: 'payload_hash_verified',
+  known_discontinuity: 'known_discontinuity',
+} as const;
+
+export type LegacyAuditIntegrityAssessmentIntegrityStatus = typeof LegacyAuditIntegrityAssessmentIntegrityStatus[keyof typeof LegacyAuditIntegrityAssessmentIntegrityStatus];
+
+
+export const LegacyAuditIntegrityAssessmentIntegrityStatus = {
+  KNOWN_DISCONTINUITY: 'KNOWN_DISCONTINUITY',
+} as const;
+
+export interface LegacyAuditIntegrityAssessment {
+  id: string;
+  organisationId: string;
+  sourceCommit: string;
+  sourceEventCount: number;
+  verifiedRanges: string;
+  discontinuityRanges: string;
+  finding: string;
+  probableCause?: string | null;
+  externalHeadSeq: number;
+  externalHeadHash: string;
+  sourceBackupSha256: string;
+  sourceAuditExportSha256: string;
+  rehearsalEvidenceSha256: string;
+  archiveDigest: string;
+  assessedAt: string;
+  createdAt: string;
+  integrityStatus: LegacyAuditIntegrityAssessmentIntegrityStatus;
 }
 
 export interface UploadUrlRequest {
@@ -2422,4 +2470,3 @@ export const GetAccessReviewFormat = {
   json: 'json',
   csv: 'csv',
 } as const;
-

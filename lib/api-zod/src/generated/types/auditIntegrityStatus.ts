@@ -15,19 +15,12 @@
  *
  * OpenAPI spec version: 2.5.0
  */
-import type { AuditIntegrityStatus } from './auditIntegrityStatus';
-import type { AuditSource } from './auditSource';
 
-export interface AuditEvent {
-  id: string;
-  userId?: string | null;
-  userName?: string | null;
-  projectId?: string | null;
-  eventType: string;
-  objectType?: string | null;
-  objectId?: string | null;
-  details?: string | null;
-  createdAt: string;
-  auditSource: AuditSource;
-  integrityStatus: AuditIntegrityStatus;
-}
+export type AuditIntegrityStatus = typeof AuditIntegrityStatus[keyof typeof AuditIntegrityStatus];
+
+
+export const AuditIntegrityStatus = {
+  active_v2_record: 'active_v2_record',
+  payload_hash_verified: 'payload_hash_verified',
+  known_discontinuity: 'known_discontinuity',
+} as const;

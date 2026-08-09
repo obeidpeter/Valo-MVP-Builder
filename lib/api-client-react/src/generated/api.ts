@@ -71,6 +71,7 @@ import type {
   GetMonthlyCostReportParams,
   HealthStatus,
   InternalServerErrorResponse,
+  LegacyAuditIntegrityAssessment,
   ListProjectsParams,
   MonthlyCostReport,
   NotFoundResponse,
@@ -6990,6 +6991,82 @@ export function useGetAccessReview<TData = Awaited<ReturnType<typeof getAccessRe
 
 
 
+export const getGetLegacyIntegrityAssessmentUrl = () => {
+
+
+
+
+  return `/api/audit/legacy-integrity-assessment`
+}
+
+/**
+ * @summary Read the tenant's preserved legacy-audit integrity assessment
+ */
+export const getLegacyIntegrityAssessment = async ( options?: RequestInit): Promise<LegacyAuditIntegrityAssessment[]> => {
+
+  return customFetch<LegacyAuditIntegrityAssessment[]>(getGetLegacyIntegrityAssessmentUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLegacyIntegrityAssessmentQueryKey = () => {
+    return [
+    `/api/audit/legacy-integrity-assessment`
+    ] as const;
+    }
+
+
+export const getGetLegacyIntegrityAssessmentQueryOptions = <TData = Awaited<ReturnType<typeof getLegacyIntegrityAssessment>>, TError = ErrorType<ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLegacyIntegrityAssessment>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLegacyIntegrityAssessmentQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLegacyIntegrityAssessment>>> = ({ signal }) => getLegacyIntegrityAssessment({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLegacyIntegrityAssessment>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLegacyIntegrityAssessmentQueryResult = NonNullable<Awaited<ReturnType<typeof getLegacyIntegrityAssessment>>>
+export type GetLegacyIntegrityAssessmentQueryError = ErrorType<ForbiddenResponse>
+
+
+/**
+ * @summary Read the tenant's preserved legacy-audit integrity assessment
+ */
+
+export function useGetLegacyIntegrityAssessment<TData = Awaited<ReturnType<typeof getLegacyIntegrityAssessment>>, TError = ErrorType<ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLegacyIntegrityAssessment>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLegacyIntegrityAssessmentQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 export const getListAuditUrl = (id: string,) => {
 
 
@@ -7201,7 +7278,6 @@ export function useGetStorageObject<TData = Awaited<ReturnType<typeof getStorage
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
 
 
 

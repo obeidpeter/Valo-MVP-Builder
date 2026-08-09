@@ -2,7 +2,7 @@ import "../test-env";
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import {
   db,
   organisations,
@@ -108,6 +108,9 @@ before(async () => {
 
 after(async () => {
   await withTenantDatabase(organisationId, async () => {
+    await db.execute(
+      sql`SELECT set_config('valo.audit_test_cleanup', 'approved', true)`,
+    );
     await db
       .delete(retentionRequests)
       .where(eq(retentionRequests.projectId, concludedOldId));

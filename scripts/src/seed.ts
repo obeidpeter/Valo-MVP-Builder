@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   db,
   pool,
@@ -9,8 +10,8 @@ import {
   defects,
   boqChecks,
   vaultItems,
-  auditEvents,
   eq,
+  isProductionRuntime,
   withTenantDatabase,
 } from "@workspace/db";
 
@@ -442,31 +443,39 @@ const packages: SeedPackage[] = [
 ];
 
 async function seed() {
+  if (isProductionRuntime(process.env)) {
+    throw new Error("sample-data seeding is forbidden in production");
+  }
   console.log("Seeding Valo Bid Autopsy Workbench sample data...");
 
-  const [seedOrganisation] = await db
-    .insert(organisations)
-    .values({
-      name: "Valo Sample Workspace",
-      slug: "valo-sample-workspace",
-      type: "valo",
-    })
-    .onConflictDoUpdate({
-      target: organisations.slug,
-      set: {
+  const [existingSeedOrganisation] = await db
+    .select({ id: organisations.id })
+    .from(organisations)
+    .where(eq(organisations.slug, "valo-sample-workspace"));
+  const seedOrganisationId = existingSeedOrganisation?.id ?? randomUUID();
+  const [seedOrganisation] = await withTenantDatabase(seedOrganisationId, () =>
+    db
+      .insert(organisations)
+      .values({
+        id: seedOrganisationId,
         name: "Valo Sample Workspace",
-        status: "active",
-        updatedAt: new Date(),
-      },
-    })
-    .returning();
+        slug: "valo-sample-workspace",
+        type: "valo",
+      })
+      .onConflictDoUpdate({
+        target: organisations.slug,
+        set: {
+          name: "Valo Sample Workspace",
+          status: "active",
+          updatedAt: new Date(),
+        },
+      })
+      .returning(),
+  );
 
   // A seed run may replace only its own tenant. It must never erase another
   // organisation's production or evaluation data.
   await withTenantDatabase(seedOrganisation.id, async () => {
-    await db
-      .delete(auditEvents)
-      .where(eq(auditEvents.organisationId, seedOrganisation.id));
     await db
       .delete(boqChecks)
       .where(eq(boqChecks.organisationId, seedOrganisation.id));
@@ -562,10 +571,10 @@ async function seed() {
         );
       }
 
-      // Deliberately NO audit_events insert here: raw inserts would create
-      // unchained rows indistinguishable from pre-chain legacy data. Seeding
-      // leaves the audit table empty so the first real writeAudit starts a
-      // clean hash chain at seq 1.
+      // Deliberately NO audit_events mutation here: raw inserts would create
+      // unchained rows and audit history is append-only. A brand-new sample
+      // tenant therefore starts a clean chain when its first real writeAudit
+      // occurs; an existing sample tenant retains its prior history.
       console.log(`  ✓ ${pkg.client.name} — ${pkg.project.tenderTitle}`);
     }
   });
@@ -574,7 +583,8 @@ async function seed() {
   await pool.end();
 }
 
-seed().catch((err) => {
+seed().catch(async (err) => {
   console.error("Seed failed:", err);
+  await pool.end().catch(() => undefined);
   process.exit(1);
 });

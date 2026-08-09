@@ -3,16 +3,23 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import * as schema from "./schema";
+import {
+  assertProductionRuntimeDatabaseSafety,
+  isProductionRuntime,
+  selectDatabaseConnectionString,
+} from "./runtimeSecurity";
 
 const { Pool } = pg;
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
+const connectionString = selectDatabaseConnectionString(process.env);
+export const pool = new Pool({ connectionString });
+if (isProductionRuntime(process.env)) {
+  // Replit injects the managed owner URL into deployed processes. Runtime uses
+  // only the constrained login; remove both secrets from the mutable process
+  // environment after the pool has captured its connection configuration.
+  delete process.env.DATABASE_URL;
+  delete process.env.VALO_RUNTIME_DATABASE_URL;
 }
-
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const rootDb = drizzle(pool, { schema });
 type WorkspaceDatabase = typeof rootDb;
 
@@ -77,6 +84,15 @@ export async function withTenantDatabase<T>(
 export function currentTenantDatabaseOrganisation(): string | undefined {
   return tenantDatabaseContext.getStore()?.organisationId;
 }
+
+export async function assertRuntimeDatabaseSecurity(): Promise<void> {
+  await assertProductionRuntimeDatabaseSafety(pool, process.env);
+}
+
+export {
+  isProductionRuntime,
+  selectDatabaseConnectionString,
+} from "./runtimeSecurity";
 
 export * from "./schema";
 // Query helpers used by the dependency-light operational scripts package.

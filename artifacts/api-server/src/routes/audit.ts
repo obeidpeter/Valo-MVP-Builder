@@ -1,11 +1,19 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, desc, eq, gte, lt } from "drizzle-orm";
-import { db, auditEvents, clients, projects } from "@workspace/db";
+import {
+  db,
+  auditEvents,
+  clients,
+  legacyAuditEvents,
+  legacyAuditIntegrityAssessments,
+  projects,
+} from "@workspace/db";
 import {
   getOrganisationId,
   requirePermissionOrLegacy,
 } from "../middlewares/tenancy";
 import { serializeAudit } from "../lib/serializers";
+import { mergeAuditEventPresentations } from "../lib/auditPresentation";
 
 const router: IRouter = Router();
 
@@ -28,12 +36,59 @@ router.get(
   "/projects/:id/audit",
   requirePermissionOrLegacy("audit:read"),
   async (req: Request, res: Response) => {
+    const organisationId = getOrganisationId(req)!;
+    const [active, archived] = await Promise.all([
+      db
+        .select()
+        .from(auditEvents)
+        .where(
+          and(
+            eq(auditEvents.organisationId, organisationId),
+            eq(auditEvents.projectId, String(req.params.id)),
+          ),
+        )
+        .orderBy(desc(auditEvents.createdAt)),
+      db
+        .select()
+        .from(legacyAuditEvents)
+        .where(
+          and(
+            eq(legacyAuditEvents.organisationId, organisationId),
+            eq(legacyAuditEvents.projectId, String(req.params.id)),
+          ),
+        )
+        .orderBy(desc(legacyAuditEvents.createdAt)),
+    ]);
+    res.json(
+      mergeAuditEventPresentations(
+        active.map(serializeAudit),
+        archived.map((row) => ({
+          ...serializeAudit(row),
+          integrityStatus: row.integrityStatus as
+            | "payload_hash_verified"
+            | "known_discontinuity",
+        })),
+      ),
+    );
+  },
+);
+
+router.get(
+  "/audit/legacy-integrity-assessment",
+  requirePermissionOrLegacy("audit:read"),
+  async (req: Request, res: Response) => {
+    const organisationId = getOrganisationId(req)!;
     const rows = await db
       .select()
-      .from(auditEvents)
-      .where(eq(auditEvents.projectId, String(req.params.id)))
-      .orderBy(desc(auditEvents.createdAt));
-    res.json(rows.map(serializeAudit));
+      .from(legacyAuditIntegrityAssessments)
+      .where(eq(legacyAuditIntegrityAssessments.organisationId, organisationId))
+      .orderBy(desc(legacyAuditIntegrityAssessments.assessedAt));
+    res.json(
+      rows.map((row) => ({
+        ...row,
+        integrityStatus: "KNOWN_DISCONTINUITY",
+      })),
+    );
   },
 );
 
@@ -49,29 +104,61 @@ router.get(
       return;
     }
 
-    const rows = await db
-      .select({
-        audit: auditEvents,
-        tenderTitle: projects.tenderTitle,
-        clientName: clients.name,
-      })
-      .from(auditEvents)
-      .leftJoin(projects, eq(auditEvents.projectId, projects.id))
-      .leftJoin(clients, eq(projects.clientId, clients.id))
-      .where(
-        and(
-          gte(auditEvents.createdAt, window.start),
-          lt(auditEvents.createdAt, window.end),
-          getOrganisationId(req)
-            ? eq(auditEvents.organisationId, getOrganisationId(req)!)
-            : undefined,
+    const [activeRows, archivedRows] = await Promise.all([
+      db
+        .select({
+          audit: auditEvents,
+          tenderTitle: projects.tenderTitle,
+          clientName: clients.name,
+        })
+        .from(auditEvents)
+        .leftJoin(projects, eq(auditEvents.projectId, projects.id))
+        .leftJoin(clients, eq(projects.clientId, clients.id))
+        .where(
+          and(
+            gte(auditEvents.createdAt, window.start),
+            lt(auditEvents.createdAt, window.end),
+            getOrganisationId(req)
+              ? eq(auditEvents.organisationId, getOrganisationId(req)!)
+              : undefined,
+          ),
         ),
-      )
-      .orderBy(desc(auditEvents.createdAt));
+      db
+        .select({
+          audit: legacyAuditEvents,
+          tenderTitle: projects.tenderTitle,
+          clientName: clients.name,
+        })
+        .from(legacyAuditEvents)
+        .leftJoin(projects, eq(legacyAuditEvents.projectId, projects.id))
+        .leftJoin(clients, eq(projects.clientId, clients.id))
+        .where(
+          and(
+            gte(legacyAuditEvents.createdAt, window.start),
+            lt(legacyAuditEvents.createdAt, window.end),
+            getOrganisationId(req)
+              ? eq(legacyAuditEvents.organisationId, getOrganisationId(req)!)
+              : undefined,
+          ),
+        ),
+    ]);
+
+    const rows = [
+      ...activeRows.map((row) => ({
+        ...row,
+        auditSource: "active_v2",
+        integrityStatus: "active_v2_record",
+      })),
+      ...archivedRows.map((row) => ({
+        ...row,
+        auditSource: "legacy_v1_archive",
+        integrityStatus: row.audit.integrityStatus,
+      })),
+    ];
 
     const accessRows = rows
       .filter((r) =>
-        /^(document|report|project)\.(viewed|exported|downloaded|integrity_|deleted)/.test(
+        /^(document|report|project)\.(viewed|exported|export_denied|downloaded|integrity_|deleted)/.test(
           r.audit.eventType,
         ),
       )
@@ -87,6 +174,8 @@ router.get(
         objectType: r.audit.objectType ?? "",
         objectId: r.audit.objectId ?? "",
         details: r.audit.details ?? "",
+        auditSource: r.auditSource,
+        integrityStatus: r.integrityStatus,
       }));
 
     if (req.query.format === "csv") {
@@ -99,6 +188,8 @@ router.get(
         "objectType",
         "objectId",
         "details",
+        "auditSource",
+        "integrityStatus",
       ];
       res.setHeader("Content-Type", "text/csv; charset=utf-8");
       res.setHeader(
