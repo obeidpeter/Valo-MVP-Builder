@@ -840,6 +840,11 @@ export async function assertProductionRuntimeDatabaseSafety(
       rolcreaterole: boolean;
       rolcreatedb: boolean;
       rolreplication: boolean;
+      rolinherit: boolean;
+      rolconnlimit: number;
+      rolvaliduntil: string | null;
+      role_settings: number;
+      database_role_settings: number;
       inherited_memberships: string;
       owned_public_relations: string;
       forced_rls_tables: string;
@@ -885,6 +890,13 @@ export async function assertProductionRuntimeDatabaseSafety(
         role.rolcreaterole,
         role.rolcreatedb,
         role.rolreplication,
+        role.rolinherit,
+        role.rolconnlimit,
+        role.rolvaliduntil::text AS rolvaliduntil,
+        COALESCE(pg_catalog.cardinality(role.rolconfig),0)::integer
+          AS role_settings,
+        (SELECT count(*)::integer FROM pg_catalog.pg_db_role_setting
+         WHERE setrole=role.oid) AS database_role_settings,
         (SELECT count(*)::text FROM pg_catalog.pg_auth_members membership
          WHERE membership.member=role.oid) AS inherited_memberships,
         (SELECT count(*)::text FROM pg_catalog.pg_class owned
@@ -1084,6 +1096,11 @@ export async function assertProductionRuntimeDatabaseSafety(
       proof.rolcreaterole ||
       proof.rolcreatedb ||
       proof.rolreplication ||
+      !proof.rolinherit ||
+      proof.rolconnlimit !== -1 ||
+      proof.rolvaliduntil !== "infinity" ||
+      proof.role_settings !== 0 ||
+      proof.database_role_settings !== 0 ||
       Number(proof.inherited_memberships) !== 0 ||
       Number(proof.owned_public_relations) !== 0
     ) {

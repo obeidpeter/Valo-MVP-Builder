@@ -7428,6 +7428,8 @@ $post_rls_validation$;
 
 CREATE SCHEMA IF NOT EXISTS drizzle;
 
+SET LOCAL password_encryption = 'scram-sha-256';
+
 DO $runtime_role$
 DECLARE
   role_name text := (SELECT runtime_role FROM _valo_bridge_inputs);
@@ -7435,31 +7437,53 @@ DECLARE
   role_is_super boolean;
   role_bypasses_rls boolean;
   role_can_login boolean;
+  role_can_create_database boolean;
+  role_can_create_role boolean;
+  role_can_replicate boolean;
+  role_inherits boolean;
+  role_connection_limit integer;
+  role_valid_until timestamptz;
+  role_config text[];
   privileged_memberships integer;
   schema_record record;
 BEGIN
   SELECT oid INTO role_oid FROM pg_roles WHERE rolname=role_name;
   IF role_oid IS NULL THEN
     EXECUTE format(
-      'CREATE ROLE %I LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT NOREPLICATION NOBYPASSRLS',
+      'CREATE ROLE %I LOGIN PASSWORD %L VALID UNTIL ''infinity'' CONNECTION LIMIT -1 NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT NOREPLICATION NOBYPASSRLS',
       role_name,
       (SELECT runtime_password FROM _valo_bridge_inputs)
     );
     SELECT oid INTO role_oid FROM pg_roles WHERE rolname=role_name;
   ELSE
     EXECUTE format(
-      'ALTER ROLE %I LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT NOREPLICATION NOBYPASSRLS',
+      'ALTER ROLE %I LOGIN PASSWORD %L VALID UNTIL ''infinity'' CONNECTION LIMIT -1 NOCREATEROLE INHERIT',
       role_name,
       (SELECT runtime_password FROM _valo_bridge_inputs)
     );
   END IF;
   EXECUTE format('ALTER ROLE %I RESET ALL', role_name);
+  EXECUTE format(
+    'ALTER ROLE %I IN DATABASE %I RESET ALL',
+    role_name,
+    current_database()
+  );
 
-  SELECT rolsuper, rolbypassrls, rolcanlogin
-    INTO role_is_super, role_bypasses_rls, role_can_login
+  SELECT rolsuper, rolbypassrls, rolcanlogin, rolcreatedb, rolcreaterole,
+         rolreplication, rolinherit, rolconnlimit, rolvaliduntil, rolconfig
+    INTO role_is_super, role_bypasses_rls, role_can_login,
+         role_can_create_database, role_can_create_role, role_can_replicate,
+         role_inherits, role_connection_limit, role_valid_until, role_config
     FROM pg_roles WHERE oid=role_oid;
-  IF role_is_super OR role_bypasses_rls OR NOT role_can_login THEN
-    RAISE EXCEPTION 'runtime login must be LOGIN NOSUPERUSER NOBYPASSRLS';
+  IF role_is_super OR role_bypasses_rls OR NOT role_can_login
+     OR role_can_create_database OR role_can_create_role OR role_can_replicate
+     OR NOT role_inherits OR role_connection_limit <> -1
+     OR role_valid_until IS DISTINCT FROM 'infinity'::timestamptz
+     OR COALESCE(cardinality(role_config), 0) <> 0
+     OR EXISTS (
+       SELECT 1 FROM pg_db_role_setting WHERE setrole=role_oid
+     ) THEN
+    RAISE EXCEPTION 'runtime login attributes/configuration are not fail-closed';
   END IF;
 
   WITH RECURSIVE inherited_roles(roleid) AS (
