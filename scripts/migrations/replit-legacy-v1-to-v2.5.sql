@@ -3,9 +3,8 @@
 -- This is one self-contained PostgreSQL transaction. It is intentionally not
 -- part of the normal fresh-database migration chain: it upgrades only the
 -- exact 19-table, unjournalled schema at commit
--- b71adcec4a7060c0ce2192266c81d880c5e56277, or the pinned Replit lineage
--- whose documents table predates the three nullable extraction metadata
--- columns. The canonical 0000/0001/0002
+-- b71adcec4a7060c0ce2192266c81d880c5e56277, or the exact pinned Replit
+-- production push-managed lineage. The canonical 0000/0001/0002
 -- definitions are embedded below and checked by scripts/run-legacy-bridge.mjs.
 --
 -- Replace every __VALO_BRIDGE_*__ token only through the runner (preferred) or
@@ -201,7 +200,7 @@ BEGIN
   END IF;
   IF inputs.expected_legacy_lineage NOT IN (
     'replit-legacy-v1-canonical',
-    'replit-legacy-v1-documents-pre-extraction'
+    'replit-legacy-v1-production-push-managed'
   ) THEN
     RAISE EXCEPTION 'legacy lineage is not one of the two pinned fingerprints';
   END IF;
@@ -360,20 +359,43 @@ CREATE TEMPORARY TABLE _valo_effective_legacy_columns (
   column_names text[] NOT NULL
 ) ON COMMIT DROP;
 
+CREATE TEMPORARY TABLE _valo_production_push_managed_columns (
+  table_name text PRIMARY KEY,
+  column_names text[] NOT NULL
+) ON COMMIT DROP;
+
+INSERT INTO _valo_production_push_managed_columns VALUES
+  ('app_config', ARRAY['id','severity_weight_fatal','severity_weight_likely_fatal','severity_weight_scoring_risk','severity_weight_cosmetic','missing_evidence_weight','band_medium_cutoff','band_high_cutoff','band_critical_cutoff','firm_name','confidentiality_legend','retention_default_days','updated_at','updated_by']),
+  ('audit_events', ARRAY['id','user_id','user_name','project_id','event_type','object_type','object_id','details','created_at','seq','prev_hash','hash','row_no']),
+  ('boq_checks', ARRAY['id','project_id','source_doc_id','line_ref','description','quantity','unit_rate','extension','computed_extension','check_type','finding','severity','status','created_at','quantity_raw','unit_rate_kobo','extension_kobo','computed_extension_kobo']),
+  ('capability_items', ARRAY['id','client_id','claim_type','description','evidence_doc_id','approved_status','created_at','verifier_id','verifier_name','verified_at']),
+  ('clients', ARRAY['id','name','sector','segment','contact_name','contact_email','nda_status','notes','created_at','decision_maker_conversations','junior_conversations']),
+  ('conflict_records', ARRAY['id','client_id','project_id','tender_ref','lot','matched_project_id','status','decision','rationale','decided_by','decided_at','created_at']),
+  ('defects', ARRAY['id','project_id','requirement_id','type','severity','description','evidence_snapshot','remediation','owner','status','suggested','created_at']),
+  ('documents', ARRAY['id','project_id','type','filename','object_path','content_type','size','source','date_received','redaction_status','uploaded_by','content_text','extracted_chars','extraction_status','created_at','sha256']),
+  ('evidence_items', ARRAY['id','project_id','requirement_id','document_id','evidence_status','excerpt','notes','suggested','confirmed_by','created_at']),
+  ('llm_runs', ARRAY['id','project_id','task','model','prompt_version','input_hash','output_summary','error','created_at']),
+  ('notification_events', ARRAY['id','project_id','client_id','vault_item_id','channel','template','recipient','payload','status','created_by','created_at']),
+  ('projects', ARRAY['id','client_id','tender_title','issuing_entity','tender_ref','deadline','value_band','segment','submission_status','status','reviewer_id','risk_score','risk_band','risk_override_band','risk_override_note','risk_override_by','outcome','scope','limitations','responsiveness_review','responsiveness_suggested','created_at','lot','sla_class','payment_status','payment_confirmed_by_founder','payment_confirmed_by_advisor','payment_confirmed_at','conflict_status','conflict_decision','conflict_rationale','physical_archive_instruction','redaction_scope','restricted_mode','payment_founder_confirmed_by','payment_founder_confirmed_by_name','payment_founder_confirmed_at','payment_advisor_confirmed_by','payment_advisor_confirmed_by_name','payment_advisor_confirmed_at','mandate_quality']),
+  ('reports', ARRAY['id','project_id','version','status','docx_path','reviewer_id','reviewer_name','attestation','engine_version','signed_off_at','generated_by','created_at','prompt_pack_version','model_id','pdf_path']),
+  ('requirements', ARRAY['id','project_id','source_doc_id','page_ref','clause_ref','text','category','expected_evidence','is_mandatory','confidence','review_status','reviewer_notes','created_at','origin','engine_text','reviewed_by','reviewed_by_name','reviewed_at','merged_citations']),
+  ('retention_requests', ARRAY['id','project_id','requested_by','reason','due_at','completed_at','certificate_text','status','created_at']),
+  ('sbd_annotations', ARRAY['id','template_id','agency','section','kind','quirk','created_at']),
+  ('sbd_templates', ARRAY['id','code','title','category','version','status','issuing_circular','summary','created_at']),
+  ('users', ARRAY['id','clerk_user_id','email','name','role','status','last_login_at','created_at']),
+  ('vault_items', ARRAY['id','client_id','artefact_type','issuer','issue_date','expiry_date','renewal_lead_days','status','created_at','object_path','sha256','source_document_id']);
+
 INSERT INTO _valo_effective_legacy_columns
 SELECT expected.table_name,
   CASE
-    WHEN expected.table_name = 'documents'
-      AND inputs.expected_legacy_lineage =
-        'replit-legacy-v1-documents-pre-extraction'
-    THEN ARRAY[
-      'id','project_id','type','filename','object_path','content_type','size',
-      'source','date_received','redaction_status','uploaded_by','content_text',
-      'extracted_chars','extraction_status','created_at','sha256'
-    ]
+    WHEN inputs.expected_legacy_lineage =
+      'replit-legacy-v1-production-push-managed'
+    THEN production.column_names
     ELSE expected.column_names
   END
 FROM _valo_expected_legacy_columns AS expected
+JOIN _valo_production_push_managed_columns AS production
+  ON production.table_name = expected.table_name
 CROSS JOIN _valo_bridge_inputs AS inputs;
 
 DO $complete_state_validation$
@@ -5543,6 +5565,26 @@ BEGIN
     RAISE EXCEPTION 'legacy/current shared-column type mismatch';
   END IF;
 
+  IF inputs.expected_legacy_lineage =
+       'replit-legacy-v1-production-push-managed'
+     AND (
+       SELECT count(*)
+       FROM information_schema.columns AS target
+       WHERE target.table_schema = 'public'
+         AND target.is_nullable = 'YES'
+         AND target.column_default IS NULL
+         AND (target.table_name, target.column_name) IN (
+           ('documents','extraction_method'),
+           ('documents','extraction_confidence'),
+           ('documents','extraction_notes'),
+           ('llm_runs','prompt_tokens'),
+           ('llm_runs','completion_tokens'),
+           ('reports','taxonomy_version')
+         )
+     ) <> 6 THEN
+    RAISE EXCEPTION 'the six push-managed target additions must remain nullable with NULL defaults';
+  END IF;
+
   FOREACH table_to_copy IN ARRAY copy_order LOOP
     SELECT expected.column_names
       INTO STRICT copy_columns
@@ -5603,14 +5645,23 @@ BEGIN
   END LOOP;
 
   IF inputs.expected_legacy_lineage =
-       'replit-legacy-v1-documents-pre-extraction'
-     AND EXISTS (
-       SELECT 1 FROM public.documents
-       WHERE extraction_method IS NOT NULL
-          OR extraction_confidence IS NOT NULL
-          OR extraction_notes IS NOT NULL
+       'replit-legacy-v1-production-push-managed'
+     AND (
+       EXISTS (
+         SELECT 1 FROM public.documents
+         WHERE extraction_method IS NOT NULL
+            OR extraction_confidence IS NOT NULL
+            OR extraction_notes IS NOT NULL
+       )
+       OR EXISTS (
+         SELECT 1 FROM public.llm_runs
+         WHERE prompt_tokens IS NOT NULL OR completion_tokens IS NOT NULL
+       )
+       OR EXISTS (
+         SELECT 1 FROM public.reports WHERE taxonomy_version IS NOT NULL
+       )
      ) THEN
-    RAISE EXCEPTION 'absent legacy extraction metadata was not mapped to NULL';
+    RAISE EXCEPTION 'six absent push-managed fields were not initialized to NULL';
   END IF;
 
   INSERT INTO public.organisations (

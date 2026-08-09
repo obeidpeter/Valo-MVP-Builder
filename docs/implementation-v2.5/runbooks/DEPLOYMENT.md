@@ -42,13 +42,17 @@ reviewed, fail-closed bridge in
 `scripts/migrations/replit-legacy-v1-to-v2.5.sql`, invoked through the database
 package runner.
 
-Exactly two ordered column fingerprints are supported: the canonical legacy
-shape at that source commit and the observed Replit variant whose `documents`
-table places `sha256` last and predates nullable `extraction_method`,
-`extraction_confidence`, and `extraction_notes`. The bridge maps only that
-explicit variant, preserves every populated source column, and initializes the
-three historically absent fields to `NULL`. A missing, extra, or reordered
-column anywhere else is not inferred as a compatible intersection and aborts.
+Exactly two complete ordered column fingerprints are supported: the canonical
+legacy shape at that source commit and the locked Replit production
+push-managed shape. The latter has reviewed order-only drift in `audit_events`,
+`boq_checks`, `capability_items`, `clients`, `projects`, `requirements`, and
+`vault_items`; it lacks only `documents.{extraction_method,
+extraction_confidence,extraction_notes}`, `llm_runs.{prompt_tokens,
+completion_tokens}`, and `reports.taxonomy_version`. All six canonical target
+fields are nullable. The bridge copies every actual source column by its pinned
+name and order and initializes only those six absent fields to `NULL`. Any
+other missing, extra, or reordered column aborts; no compatible intersection is
+inferred.
 
 The current live Replit production database is confirmed to be a populated copy
 of the same 19-table legacy lineage, not a fresh or separate database. The
