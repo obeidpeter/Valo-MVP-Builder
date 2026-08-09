@@ -34,19 +34,19 @@ Every transition uses optimistic version matching. Stale versions prompt reload/
 
 ## Domain states
 
-| Domain             | States                                                                         | UI rule                                                                                         |
-| ------------------ | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| Secure intake      | ready, quarantined, rejected, duplicate; provider unavailable                  | No unsafe preview; name the finding class and retained/purged disposition.                      |
-| Document inclusion | `excluded`, `redacted`, `included`                                             | New uploads begin excluded; only reviewed included/redacted content can process.                |
+| Domain             | States                                                                         | UI rule                                                                                                                                                                  |
+| ------------------ | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Secure intake      | ready, quarantined, rejected, duplicate; provider unavailable                  | No unsafe preview; name the finding class and retained/purged disposition.                                                                                               |
+| Document inclusion | `excluded`, `redacted`, `included`                                             | New uploads begin excluded; only reviewed included/redacted content can process.                                                                                         |
 | Extraction         | `pending`, `extracting`, `extracted`, `failed`, `skipped`, `quarantined`       | Show method/confidence/notes; failed/skipped is never complete. Quarantined is excluded, not generically downloadable, and has no ordinary release or extraction action. |
-| Requirement review | `suggested`, `pending`, `confirmed`, `edited`, `rejected`                      | Suggested/pending needs human ruling; only confirmed/edited are authoritative requirements.     |
-| Evidence           | `pending`, `present`, `missing`, `expired`, `unclear`, `not_applicable`        | Mandatory evidence resolves only through approved `present`/`not_applicable`, not a suggestion. |
-| Defect severity    | fatal, likely-fatal, scoring-risk, cosmetic                                    | Never collapse severity into color or award probability.                                        |
-| Defect status      | suggested, open, remediated, waived                                            | Suggested needs review; open fatal/likely-fatal blocks release; downgrade/waiver is governed.   |
-| BOQ check          | ok, flagged, pushed-to-defect                                                  | Flagged blocks when applicable; never generate or recommend a rate.                             |
-| Report             | draft, signed-off                                                              | Signer must have permission and satisfy independent/readiness rules.                            |
-| Pursuit summary    | intake, extraction, review, defects, reporting, signed-off, exported, archived | Summary is compatible UI grouping, not a substitute for the full workflow state.                |
-| Feature            | active, pending activation, denied                                             | UI flag does not grant permission, provider readiness, or server activation.                    |
+| Requirement review | `suggested`, `pending`, `confirmed`, `edited`, `rejected`                      | Suggested/pending needs human ruling; only confirmed/edited are authoritative requirements.                                                                              |
+| Evidence           | `pending`, `present`, `missing`, `expired`, `unclear`, `not_applicable`        | Mandatory evidence resolves only through approved `present`/`not_applicable`, not a suggestion.                                                                          |
+| Defect severity    | fatal, likely-fatal, scoring-risk, cosmetic                                    | Never collapse severity into color or award probability.                                                                                                                 |
+| Defect status      | suggested, open, remediated, waived                                            | Suggested needs review; open fatal/likely-fatal blocks release; downgrade/waiver is governed.                                                                            |
+| BOQ check          | ok, flagged, pushed-to-defect                                                  | Flagged blocks when applicable; never generate or recommend a rate.                                                                                                      |
+| Report             | draft, signed-off                                                              | Signer must have permission and satisfy independent/readiness rules.                                                                                                     |
+| Pursuit summary    | intake, extraction, review, defects, reporting, signed-off, exported, archived | Summary is compatible UI grouping, not a substitute for the full workflow state.                                                                                         |
+| Feature            | active, pending activation, denied                                             | UI flag does not grant permission, provider readiness, or server activation.                                                                                             |
 
 ## End-to-end journey coverage
 

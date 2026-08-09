@@ -215,10 +215,14 @@ describe("signed-in routing", () => {
     currentRole = "client_organisation_owner";
     renderAt("/app");
     expect(
-      await screen.findByRole("heading", {
-        level: 1,
-        name: /tender projects/i,
-      }, { timeout: 5_000 }),
+      await screen.findByRole(
+        "heading",
+        {
+          level: 1,
+          name: /tender projects/i,
+        },
+        { timeout: 5_000 },
+      ),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", { name: /^command centre$/i }),
