@@ -641,8 +641,8 @@ DECLARE
   child_organisation_id uuid;
   parent_reference uuid;
   secondary_reference uuid;
-  partner_organisation_id uuid;
-  client_organisation_id uuid;
+  derived_partner_organisation_id uuid;
+  derived_client_organisation_id uuid;
   relationship_status text;
 BEGIN
   CASE
@@ -693,29 +693,29 @@ BEGIN
         pg_catalog.to_jsonb(NEW) ->> 'order_id',
         ''
       )::uuid;
-      partner_organisation_id := NULLIF(
+      derived_partner_organisation_id := NULLIF(
         pg_catalog.to_jsonb(NEW) ->> 'partner_organisation_id',
         ''
       )::uuid;
-      client_organisation_id := NULLIF(
+      derived_client_organisation_id := NULLIF(
         pg_catalog.to_jsonb(NEW) ->> 'client_organisation_id',
         ''
       )::uuid;
       -- Revenue mutations are client-controlled. This also ensures FORCE RLS
       -- can expose the client order without a definer/BYPASS data oracle.
       SELECT
-        client_organisation_id = valo_security.current_organisation_id()
+        derived_client_organisation_id = valo_security.current_organisation_id()
         AND EXISTS (
           SELECT 1
           FROM public.orders AS tenant_order
           WHERE tenant_order.id = parent_reference
-            AND tenant_order.organisation_id = client_organisation_id
+            AND tenant_order.organisation_id = derived_client_organisation_id
         )
         AND EXISTS (
           SELECT 1
           FROM public.partner_relationships AS relationship
-          WHERE relationship.partner_organisation_id = partner_organisation_id
-            AND relationship.client_organisation_id = client_organisation_id
+          WHERE relationship.partner_organisation_id = derived_partner_organisation_id
+            AND relationship.client_organisation_id = derived_client_organisation_id
             AND relationship.status = 'active'
         )
       INTO valid_relationship;
@@ -751,7 +751,7 @@ BEGIN
       IF parent_reference IS NULL AND relationship_status <> 'active' THEN
         RETURN NEW;
       END IF;
-      client_organisation_id := NULLIF(
+      derived_client_organisation_id := NULLIF(
         pg_catalog.to_jsonb(NEW) ->> 'client_organisation_id',
         ''
       )::uuid;
@@ -759,7 +759,7 @@ BEGIN
         SELECT 1
         FROM public.organisation_memberships AS approver_membership
         WHERE approver_membership.id = parent_reference
-          AND approver_membership.organisation_id = client_organisation_id
+          AND approver_membership.organisation_id = derived_client_organisation_id
       ) AND (
         relationship_status <> 'active'
         OR parent_reference IS NOT NULL

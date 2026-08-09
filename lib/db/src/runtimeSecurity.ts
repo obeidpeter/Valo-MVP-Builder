@@ -385,7 +385,7 @@ const EXPECTED_TENANT_GUARD_FUNCTIONS = new Map<
       returnsSet: false,
       runtimeCanExecute: false,
       sourceSha256:
-        "fe53df6af44965aeb7a70c994fd371fba58897ba578da1ec3c65c93458c38c3b",
+        "fb56a447849fcc09a0e9a7fa240bc47c6826b8ab6112b3b4ec5448ca3fe554b7",
     },
   ],
   [
