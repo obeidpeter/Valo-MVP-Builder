@@ -30,7 +30,9 @@ describe("report download tenant context", () => {
         { responseType: "blob" },
       );
 
-      expect(result).toBeInstanceOf(Blob);
+      expect(result.size).toBe(6);
+      expect(result.type).toBe("application/pdf");
+      expect(await result.text()).toBe("report");
       const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
       expect(
         new Headers(requestInit.headers).get("x-valo-organisation-id"),

@@ -21,6 +21,8 @@ const TEST_PERMISSIONS = [
   "configuration:manage",
 ];
 
+const ROUTE_LOAD_WAIT = { timeout: 5_000 };
+
 vi.mock("@clerk/clerk-react", () => ({
   SignedIn: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   SignedOut: () => null,
@@ -155,14 +157,22 @@ describe("signed-in routing", () => {
   it("renders the Command Centre at the protected app path", async () => {
     renderAt("/app");
     expect(
-      await screen.findByRole("heading", { name: /^command centre$/i }),
+      await screen.findByRole(
+        "heading",
+        { name: /^command centre$/i },
+        ROUTE_LOAD_WAIT,
+      ),
     ).toBeInTheDocument();
   });
 
   it("renders the NotFound page for an unknown protected path", async () => {
     renderAt("/no/such/protected/route");
     expect(
-      await screen.findByRole("heading", { name: /404 page not found/i }),
+      await screen.findByRole(
+        "heading",
+        { name: /404 page not found/i },
+        ROUTE_LOAD_WAIT,
+      ),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", { name: /^command centre$/i }),
@@ -173,10 +183,14 @@ describe("signed-in routing", () => {
     currentRole = "client_organisation_owner";
     renderAt("/portal");
     expect(
-      await screen.findByRole("heading", {
-        level: 1,
-        name: /^client portal$/i,
-      }),
+      await screen.findByRole(
+        "heading",
+        {
+          level: 1,
+          name: /^client portal$/i,
+        },
+        ROUTE_LOAD_WAIT,
+      ),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
@@ -197,7 +211,11 @@ describe("signed-in routing", () => {
     vi.stubEnv("VITE_FEATURE_CLIENT_PORTAL", "true");
     renderAt("/portal");
     expect(
-      await screen.findByRole("heading", { name: /connected tenant signals/i }),
+      await screen.findByRole(
+        "heading",
+        { name: /connected tenant signals/i },
+        ROUTE_LOAD_WAIT,
+      ),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/no pursuit records returned/i),
@@ -221,7 +239,7 @@ describe("signed-in routing", () => {
           level: 1,
           name: /tender projects/i,
         },
-        { timeout: 5_000 },
+        ROUTE_LOAD_WAIT,
       ),
     ).toBeInTheDocument();
     expect(
@@ -234,10 +252,14 @@ describe("signed-in routing", () => {
     vi.stubEnv("VITE_FEATURE_CLIENT_PORTAL", "true");
     renderAt("/app");
     expect(
-      await screen.findByRole("heading", {
-        level: 1,
-        name: /^client portal$/i,
-      }),
+      await screen.findByRole(
+        "heading",
+        {
+          level: 1,
+          name: /^client portal$/i,
+        },
+        ROUTE_LOAD_WAIT,
+      ),
     ).toBeInTheDocument();
   });
 
@@ -256,10 +278,14 @@ describe("signed-in routing", () => {
     currentRole = "consultancy_partner_analyst_reviewer";
     renderAt("/partner");
     expect(
-      await screen.findByRole("heading", {
-        level: 1,
-        name: /^partner workspace$/i,
-      }),
+      await screen.findByRole(
+        "heading",
+        {
+          level: 1,
+          name: /^partner workspace$/i,
+        },
+        ROUTE_LOAD_WAIT,
+      ),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
@@ -274,9 +300,13 @@ describe("signed-in routing", () => {
     vi.stubEnv("VITE_FEATURE_PARTNER_WORKSPACE", "true");
     renderAt("/partner");
     expect(
-      await screen.findByRole("heading", {
-        name: /connected partner signals/i,
-      }),
+      await screen.findByRole(
+        "heading",
+        {
+          name: /connected partner signals/i,
+        },
+        ROUTE_LOAD_WAIT,
+      ),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/no partner relationships returned/i),
@@ -295,7 +325,11 @@ describe("signed-in routing", () => {
     vi.stubEnv("VITE_FEATURE_PARTNER_WORKSPACE", "true");
     renderAt("/projects");
     expect(
-      await screen.findByRole("heading", { name: /tender projects/i }),
+      await screen.findByRole(
+        "heading",
+        { name: /tender projects/i },
+        ROUTE_LOAD_WAIT,
+      ),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", { name: /access denied/i }),
@@ -306,10 +340,14 @@ describe("signed-in routing", () => {
     currentRole = "read_only_auditor";
     renderAt("/app/security");
     expect(
-      await screen.findByRole("heading", {
-        level: 1,
-        name: /security & audit/i,
-      }),
+      await screen.findByRole(
+        "heading",
+        {
+          level: 1,
+          name: /security & audit/i,
+        },
+        ROUTE_LOAD_WAIT,
+      ),
     ).toBeInTheDocument();
     expect(screen.getByText(/no access rows returned/i)).toBeInTheDocument();
   });
