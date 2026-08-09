@@ -31,6 +31,7 @@ export type PlatformRoleInput = string | readonly string[] | null | undefined;
 
 export type PlatformArea =
   | "workbench"
+  | "pursuit_workbench"
   | "operations"
   | "client_portal"
   | "partner_workspace"
@@ -38,6 +39,7 @@ export type PlatformArea =
   | "billing_entitlements"
   | "notifications"
   | "security_audit"
+  | "organisation_settings"
   | "settings";
 
 export type CommercialFeature =
@@ -65,8 +67,9 @@ export interface PlatformNavItem {
   href: string;
   label: string;
   area: PlatformArea;
-  group: "Workspace" | "Review" | "Commercial" | "Administration";
+  group: "Workspace" | "Delivery" | "Oversight" | "Administration";
   feature?: CommercialFeature;
+  requiredPermission?: string;
 }
 
 const CLIENT_ROLES = new Set<PlatformRole>([
@@ -137,6 +140,18 @@ const QUALITY_ROLES = new Set<PlatformRole>([
 
 const AREA_ROLES: Record<PlatformArea, ReadonlySet<PlatformRole>> = {
   workbench: INTERNAL_ROLES,
+  // These roles carry project/requirement/evidence/report read permissions in
+  // their selected server-authorised context. Related client contexts are
+  // listed only after the backend validates the partner membership,
+  // relationship lifecycle and commercial activation; the client is never
+  // inferred from the role.
+  pursuit_workbench: new Set<PlatformRole>([
+    ...INTERNAL_ROLES,
+    ...CLIENT_ROLES,
+    ...PARTNER_ROLES,
+    "read_only_auditor",
+    "client_auditor",
+  ]),
   operations: INTERNAL_ROLES,
   client_portal: new Set<PlatformRole>(["admin", ...CLIENT_ROLES]),
   partner_workspace: new Set<PlatformRole>(["admin", ...PARTNER_ROLES]),
@@ -162,6 +177,17 @@ const AREA_ROLES: Record<PlatformArea, ReadonlySet<PlatformRole>> = {
     "read_only_auditor",
     "client_auditor",
   ]),
+  organisation_settings: new Set<PlatformRole>([
+    "admin",
+    "valo_operations_admin",
+    "valo_operations_administrator",
+    "client_owner",
+    "client_admin",
+    "client_organisation_owner",
+    "client_administrator",
+    "partner_admin",
+    "consultancy_partner_administrator",
+  ]),
   settings: SETTINGS_ROLES,
 };
 
@@ -172,22 +198,42 @@ const AREA_FEATURE: Partial<Record<PlatformArea, CommercialFeature>> = {
   notifications: "notificationAdapters",
 };
 
+const AREA_REQUIRED_PERMISSION: Partial<Record<PlatformArea, string>> = {
+  workbench: "analytics:read",
+  pursuit_workbench: "project:read",
+  operations: "project:read",
+  client_portal: "project:read",
+  partner_workspace: "partner_relationship:read",
+  evidence_readiness: "evidence:read",
+  billing_entitlements: "entitlement:read",
+  notifications: "project:read",
+  security_audit: "audit:read",
+  organisation_settings: "membership:manage",
+  settings: "configuration:manage",
+};
+
 const NAV_ITEMS: PlatformNavItem[] = [
-  { href: "/", label: "Dashboard", area: "workbench", group: "Workspace" },
-  { href: "/clients", label: "Clients", area: "workbench", group: "Workspace" },
   {
-    href: "/projects",
-    label: "Projects",
+    href: "/app",
+    label: "Command Centre",
     area: "workbench",
     group: "Workspace",
+    requiredPermission: "analytics:read",
   },
-  { href: "/sbd", label: "SBD Corpus", area: "workbench", group: "Workspace" },
+  {
+    href: "/projects",
+    label: "Pursuits",
+    area: "pursuit_workbench",
+    group: "Workspace",
+    requiredPermission: "project:read",
+  },
   {
     href: "/portal",
-    label: "Client portal",
+    label: "Client workspace",
     area: "client_portal",
     group: "Workspace",
     feature: "clientPortal",
+    requiredPermission: "project:read",
   },
   {
     href: "/partner",
@@ -195,44 +241,79 @@ const NAV_ITEMS: PlatformNavItem[] = [
     area: "partner_workspace",
     group: "Workspace",
     feature: "partnerWorkspace",
+    requiredPermission: "partner_relationship:read",
   },
   {
-    href: "/operations",
-    label: "Operations queues",
-    area: "operations",
-    group: "Review",
+    href: "/sbd",
+    label: "Compliance",
+    area: "pursuit_workbench",
+    group: "Delivery",
+    requiredPermission: "requirement:read",
   },
   {
     href: "/evidence-readiness",
-    label: "Evidence & readiness",
+    label: "Evidence Library",
     area: "evidence_readiness",
-    group: "Review",
+    group: "Delivery",
+    requiredPermission: "evidence:read",
+  },
+  {
+    href: "/operations",
+    label: "Reviews",
+    area: "operations",
+    group: "Delivery",
+    requiredPermission: "project:read",
+  },
+  {
+    href: "/reports",
+    label: "Reports",
+    area: "pursuit_workbench",
+    group: "Delivery",
+    requiredPermission: "report:read",
+  },
+  {
+    href: "/clients",
+    label: "Clients",
+    area: "pursuit_workbench",
+    group: "Oversight",
+    requiredPermission: "client:read",
   },
   {
     href: "/billing",
     label: "Billing & entitlements",
     area: "billing_entitlements",
-    group: "Commercial",
+    group: "Oversight",
     feature: "billingEntitlements",
+    requiredPermission: "entitlement:read",
   },
   {
     href: "/notifications",
     label: "Notifications",
     area: "notifications",
-    group: "Commercial",
+    group: "Oversight",
     feature: "notificationAdapters",
+    requiredPermission: "project:read",
   },
   {
-    href: "/security",
+    href: "/app/security",
     label: "Security & audit",
     area: "security_audit",
     group: "Administration",
+    requiredPermission: "audit:read",
+  },
+  {
+    href: "/organisation-settings",
+    label: "Organisation Settings",
+    area: "organisation_settings",
+    group: "Administration",
+    requiredPermission: "membership:manage",
   },
   {
     href: "/settings",
-    label: "Settings",
+    label: "Platform Operations",
     area: "settings",
     group: "Administration",
+    requiredPermission: "configuration:manage",
   },
 ];
 
@@ -291,26 +372,38 @@ export function isInternalRole(role: PlatformRoleInput): boolean {
   );
 }
 
-export function platformHomeForRole(role: PlatformRoleInput): string {
-  if (isClientRole(role)) return "/portal";
-  if (isPartnerRole(role)) return "/partner";
+export function platformHomeForRole(
+  role: PlatformRoleInput,
+  flags: PlatformFeatureFlags = platformFeatureFlags(),
+  effectivePermissions?: readonly string[],
+): string {
+  const permits = (permission: string): boolean =>
+    effectivePermissions === undefined ||
+    effectivePermissions.includes(permission);
+  if (isClientRole(role) && permits("project:read"))
+    return flags.clientPortal ? "/portal" : "/projects";
+  if (isPartnerRole(role)) {
+    if (permits("partner_relationship:read")) return "/partner";
+    if (permits("project:read")) return "/projects";
+  }
   const roles = normalizePlatformRoles(role);
   if (
     roles.includes("platform_admin_restricted") ||
     roles.includes("restricted_platform_administrator")
   ) {
-    return "/security";
+    return "/app/security";
   }
   if (roles.includes("read_only_auditor") || roles.includes("client_auditor")) {
     return "/evidence-readiness";
   }
-  return "/";
+  return "/app";
 }
 
 export function getPlatformAccessDecision(
   role: PlatformRoleInput,
   area: PlatformArea,
   flags: PlatformFeatureFlags = platformFeatureFlags(),
+  effectivePermissions?: readonly string[],
 ): PlatformAccessDecision {
   const normalized = normalizePlatformRoles(role);
   const allowed = normalized.some((assignedRole) =>
@@ -323,6 +416,22 @@ export function getPlatformAccessDecision(
       enabled: false,
       state: "denied",
       reason: "Your assigned role does not include this workspace.",
+    };
+  }
+
+  const requiredPermission = AREA_REQUIRED_PERMISSION[area];
+  if (
+    requiredPermission &&
+    effectivePermissions !== undefined &&
+    !effectivePermissions.includes(requiredPermission)
+  ) {
+    return {
+      area,
+      allowed: false,
+      enabled: false,
+      state: "denied",
+      reason:
+        "The selected organisation context does not grant this permission.",
     };
   }
 
@@ -351,9 +460,21 @@ export function getPlatformAccessDecision(
 export function navigationForRole(
   role: PlatformRoleInput,
   flags: PlatformFeatureFlags = platformFeatureFlags(),
+  effectivePermissions?: readonly string[],
 ): Array<PlatformNavItem & { state: PlatformAccessDecision["state"] }> {
   return NAV_ITEMS.flatMap((item) => {
-    const decision = getPlatformAccessDecision(role, item.area, flags);
-    return decision.allowed ? [{ ...item, state: decision.state }] : [];
+    const decision = getPlatformAccessDecision(
+      role,
+      item.area,
+      flags,
+      effectivePermissions,
+    );
+    const itemPermissionAllowed =
+      !item.requiredPermission ||
+      effectivePermissions === undefined ||
+      effectivePermissions.includes(item.requiredPermission);
+    return decision.allowed && itemPermissionAllowed
+      ? [{ ...item, state: decision.state }]
+      : [];
   });
 }

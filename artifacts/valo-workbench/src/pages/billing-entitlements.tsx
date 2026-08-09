@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import {
   FeatureActivationNotice,
   PageHeader,
@@ -17,15 +16,6 @@ export default function BillingEntitlements() {
         title="Billing & entitlements"
         description="A transparent control surface for versioned products, service access, usage limits, invoices, payments and exceptions."
         state={enabled ? "partial" : "pending"}
-        actions={
-          <Button
-            type="button"
-            disabled
-            title="Versioned price-book API is not connected"
-          >
-            Create order
-          </Button>
-        }
       />
 
       <FeatureActivationNotice

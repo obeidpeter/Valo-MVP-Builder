@@ -102,7 +102,7 @@ export function PageHeader({
     <header className="flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-end sm:justify-between">
       <div className="max-w-3xl">
         {eyebrow ? (
-          <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="mb-2 font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
             {eyebrow}
           </p>
         ) : null}

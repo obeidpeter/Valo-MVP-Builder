@@ -11,6 +11,20 @@ type MeResult = {
 
 let meResult: MeResult = { data: undefined, isLoading: true };
 
+const TEST_PERMISSIONS = [
+  "analytics:read",
+  "project:read",
+  "client:read",
+  "requirement:read",
+  "evidence:read",
+  "report:read",
+  "partner_relationship:read",
+  "entitlement:read",
+  "audit:read",
+  "membership:manage",
+  "configuration:manage",
+];
+
 vi.mock("@clerk/clerk-react", () => ({
   UserButton: () => <div data-testid="clerk-user-button" />,
   useAuth: () => ({ isSignedIn: true, getToken: async () => "test-token" }),
@@ -23,8 +37,53 @@ vi.mock("@workspace/api-client-react", async (importOriginal) => {
     ...actual,
     useGetMe: () => meResult,
     getGetMeQueryKey: () => ["/api/me"],
+    useListProjects: () => ({
+      data: [],
+      isError: false,
+      isLoading: false,
+    }),
   };
 });
+
+vi.mock("./contexts/organisation-context", () => ({
+  useOrganisationAccess: () => {
+    const role = (meResult.data as { role?: string } | undefined)?.role;
+    const activeOrganisation = role
+      ? {
+          id: "org-test",
+          name: "Test organisation",
+          slug: "test-organisation",
+          type: "client" as const,
+          status: "active",
+          countryCode: "NG",
+          membershipId: "membership-test",
+          membershipOrganisationId: "org-test",
+          accessSource: "membership" as const,
+          partnerRelationshipId: null,
+          accessExpiresAt: null,
+          roles: [role],
+          permissions: TEST_PERMISSIONS,
+          version: 1,
+        }
+      : null;
+    return {
+      organisations: activeOrganisation ? [activeOrganisation] : [],
+      activeOrganisation,
+      effectiveRoles: activeOrganisation?.roles ?? [],
+      effectivePermissions: activeOrganisation?.permissions ?? [],
+      isLoading: meResult.isLoading,
+      isError: false,
+      error: null,
+      needsSelection: false,
+      isSwitching: false,
+      hasPendingMutation: false,
+      hasCriticalWorkflow: false,
+      beginCriticalWorkflow: () => () => undefined,
+      selectOrganisation: async () => true,
+      refetch: vi.fn(),
+    };
+  },
+}));
 
 function renderLayout() {
   return render(
@@ -52,7 +111,9 @@ describe("access gating in Layout", () => {
     };
     renderLayout();
     expect(screen.getByText(/pending access/i)).toBeInTheDocument();
-    expect(screen.queryByText(/valo platform/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(/valo command centre/i),
+    ).not.toBeInTheDocument();
     expect(screen.queryByTestId("protected-child")).not.toBeInTheDocument();
   });
 
@@ -70,7 +131,9 @@ describe("access gating in Layout", () => {
     renderLayout();
     expect(screen.getByText(/account disabled/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/status: blocked/i)).toBeInTheDocument();
-    expect(screen.queryByText(/valo platform/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(/valo command centre/i),
+    ).not.toBeInTheDocument();
     expect(screen.queryByTestId("protected-child")).not.toBeInTheDocument();
   });
 
@@ -118,8 +181,8 @@ describe("access gating in Layout", () => {
       isLoading: false,
     };
     renderLayout();
-    expect(screen.getAllByText(/valo platform/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/dashboard/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/valo command centre/i)).toBeInTheDocument();
+    expect(screen.getByText(/^command centre$/i)).toBeInTheDocument();
     expect(screen.getByTestId("protected-child")).toBeInTheDocument();
     expect(screen.queryByText(/pending access/i)).not.toBeInTheDocument();
     expect(
@@ -139,7 +202,7 @@ describe("access gating in Layout", () => {
       isLoading: false,
     };
     renderLayout();
-    expect(screen.getByText(/settings/i)).toBeInTheDocument();
+    expect(screen.getByText(/^platform operations$/i)).toBeInTheDocument();
   });
 
   it("hides the Settings nav item from an approved reviewer", () => {
@@ -154,11 +217,13 @@ describe("access gating in Layout", () => {
       isLoading: false,
     };
     renderLayout();
-    expect(screen.getByText(/dashboard/i)).toBeInTheDocument();
-    expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/^command centre$/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/^platform operations$/i),
+    ).not.toBeInTheDocument();
   });
 
-  it("shows only client-facing surfaces to a client owner", () => {
+  it("shows pursuit and client-facing surfaces to a client owner", () => {
     meResult = {
       data: {
         id: "u8",
@@ -170,12 +235,15 @@ describe("access gating in Layout", () => {
       isLoading: false,
     };
     renderLayout();
-    expect(screen.getByText(/client portal/i)).toBeInTheDocument();
-    expect(screen.getByText(/evidence & readiness/i)).toBeInTheDocument();
+    expect(screen.getByText(/client workspace/i)).toBeInTheDocument();
+    expect(screen.getByText(/^pursuits$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^clients$/i)).toBeInTheDocument();
+    expect(screen.getByText(/evidence library/i)).toBeInTheDocument();
     expect(screen.getByText(/billing & entitlements/i)).toBeInTheDocument();
-    expect(screen.queryByText(/^clients$/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/operations queues/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^reviews$/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/^platform operations$/i),
+    ).not.toBeInTheDocument();
   });
 
   it("shows the channel review surfaces to a partner reviewer", () => {
@@ -191,7 +259,7 @@ describe("access gating in Layout", () => {
     };
     renderLayout();
     expect(screen.getByText(/partner workspace/i)).toBeInTheDocument();
-    expect(screen.getByText(/evidence & readiness/i)).toBeInTheDocument();
+    expect(screen.getByText(/evidence library/i)).toBeInTheDocument();
     expect(screen.getByText(/notifications/i)).toBeInTheDocument();
     expect(
       screen.queryByText(/billing & entitlements/i),
@@ -211,9 +279,11 @@ describe("access gating in Layout", () => {
       isLoading: false,
     };
     renderLayout();
-    expect(screen.getByText(/operations queues/i)).toBeInTheDocument();
-    expect(screen.getByText(/evidence & readiness/i)).toBeInTheDocument();
-    expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/^reviews$/i)).toBeInTheDocument();
+    expect(screen.getByText(/evidence library/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/^platform operations$/i),
+    ).not.toBeInTheDocument();
   });
 });
 

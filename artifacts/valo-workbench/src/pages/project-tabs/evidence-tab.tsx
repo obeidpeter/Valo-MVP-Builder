@@ -12,22 +12,58 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Zap, Layers, Plus, Check, Pencil, Trash2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Loader2,
+  Zap,
+  Layers,
+  Plus,
+  Check,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { errorMessage } from "@/lib/errors";
+import { useOrganisationPermission } from "@/contexts/organisation-context";
 
-const STATUSES = ["present", "missing", "expired", "unclear", "not_applicable", "pending"] as const;
+const STATUSES = [
+  "present",
+  "missing",
+  "expired",
+  "unclear",
+  "not_applicable",
+  "pending",
+] as const;
 const NONE = "__none__";
 
 function statusClass(s: string): string {
-  if (s === "present") return "text-emerald-600 border-emerald-200 bg-emerald-50";
-  if (s === "missing" || s === "expired") return "text-destructive border-destructive/20 bg-destructive/10";
+  if (s === "present")
+    return "text-emerald-600 border-emerald-200 bg-emerald-50";
+  if (s === "missing" || s === "expired")
+    return "text-destructive border-destructive/20 bg-destructive/10";
   return "text-amber-600 border-amber-200 bg-amber-50";
 }
 
@@ -38,9 +74,17 @@ interface MapForm {
   excerpt: string;
   notes: string;
 }
-const EMPTY: MapForm = { requirementId: "", documentId: NONE, evidenceStatus: "present", excerpt: "", notes: "" };
+const EMPTY: MapForm = {
+  requirementId: "",
+  documentId: NONE,
+  evidenceStatus: "present",
+  excerpt: "",
+  notes: "",
+};
 
 export function EvidenceTab({ projectId }: { projectId: string }) {
+  const canWriteEvidence = useOrganisationPermission("evidence:write");
+  const canApproveEvidence = useOrganisationPermission("evidence:approve");
   const { data: evidence, isLoading } = useListEvidence(projectId);
   const { data: requirements } = useListRequirements(projectId);
   const { data: documents } = useListDocuments(projectId);
@@ -56,7 +100,10 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
   const [form, setForm] = useState<MapForm>(EMPTY);
   const [actingId, setActingId] = useState<string | null>(null);
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: getListEvidenceQueryKey(projectId) });
+  const refresh = () =>
+    queryClient.invalidateQueries({
+      queryKey: getListEvidenceQueryKey(projectId),
+    });
 
   const handleMap = () => {
     mapEvidence.mutate(
@@ -64,7 +111,11 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
       {
         onSuccess: refresh,
         onError: (err) =>
-          toast({ variant: "destructive", title: "Auto-map failed", description: errorMessage(err, "") }),
+          toast({
+            variant: "destructive",
+            title: "Auto-map failed",
+            description: errorMessage(err, ""),
+          }),
       },
     );
   };
@@ -75,7 +126,12 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
       { id: item.id, data: { evidenceStatus } as never },
       {
         onSuccess: refresh,
-        onError: (err) => toast({ variant: "destructive", title: "Could not update status", description: errorMessage(err, "") }),
+        onError: (err) =>
+          toast({
+            variant: "destructive",
+            title: "Could not update status",
+            description: errorMessage(err, ""),
+          }),
         onSettled: () => setActingId(null),
       },
     );
@@ -87,7 +143,12 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
       { id: item.id, data: { suggested: false } as never },
       {
         onSuccess: refresh,
-        onError: (err) => toast({ variant: "destructive", title: "Could not confirm evidence", description: errorMessage(err, "") }),
+        onError: (err) =>
+          toast({
+            variant: "destructive",
+            title: "Could not confirm evidence",
+            description: errorMessage(err, ""),
+          }),
         onSettled: () => setActingId(null),
       },
     );
@@ -99,7 +160,12 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
       { id: item.id },
       {
         onSuccess: refresh,
-        onError: (err) => toast({ variant: "destructive", title: "Could not delete evidence", description: errorMessage(err, "") }),
+        onError: (err) =>
+          toast({
+            variant: "destructive",
+            title: "Could not delete evidence",
+            description: errorMessage(err, ""),
+          }),
         onSettled: () => setActingId(null),
       },
     );
@@ -107,7 +173,14 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
 
   const openMap = () => {
     setEditingId(null);
-    setForm({ ...EMPTY, requirementId: requirements?.[0]?.id ?? "" });
+    setForm({
+      ...EMPTY,
+      requirementId: requirements?.[0]?.id ?? "",
+      evidenceStatus:
+        canWriteEvidence && canApproveEvidence
+          ? EMPTY.evidenceStatus
+          : "pending",
+    });
     setDialogOpen(true);
   };
   const openEdit = (item: EvidenceItem) => {
@@ -128,8 +201,16 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
       return;
     }
     const common = {
-      onSuccess: () => { setDialogOpen(false); refresh(); },
-      onError: (err: unknown) => toast({ variant: "destructive", title: "Could not save evidence", description: errorMessage(err, "") }),
+      onSuccess: () => {
+        setDialogOpen(false);
+        refresh();
+      },
+      onError: (err: unknown) =>
+        toast({
+          variant: "destructive",
+          title: "Could not save evidence",
+          description: errorMessage(err, ""),
+        }),
     };
     if (editingId) {
       updateEvidence.mutate(
@@ -137,7 +218,9 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
           id: editingId,
           data: {
             documentId: form.documentId === NONE ? undefined : form.documentId,
-            evidenceStatus: form.evidenceStatus,
+            ...(canWriteEvidence && canApproveEvidence
+              ? { evidenceStatus: form.evidenceStatus }
+              : {}),
             excerpt: form.excerpt.trim() || undefined,
             notes: form.notes.trim() || undefined,
           } as never,
@@ -151,7 +234,10 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
             projectId,
             requirementId: form.requirementId,
             documentId: form.documentId === NONE ? undefined : form.documentId,
-            evidenceStatus: form.evidenceStatus,
+            evidenceStatus:
+              canWriteEvidence && canApproveEvidence
+                ? form.evidenceStatus
+                : "pending",
             excerpt: form.excerpt.trim() || undefined,
             notes: form.notes.trim() || undefined,
           } as never,
@@ -168,13 +254,25 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-serif font-medium">Evidence Map</h2>
         <div className="flex gap-2">
-          <Button onClick={openMap} variant="outline">
-            <Plus className="w-4 h-4 mr-2" /> Map Evidence
-          </Button>
-          <Button onClick={handleMap} disabled={mapEvidence.isPending} variant="secondary">
-            {mapEvidence.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
-            Auto-Map Evidence
-          </Button>
+          {canWriteEvidence && (
+            <>
+              <Button onClick={openMap} variant="outline">
+                <Plus className="w-4 h-4 mr-2" /> Map Evidence
+              </Button>
+              <Button
+                onClick={handleMap}
+                disabled={mapEvidence.isPending}
+                variant="secondary"
+              >
+                {mapEvidence.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Zap className="w-4 h-4 mr-2" />
+                )}
+                Auto-Map Evidence
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -198,42 +296,102 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
               {evidence.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="max-w-[260px]">
-                    <p className="text-sm font-medium truncate">{item.requirementText}</p>
+                    <p className="text-sm font-medium truncate">
+                      {item.requirementText}
+                    </p>
                     {item.suggested && (
-                      <span className="text-[10px] text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded uppercase tracking-wider font-mono">suggested</span>
+                      <span className="text-xs text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded uppercase tracking-wider font-mono">
+                        suggested
+                      </span>
                     )}
                   </TableCell>
                   <TableCell>
-                    <Select value={item.evidenceStatus} onValueChange={(v) => setStatus(item, v)} disabled={actingId === item.id}>
-                      <SelectTrigger className={`h-7 text-xs capitalize ${statusClass(item.evidenceStatus)}`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STATUSES.map((s) => (
-                          <SelectItem key={s} value={s} className="capitalize text-xs">{s.replace("_", " ")}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {canWriteEvidence && canApproveEvidence ? (
+                      <Select
+                        value={item.evidenceStatus}
+                        onValueChange={(v) => setStatus(item, v)}
+                        disabled={actingId === item.id}
+                      >
+                        <SelectTrigger
+                          className={`h-7 text-xs capitalize ${statusClass(item.evidenceStatus)}`}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STATUSES.map((s) => (
+                            <SelectItem
+                              key={s}
+                              value={s}
+                              className="capitalize text-xs"
+                            >
+                              {s.replace("_", " ")}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className={`text-xs capitalize ${statusClass(item.evidenceStatus)}`}
+                      >
+                        {item.evidenceStatus.replace("_", " ")}
+                      </Badge>
+                    )}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{item.documentName || "—"}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {item.documentName || "—"}
+                  </TableCell>
                   <TableCell className="text-sm">
                     {item.excerpt ? (
-                      <p className="line-clamp-2 text-muted-foreground italic text-xs border-l-2 pl-2">"{item.excerpt}"</p>
-                    ) : "—"}
+                      <p className="line-clamp-2 text-muted-foreground italic text-xs border-l-2 pl-2">
+                        "{item.excerpt}"
+                      </p>
+                    ) : (
+                      "—"
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      {item.suggested && (
-                        <Button variant="ghost" size="icon" title="Confirm mapping" disabled={actingId === item.id} onClick={() => confirmItem(item)}>
-                          <Check className="w-4 h-4 text-emerald-600" />
-                        </Button>
-                      )}
-                      <Button variant="ghost" size="icon" title="Edit" onClick={() => openEdit(item)}>
-                        <Pencil className="w-4 h-4 text-muted-foreground" />
-                      </Button>
-                      <Button variant="ghost" size="icon" title="Delete" disabled={actingId === item.id} onClick={() => handleDelete(item)}>
-                        <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-                      </Button>
+                      {canWriteEvidence &&
+                        canApproveEvidence &&
+                        item.suggested && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Confirm mapping"
+                            disabled={actingId === item.id}
+                            onClick={() => confirmItem(item)}
+                          >
+                            <Check className="w-4 h-4 text-emerald-600" />
+                          </Button>
+                        )}
+                      {canWriteEvidence &&
+                        (canApproveEvidence ||
+                          !(
+                            item.confirmedBy ||
+                            (!item.suggested &&
+                              item.evidenceStatus !== "pending")
+                          )) && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Edit"
+                              onClick={() => openEdit(item)}
+                            >
+                              <Pencil className="w-4 h-4 text-muted-foreground" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Delete"
+                              disabled={actingId === item.id}
+                              onClick={() => handleDelete(item)}
+                            >
+                              <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+                            </Button>
+                          </>
+                        )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -248,63 +406,118 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
         )}
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog
+        open={canWriteEvidence && dialogOpen}
+        onOpenChange={setDialogOpen}
+      >
         <DialogContent className="sm:max-w-[560px]">
           <DialogHeader>
-            <DialogTitle className="font-serif">{editingId ? "Edit Evidence" : "Map Evidence"}</DialogTitle>
+            <DialogTitle className="font-serif">
+              {editingId ? "Edit Evidence" : "Map Evidence"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase">Requirement</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase">
+                Requirement
+              </label>
               <Select
                 value={form.requirementId}
                 onValueChange={(v) => setForm({ ...form, requirementId: v })}
                 disabled={!!editingId}
               >
-                <SelectTrigger><SelectValue placeholder="Select a requirement" /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a requirement" />
+                </SelectTrigger>
                 <SelectContent>
                   {(requirements ?? []).map((r) => (
-                    <SelectItem key={r.id} value={r.id}>{r.text.slice(0, 70)}</SelectItem>
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.text.slice(0, 70)}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground uppercase">Document</label>
-                <Select value={form.documentId} onValueChange={(v) => setForm({ ...form, documentId: v })}>
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <label className="text-xs font-medium text-muted-foreground uppercase">
+                  Document
+                </label>
+                <Select
+                  value={form.documentId}
+                  onValueChange={(v) => setForm({ ...form, documentId: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="None" />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE}>None</SelectItem>
                     {(documents ?? []).map((d) => (
-                      <SelectItem key={d.id} value={d.id}>{d.filename}</SelectItem>
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.filename}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground uppercase">Status</label>
-                <Select value={form.evidenceStatus} onValueChange={(v) => setForm({ ...form, evidenceStatus: v as MapForm["evidenceStatus"] })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {STATUSES.map((s) => (
-                      <SelectItem key={s} value={s} className="capitalize">{s.replace("_", " ")}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <label className="text-xs font-medium text-muted-foreground uppercase">
+                  Status
+                </label>
+                {canWriteEvidence && canApproveEvidence ? (
+                  <Select
+                    value={form.evidenceStatus}
+                    onValueChange={(v) =>
+                      setForm({
+                        ...form,
+                        evidenceStatus: v as MapForm["evidenceStatus"],
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUSES.map((s) => (
+                        <SelectItem key={s} value={s} className="capitalize">
+                          {s.replace("_", " ")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
+                    Pending review
+                  </div>
+                )}
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase">Excerpt</label>
-              <Textarea value={form.excerpt} onChange={(e) => setForm({ ...form, excerpt: e.target.value })} className="min-h-[60px]" placeholder="Verbatim quote supporting the status" />
+              <label className="text-xs font-medium text-muted-foreground uppercase">
+                Excerpt
+              </label>
+              <Textarea
+                value={form.excerpt}
+                onChange={(e) => setForm({ ...form, excerpt: e.target.value })}
+                className="min-h-[60px]"
+                placeholder="Verbatim quote supporting the status"
+              />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase">Notes</label>
-              <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="min-h-[50px]" />
+              <label className="text-xs font-medium text-muted-foreground uppercase">
+                Notes
+              </label>
+              <Textarea
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                className="min-h-[50px]"
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancel
+            </Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {editingId ? "Save Changes" : "Map Evidence"}

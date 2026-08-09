@@ -38,13 +38,24 @@ export default function RequireArea({
     );
   }
 
-  const roles = organisationAccess?.activeOrganisation
-    ? organisationAccess.effectiveRoles
-    : [String(user.role)];
+  if (!organisationAccess?.activeOrganisation) {
+    return (
+      <div className="p-6 sm:p-8">
+        <StatusPanel
+          state="pending"
+          title="Organisation access required"
+          description="Select an active organisation workspace, or wait for an administrator to assign one. Tenant routes and actions remain unavailable."
+        />
+      </div>
+    );
+  }
+
+  const roles = organisationAccess.effectiveRoles;
   const decision = getPlatformAccessDecision(
     roles,
     area,
     platformFeatureFlags(),
+    organisationAccess.effectivePermissions,
   );
   if (!decision.allowed) {
     return (

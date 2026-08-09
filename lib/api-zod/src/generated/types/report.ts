@@ -23,6 +23,7 @@ export interface Report {
   version: number;
   status: ReportStatus;
   docxPath?: string | null;
+  pdfPath?: string | null;
   reviewerId?: string | null;
   reviewerName?: string | null;
   attestation?: string | null;

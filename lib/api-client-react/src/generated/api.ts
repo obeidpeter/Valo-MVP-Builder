@@ -54,8 +54,10 @@ import type {
   DefectCreate,
   DefectSuggestResult,
   DefectUpdate,
+  DiscardUploadRequest,
   Document,
   DocumentCreate,
+  DocumentIntakeFailure,
   DocumentIntegrity,
   DocumentUpdate,
   ErrorEnvelope,
@@ -112,6 +114,7 @@ import type {
   SbdTemplateUpdate,
   Scorecard,
   SignOffRequest,
+  StagedUploadDiscardResult,
   TenantFeatureFlag,
   TenantFeatureFlagSaved,
   TenantFeatureFlagUpdate,
@@ -226,13 +229,6 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
-
-
-
-
 export const getGetMeUrl = () => {
 
 
@@ -467,10 +463,13 @@ export const getListOrganisationsUrl = () => {
 }
 
 /**
- * Discovery endpoint used before tenant selection. It returns only active,
- * unexpired memberships in active organisations, with only active and
- * unexpired role grants. No organisation context header is required.
- * @summary List the caller's active organisation memberships
+ * Discovery endpoint used before tenant selection. It returns active
+ * direct memberships and client contexts reached through an active
+ * consultancy-partner relationship with partner edition enabled. Every
+ * row includes the server-computed effective permission set; projected
+ * rows contain only the restricted partner-derived permissions. No
+ * organisation context header is required.
+ * @summary List the caller's active organisation access contexts
  */
 export const listOrganisations = async ( options?: RequestInit): Promise<OrganisationAccessSummary[]> => {
 
@@ -517,7 +516,7 @@ export type ListOrganisationsQueryError = ErrorType<UnauthorizedResponse | Forbi
 
 
 /**
- * @summary List the caller's active organisation memberships
+ * @summary List the caller's active organisation access contexts
  */
 
 export function useListOrganisations<TData = Awaited<ReturnType<typeof listOrganisations>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse>>(
@@ -703,8 +702,10 @@ export const getCreateOrganisationMembershipUrl = (organisationId: string,) => {
 /**
  * Requires `membership:manage` from a direct membership in the selected
  * organisation. Delegation ceilings and organisation-role compatibility
- * are enforced by the server. Partner and break-glass contexts cannot
- * administer memberships.
+ * are re-evaluated from locked, live grants by the server. A lower-level
+ * administrator cannot reactivate a membership that retains a live or
+ * scheduled higher-authority grant, and self-service role grants are
+ * denied. Partner and break-glass contexts cannot administer memberships.
  * @summary Add or reactivate a membership and grant a role
  */
 export const createOrganisationMembership = async (organisationId: string,
@@ -779,7 +780,10 @@ export const getUpdateOrganisationMembershipUrl = (organisationId: string,
 /**
  * Requires `membership:manage` from a direct membership. The optimistic
  * membership version must be supplied in `If-Match`; stale versions fail
- * without mutation. An ETag containing the new version is returned.
+ * without mutation. Live grants, self-change safeguards, and the last
+ * active administrator/owner invariant are checked under an organisation
+ * transaction lock. Denied hierarchy changes are audited. An ETag
+ * containing the new version is returned.
  * @summary Update membership status or access expiry
  */
 export const updateOrganisationMembership = async (organisationId: string,
@@ -2935,7 +2939,7 @@ export const createVaultItem = async (id: string,
 
 
 
-export const getCreateVaultItemMutationOptions = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+export const getCreateVaultItemMutationOptions = <TError = ErrorType<BadRequestResponse | NotFoundResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createVaultItem>>, TError,{id: string;data: BodyType<VaultItemCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createVaultItem>>, TError,{id: string;data: BodyType<VaultItemCreate>}, TContext> => {
 
@@ -2964,12 +2968,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CreateVaultItemMutationResult = NonNullable<Awaited<ReturnType<typeof createVaultItem>>>
     export type CreateVaultItemMutationBody = BodyType<VaultItemCreate>
-    export type CreateVaultItemMutationError = ErrorType<BadRequestResponse | NotFoundResponse>
+    export type CreateVaultItemMutationError = ErrorType<BadRequestResponse | NotFoundResponse | ConflictResponse>
 
     /**
  * @summary Register a certificate/compliance artefact for a client
  */
-export const useCreateVaultItem = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+export const useCreateVaultItem = <TError = ErrorType<BadRequestResponse | NotFoundResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createVaultItem>>, TError,{id: string;data: BodyType<VaultItemCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createVaultItem>>,
@@ -3003,7 +3007,7 @@ export const updateVaultItem = async (id: string,
 
 
 
-export const getUpdateVaultItemMutationOptions = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+export const getUpdateVaultItemMutationOptions = <TError = ErrorType<BadRequestResponse | NotFoundResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVaultItem>>, TError,{id: string;data: BodyType<VaultItemUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof updateVaultItem>>, TError,{id: string;data: BodyType<VaultItemUpdate>}, TContext> => {
 
@@ -3032,9 +3036,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type UpdateVaultItemMutationResult = NonNullable<Awaited<ReturnType<typeof updateVaultItem>>>
     export type UpdateVaultItemMutationBody = BodyType<VaultItemUpdate>
-    export type UpdateVaultItemMutationError = ErrorType<BadRequestResponse | NotFoundResponse>
+    export type UpdateVaultItemMutationError = ErrorType<BadRequestResponse | NotFoundResponse | ConflictResponse>
 
-    export const useUpdateVaultItem = <TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+    export const useUpdateVaultItem = <TError = ErrorType<BadRequestResponse | NotFoundResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVaultItem>>, TError,{id: string;data: BodyType<VaultItemUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof updateVaultItem>>,
@@ -3067,7 +3071,7 @@ export const deleteVaultItem = async (id: string, options?: RequestInit): Promis
 
 
 
-export const getDeleteVaultItemMutationOptions = <TError = ErrorType<NotFoundResponse>,
+export const getDeleteVaultItemMutationOptions = <TError = ErrorType<NotFoundResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVaultItem>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof deleteVaultItem>>, TError,{id: string}, TContext> => {
 
@@ -3096,9 +3100,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type DeleteVaultItemMutationResult = NonNullable<Awaited<ReturnType<typeof deleteVaultItem>>>
 
-    export type DeleteVaultItemMutationError = ErrorType<NotFoundResponse>
+    export type DeleteVaultItemMutationError = ErrorType<NotFoundResponse | ConflictResponse>
 
-    export const useDeleteVaultItem = <TError = ErrorType<NotFoundResponse>,
+    export const useDeleteVaultItem = <TError = ErrorType<NotFoundResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVaultItem>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof deleteVaultItem>>,
@@ -4260,7 +4264,7 @@ export const createDocument = async (id: string,
 
 
 
-export const getCreateDocumentMutationOptions = <TError = ErrorType<BadRequestResponse | ErrorEnvelope>,
+export const getCreateDocumentMutationOptions = <TError = ErrorType<BadRequestResponse | ErrorEnvelope | DocumentIntakeFailure>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDocument>>, TError,{id: string;data: BodyType<DocumentCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createDocument>>, TError,{id: string;data: BodyType<DocumentCreate>}, TContext> => {
 
@@ -4289,12 +4293,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CreateDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof createDocument>>>
     export type CreateDocumentMutationBody = BodyType<DocumentCreate>
-    export type CreateDocumentMutationError = ErrorType<BadRequestResponse | ErrorEnvelope>
+    export type CreateDocumentMutationError = ErrorType<BadRequestResponse | ErrorEnvelope | DocumentIntakeFailure>
 
     /**
  * @summary Register an uploaded document (after object-storage upload)
  */
-export const useCreateDocument = <TError = ErrorType<BadRequestResponse | ErrorEnvelope>,
+export const useCreateDocument = <TError = ErrorType<BadRequestResponse | ErrorEnvelope | DocumentIntakeFailure>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDocument>>, TError,{id: string;data: BodyType<DocumentCreate>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createDocument>>,
@@ -4399,7 +4403,7 @@ export const updateDocument = async (id: string,
 
 
 
-export const getUpdateDocumentMutationOptions = <TError = ErrorType<unknown>,
+export const getUpdateDocumentMutationOptions = <TError = ErrorType<ErrorEnvelope>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDocument>>, TError,{id: string;data: BodyType<DocumentUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof updateDocument>>, TError,{id: string;data: BodyType<DocumentUpdate>}, TContext> => {
 
@@ -4428,9 +4432,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type UpdateDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof updateDocument>>>
     export type UpdateDocumentMutationBody = BodyType<DocumentUpdate>
-    export type UpdateDocumentMutationError = ErrorType<unknown>
+    export type UpdateDocumentMutationError = ErrorType<ErrorEnvelope>
 
-    export const useUpdateDocument = <TError = ErrorType<unknown>,
+    export const useUpdateDocument = <TError = ErrorType<ErrorEnvelope>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDocument>>, TError,{id: string;data: BodyType<DocumentUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof updateDocument>>,
@@ -4463,7 +4467,7 @@ export const deleteDocument = async (id: string, options?: RequestInit): Promise
 
 
 
-export const getDeleteDocumentMutationOptions = <TError = ErrorType<ForbiddenResponse>,
+export const getDeleteDocumentMutationOptions = <TError = ErrorType<ForbiddenResponse | ErrorEnvelope>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteDocument>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof deleteDocument>>, TError,{id: string}, TContext> => {
 
@@ -4492,9 +4496,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type DeleteDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof deleteDocument>>>
 
-    export type DeleteDocumentMutationError = ErrorType<ForbiddenResponse>
+    export type DeleteDocumentMutationError = ErrorType<ForbiddenResponse | ErrorEnvelope>
 
-    export const useDeleteDocument = <TError = ErrorType<ForbiddenResponse>,
+    export const useDeleteDocument = <TError = ErrorType<ForbiddenResponse | ErrorEnvelope>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteDocument>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof deleteDocument>>,
@@ -4514,7 +4518,7 @@ export const getExtractDocumentUrl = (id: string,) => {
 }
 
 /**
- * @summary (Re-)run text extraction for a document, asynchronously
+ * @summary Deliberately run reviewer-authorised text extraction under the project lock
  */
 export const extractDocument = async (id: string, options?: RequestInit): Promise<Document> => {
 
@@ -4530,7 +4534,7 @@ export const extractDocument = async (id: string, options?: RequestInit): Promis
 
 
 
-export const getExtractDocumentMutationOptions = <TError = ErrorType<NotFoundResponse>,
+export const getExtractDocumentMutationOptions = <TError = ErrorType<ErrorEnvelope | NotFoundResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof extractDocument>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof extractDocument>>, TError,{id: string}, TContext> => {
 
@@ -4559,12 +4563,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ExtractDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof extractDocument>>>
 
-    export type ExtractDocumentMutationError = ErrorType<NotFoundResponse>
+    export type ExtractDocumentMutationError = ErrorType<ErrorEnvelope | NotFoundResponse>
 
     /**
- * @summary (Re-)run text extraction for a document, asynchronously
+ * @summary Deliberately run reviewer-authorised text extraction under the project lock
  */
-export const useExtractDocument = <TError = ErrorType<NotFoundResponse>,
+export const useExtractDocument = <TError = ErrorType<ErrorEnvelope | NotFoundResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof extractDocument>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof extractDocument>>,
@@ -5709,7 +5713,7 @@ export const updateDefect = async (id: string,
 
 
 
-export const getUpdateDefectMutationOptions = <TError = ErrorType<unknown>,
+export const getUpdateDefectMutationOptions = <TError = ErrorType<ConflictResponse | PreconditionRequiredResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDefect>>, TError,{id: string;data: BodyType<DefectUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof updateDefect>>, TError,{id: string;data: BodyType<DefectUpdate>}, TContext> => {
 
@@ -5738,9 +5742,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type UpdateDefectMutationResult = NonNullable<Awaited<ReturnType<typeof updateDefect>>>
     export type UpdateDefectMutationBody = BodyType<DefectUpdate>
-    export type UpdateDefectMutationError = ErrorType<unknown>
+    export type UpdateDefectMutationError = ErrorType<ConflictResponse | PreconditionRequiredResponse>
 
-    export const useUpdateDefect = <TError = ErrorType<unknown>,
+    export const useUpdateDefect = <TError = ErrorType<ConflictResponse | PreconditionRequiredResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDefect>>, TError,{id: string;data: BodyType<DefectUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof updateDefect>>,
@@ -6625,7 +6629,7 @@ export const getDownloadReportQueryKey = (id: string,) => {
     }
 
 
-export const getDownloadReportQueryOptions = <TData = Awaited<ReturnType<typeof downloadReport>>, TError = ErrorType<NotFoundResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getDownloadReportQueryOptions = <TData = Awaited<ReturnType<typeof downloadReport>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -6644,19 +6648,96 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type DownloadReportQueryResult = NonNullable<Awaited<ReturnType<typeof downloadReport>>>
-export type DownloadReportQueryError = ErrorType<NotFoundResponse>
+export type DownloadReportQueryError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse>
 
 
 /**
  * @summary Download the generated DOCX
  */
 
-export function useDownloadReport<TData = Awaited<ReturnType<typeof downloadReport>>, TError = ErrorType<NotFoundResponse>>(
+export function useDownloadReport<TData = Awaited<ReturnType<typeof downloadReport>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse>>(
  id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getDownloadReportQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDownloadReportPdfUrl = (id: string,) => {
+
+
+
+
+  return `/api/reports/${id}/download-pdf`
+}
+
+/**
+ * @summary Download the generated PDF
+ */
+export const downloadReportPdf = async (id: string, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadReportPdfUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadReportPdfQueryKey = (id: string,) => {
+    return [
+    `/api/reports/${id}/download-pdf`
+    ] as const;
+    }
+
+
+export const getDownloadReportPdfQueryOptions = <TData = Awaited<ReturnType<typeof downloadReportPdf>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadReportPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadReportPdfQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadReportPdf>>> = ({ signal }) => downloadReportPdf(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadReportPdf>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadReportPdfQueryResult = NonNullable<Awaited<ReturnType<typeof downloadReportPdf>>>
+export type DownloadReportPdfQueryError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse>
+
+
+/**
+ * @summary Download the generated PDF
+ */
+
+export function useDownloadReportPdf<TData = Awaited<ReturnType<typeof downloadReportPdf>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadReportPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadReportPdfQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -7067,6 +7148,7 @@ export function useGetLegacyIntegrityAssessment<TData = Awaited<ReturnType<typeo
 
 
 
+
 export const getListAuditUrl = (id: string,) => {
 
 
@@ -7208,6 +7290,77 @@ export const useRequestUploadUrl = <TError = ErrorType<BadRequestResponse | Erro
       return useMutation(getRequestUploadUrlMutationOptions(options));
     }
 
+export const getDiscardUploadUrl = () => {
+
+
+
+
+  return `/api/storage/uploads/discard`
+}
+
+/**
+ * Deletes only an opaque object in the authenticated organisation's upload staging namespace. The server rejects signed URLs, cross-tenant paths, quarantine paths, and objects already referenced by any persisted tenant artefact.
+ * @summary Discard an unreferenced staged upload after document registration fails
+ */
+export const discardUpload = async (discardUploadRequest: DiscardUploadRequest, options?: RequestInit): Promise<StagedUploadDiscardResult> => {
+
+  return customFetch<StagedUploadDiscardResult>(getDiscardUploadUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(discardUploadRequest)
+  }
+);}
+
+
+
+
+export const getDiscardUploadMutationOptions = <TError = ErrorType<BadRequestResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof discardUpload>>, TError,{data: BodyType<DiscardUploadRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof discardUpload>>, TError,{data: BodyType<DiscardUploadRequest>}, TContext> => {
+
+const mutationKey = ['discardUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof discardUpload>>, {data: BodyType<DiscardUploadRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  discardUpload(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DiscardUploadMutationResult = NonNullable<Awaited<ReturnType<typeof discardUpload>>>
+    export type DiscardUploadMutationBody = BodyType<DiscardUploadRequest>
+    export type DiscardUploadMutationError = ErrorType<BadRequestResponse | ErrorEnvelope>
+
+    /**
+ * @summary Discard an unreferenced staged upload after document registration fails
+ */
+export const useDiscardUpload = <TError = ErrorType<BadRequestResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof discardUpload>>, TError,{data: BodyType<DiscardUploadRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof discardUpload>>,
+        TError,
+        {data: BodyType<DiscardUploadRequest>},
+        TContext
+      > => {
+      return useMutation(getDiscardUploadMutationOptions(options));
+    }
+
 export const getGetStorageObjectUrl = (objectPath: string,) => {
 
 
@@ -7217,7 +7370,8 @@ export const getGetStorageObjectUrl = (objectPath: string,) => {
 }
 
 /**
- * @summary Serve an object entity from PRIVATE_OBJECT_DIR
+ * Fails closed for unreferenced staging objects, document-version quarantine objects, report renders, package outputs, and partner-branding objects. Controlled outputs are available only through their guarded download/export routes.
+ * @summary Serve a registered document or vault source object
  */
 export const getStorageObject = async (objectPath: string, options?: RequestInit): Promise<Blob> => {
 
@@ -7264,7 +7418,7 @@ export type GetStorageObjectQueryError = ErrorType<NotFoundResponse>
 
 
 /**
- * @summary Serve an object entity from PRIVATE_OBJECT_DIR
+ * @summary Serve a registered document or vault source object
  */
 
 export function useGetStorageObject<TData = Awaited<ReturnType<typeof getStorageObject>>, TError = ErrorType<NotFoundResponse>>(

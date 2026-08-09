@@ -201,18 +201,22 @@ export async function attachTenantContext(
       )
       .where(eq(organisationMemberships.userId, user.id));
 
-    const activeMemberships = membershipRows.filter(
-      ({ membership, organisation }) =>
-        organisation.status === "active" &&
-        isActiveAccessWindow(
-          {
-            status: membership.status,
-            startsAt: membership.accessStartsAt,
-            expiresAt: membership.accessExpiresAt,
-          },
-          now,
-        ),
-    );
+    const activeMemberships = membershipRows
+      .filter(
+        ({ membership, organisation }) =>
+          organisation.status === "active" &&
+          isActiveAccessWindow(
+            {
+              status: membership.status,
+              startsAt: membership.accessStartsAt,
+              expiresAt: membership.accessExpiresAt,
+            },
+            now,
+          ),
+      )
+      .sort((left, right) =>
+        left.membership.id.localeCompare(right.membership.id),
+      );
 
     let selected = requestedOrganisationId
       ? activeMemberships.find(

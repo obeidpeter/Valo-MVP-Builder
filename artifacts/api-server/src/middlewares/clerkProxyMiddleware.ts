@@ -29,7 +29,10 @@ export const CLERK_PROXY_PATH = "/api/__clerk";
 /**
  * Returns the first effective public hostname for the given request,
  * preferring x-forwarded-host over the Host header so callers behind a
- * proxy see the original client-facing host.
+ * proxy see the original client-facing host. The selected host is returned
+ * only when it belongs to the exact configured public-origin allowlist;
+ * forwarded host data is request-controlled and must never select a Clerk
+ * frontend instance by itself.
  *
  * x-forwarded-host can take three shapes:
  *   - undefined (no proxy involved)
@@ -43,16 +46,46 @@ export const CLERK_PROXY_PATH = "/api/__clerk";
  * hostname is canonical — otherwise multi-domain/custom-domain flows
  * break.
  */
-export function getClerkProxyHost(req: {
-  headers: IncomingHttpHeaders;
-}): string | undefined {
+export function clerkProxyHostsFromOrigins(
+  allowedOrigins: ReadonlySet<string>,
+): ReadonlySet<string> {
+  const hosts = new Set<string>();
+  for (const origin of allowedOrigins) {
+    try {
+      const parsed = new URL(origin);
+      if (
+        (parsed.protocol === "https:" || parsed.protocol === "http:") &&
+        parsed.pathname === "/" &&
+        !parsed.search &&
+        !parsed.hash
+      ) {
+        hosts.add(parsed.host.toLowerCase());
+      }
+    } catch {
+      // Invalid CORS entries are not promoted into the identity host boundary.
+    }
+  }
+  return hosts;
+}
+
+export function getClerkProxyHost(
+  req: { headers: IncomingHttpHeaders },
+  allowedHosts: ReadonlySet<string>,
+): string | undefined {
   const forwarded = req.headers["x-forwarded-host"];
   const raw = Array.isArray(forwarded) ? forwarded[0] : forwarded;
   const firstHop = raw?.split(",")[0]?.trim();
-  return firstHop || req.headers.host?.trim() || undefined;
+  const candidate = firstHop || req.headers.host?.trim() || undefined;
+  if (!candidate || !/^[a-z0-9.-]+(?::[0-9]{1,5})?$/i.test(candidate)) {
+    return undefined;
+  }
+  const normalized = candidate.toLowerCase();
+  return allowedHosts.has(normalized) ? normalized : undefined;
 }
 
-export function clerkProxyMiddleware(): RequestHandler {
+export function clerkProxyMiddleware(
+  allowedHosts: ReadonlySet<string>,
+): RequestHandler {
   // Only run proxy in production — Clerk proxying doesn't work for dev instances
   if (process.env.NODE_ENV !== "production") {
     return (_req, _res, next) => next();
@@ -63,7 +96,7 @@ export function clerkProxyMiddleware(): RequestHandler {
     return (_req, _res, next) => next();
   }
 
-  return createProxyMiddleware({
+  const proxy = createProxyMiddleware({
     target: CLERK_FAPI,
     changeOrigin: true,
     // Take over the response so it can be re-sent with a Content-Length (see
@@ -74,7 +107,7 @@ export function clerkProxyMiddleware(): RequestHandler {
     on: {
       proxyReq: (proxyReq, req) => {
         const protocol = req.headers["x-forwarded-proto"] || "https";
-        const host = getClerkProxyHost(req) || "";
+        const host = getClerkProxyHost(req, allowedHosts) || "";
         const proxyUrl = `${protocol}://${host}${CLERK_PROXY_PATH}`;
 
         proxyReq.setHeader("Clerk-Proxy-Url", proxyUrl);
@@ -143,4 +176,15 @@ export function clerkProxyMiddleware(): RequestHandler {
       },
     },
   }) as RequestHandler;
+
+  return (req, res, next) => {
+    if (!getClerkProxyHost(req, allowedHosts)) {
+      res.status(421).json({
+        error: "Identity proxy host is not configured",
+        code: "identity_proxy_host_rejected",
+      });
+      return;
+    }
+    proxy(req, res, next);
+  };
 }

@@ -11,6 +11,7 @@ import {
   db,
   organisationMemberships,
   organisations,
+  partnerRelationships,
   roleGrants,
   users,
   withTenantDatabase,
@@ -23,14 +24,23 @@ import {
   parseExpectedVersion,
 } from "../middlewares/tenancy";
 import {
-  canGrantRole,
+  hasPermission,
   isActiveAccessWindow,
   isOrganisationRole,
   isRoleAllowedForOrganisation,
+  partnerDerivedPermissionsForRoles,
+  permissionsForRoles,
   type OrganisationRole,
   type OrganisationType,
 } from "../lib/permissions";
+import { isTenantFeatureEnabled } from "../lib/featureFlags";
+import {
+  evaluateMembershipGrantAuthority,
+  evaluateMembershipLifecycleAuthority,
+  type MembershipAuthorityDenial,
+} from "../lib/membershipLifecyclePolicy";
 import { writeAuditTx } from "../lib/audit";
+import { discoverableOrganisationRoleAccess } from "../lib/organisationDiscovery";
 import {
   isBootstrapIdentity,
   parseBootstrapOrganisationConfig,
@@ -43,6 +53,93 @@ const ORGANISATION_TYPES = new Set<OrganisationType>([
   "valo",
   "consultancy_partner",
 ]);
+
+type OrganisationTransaction = Parameters<
+  Parameters<typeof db.transaction>[0]
+>[0];
+
+/**
+ * Every membership writer takes the same transaction-scoped organisation
+ * lock before reading authority or counting administrators. The row locks keep
+ * the snapshots stable and the advisory lock also serialises a concurrent
+ * insert, which has no row to lock yet. The surrounding tenant transaction is
+ * intentionally read committed because the audit hash chain requires that
+ * isolation level after waiting for its own advisory lock.
+ */
+async function lockOrganisationMembershipAdministration(
+  tx: OrganisationTransaction,
+  organisationId: string,
+): Promise<void> {
+  await tx.execute(sql`SET LOCAL lock_timeout = '3s'`);
+  await tx.execute(sql`
+    SELECT pg_advisory_xact_lock(
+      hashtextextended(${`valo.membership-administration:${organisationId}`}, 0)
+    )
+  `);
+  await tx.execute(sql`
+    SELECT id
+    FROM public.organisation_memberships
+    WHERE organisation_id = ${organisationId}::uuid
+    ORDER BY id
+    FOR UPDATE
+  `);
+  await tx.execute(sql`
+    SELECT grant_row.id
+    FROM public.role_grants AS grant_row
+    INNER JOIN public.organisation_memberships AS membership_row
+      ON membership_row.id = grant_row.membership_id
+    WHERE membership_row.organisation_id = ${organisationId}::uuid
+    ORDER BY grant_row.id
+    FOR UPDATE OF grant_row
+  `);
+}
+
+function membershipDenialResponse(denial: MembershipAuthorityDenial): {
+  status: 403 | 409;
+  error: string;
+} {
+  if (denial === "actor_authority_changed") {
+    return {
+      status: 409,
+      error: "Membership authority changed; reload before updating",
+    };
+  }
+  if (denial === "last_active_administrator") {
+    return {
+      status: 409,
+      error: "Another active administrator is required before this change",
+    };
+  }
+  if (denial === "last_active_owner") {
+    return {
+      status: 409,
+      error: "Another active organisation owner is required before this change",
+    };
+  }
+  if (denial === "unsafe_self_grant") {
+    return {
+      status: 403,
+      error: "Self-service role grants are not permitted",
+    };
+  }
+  if (denial === "unsafe_self_lifecycle_change") {
+    return {
+      status: 403,
+      error: "Use another authorised administrator for your own access changes",
+    };
+  }
+  return { status: 403, error: "Membership management authority denied" };
+}
+
+function roleGrantCanStillTakeEffect(
+  grant: typeof roleGrants.$inferSelect,
+  now: Date,
+): boolean {
+  return (
+    !grant.revokedAt &&
+    (!grant.expiresAt || grant.expiresAt.getTime() > now.getTime())
+  );
+}
 
 function requirePlatformBootstrap(
   req: Request,
@@ -89,6 +186,16 @@ function defaultOwnerRole(type: OrganisationType): OrganisationRole {
   if (type === "consultancy_partner")
     return "consultancy_partner_administrator";
   return "restricted_platform_administrator";
+}
+
+function earliestAccessExpiry(
+  ...values: readonly (Date | null)[]
+): string | null {
+  const expiries = values.filter((value): value is Date => value !== null);
+  if (expiries.length === 0) return null;
+  return new Date(
+    Math.min(...expiries.map((value) => value.getTime())),
+  ).toISOString();
 }
 
 async function maybeProvisionConfiguredBootstrapOrganisation(
@@ -222,18 +329,22 @@ router.get("/organisations", async (req: Request, res: Response) => {
         .where(eq(organisationMemberships.userId, user.id));
     }
   }
-  const active = rows.filter(
-    ({ membership, organisation }) =>
-      organisation.status === "active" &&
-      isActiveAccessWindow(
-        {
-          status: membership.status,
-          startsAt: membership.accessStartsAt,
-          expiresAt: membership.accessExpiresAt,
-        },
-        now,
-      ),
-  );
+  const active = rows
+    .filter(
+      ({ membership, organisation }) =>
+        organisation.status === "active" &&
+        isActiveAccessWindow(
+          {
+            status: membership.status,
+            startsAt: membership.accessStartsAt,
+            expiresAt: membership.accessExpiresAt,
+          },
+          now,
+        ),
+    )
+    .sort((left, right) =>
+      left.membership.id.localeCompare(right.membership.id),
+    );
   const membershipIds = active.map(({ membership }) => membership.id);
   const grants =
     membershipIds.length === 0
@@ -242,34 +353,148 @@ router.get("/organisations", async (req: Request, res: Response) => {
           .select()
           .from(roleGrants)
           .where(inArray(roleGrants.membershipId, membershipIds));
-  res.json(
-    active.map(({ membership, organisation }) => ({
-      id: organisation.id,
-      name: organisation.name,
-      slug: organisation.slug,
-      type: organisation.type,
-      status: organisation.status,
-      countryCode: organisation.countryCode,
-      membershipId: membership.id,
-      accessExpiresAt: membership.accessExpiresAt?.toISOString() ?? null,
-      roles: grants
-        .filter(
-          (grant) =>
-            grant.membershipId === membership.id &&
-            isActiveAccessWindow(
-              {
-                status: grant.revokedAt ? "revoked" : "active",
-                startsAt: grant.startsAt,
-                expiresAt: grant.expiresAt,
-                revokedAt: grant.revokedAt,
-              },
-              now,
-            ),
-        )
-        .map((grant) => grant.role),
-      version: organisation.version,
-    })),
-  );
+  const directAccess: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    type: string;
+    status: string;
+    countryCode: string;
+    membershipId: string;
+    membershipOrganisationId: string;
+    accessSource: "membership" | "partner";
+    partnerRelationshipId: string | null;
+    accessExpiresAt: string | null;
+    roles: OrganisationRole[];
+    permissions: string[];
+    version: number;
+  }> = active.flatMap(({ membership, organisation }) => {
+    const roleAccess = discoverableOrganisationRoleAccess(
+      membership.id,
+      organisation.type as OrganisationType,
+      grants,
+      now,
+    );
+    if (!roleAccess) return [];
+    const { roles, roleAccessExpiresAt } = roleAccess;
+    return [
+      {
+        id: organisation.id,
+        name: organisation.name,
+        slug: organisation.slug,
+        type: organisation.type,
+        status: organisation.status,
+        countryCode: organisation.countryCode,
+        membershipId: membership.id,
+        membershipOrganisationId: organisation.id,
+        accessSource: "membership" as const,
+        partnerRelationshipId: null,
+        accessExpiresAt: earliestAccessExpiry(
+          membership.accessExpiresAt,
+          roleAccessExpiresAt,
+        ),
+        roles,
+        permissions: [...permissionsForRoles(roles)],
+        version: organisation.version,
+      },
+    ];
+  });
+
+  const partnerSources = active.flatMap(({ membership, organisation }) => {
+    if (organisation.type !== "consultancy_partner") return [];
+    const roleAccess = discoverableOrganisationRoleAccess(
+      membership.id,
+      "consultancy_partner",
+      grants,
+      now,
+    );
+    if (!roleAccess) return [];
+    const { roles, roleAccessExpiresAt } = roleAccess;
+    const sourceAccessExpiresAt = [
+      membership.accessExpiresAt,
+      roleAccessExpiresAt,
+    ].reduce<Date | null>((earliest, value) => {
+      if (!value) return earliest;
+      return !earliest || value.getTime() < earliest.getTime()
+        ? value
+        : earliest;
+    }, null);
+    return [
+      {
+        membership,
+        organisation,
+        roles,
+        sourceAccessExpiresAt,
+      },
+    ];
+  });
+  const projectedAccess: typeof directAccess = [];
+  if (partnerSources.length > 0) {
+    const relationships = await db
+      .select({ relationship: partnerRelationships, client: organisations })
+      .from(partnerRelationships)
+      .innerJoin(
+        organisations,
+        eq(partnerRelationships.clientOrganisationId, organisations.id),
+      )
+      .where(
+        inArray(
+          partnerRelationships.partnerOrganisationId,
+          partnerSources.map((source) => source.organisation.id),
+        ),
+      );
+    const exposedOrganisationIds = new Set(
+      directAccess.map((access) => access.id),
+    );
+    for (const { relationship, client } of relationships.sort((left, right) =>
+      left.relationship.id.localeCompare(right.relationship.id),
+    )) {
+      if (
+        exposedOrganisationIds.has(client.id) ||
+        client.status !== "active" ||
+        !isActiveAccessWindow(
+          {
+            status: relationship.status,
+            startsAt: relationship.accessStartsAt,
+            expiresAt: relationship.accessExpiresAt,
+          },
+          now,
+        ) ||
+        !(await isTenantFeatureEnabled(client.id, "partner_edition"))
+      ) {
+        continue;
+      }
+      const source = partnerSources.find(
+        (candidate) =>
+          candidate.organisation.id === relationship.partnerOrganisationId,
+      );
+      if (!source) continue;
+      const permissions = partnerDerivedPermissionsForRoles(source.roles);
+      if (permissions.size === 0) continue;
+      projectedAccess.push({
+        id: client.id,
+        name: client.name,
+        slug: client.slug,
+        type: client.type,
+        status: client.status,
+        countryCode: client.countryCode,
+        membershipId: source.membership.id,
+        membershipOrganisationId: source.organisation.id,
+        accessSource: "partner",
+        partnerRelationshipId: relationship.id,
+        accessExpiresAt: earliestAccessExpiry(
+          source.sourceAccessExpiresAt,
+          relationship.accessExpiresAt,
+        ),
+        roles: source.roles,
+        permissions: [...permissions],
+        version: client.version,
+      });
+      exposedOrganisationIds.add(client.id);
+    }
+  }
+
+  res.json([...directAccess, ...projectedAccess]);
 });
 
 router.post(
@@ -408,6 +633,14 @@ router.post(
     const role = body.role;
     const accessExpiresAt = optionalFutureDate(body.accessExpiresAt);
     const roleExpiresAt = optionalFutureDate(body.roleExpiresAt);
+    const changesAccessExpiry = Object.prototype.hasOwnProperty.call(
+      body,
+      "accessExpiresAt",
+    );
+    const changesRoleExpiry = Object.prototype.hasOwnProperty.call(
+      body,
+      "roleExpiresAt",
+    );
     if (
       !userId ||
       !isOrganisationRole(role) ||
@@ -417,59 +650,215 @@ router.post(
       res.status(400).json({ error: "Invalid membership grant" });
       return;
     }
-    if (!canGrantRole(context.roles, role)) {
-      res.status(403).json({ error: "Role delegation denied" });
-      return;
-    }
     const organisationId = String(req.params.organisationId);
-    const outcome = await withTenantDatabase(organisationId, async () => {
-      const [[organisation], [targetUser]] = await Promise.all([
-        db
-          .select()
-          .from(organisations)
-          .where(eq(organisations.id, organisationId)),
-        db.select().from(users).where(eq(users.id, userId)),
-      ]);
-      if (!organisation || !targetUser) return { kind: "not_found" as const };
-      if (
-        !isRoleAllowedForOrganisation(
-          role,
-          organisation.type as OrganisationType,
-        )
-      ) {
-        return { kind: "invalid_role" as const };
-      }
-      const result = await db.transaction(
+    const outcome = await withTenantDatabase(organisationId, () =>
+      db.transaction(
         async (tx) => {
-          const [existingMembership] = await tx
-            .select()
-            .from(organisationMemberships)
-            .where(
-              and(
-                eq(organisationMemberships.organisationId, organisationId),
-                eq(organisationMemberships.userId, userId),
-              ),
-            );
-          if (existingMembership) {
-            const existingGrants = await tx
-              .select()
-              .from(roleGrants)
-              .where(
-                and(
-                  eq(roleGrants.membershipId, existingMembership.id),
-                  eq(roleGrants.role, role),
-                ),
-              );
-            if (existingGrants.some((grant) => !grant.revokedAt)) {
-              return { membership: existingMembership, duplicate: true };
-            }
+          await lockOrganisationMembershipAdministration(tx, organisationId);
+          const now = new Date();
+          if (
+            (accessExpiresAt && accessExpiresAt.getTime() <= now.getTime()) ||
+            (roleExpiresAt && roleExpiresAt.getTime() <= now.getTime())
+          ) {
+            return { kind: "invalid_expiry" as const };
           }
+          const [[organisation], [targetUser], memberships, grants] =
+            await Promise.all([
+              tx
+                .select()
+                .from(organisations)
+                .where(eq(organisations.id, organisationId)),
+              tx.select().from(users).where(eq(users.id, userId)),
+              tx
+                .select()
+                .from(organisationMemberships)
+                .where(
+                  eq(organisationMemberships.organisationId, organisationId),
+                ),
+              tx
+                .select()
+                .from(roleGrants)
+                .where(
+                  inArray(
+                    roleGrants.membershipId,
+                    tx
+                      .select({ id: organisationMemberships.id })
+                      .from(organisationMemberships)
+                      .where(
+                        eq(
+                          organisationMemberships.organisationId,
+                          organisationId,
+                        ),
+                      ),
+                  ),
+                ),
+            ]);
+          if (!organisation || !targetUser) {
+            return { kind: "not_found" as const };
+          }
+          if (
+            !isRoleAllowedForOrganisation(
+              role,
+              organisation.type as OrganisationType,
+            )
+          ) {
+            return { kind: "invalid_role" as const };
+          }
+
+          const existingMembership = memberships.find(
+            (membership) => membership.userId === userId,
+          );
+          const nextAccessExpiresAt =
+            existingMembership && !changesAccessExpiry
+              ? existingMembership.accessExpiresAt
+              : accessExpiresAt;
+          if (
+            nextAccessExpiresAt &&
+            nextAccessExpiresAt.getTime() <= now.getTime()
+          ) {
+            return { kind: "invalid_expiry" as const };
+          }
+          const authority = evaluateMembershipGrantAuthority({
+            actorMembershipId: context.membershipId!,
+            actorUserId: getLocalUser(req)!.id,
+            targetMembershipId: existingMembership?.id,
+            requestedRole: role,
+            memberships,
+            grants,
+            now,
+          });
+          if (!authority.allowed) {
+            await writeAuditTx(tx, {
+              user: getLocalUser(req),
+              organisationId,
+              eventType: "membership.change_denied",
+              objectType: "membership",
+              objectId: existingMembership?.id ?? null,
+              details: JSON.stringify({
+                action: "grant_or_reactivate",
+                denial: authority.denial,
+                actorMembershipId: context.membershipId,
+                actorRoles: authority.actorRoles,
+                targetUserId: userId,
+                requestedRole: role,
+              }),
+            });
+            return {
+              kind: "denied" as const,
+              response: membershipDenialResponse(authority.denial),
+            };
+          }
+
+          const matchingGrant = existingMembership
+            ? grants.find(
+                (grant) =>
+                  grant.membershipId === existingMembership.id &&
+                  grant.role === role &&
+                  roleGrantCanStillTakeEffect(grant, now),
+              )
+            : undefined;
+          if (
+            matchingGrant?.startsAt &&
+            changesRoleExpiry &&
+            roleExpiresAt &&
+            roleExpiresAt.getTime() <= matchingGrant.startsAt.getTime()
+          ) {
+            return { kind: "invalid_role_window" as const };
+          }
+          const membershipAlreadyActive = existingMembership
+            ? isActiveAccessWindow(
+                {
+                  status: existingMembership.status,
+                  startsAt: existingMembership.accessStartsAt,
+                  expiresAt: existingMembership.accessExpiresAt,
+                },
+                now,
+              )
+            : false;
+          if (matchingGrant && membershipAlreadyActive) {
+            return { kind: "duplicate" as const };
+          }
+
+          const policyTargetId =
+            existingMembership?.id ?? `pending-membership:${userId}`;
+          const policyMemberships = existingMembership
+            ? memberships
+            : [
+                ...memberships,
+                {
+                  id: policyTargetId,
+                  userId,
+                  status: "suspended",
+                  accessStartsAt: null,
+                  accessExpiresAt: null,
+                },
+              ];
+          const policyGrants = matchingGrant
+            ? grants.map((grant) =>
+                grant.id === matchingGrant.id && changesRoleExpiry
+                  ? { ...grant, expiresAt: roleExpiresAt }
+                  : grant,
+              )
+            : [
+                ...grants,
+                {
+                  membershipId: policyTargetId,
+                  role,
+                  startsAt: null,
+                  expiresAt: roleExpiresAt,
+                  revokedAt: null,
+                },
+              ];
+          const lifecycleAuthority = evaluateMembershipLifecycleAuthority({
+            actorMembershipId: context.membershipId!,
+            actorUserId: getLocalUser(req)!.id,
+            targetMembershipId: policyTargetId,
+            memberships: policyMemberships,
+            grants: policyGrants,
+            nextStatus: "active",
+            changesAccessStart: true,
+            nextAccessStartsAt: null,
+            // Existing access expiry is preserved on omission. Clearing it to
+            // indefinite access requires an explicit JSON null.
+            changesAccessExpiry: !existingMembership || changesAccessExpiry,
+            nextAccessExpiresAt,
+            checksProposedAuthorityLoss:
+              !matchingGrant && hasPermission([role], "membership:manage"),
+            now,
+          });
+          if (!lifecycleAuthority.allowed) {
+            await writeAuditTx(tx, {
+              user: getLocalUser(req),
+              organisationId,
+              eventType: "membership.change_denied",
+              objectType: "membership",
+              objectId: existingMembership?.id ?? null,
+              details: JSON.stringify({
+                action: "grant_reactivate_or_replace_access_window",
+                denial: lifecycleAuthority.denial,
+                actorMembershipId: context.membershipId,
+                actorRoles: lifecycleAuthority.actorRoles,
+                targetUserId: userId,
+                requestedRole: role,
+                requestedRoleExpiresAt: roleExpiresAt,
+                requestedAccessExpiresAt: changesAccessExpiry
+                  ? accessExpiresAt
+                  : undefined,
+                nextAccessExpiresAt,
+              }),
+            });
+            return {
+              kind: "denied" as const,
+              response: membershipDenialResponse(lifecycleAuthority.denial),
+            };
+          }
+
           const [membership] = await tx
             .insert(organisationMemberships)
             .values({
               organisationId,
               userId,
-              accessExpiresAt,
+              accessExpiresAt: nextAccessExpiresAt,
               delegatedByMembershipId: context.membershipId,
             })
             .onConflictDoUpdate({
@@ -479,37 +868,65 @@ router.post(
               ],
               set: {
                 status: "active",
-                accessExpiresAt,
+                accessStartsAt: null,
+                accessExpiresAt: nextAccessExpiresAt,
                 delegatedByMembershipId: context.membershipId,
                 version: sql`${organisationMemberships.version} + 1`,
                 updatedAt: new Date(),
               },
             })
             .returning();
-          await tx.insert(roleGrants).values({
-            membershipId: membership.id,
-            role,
-            grantedByMembershipId: context.membershipId,
-            expiresAt: roleExpiresAt,
-          });
+          if (!matchingGrant) {
+            await tx.insert(roleGrants).values({
+              membershipId: membership.id,
+              role,
+              grantedByMembershipId: context.membershipId,
+              expiresAt: roleExpiresAt,
+            });
+          } else if (changesRoleExpiry) {
+            await tx
+              .update(roleGrants)
+              .set({ expiresAt: roleExpiresAt })
+              .where(eq(roleGrants.id, matchingGrant.id));
+          }
           await writeAuditTx(tx, {
             user: getLocalUser(req),
             organisationId,
-            eventType: "membership.role_granted",
+            eventType: matchingGrant
+              ? "membership.reactivated"
+              : "membership.role_granted",
             objectType: "membership",
             objectId: membership.id,
             details: JSON.stringify({
+              actorMembershipId: context.membershipId,
+              actorRoles: authority.actorRoles,
               targetUserId: userId,
               role,
-              roleExpiresAt,
+              requestedRoleExpiresAt: changesRoleExpiry
+                ? roleExpiresAt
+                : undefined,
+              roleExpiresAt:
+                matchingGrant && !changesRoleExpiry
+                  ? matchingGrant.expiresAt
+                  : roleExpiresAt,
+              previousRoleExpiresAt: matchingGrant?.expiresAt ?? null,
+              roleExpiryChanged: Boolean(matchingGrant && changesRoleExpiry),
+              requestedAccessExpiresAt: changesAccessExpiry
+                ? accessExpiresAt
+                : undefined,
+              accessExpiresAt: membership.accessExpiresAt,
+              accessExpiryChanged: !existingMembership || changesAccessExpiry,
+              previousStatus: existingMembership?.status ?? null,
+              previousAccessExpiresAt:
+                existingMembership?.accessExpiresAt ?? null,
+              reactivatedExistingGrant: Boolean(matchingGrant),
             }),
           });
-          return { membership, duplicate: false };
+          return { kind: "ok" as const, membership };
         },
         { isolationLevel: "read committed" },
-      );
-      return { kind: "ok" as const, result };
-    });
+      ),
+    );
     if (outcome.kind === "not_found") {
       res.status(404).json({ error: "Not found" });
       return;
@@ -520,12 +937,29 @@ router.post(
         .json({ error: "Role is not valid for this organisation type" });
       return;
     }
-    const { result } = outcome;
-    if (result.duplicate) {
+    if (outcome.kind === "invalid_expiry") {
+      res
+        .status(400)
+        .json({ error: "Access expiry must remain in the future" });
+      return;
+    }
+    if (outcome.kind === "invalid_role_window") {
+      res.status(400).json({
+        error: "Role expiry must be later than the retained grant start",
+      });
+      return;
+    }
+    if (outcome.kind === "denied") {
+      res
+        .status(outcome.response.status)
+        .json({ error: outcome.response.error });
+      return;
+    }
+    if (outcome.kind === "duplicate") {
       res.status(409).json({ error: "Role is already granted" });
       return;
     }
-    res.status(201).json({ id: result.membership.id, role });
+    res.status(201).json({ id: outcome.membership.id, role });
   },
 );
 
@@ -566,9 +1000,86 @@ router.patch(
       return;
     }
     const organisationId = String(req.params.organisationId);
-    const updated = await withTenantDatabase(organisationId, () =>
+    const outcome = await withTenantDatabase(organisationId, () =>
       db.transaction(
         async (tx) => {
+          await lockOrganisationMembershipAdministration(tx, organisationId);
+          const now = new Date();
+          if (accessExpiresAt && accessExpiresAt.getTime() <= now.getTime()) {
+            return { kind: "invalid_expiry" as const };
+          }
+          const [memberships, grants] = await Promise.all([
+            tx
+              .select()
+              .from(organisationMemberships)
+              .where(
+                eq(organisationMemberships.organisationId, organisationId),
+              ),
+            tx
+              .select()
+              .from(roleGrants)
+              .where(
+                inArray(
+                  roleGrants.membershipId,
+                  tx
+                    .select({ id: organisationMemberships.id })
+                    .from(organisationMemberships)
+                    .where(
+                      eq(
+                        organisationMemberships.organisationId,
+                        organisationId,
+                      ),
+                    ),
+                ),
+              ),
+          ]);
+          const targetMembershipId = String(req.params.membershipId);
+          const current = memberships.find(
+            (membership) => membership.id === targetMembershipId,
+          );
+          if (!current || current.version !== expectedVersion) {
+            return { kind: "conflict" as const };
+          }
+
+          const authority = evaluateMembershipLifecycleAuthority({
+            actorMembershipId: context.membershipId!,
+            actorUserId: getLocalUser(req)!.id,
+            targetMembershipId,
+            memberships,
+            grants,
+            ...(typeof status === "string"
+              ? {
+                  nextStatus: status as "active" | "suspended" | "revoked",
+                }
+              : {}),
+            changesAccessExpiry: body.accessExpiresAt !== undefined,
+            nextAccessExpiresAt: accessExpiresAt,
+            now,
+          });
+          if (!authority.allowed) {
+            await writeAuditTx(tx, {
+              user: getLocalUser(req),
+              organisationId,
+              eventType: "membership.change_denied",
+              objectType: "membership",
+              objectId: current.id,
+              details: JSON.stringify({
+                action: "update_lifecycle",
+                denial: authority.denial,
+                actorMembershipId: context.membershipId,
+                actorRoles: authority.actorRoles,
+                requestedStatus: status ?? null,
+                requestedAccessExpiresAt:
+                  body.accessExpiresAt !== undefined ? accessExpiresAt : null,
+                expectedVersion,
+              }),
+            });
+            return {
+              kind: "denied" as const,
+              response: membershipDenialResponse(authority.denial),
+            };
+          }
+
           const [membership] = await tx
             .update(organisationMemberships)
             .set({
@@ -581,33 +1092,56 @@ router.patch(
             })
             .where(
               and(
-                eq(organisationMemberships.id, String(req.params.membershipId)),
+                eq(organisationMemberships.id, targetMembershipId),
                 eq(organisationMemberships.organisationId, organisationId),
                 eq(organisationMemberships.version, expectedVersion),
               ),
             )
             .returning();
-          if (!membership) return undefined;
+          if (!membership) return { kind: "conflict" as const };
           await writeAuditTx(tx, {
             user: getLocalUser(req),
             organisationId,
             eventType: "membership.updated",
             objectType: "membership",
             objectId: membership.id,
-            details: JSON.stringify({ status, accessExpiresAt }),
+            details: JSON.stringify({
+              actorMembershipId: context.membershipId,
+              actorRoles: authority.actorRoles,
+              previousStatus: current.status,
+              status: membership.status,
+              previousAccessExpiresAt: current.accessExpiresAt,
+              accessExpiresAt: membership.accessExpiresAt,
+              previousVersion: current.version,
+              version: membership.version,
+            }),
           });
-          return membership;
+          return { kind: "ok" as const, membership };
         },
         { isolationLevel: "read committed" },
       ),
     );
-    if (!updated) {
+    if (outcome.kind === "conflict") {
       res
         .status(409)
         .json({ error: "Membership changed; reload before updating" });
       return;
     }
-    res.setHeader("ETag", `"${updated.version}"`).json(updated);
+    if (outcome.kind === "invalid_expiry") {
+      res
+        .status(400)
+        .json({ error: "Access expiry must remain in the future" });
+      return;
+    }
+    if (outcome.kind === "denied") {
+      res
+        .status(outcome.response.status)
+        .json({ error: outcome.response.error });
+      return;
+    }
+    res
+      .setHeader("ETag", `"${outcome.membership.version}"`)
+      .json(outcome.membership);
   },
 );
 

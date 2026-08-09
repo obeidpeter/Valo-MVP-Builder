@@ -60,6 +60,14 @@ export const OrganisationAccessSummaryStatus = {
   active: 'active',
 } as const;
 
+export type OrganisationAccessSummaryAccessSource = typeof OrganisationAccessSummaryAccessSource[keyof typeof OrganisationAccessSummaryAccessSource];
+
+
+export const OrganisationAccessSummaryAccessSource = {
+  membership: 'membership',
+  partner: 'partner',
+} as const;
+
 export interface OrganisationAccessSummary {
   id: string;
   name: string;
@@ -71,9 +79,16 @@ export interface OrganisationAccessSummary {
      * @maxLength 2
      */
   countryCode: string;
+  /** Direct or partner-source membership used to authorise this context. */
   membershipId: string;
+  /** Organisation that owns the authorising membership. */
+  membershipOrganisationId: string;
+  accessSource: OrganisationAccessSummaryAccessSource;
+  partnerRelationshipId: string | null;
   accessExpiresAt: string | null;
   roles: OrganisationRole[];
+  /** Server-computed effective permissions for this exact tenant context. */
+  permissions: string[];
   /** @minimum 1 */
   version: number;
 }
@@ -148,9 +163,20 @@ export interface OrganisationMembershipView {
 export interface OrganisationMembershipCreate {
   userId: string;
   role: OrganisationRole;
-  /** Must be in the future when supplied. */
+  /**
+     * Must be in the future when supplied. For an existing membership,
+     * omission preserves its current expiry, null explicitly clears it
+     * to indefinite access, and a timestamp replaces it under the same
+     * locked authority check. Reactivation is refused if a preserved
+     * expiry is no longer in the future.
+     */
   accessExpiresAt?: string | null;
-  /** Must be in the future when supplied. */
+  /**
+     * Must be in the future when supplied. For a reactivated membership
+     * with a retained matching grant, omission preserves that grant's
+     * expiry, null clears it, and a timestamp replaces it under the same
+     * locked authority check.
+     */
   roleExpiresAt?: string | null;
 }
 
@@ -833,6 +859,23 @@ export interface MonthlyCostReport {
   totalEstimatedKobo: number;
   engagements: MonthlyCostReportEngagementsItem[];
 }
+
+export type AuditSource = typeof AuditSource[keyof typeof AuditSource];
+
+
+export const AuditSource = {
+  active_v2: 'active_v2',
+  legacy_v1_archive: 'legacy_v1_archive',
+} as const;
+
+export type AuditIntegrityStatus = typeof AuditIntegrityStatus[keyof typeof AuditIntegrityStatus];
+
+
+export const AuditIntegrityStatus = {
+  active_v2_record: 'active_v2_record',
+  payload_hash_verified: 'payload_hash_verified',
+  known_discontinuity: 'known_discontinuity',
+} as const;
 
 export interface AccessReviewRow {
   at: string;
@@ -1641,6 +1684,7 @@ export const DocumentExtractionStatus = {
   extracted: 'extracted',
   failed: 'failed',
   skipped: 'skipped',
+  quarantined: 'quarantined',
 } as const;
 
 export type DocumentExtractionMethod = typeof DocumentExtractionMethod[keyof typeof DocumentExtractionMethod] | null;
@@ -1693,8 +1737,6 @@ export type DocumentCreateRedactionStatus = typeof DocumentCreateRedactionStatus
 
 export const DocumentCreateRedactionStatus = {
   excluded: 'excluded',
-  redacted: 'redacted',
-  included: 'included',
 } as const;
 
 export interface DocumentCreate {
@@ -1709,6 +1751,22 @@ export interface DocumentCreate {
   dateReceived?: string;
   redactionStatus: DocumentCreateRedactionStatus;
 }
+
+export type DocumentIntakeFailureProviderIssuesItem = {
+  kind: string;
+  code: string;
+};
+
+export type DocumentIntakeFailure = ErrorEnvelope & ({
+  disposition?: string;
+  findings?: string[];
+  providerIssues?: DocumentIntakeFailureProviderIssuesItem[];
+  storedObjectDisposition?: string;
+  /** True when retention is confirmed, false when absence is confirmed, and null when a distributed copy acknowledgement/probe left the quarantine-copy disposition unknown. */
+  quarantineRetained?: boolean | null;
+  /** False when cleanup of a promoted stable copy could not be confirmed; staging-path cleanup must not override it. */
+  cleanupConfirmed?: boolean;
+});
 
 export type DocumentUpdateType = typeof DocumentUpdateType[keyof typeof DocumentUpdateType];
 
@@ -2019,6 +2077,8 @@ export interface Defect {
   owner?: string | null;
   status: DefectStatus;
   suggested?: boolean;
+  /** @minimum 1 */
+  version: number;
   createdAt: string;
 }
 
@@ -2274,6 +2334,7 @@ export interface Report {
   version: number;
   status: ReportStatus;
   docxPath?: string | null;
+  pdfPath?: string | null;
   reviewerId?: string | null;
   reviewerName?: string | null;
   attestation?: string | null;
@@ -2305,23 +2366,6 @@ export interface AuditEvent {
   auditSource: AuditSource;
   integrityStatus: AuditIntegrityStatus;
 }
-
-export type AuditSource = typeof AuditSource[keyof typeof AuditSource];
-
-
-export const AuditSource = {
-  active_v2: 'active_v2',
-  legacy_v1_archive: 'legacy_v1_archive',
-} as const;
-
-export type AuditIntegrityStatus = typeof AuditIntegrityStatus[keyof typeof AuditIntegrityStatus];
-
-
-export const AuditIntegrityStatus = {
-  active_v2_record: 'active_v2_record',
-  payload_hash_verified: 'payload_hash_verified',
-  known_discontinuity: 'known_discontinuity',
-} as const;
 
 export type LegacyAuditIntegrityAssessmentIntegrityStatus = typeof LegacyAuditIntegrityAssessmentIntegrityStatus[keyof typeof LegacyAuditIntegrityAssessmentIntegrityStatus];
 
@@ -2372,6 +2416,27 @@ export interface UploadUrlResponse {
   uploadURL: string;
   objectPath: string;
   metadata?: UploadUrlRequest;
+}
+
+export interface DiscardUploadRequest {
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  objectPath: string;
+}
+
+export type StagedUploadDiscardResultDisposition = typeof StagedUploadDiscardResultDisposition[keyof typeof StagedUploadDiscardResultDisposition];
+
+
+export const StagedUploadDiscardResultDisposition = {
+  deleted: 'deleted',
+  already_absent: 'already_absent',
+} as const;
+
+export interface StagedUploadDiscardResult {
+  disposition: StagedUploadDiscardResultDisposition;
+  quarantineMayRetainCopy: boolean;
 }
 
 /**

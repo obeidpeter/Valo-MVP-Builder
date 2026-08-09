@@ -3,6 +3,8 @@ modules = ["nodejs-24", "python-3.11"]
 [deployment]
 router = "application"
 deploymentTarget = "autoscale"
+build = "PORT=3000 BASE_PATH=/ NODE_ENV=production pnpm run build"
+run = "CORS_ALLOWED_ORIGINS=https://valo-mvp-builder.replit.app TRUST_PROXY=1 NODE_ENV=production pnpm --filter @workspace/api-server start"
 
 [deployment.postBuild]
 args = ["pnpm", "store", "prune"]

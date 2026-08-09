@@ -44,6 +44,7 @@ import { evaluateSubmissionReadiness } from "../lib/submissionReadiness";
 import { getActiveConfig } from "../lib/appConfig";
 import { computeScorecard } from "../lib/scorecard";
 import { ObjectStorageService } from "../lib/objectStorage";
+import { lockStagedUploadObject } from "../lib/stagedUploadLock";
 import {
   canGenerateReportForProjectStatus,
   isLatestReportVersion,
@@ -290,6 +291,15 @@ router.post(
       req.log.error({ err: error }, "report generation failed");
       res.status(500).json({ error: "Report generation failed" });
       return;
+    }
+
+    // The renderer currently persists into the tenant upload namespace. Hold
+    // the same path locks as authenticated discard until both report
+    // references commit, so cleanup cannot delete between upload and insert.
+    for (const path of [docxPath, pdfPath]
+      .filter((value): value is string => Boolean(value))
+      .sort()) {
+      await lockStagedUploadObject(path);
     }
 
     const created = await db.transaction(

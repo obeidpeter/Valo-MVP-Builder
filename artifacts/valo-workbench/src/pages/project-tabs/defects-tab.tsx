@@ -3,30 +3,73 @@ import {
   useListDefects,
   useSuggestDefects,
   useCreateDefect,
-  useUpdateDefect,
-  useDeleteDefect,
+  updateDefect as updateDefectRequest,
   useListRequirements,
   getListDefectsQueryKey,
   type Defect,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Zap, AlertOctagon, Check, X, Plus, Pencil, Undo2, ShieldCheck, Ban } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Loader2,
+  Zap,
+  AlertOctagon,
+  Check,
+  Plus,
+  Pencil,
+  ShieldCheck,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { errorMessage } from "@/lib/errors";
+import { useOrganisationPermission } from "@/contexts/organisation-context";
 
 const DEFECT_TYPES = [
-  "omission", "expiry", "arithmetic", "formatting", "responsiveness", "eligibility", "unsupported_claim", "validity",
+  "omission",
+  "expiry",
+  "arithmetic",
+  "formatting",
+  "responsiveness",
+  "eligibility",
+  "unsupported_claim",
+  "validity",
 ] as const;
-const SEVERITIES = ["fatal", "likely_fatal", "scoring_risk", "cosmetic"] as const;
+const SEVERITIES = [
+  "fatal",
+  "likely_fatal",
+  "scoring_risk",
+  "cosmetic",
+] as const;
+const SEVERITY_RANK: Record<(typeof SEVERITIES)[number], number> = {
+  cosmetic: 0,
+  scoring_risk: 1,
+  likely_fatal: 2,
+  fatal: 3,
+};
 
 interface DefectForm {
   type: (typeof DEFECT_TYPES)[number];
@@ -38,16 +81,33 @@ interface DefectForm {
 }
 const NONE = "__none__";
 const EMPTY: DefectForm = {
-  type: "omission", severity: "likely_fatal", description: "", remediation: "", owner: "", requirementId: NONE,
+  type: "omission",
+  severity: "likely_fatal",
+  description: "",
+  remediation: "",
+  owner: "",
+  requirementId: NONE,
 };
 
 export function DefectsTab({ projectId }: { projectId: string }) {
+  const canWriteDefects = useOrganisationPermission("defect:write");
+  const canReviewDefects = useOrganisationPermission("defect:review");
   const { data: defects, isLoading } = useListDefects(projectId);
   const { data: requirements } = useListRequirements(projectId);
   const suggestDefects = useSuggestDefects();
   const createDefect = useCreateDefect();
-  const updateDefect = useUpdateDefect();
-  const deleteDefect = useDeleteDefect();
+  const updateDefect = useMutation({
+    mutationFn: ({
+      defect,
+      data,
+    }: {
+      defect: Defect;
+      data: Record<string, unknown>;
+    }) =>
+      updateDefectRequest(defect.id, data as never, {
+        headers: { "If-Match": `"${defect.version}"` },
+      }),
+  });
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -56,7 +116,10 @@ export function DefectsTab({ projectId }: { projectId: string }) {
   const [form, setForm] = useState<DefectForm>(EMPTY);
   const [actingId, setActingId] = useState<string | null>(null);
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: getListDefectsQueryKey(projectId) });
+  const refresh = () =>
+    queryClient.invalidateQueries({
+      queryKey: getListDefectsQueryKey(projectId),
+    });
 
   const handleSuggest = () => {
     suggestDefects.mutate(
@@ -64,7 +127,11 @@ export function DefectsTab({ projectId }: { projectId: string }) {
       {
         onSuccess: refresh,
         onError: (err) =>
-          toast({ variant: "destructive", title: "Defect suggestion failed", description: errorMessage(err, "") }),
+          toast({
+            variant: "destructive",
+            title: "Defect suggestion failed",
+            description: errorMessage(err, ""),
+          }),
       },
     );
   };
@@ -72,10 +139,15 @@ export function DefectsTab({ projectId }: { projectId: string }) {
   const patch = (d: Defect, data: Record<string, unknown>, verb: string) => {
     setActingId(d.id);
     updateDefect.mutate(
-      { id: d.id, data: data as never },
+      { defect: d, data },
       {
         onSuccess: refresh,
-        onError: (err) => toast({ variant: "destructive", title: `Could not ${verb} defect`, description: errorMessage(err, "") }),
+        onError: (err) =>
+          toast({
+            variant: "destructive",
+            title: `Could not ${verb} defect`,
+            description: errorMessage(err, ""),
+          }),
         onSettled: () => setActingId(null),
       },
     );
@@ -84,22 +156,8 @@ export function DefectsTab({ projectId }: { projectId: string }) {
   // Promote an AI suggestion to a confirmed-live defect. This is what makes a
   // fatal defect actually block sign-off — until a defect is "open" the
   // fatal-block invariant cannot fire.
-  const confirm = (d: Defect) => patch(d, { status: "open", suggested: false }, "confirm");
-  const resolve = (d: Defect) => patch(d, { status: "remediated" }, "resolve");
-  const waive = (d: Defect) => patch(d, { status: "waived" }, "waive");
-  const reopen = (d: Defect) => patch(d, { status: "open" }, "reopen");
-
-  const dismiss = (d: Defect) => {
-    setActingId(d.id);
-    deleteDefect.mutate(
-      { id: d.id },
-      {
-        onSuccess: refresh,
-        onError: (err) => toast({ variant: "destructive", title: "Could not dismiss defect", description: errorMessage(err, "") }),
-        onSettled: () => setActingId(null),
-      },
-    );
-  };
+  const confirm = (d: Defect) =>
+    patch(d, { status: "open", suggested: false }, "confirm");
 
   const openAdd = () => {
     setEditingId(null);
@@ -126,39 +184,97 @@ export function DefectsTab({ projectId }: { projectId: string }) {
     }
     const body = {
       type: form.type,
-      severity: form.severity,
+      ...(!editingId || canReviewDefects ? { severity: form.severity } : {}),
       description: form.description.trim(),
       remediation: form.remediation.trim() || undefined,
       owner: form.owner.trim() || undefined,
-      requirementId: form.requirementId === NONE ? undefined : form.requirementId,
+      requirementId:
+        form.requirementId === NONE ? undefined : form.requirementId,
     };
     const opts = {
-      onSuccess: () => { setDialogOpen(false); refresh(); },
-      onError: (err: unknown) => toast({ variant: "destructive", title: "Could not save defect", description: errorMessage(err, "") }),
+      onSuccess: () => {
+        setDialogOpen(false);
+        refresh();
+      },
+      onError: (err: unknown) =>
+        toast({
+          variant: "destructive",
+          title: "Could not save defect",
+          description: errorMessage(err, ""),
+        }),
     };
     if (editingId) {
-      updateDefect.mutate({ id: editingId, data: body as never }, opts);
+      const current = defects?.find((defect) => defect.id === editingId);
+      if (!current) {
+        toast({
+          variant: "destructive",
+          title: "Reload the defect before editing",
+        });
+        return;
+      }
+      updateDefect.mutate({ defect: current, data: body }, opts);
     } else {
       createDefect.mutate({ data: { ...body, projectId } as never }, opts);
     }
   };
 
   const saving = createDefect.isPending || updateDefect.isPending;
+  const editingDefect = editingId
+    ? defects?.find((defect) => defect.id === editingId)
+    : undefined;
+  const allowedEditSeverities = editingDefect
+    ? SEVERITIES.filter(
+        (severity) =>
+          SEVERITY_RANK[severity] >=
+          SEVERITY_RANK[editingDefect.severity as (typeof SEVERITIES)[number]],
+      )
+    : SEVERITIES;
 
   const statusBadge = (d: Defect) => {
     if (d.status === "suggested" || d.suggested)
-      return <Badge variant="outline" className="text-[10px] text-blue-700 border-blue-300 bg-blue-50">suggested</Badge>;
+      return (
+        <Badge
+          variant="outline"
+          className="text-xs text-blue-700 border-blue-300 bg-blue-50"
+        >
+          suggested
+        </Badge>
+      );
     if (d.status === "open")
-      return <Badge variant="outline" className="text-[10px] text-destructive border-destructive/30 bg-destructive/10">open</Badge>;
+      return (
+        <Badge
+          variant="outline"
+          className="text-xs text-destructive border-destructive/30 bg-destructive/10"
+        >
+          open
+        </Badge>
+      );
     if (d.status === "remediated")
-      return <Badge variant="outline" className="text-[10px] text-emerald-700 border-emerald-300 bg-emerald-50">remediated</Badge>;
+      return (
+        <Badge
+          variant="outline"
+          className="text-xs text-emerald-700 border-emerald-300 bg-emerald-50"
+        >
+          remediated
+        </Badge>
+      );
     if (d.status === "waived")
-      return <Badge variant="outline" className="text-[10px] text-muted-foreground">waived</Badge>;
-    return <Badge variant="outline" className="text-[10px] capitalize">{d.status}</Badge>;
+      return (
+        <Badge variant="outline" className="text-xs text-muted-foreground">
+          waived
+        </Badge>
+      );
+    return (
+      <Badge variant="outline" className="text-xs capitalize">
+        {d.status}
+      </Badge>
+    );
   };
 
   const openFatalCount = (defects ?? []).filter(
-    (d) => d.status === "open" && (d.severity === "fatal" || d.severity === "likely_fatal"),
+    (d) =>
+      d.status === "open" &&
+      (d.severity === "fatal" || d.severity === "likely_fatal"),
   ).length;
 
   return (
@@ -166,13 +282,25 @@ export function DefectsTab({ projectId }: { projectId: string }) {
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-serif font-medium">Defect Register</h2>
         <div className="flex gap-2">
-          <Button onClick={openAdd} variant="outline">
-            <Plus className="w-4 h-4 mr-2" /> Add Defect
-          </Button>
-          <Button onClick={handleSuggest} disabled={suggestDefects.isPending} variant="secondary">
-            {suggestDefects.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
-            Suggest Defects
-          </Button>
+          {canReviewDefects && (
+            <Button onClick={openAdd} variant="outline">
+              <Plus className="w-4 h-4 mr-2" /> Add Defect
+            </Button>
+          )}
+          {canWriteDefects && (
+            <Button
+              onClick={handleSuggest}
+              disabled={suggestDefects.isPending}
+              variant="secondary"
+            >
+              {suggestDefects.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Zap className="w-4 h-4 mr-2" />
+              )}
+              Suggest Defects
+            </Button>
+          )}
         </div>
       </div>
 
@@ -180,8 +308,9 @@ export function DefectsTab({ projectId }: { projectId: string }) {
         <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
           <ShieldCheck className="w-4 h-4 shrink-0" />
           <p>
-            {openFatalCount} open fatal / likely-fatal defect(s) — report sign-off is blocked until each is
-            remediated, waived, or downgraded.
+            {openFatalCount} open fatal / likely-fatal defect(s) — report
+            sign-off is blocked until each has a persisted governed remediation,
+            waiver, or reclassification decision.
           </p>
         </div>
       )}
@@ -204,12 +333,22 @@ export function DefectsTab({ projectId }: { projectId: string }) {
             </TableHeader>
             <TableBody>
               {defects.map((defect) => (
-                <TableRow key={defect.id} className={defect.status === "waived" ? "opacity-60" : undefined}>
+                <TableRow
+                  key={defect.id}
+                  className={
+                    defect.status === "waived" ? "opacity-60" : undefined
+                  }
+                >
                   <TableCell>{statusBadge(defect)}</TableCell>
                   <TableCell>
                     <Badge
-                      variant={defect.severity === "fatal" || defect.severity === "likely_fatal" ? "destructive" : "secondary"}
-                      className="capitalize text-[10px]"
+                      variant={
+                        defect.severity === "fatal" ||
+                        defect.severity === "likely_fatal"
+                          ? "destructive"
+                          : "secondary"
+                      }
+                      className="capitalize text-xs"
                     >
                       {defect.severity.replace("_", " ")}
                     </Badge>
@@ -221,41 +360,42 @@ export function DefectsTab({ projectId }: { projectId: string }) {
                     <p className="text-sm font-medium">{defect.description}</p>
                     {defect.remediation && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        <span className="font-semibold text-foreground">Remediation:</span> {defect.remediation}
+                        <span className="font-semibold text-foreground">
+                          Remediation:
+                        </span>{" "}
+                        {defect.remediation}
                       </p>
                     )}
                     {defect.requirementText && (
-                      <p className="text-[10px] text-muted-foreground mt-1 truncate">↳ {defect.requirementText}</p>
+                      <p className="text-xs text-muted-foreground mt-1 truncate">
+                        ↳ {defect.requirementText}
+                      </p>
                     )}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      {(defect.status === "suggested" || defect.suggested) ? (
-                        <>
-                          <Button variant="ghost" size="icon" title="Confirm (promote to open)" disabled={actingId === defect.id} onClick={() => confirm(defect)}>
+                      {canReviewDefects &&
+                        (defect.status === "suggested" || defect.suggested) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Confirm (promote to open)"
+                            disabled={actingId === defect.id}
+                            onClick={() => confirm(defect)}
+                          >
                             <Check className="w-4 h-4 text-emerald-600" />
                           </Button>
-                          <Button variant="ghost" size="icon" title="Dismiss suggestion" disabled={actingId === defect.id} onClick={() => dismiss(defect)}>
-                            <X className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </>
-                      ) : defect.status === "open" ? (
-                        <>
-                          <Button variant="ghost" size="icon" title="Mark remediated" disabled={actingId === defect.id} onClick={() => resolve(defect)}>
-                            <Check className="w-4 h-4 text-emerald-600" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title="Waive" disabled={actingId === defect.id} onClick={() => waive(defect)}>
-                            <Ban className="w-4 h-4 text-muted-foreground" />
-                          </Button>
-                        </>
-                      ) : (
-                        <Button variant="ghost" size="icon" title="Reopen" disabled={actingId === defect.id} onClick={() => reopen(defect)}>
-                          <Undo2 className="w-4 h-4 text-muted-foreground" />
+                        )}
+                      {canWriteDefects && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Edit defect details"
+                          onClick={() => openEdit(defect)}
+                        >
+                          <Pencil className="w-4 h-4 text-muted-foreground" />
                         </Button>
                       )}
-                      <Button variant="ghost" size="icon" title="Edit / downgrade" onClick={() => openEdit(defect)}>
-                        <Pencil className="w-4 h-4 text-muted-foreground" />
-                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -270,57 +410,125 @@ export function DefectsTab({ projectId }: { projectId: string }) {
         )}
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog
+        open={(canWriteDefects || canReviewDefects) && dialogOpen}
+        onOpenChange={setDialogOpen}
+      >
         <DialogContent className="sm:max-w-[560px]">
           <DialogHeader>
-            <DialogTitle className="font-serif">{editingId ? "Edit Defect" : "Add Defect"}</DialogTitle>
+            <DialogTitle className="font-serif">
+              {editingId ? "Edit Defect" : "Add Defect"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground uppercase">Type</label>
-                <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as DefectForm["type"] })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <label className="text-xs font-medium text-muted-foreground uppercase">
+                  Type
+                </label>
+                <Select
+                  value={form.type}
+                  onValueChange={(v) =>
+                    setForm({ ...form, type: v as DefectForm["type"] })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     {DEFECT_TYPES.map((t) => (
-                      <SelectItem key={t} value={t} className="capitalize">{t.replace("_", " ")}</SelectItem>
+                      <SelectItem key={t} value={t} className="capitalize">
+                        {t.replace("_", " ")}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground uppercase">Severity</label>
-                <Select value={form.severity} onValueChange={(v) => setForm({ ...form, severity: v as DefectForm["severity"] })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {SEVERITIES.map((sv) => (
-                      <SelectItem key={sv} value={sv} className="capitalize">{sv.replace("_", " ")}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <label className="text-xs font-medium text-muted-foreground uppercase">
+                  Severity
+                </label>
+                {!editingId || canReviewDefects ? (
+                  <Select
+                    value={form.severity}
+                    onValueChange={(v) =>
+                      setForm({
+                        ...form,
+                        severity: v as DefectForm["severity"],
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allowedEditSeverities.map((sv) => (
+                        <SelectItem key={sv} value={sv} className="capitalize">
+                          {sv.replace("_", " ")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm capitalize">
+                    {form.severity.replace("_", " ")}
+                  </div>
+                )}
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase">Description</label>
-              <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="min-h-[80px]" />
+              <label className="text-xs font-medium text-muted-foreground uppercase">
+                Description
+              </label>
+              <Textarea
+                value={form.description}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
+                className="min-h-[80px]"
+              />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase">Remediation</label>
-              <Textarea value={form.remediation} onChange={(e) => setForm({ ...form, remediation: e.target.value })} className="min-h-[60px]" placeholder="Concrete fix" />
+              <label className="text-xs font-medium text-muted-foreground uppercase">
+                Remediation
+              </label>
+              <Textarea
+                value={form.remediation}
+                onChange={(e) =>
+                  setForm({ ...form, remediation: e.target.value })
+                }
+                className="min-h-[60px]"
+                placeholder="Concrete fix"
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground uppercase">Owner</label>
-                <Input value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value })} placeholder="Who fixes it" />
+                <label className="text-xs font-medium text-muted-foreground uppercase">
+                  Owner
+                </label>
+                <Input
+                  value={form.owner}
+                  onChange={(e) => setForm({ ...form, owner: e.target.value })}
+                  placeholder="Who fixes it"
+                />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground uppercase">Related Requirement</label>
-                <Select value={form.requirementId} onValueChange={(v) => setForm({ ...form, requirementId: v })}>
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <label className="text-xs font-medium text-muted-foreground uppercase">
+                  Related Requirement
+                </label>
+                <Select
+                  value={form.requirementId}
+                  onValueChange={(v) => setForm({ ...form, requirementId: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="None" />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE}>None</SelectItem>
                     {(requirements ?? []).map((r) => (
-                      <SelectItem key={r.id} value={r.id}>{r.text.slice(0, 60)}</SelectItem>
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.text.slice(0, 60)}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -328,7 +536,9 @@ export function DefectsTab({ projectId }: { projectId: string }) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancel
+            </Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {editingId ? "Save Changes" : "Add Defect"}

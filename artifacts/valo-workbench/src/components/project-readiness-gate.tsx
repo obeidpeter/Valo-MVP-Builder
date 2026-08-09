@@ -110,7 +110,9 @@ export function ProjectReadinessGate({
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-primary" />
-              <h3 className="font-serif text-xl font-medium">Project Readiness Gate</h3>
+              <h3 className="font-serif text-xl font-medium">
+                Project Readiness Gate
+              </h3>
               {!isLoading && !isError && (
                 <Badge
                   variant="outline"
@@ -127,14 +129,17 @@ export function ProjectReadinessGate({
               )}
             </div>
             <p className="text-sm text-muted-foreground max-w-3xl">
-              A reviewer-facing control gate for sign-off, export, and archive readiness across governance,
-              intake, evidence, defects, BOQ, risk, and report state.
+              A reviewer-facing control gate for sign-off, export, and archive
+              readiness across governance, intake, evidence, defects, BOQ, risk,
+              and report state.
             </p>
           </div>
           {!isLoading && !isError && (
             <div className="min-w-[240px] space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="font-medium">{summary.progress}% complete</span>
+                <span className="font-medium">
+                  {summary.progress}% complete
+                </span>
                 <span className="text-muted-foreground">
                   {summary.passedRequired}/{summary.requiredTotal} required
                 </span>
@@ -142,7 +147,9 @@ export function ProjectReadinessGate({
               <Progress value={summary.progress} />
               {summary.warningCount > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  {summary.warningCount} advisory item{summary.warningCount === 1 ? "" : "s"} should be reviewed before delivery.
+                  {summary.warningCount} advisory item
+                  {summary.warningCount === 1 ? "" : "s"} should be reviewed
+                  before delivery.
                 </p>
               )}
             </div>
@@ -153,11 +160,19 @@ export function ProjectReadinessGate({
             <div className="flex items-start gap-3">
               <FileCheck2 className="mt-0.5 w-4 h-4 text-muted-foreground" />
               <div>
-                <p className="text-sm font-medium">Next action: {summary.nextCheck.label}</p>
-                <p className="text-xs text-muted-foreground">{summary.nextCheck.detail}</p>
+                <p className="text-sm font-medium">
+                  Next action: {summary.nextCheck.label}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {summary.nextCheck.detail}
+                </p>
               </div>
             </div>
-            <Button size="sm" variant="outline" onClick={() => onGoToTab(summary.nextCheck!.tab)}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onGoToTab(summary.nextCheck!.tab)}
+            >
               {summary.nextCheck.action}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
@@ -173,8 +188,8 @@ export function ProjectReadinessGate({
       ) : isError ? (
         <div className="p-8 flex items-center justify-center gap-2 text-sm text-destructive">
           <XCircle className="w-5 h-5" />
-          Some project registers could not be loaded, so readiness cannot be assessed. Retry once the
-          connection recovers.
+          Some project registers could not be loaded, so readiness cannot be
+          assessed. Retry once the connection recovers.
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
@@ -182,17 +197,25 @@ export function ProjectReadinessGate({
             const meta = statusMeta(check.status);
             const Icon = meta.icon;
             return (
-              <div key={check.id} className="border-b border-r border-border p-4 min-h-[154px]">
+              <div
+                key={check.id}
+                className="border-b border-r border-border p-4 min-h-[154px]"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <Icon className={`w-4 h-4 ${meta.iconClass}`} />
                     <h4 className="text-sm font-semibold">{check.label}</h4>
                   </div>
-                  <Badge variant="outline" className={`text-[10px] ${meta.badgeClass}`}>
+                  <Badge
+                    variant="outline"
+                    className={`text-xs ${meta.badgeClass}`}
+                  >
                     {meta.label}
                   </Badge>
                 </div>
-                <p className="mt-3 text-sm text-muted-foreground leading-5">{check.detail}</p>
+                <p className="mt-3 text-sm text-muted-foreground leading-5">
+                  {check.detail}
+                </p>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -211,7 +234,8 @@ export function ProjectReadinessGate({
       {!isLoading && !isError && summary.ready && (
         <div className="flex items-center gap-2 border-t border-border bg-emerald-50 px-6 py-3 text-sm text-emerald-800">
           <Circle className="w-3 h-3 fill-emerald-600 text-emerald-600" />
-          Required gates are clear. Advisory warnings should still be reviewed before external delivery.
+          Required gates are clear. Advisory warnings should still be reviewed
+          before external delivery.
         </div>
       )}
     </section>

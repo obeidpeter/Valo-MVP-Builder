@@ -31,29 +31,57 @@ describe("v2.5 platform access", () => {
   });
 
   it("routes client and partner roles to their own home surfaces", () => {
-    expect(platformHomeForRole("client_organisation_owner")).toBe("/portal");
+    expect(
+      platformHomeForRole("client_organisation_owner", disabledFlags),
+    ).toBe("/projects");
+    expect(platformHomeForRole("client_organisation_owner", enabledFlags)).toBe(
+      "/portal",
+    );
     expect(platformHomeForRole("consultancy_partner_analyst_reviewer")).toBe(
       "/partner",
     );
-    expect(platformHomeForRole("valo_quality_adviser")).toBe("/");
+    expect(platformHomeForRole("valo_quality_adviser")).toBe("/app");
     expect(platformHomeForRole("restricted_platform_administrator")).toBe(
-      "/security",
+      "/app/security",
     );
   });
 
-  it("gives client owners client, evidence, billing and notification surfaces only", () => {
+  it("gives client owners the pursuit workbench plus their role surfaces", () => {
     const items = navigationForRole("client_organisation_owner", disabledFlags);
     expect(items.map((item) => item.href)).toEqual([
+      "/projects",
       "/portal",
+      "/sbd",
       "/evidence-readiness",
+      "/reports",
+      "/clients",
       "/billing",
       "/notifications",
+      "/organisation-settings",
     ]);
     expect(items.find((item) => item.href === "/portal")?.state).toBe(
       "pending_activation",
     );
     expect(items.some((item) => item.href === "/operations")).toBe(false);
+    expect(items.some((item) => item.href === "/app")).toBe(false);
     expect(items.some((item) => item.href === "/settings")).toBe(false);
+  });
+
+  it("allows every canonical client role to open pursuit routes", () => {
+    for (const role of [
+      "client_organisation_owner",
+      "client_administrator",
+      "bid_manager",
+      "contributor",
+      "client_reviewer_approver",
+    ] as const) {
+      expect(
+        getPlatformAccessDecision(role, "pursuit_workbench", enabledFlags),
+      ).toMatchObject({ allowed: true, state: "active" });
+      expect(
+        navigationForRole(role, enabledFlags).map((item) => item.href),
+      ).toContain("/projects");
+    }
   });
 
   it("prevents a client role from opening internal operations directly", () => {
@@ -65,7 +93,7 @@ describe("v2.5 platform access", () => {
     });
   });
 
-  it("allows partner reviewers to review evidence but not administer billing", () => {
+  it("allows partner reviewers to open selected-tenant pursuits but not administer billing", () => {
     const hrefs = navigationForRole(
       "consultancy_partner_analyst_reviewer",
       enabledFlags,
@@ -74,17 +102,65 @@ describe("v2.5 platform access", () => {
     expect(hrefs).toContain("/evidence-readiness");
     expect(hrefs).toContain("/notifications");
     expect(hrefs).not.toContain("/billing");
+    expect(hrefs).toContain("/projects");
     expect(hrefs).not.toContain("/settings");
+    expect(
+      getPlatformAccessDecision(
+        "consultancy_partner_analyst_reviewer",
+        "pursuit_workbench",
+        enabledFlags,
+      ),
+    ).toMatchObject({ allowed: true, state: "active" });
+  });
+
+  it("allows a read-only auditor to browse pursuit records without administration", () => {
+    const hrefs = navigationForRole("read_only_auditor", enabledFlags).map(
+      (item) => item.href,
+    );
+    expect(hrefs).toContain("/projects");
+    expect(hrefs).toContain("/reports");
+    expect(hrefs).toContain("/app/security");
+    expect(hrefs).not.toContain("/organisation-settings");
+  });
+
+  it("uses server-projected permissions to narrow partner navigation", () => {
+    const permissions = [
+      "project:read",
+      "client:read",
+      "requirement:read",
+      "evidence:read",
+      "report:read",
+    ];
+    const hrefs = navigationForRole(
+      "consultancy_partner_administrator",
+      enabledFlags,
+      permissions,
+    ).map((item) => item.href);
+    expect(hrefs).toEqual([
+      "/projects",
+      "/sbd",
+      "/evidence-readiness",
+      "/reports",
+      "/clients",
+      "/notifications",
+    ]);
+    expect(
+      platformHomeForRole(
+        "consultancy_partner_administrator",
+        enabledFlags,
+        permissions,
+      ),
+    ).toBe("/projects");
   });
 
   it("preserves legacy reviewer access while hiding administration", () => {
     const hrefs = navigationForRole("reviewer", disabledFlags).map(
       (item) => item.href,
     );
-    expect(hrefs).toContain("/");
+    expect(hrefs).toContain("/app");
     expect(hrefs).toContain("/operations");
     expect(hrefs).toContain("/evidence-readiness");
-    expect(hrefs).not.toContain("/security");
+    expect(hrefs).not.toContain("/app/security");
     expect(hrefs).not.toContain("/settings");
   });
 
@@ -103,7 +179,7 @@ describe("v2.5 platform access", () => {
       "restricted_platform_administrator",
       enabledFlags,
     ).map((item) => item.href);
-    expect(hrefs).toEqual(["/security"]);
+    expect(hrefs).toEqual(["/app/security"]);
     expect(
       getPlatformAccessDecision(
         "restricted_platform_administrator",
@@ -120,18 +196,28 @@ describe("v2.5 platform access", () => {
     ).map((item) => item.href);
     expect(hrefs).toContain("/portal");
     expect(hrefs).toContain("/evidence-readiness");
-    expect(hrefs).toContain("/security");
+    expect(hrefs).toContain("/app/security");
     expect(hrefs).not.toContain("/settings");
   });
 
   it("accepts short role strings only as migration aliases", () => {
-    expect(platformHomeForRole("client_owner")).toBe("/portal");
+    expect(platformHomeForRole("client_owner", disabledFlags)).toBe(
+      "/projects",
+    );
+    expect(platformHomeForRole("client_owner", enabledFlags)).toBe("/portal");
     expect(platformHomeForRole("partner_reviewer")).toBe("/partner");
     expect(platformHomeForRole("client_auditor")).toBe("/evidence-readiness");
     expect(
       navigationForRole("client_auditor", enabledFlags).map(
         (item) => item.href,
       ),
-    ).toEqual(["/evidence-readiness", "/security"]);
+    ).toEqual([
+      "/projects",
+      "/sbd",
+      "/evidence-readiness",
+      "/reports",
+      "/clients",
+      "/app/security",
+    ]);
   });
 });

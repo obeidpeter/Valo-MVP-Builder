@@ -12,7 +12,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -20,9 +27,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Award, Plus, Pencil, Trash2, Link2, Link2Off, BadgeCheck } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Loader2,
+  Award,
+  Plus,
+  Pencil,
+  Trash2,
+  Link2,
+  Link2Off,
+  BadgeCheck,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useOrganisationPermission } from "@/contexts/organisation-context";
 
 const CLAIM_TYPES = [
   { value: "project", label: "Past Project" },
@@ -42,6 +65,8 @@ interface FormState {
 }
 
 export function ClientCapability({ clientId }: { clientId: string }) {
+  const canWriteEvidence = useOrganisationPermission("evidence:write");
+  const canApproveEvidence = useOrganisationPermission("evidence:approve");
   const { data: items, isLoading } = useListCapabilityItems(clientId);
   const { data: clientDocs } = useListClientDocuments(clientId);
   const createItem = useCreateCapabilityItem();
@@ -52,14 +77,24 @@ export function ClientCapability({ clientId }: { clientId: string }) {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<FormState>({ claimType: "project", description: "", evidenceDocId: NO_EVIDENCE });
+  const [form, setForm] = useState<FormState>({
+    claimType: "project",
+    description: "",
+    evidenceDocId: NO_EVIDENCE,
+  });
 
   const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: getListCapabilityItemsQueryKey(clientId) });
+    queryClient.invalidateQueries({
+      queryKey: getListCapabilityItemsQueryKey(clientId),
+    });
 
   const openCreate = () => {
     setEditingId(null);
-    setForm({ claimType: "project", description: "", evidenceDocId: NO_EVIDENCE });
+    setForm({
+      claimType: "project",
+      description: "",
+      evidenceDocId: NO_EVIDENCE,
+    });
     setDialogOpen(true);
   };
 
@@ -93,7 +128,8 @@ export function ClientCapability({ clientId }: { clientId: string }) {
           data: {
             claimType: form.claimType,
             description: form.description.trim() || undefined,
-            evidenceDocId: form.evidenceDocId === NO_EVIDENCE ? null : form.evidenceDocId,
+            evidenceDocId:
+              form.evidenceDocId === NO_EVIDENCE ? null : form.evidenceDocId,
           },
         },
         opts,
@@ -105,7 +141,10 @@ export function ClientCapability({ clientId }: { clientId: string }) {
           data: {
             claimType: form.claimType,
             description: form.description.trim() || undefined,
-            evidenceDocId: form.evidenceDocId === NO_EVIDENCE ? undefined : form.evidenceDocId,
+            evidenceDocId:
+              form.evidenceDocId === NO_EVIDENCE
+                ? undefined
+                : form.evidenceDocId,
           },
         },
         opts,
@@ -113,7 +152,10 @@ export function ClientCapability({ clientId }: { clientId: string }) {
     }
   };
 
-  const setApproval = (item: CapabilityItem, approvedStatus: "approved" | "rejected" | "pending") => {
+  const setApproval = (
+    item: CapabilityItem,
+    approvedStatus: "approved" | "rejected" | "pending",
+  ) => {
     updateItem.mutate(
       { id: item.id, data: { approvedStatus } },
       {
@@ -134,26 +176,36 @@ export function ClientCapability({ clientId }: { clientId: string }) {
   const handleDelete = (item: CapabilityItem) => {
     deleteItem.mutate(
       { id: item.id },
-      { onSuccess: refresh, onError: () => toast({ variant: "destructive", title: "Could not delete claim" }) },
+      {
+        onSuccess: refresh,
+        onError: () =>
+          toast({ variant: "destructive", title: "Could not delete claim" }),
+      },
     );
   };
 
   const saving = createItem.isPending || updateItem.isPending;
-  const claimLabel = (v: string) => CLAIM_TYPES.find((c) => c.value === v)?.label ?? v;
+  const claimLabel = (v: string) =>
+    CLAIM_TYPES.find((c) => c.value === v)?.label ?? v;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-serif tracking-tight font-medium">Capability Library</h2>
+          <h2 className="text-xl font-serif tracking-tight font-medium">
+            Capability Library
+          </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Only evidence-linked, approved claims are usable in drafts — unsupported claims are flagged, never filled in.
+            Only evidence-linked, approved claims are usable in drafts —
+            unsupported claims are flagged, never filled in.
           </p>
         </div>
-        <Button size="sm" variant="outline" onClick={openCreate}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Claim
-        </Button>
+        {canWriteEvidence && (
+          <Button size="sm" variant="outline" onClick={openCreate}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Claim
+          </Button>
+        )}
       </div>
 
       <div className="bg-card border border-border rounded-lg shadow-xs overflow-hidden">
@@ -175,12 +227,23 @@ export function ClientCapability({ clientId }: { clientId: string }) {
             </TableHeader>
             <TableBody>
               {items.map((item) => (
-                <TableRow key={item.id} className={item.approvedStatus === "rejected" ? "opacity-50" : undefined}>
+                <TableRow
+                  key={item.id}
+                  className={
+                    item.approvedStatus === "rejected"
+                      ? "opacity-50"
+                      : undefined
+                  }
+                >
                   <TableCell className="max-w-[360px]">
-                    <p className="text-sm font-medium leading-relaxed">{item.description || "—"}</p>
+                    <p className="text-sm font-medium leading-relaxed">
+                      {item.description || "—"}
+                    </p>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className="text-[10px]">{claimLabel(item.claimType)}</Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      {claimLabel(item.claimType)}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     {item.evidenceDocId ? (
@@ -189,7 +252,10 @@ export function ClientCapability({ clientId }: { clientId: string }) {
                         {item.evidenceDocName ?? "Linked document"}
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1.5 text-xs text-amber-700" title="Not claimable until evidence is attached and the claim approved.">
+                      <span
+                        className="flex items-center gap-1.5 text-xs text-amber-700"
+                        title="Not claimable until evidence is attached and the claim approved."
+                      >
                         <Link2Off className="w-3.5 h-3.5" />
                         No evidence — non-claimable
                       </span>
@@ -197,18 +263,22 @@ export function ClientCapability({ clientId }: { clientId: string }) {
                   </TableCell>
                   <TableCell>
                     {item.claimable ? (
-                      <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">
+                      <Badge className="text-xs bg-emerald-600 hover:bg-emerald-600">
                         <BadgeCheck className="w-3 h-3 mr-1" />
                         claimable
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-[10px] capitalize">{item.approvedStatus}</Badge>
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {item.approvedStatus}
+                      </Badge>
                     )}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {item.verifiedAt ? (
                       <div>
-                        <div className="font-medium text-foreground">{item.verifierName ?? "Verified"}</div>
+                        <div className="font-medium text-foreground">
+                          {item.verifierName ?? "Verified"}
+                        </div>
                         <div>{new Date(item.verifiedAt).toLocaleString()}</div>
                       </div>
                     ) : (
@@ -217,35 +287,61 @@ export function ClientCapability({ clientId }: { clientId: string }) {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      {item.approvedStatus !== "approved" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 px-2 text-xs"
-                          title={item.evidenceDocId ? "Approve claim" : "Attach evidence before approving"}
-                          onClick={() => setApproval(item, "approved")}
-                          disabled={!item.evidenceDocId || updateItem.isPending}
-                        >
-                          Approve
-                        </Button>
-                      )}
-                      {item.approvedStatus === "approved" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 px-2 text-xs"
-                          onClick={() => setApproval(item, "pending")}
-                          disabled={updateItem.isPending}
-                        >
-                          Revoke
-                        </Button>
-                      )}
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(item)}>
-                        <Pencil className="w-4 h-4 text-muted-foreground" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(item)}>
-                        <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-                      </Button>
+                      {canWriteEvidence &&
+                        canApproveEvidence &&
+                        item.approvedStatus !== "approved" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 text-xs"
+                            title={
+                              item.evidenceDocId
+                                ? "Approve claim"
+                                : "Attach evidence before approving"
+                            }
+                            onClick={() => setApproval(item, "approved")}
+                            disabled={
+                              !item.evidenceDocId || updateItem.isPending
+                            }
+                          >
+                            Approve
+                          </Button>
+                        )}
+                      {canWriteEvidence &&
+                        canApproveEvidence &&
+                        item.approvedStatus === "approved" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 text-xs"
+                            onClick={() => setApproval(item, "pending")}
+                            disabled={updateItem.isPending}
+                          >
+                            Revoke
+                          </Button>
+                        )}
+                      {canWriteEvidence &&
+                        (item.approvedStatus !== "approved" ||
+                          canApproveEvidence) && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Edit capability claim"
+                              onClick={() => openEdit(item)}
+                            >
+                              <Pencil className="w-4 h-4 text-muted-foreground" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Delete capability claim"
+                              onClick={() => handleDelete(item)}
+                            >
+                              <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+                            </Button>
+                          </>
+                        )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -257,62 +353,93 @@ export function ClientCapability({ clientId }: { clientId: string }) {
             <Award className="w-12 h-12 mx-auto mb-3 text-muted" />
             <p>No capability claims on record for this client.</p>
             <p className="text-sm mt-1">
-              Record past projects, personnel, equipment, and certifications — each backed by an evidence document.
+              Record past projects, personnel, equipment, and certifications —
+              each backed by an evidence document.
             </p>
           </div>
         )}
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog
+        open={canWriteEvidence && dialogOpen}
+        onOpenChange={setDialogOpen}
+      >
         <DialogContent className="sm:max-w-[520px]">
           <DialogHeader>
-            <DialogTitle className="font-serif">{editingId ? "Edit Claim" : "Add Capability Claim"}</DialogTitle>
+            <DialogTitle className="font-serif">
+              {editingId ? "Edit Claim" : "Add Capability Claim"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase">Claim Type</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase">
+                Claim Type
+              </label>
               <Select
                 value={form.claimType}
-                onValueChange={(val) => setForm({ ...form, claimType: val as FormState["claimType"] })}
+                onValueChange={(val) =>
+                  setForm({ ...form, claimType: val as FormState["claimType"] })
+                }
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {CLAIM_TYPES.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                    <SelectItem key={c.value} value={c.value}>
+                      {c.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase">Description</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase">
+                Description
+              </label>
               <Textarea
                 value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
                 placeholder="e.g. Completed 32km federal road rehabilitation, Kaduna, 2024 — ₦1.8bn"
                 className="min-h-[80px]"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase">Evidence Document</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase">
+                Evidence Document
+              </label>
               <Select
                 value={form.evidenceDocId}
-                onValueChange={(val) => setForm({ ...form, evidenceDocId: val })}
+                onValueChange={(val) =>
+                  setForm({ ...form, evidenceDocId: val })
+                }
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NO_EVIDENCE}>No evidence yet (claim stays non-claimable)</SelectItem>
+                  <SelectItem value={NO_EVIDENCE}>
+                    No evidence yet (claim stays non-claimable)
+                  </SelectItem>
                   {(clientDocs ?? []).map((d) => (
-                    <SelectItem key={d.id} value={d.id}>{d.filename}</SelectItem>
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.filename}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-[11px] text-muted-foreground">
-                Evidence must be a document already uploaded to one of this client's projects.
+              <p className="text-xs text-muted-foreground">
+                Evidence must be a document already uploaded to one of this
+                client's projects.
               </p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancel
+            </Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {editingId ? "Save Changes" : "Add Claim"}

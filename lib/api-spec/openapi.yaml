@@ -129,11 +129,14 @@ paths:
     get:
       operationId: listOrganisations
       tags: [Organisations]
-      summary: List the caller's active organisation memberships
+      summary: List the caller's active organisation access contexts
       description: |
-        Discovery endpoint used before tenant selection. It returns only active,
-        unexpired memberships in active organisations, with only active and
-        unexpired role grants. No organisation context header is required.
+        Discovery endpoint used before tenant selection. It returns active
+        direct memberships and client contexts reached through an active
+        consultancy-partner relationship with partner edition enabled. Every
+        row includes the server-computed effective permission set; projected
+        rows contain only the restricted partner-derived permissions. No
+        organisation context header is required.
       responses:
         "200":
           description: Active organisation access available to the caller
@@ -219,8 +222,10 @@ paths:
       description: |
         Requires `membership:manage` from a direct membership in the selected
         organisation. Delegation ceilings and organisation-role compatibility
-        are enforced by the server. Partner and break-glass contexts cannot
-        administer memberships.
+        are re-evaluated from locked, live grants by the server. A lower-level
+        administrator cannot reactivate a membership that retains a live or
+        scheduled higher-authority grant, and self-service role grants are
+        denied. Partner and break-glass contexts cannot administer memberships.
       requestBody:
         required: true
         content:
@@ -258,7 +263,10 @@ paths:
       description: |
         Requires `membership:manage` from a direct membership. The optimistic
         membership version must be supplied in `If-Match`; stale versions fail
-        without mutation. An ETag containing the new version is returned.
+        without mutation. Live grants, self-change safeguards, and the last
+        active administrator/owner invariant are checked under an organisation
+        transaction lock. Denied hierarchy changes are audited. An ETag
+        containing the new version is returned.
       parameters:
         - $ref: "#/components/parameters/IfMatchVersion"
       requestBody:
@@ -950,6 +958,8 @@ paths:
                 $ref: "#/components/schemas/VaultItem"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "404":
           $ref: "#/components/responses/NotFound"
   /vault-items/{id}:
@@ -973,6 +983,8 @@ paths:
                 $ref: "#/components/schemas/VaultItem"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "404":
           $ref: "#/components/responses/NotFound"
     delete:
@@ -983,6 +995,8 @@ paths:
       responses:
         "204":
           description: Deleted
+        "409":
+          $ref: "#/components/responses/Conflict"
         "404":
           $ref: "#/components/responses/NotFound"
   /vault/expiring:
@@ -1262,7 +1276,9 @@ paths:
               $ref: "#/components/schemas/DocumentCreate"
       responses:
         "201":
-          description: Created document
+          description: >-
+            Created document. Excluded documents are persisted with a skipped,
+            no-model extraction state and are not sent to text extraction or OCR.
           content:
             application/json:
               schema:
@@ -1275,12 +1291,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Conflict gate blocked intake or secure intake detected a duplicate.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentIntakeFailure"
         "422":
           description: Uploaded object unreadable in storage; no intake hash could be recorded
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorEnvelope"
+                $ref: "#/components/schemas/DocumentIntakeFailure"
+        "503":
+          description: Required secure-intake scanner or provider is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentIntakeFailure"
   /documents/{id}:
     get:
       operationId: getDocument
@@ -1314,6 +1342,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Document"
+        "403":
+          description: Reviewer authority is required for every document redaction-status change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Exclusion was denied because extraction is already processing, or the document is security-quarantined.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
     delete:
       operationId: deleteDocument
       tags: [Documents]
@@ -1324,22 +1364,52 @@ paths:
           description: Deleted
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          description: A logical security-quarantine marker cannot be deleted while another tenant artefact references its blocked path.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /documents/{id}/extract:
     post:
       operationId: extractDocument
       tags: [Documents]
-      summary: (Re-)run text extraction for a document, asynchronously
+      summary: Deliberately run reviewer-authorised text extraction under the project lock
       parameters:
         - $ref: "#/components/parameters/IdParam"
       responses:
-        "202":
-          description: Extraction started; poll the document for extractionStatus
+        "200":
+          description: Extraction completed or failed with its final persisted status.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Document"
+        "403":
+          description: Reviewer authority is required to start extraction.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          description: Extraction is blocked because the document is excluded or already processing.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422":
+          description: Re-inspection found a security condition and logically quarantined the source.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "503":
+          description: Secure re-inspection could not clear the document for extraction.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /documents/{id}/verify:
     post:
       operationId: verifyDocument
@@ -1602,6 +1672,7 @@ paths:
       tags: [Defects]
       parameters:
         - $ref: "#/components/parameters/IdParam"
+        - $ref: "#/components/parameters/IfMatchVersion"
       requestBody:
         required: true
         content:
@@ -1615,6 +1686,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Defect"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "428":
+          $ref: "#/components/responses/PreconditionRequired"
     delete:
       operationId: deleteDefect
       tags: [Defects]
@@ -1828,6 +1903,31 @@ paths:
                 format: binary
         "404":
           $ref: "#/components/responses/NotFound"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /reports/{id}/download-pdf:
+    get:
+      operationId: downloadReportPdf
+      tags: [Reports]
+      summary: Download the generated PDF
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: PDF binary
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /projects/{id}/export:
     get:
       operationId: exportProject
@@ -1973,11 +2073,51 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/uploads/discard:
+    post:
+      tags: [Storage]
+      operationId: discardUpload
+      summary: Discard an unreferenced staged upload after document registration fails
+      description: >-
+        Deletes only an opaque object in the authenticated organisation's upload
+        staging namespace. The server rejects signed URLs, cross-tenant paths,
+        quarantine paths, and objects already referenced by any persisted tenant artefact.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiscardUploadRequest"
+      responses:
+        "200":
+          description: Cleanup completed with an explicit storage disposition.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StagedUploadDiscardResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: The object is already referenced by a tenant artefact and was not deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Cleanup could not be confirmed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /storage/objects/{objectPath}:
     get:
       tags: [Storage]
       operationId: getStorageObject
-      summary: Serve an object entity from PRIVATE_OBJECT_DIR
+      summary: Serve a registered document or vault source object
+      description: >-
+        Fails closed for unreferenced staging objects, document-version quarantine
+        objects, report renders, package outputs, and partner-branding objects.
+        Controlled outputs are available only through their guarded download/export routes.
       parameters:
         - name: objectPath
           in: path
@@ -2179,8 +2319,12 @@ components:
         - status
         - countryCode
         - membershipId
+        - membershipOrganisationId
+        - accessSource
+        - partnerRelationshipId
         - accessExpiresAt
         - roles
+        - permissions
         - version
       properties:
         id:
@@ -2203,6 +2347,18 @@ components:
         membershipId:
           type: string
           format: uuid
+          description: Direct or partner-source membership used to authorise this context.
+        membershipOrganisationId:
+          type: string
+          format: uuid
+          description: Organisation that owns the authorising membership.
+        accessSource:
+          type: string
+          enum: [membership, partner]
+        partnerRelationshipId:
+          type: string
+          format: uuid
+          nullable: true
         accessExpiresAt:
           type: string
           format: date-time
@@ -2212,6 +2368,12 @@ components:
           uniqueItems: true
           items:
             $ref: "#/components/schemas/OrganisationRole"
+        permissions:
+          type: array
+          uniqueItems: true
+          description: Server-computed effective permissions for this exact tenant context.
+          items:
+            type: string
         version:
           type: integer
           minimum: 1
@@ -2364,12 +2526,21 @@ components:
           type: string
           format: date-time
           nullable: true
-          description: Must be in the future when supplied.
+          description: |
+            Must be in the future when supplied. For an existing membership,
+            omission preserves its current expiry, null explicitly clears it
+            to indefinite access, and a timestamp replaces it under the same
+            locked authority check. Reactivation is refused if a preserved
+            expiry is no longer in the future.
         roleExpiresAt:
           type: string
           format: date-time
           nullable: true
-          description: Must be in the future when supplied.
+          description: |
+            Must be in the future when supplied. For a reactivated membership
+            with a retained matching grant, omission preserves that grant's
+            expiry, null clears it, and a timestamp replaces it under the same
+            locked authority check.
     OrganisationMembershipGrantResult:
       type: object
       additionalProperties: false
@@ -3665,7 +3836,7 @@ components:
         extractedChars: { type: integer, nullable: true }
         extractionStatus:
           type: string
-          enum: [pending, extracting, extracted, failed, skipped]
+          enum: [pending, extracting, extracted, failed, skipped, quarantined]
           nullable: true
         extractionMethod:
           type: string
@@ -3689,7 +3860,32 @@ components:
         dateReceived: { type: string }
         redactionStatus:
           type: string
-          enum: [excluded, redacted, included]
+          enum: [excluded]
+    DocumentIntakeFailure:
+      allOf:
+        - $ref: "#/components/schemas/ErrorEnvelope"
+        - type: object
+          properties:
+            disposition: { type: string }
+            findings:
+              type: array
+              items: { type: string }
+            providerIssues:
+              type: array
+              items:
+                type: object
+                required: [kind, code]
+                properties:
+                  kind: { type: string }
+                  code: { type: string }
+            storedObjectDisposition: { type: string }
+            quarantineRetained:
+              type: boolean
+              nullable: true
+              description: True when retention is confirmed, false when absence is confirmed, and null when a distributed copy acknowledgement/probe left the quarantine-copy disposition unknown.
+            cleanupConfirmed:
+              type: boolean
+              description: False when cleanup of a promoted stable copy could not be confirmed; staging-path cleanup must not override it.
     DocumentUpdate:
       type: object
       properties:
@@ -3866,7 +4062,8 @@ components:
         suggested: { type: boolean }
     Defect:
       type: object
-      required: [id, projectId, type, severity, description, status, createdAt]
+      required:
+        [id, projectId, type, severity, description, status, version, createdAt]
       properties:
         id: { type: string }
         projectId: { type: string }
@@ -3896,6 +4093,7 @@ components:
           type: string
           enum: [open, remediated, waived, suggested]
         suggested: { type: boolean }
+        version: { type: integer, minimum: 1 }
         createdAt: { type: string }
     DefectSuggestResult:
       type: object
@@ -4079,6 +4277,7 @@ components:
           type: string
           enum: [draft, signed_off]
         docxPath: { type: string, nullable: true }
+        pdfPath: { type: string, nullable: true }
         reviewerId: { type: string, nullable: true }
         reviewerName: { type: string, nullable: true }
         attestation: { type: string, nullable: true }
@@ -4186,3 +4385,22 @@ components:
           type: string
         metadata:
           $ref: "#/components/schemas/UploadUrlRequest"
+    DiscardUploadRequest:
+      type: object
+      additionalProperties: false
+      required: [objectPath]
+      properties:
+        objectPath:
+          type: string
+          minLength: 1
+          maxLength: 512
+    StagedUploadDiscardResult:
+      type: object
+      additionalProperties: false
+      required: [disposition, quarantineMayRetainCopy]
+      properties:
+        disposition:
+          type: string
+          enum: [deleted, already_absent]
+        quarantineMayRetainCopy:
+          type: boolean

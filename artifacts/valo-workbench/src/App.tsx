@@ -1,72 +1,51 @@
-import { Router as WouterRouter } from "wouter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { ClerkProvider, SignedIn, SignedOut } from "@clerk/clerk-react";
+import { lazy, Suspense, useEffect } from "react";
+import { Router as WouterRouter, useLocation } from "wouter";
+import { AppErrorBoundary } from "@/components/app-error-boundary";
 import SignedOutRoutes from "@/signed-out-routes";
-import ProtectedRoutes from "@/protected-routes";
-import Layout from "@/components/layout";
-import { OrganisationProvider } from "@/contexts/organisation-context";
+import { classifyRoute } from "@/lib/route-classification";
+import { applyPrivateDocumentMetadata } from "@/lib/private-document-metadata";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+const AuthenticatedGateway = lazy(() => import("@/authenticated-gateway"));
 
-const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-
-function ProtectedApp() {
+function LoadingAccess() {
   return (
-    <OrganisationProvider>
-      <Layout>
-        <ProtectedRoutes />
-      </Layout>
-    </OrganisationProvider>
-  );
-}
-
-function App() {
-  if (!CLERK_PUBLISHABLE_KEY) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4 text-center">
-        <div className="max-w-md space-y-4">
-          <h1 className="text-xl font-bold text-destructive">
-            Missing Clerk Configuration
-          </h1>
-          <p className="text-muted-foreground">
-            VITE_CLERK_PUBLISHABLE_KEY is not set in your environment variables.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <ClerkProvider
-      publishableKey={CLERK_PUBLISHABLE_KEY}
-      proxyUrl={import.meta.env.VITE_CLERK_PROXY_URL}
+    <main
+      className="flex min-h-screen items-center justify-center bg-background p-6"
+      role="status"
     >
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <SignedIn>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <ProtectedApp />
-            </WouterRouter>
-          </SignedIn>
-          <SignedOut>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <SignedOutRoutes />
-            </WouterRouter>
-          </SignedOut>
-          <Toaster />
-        </TooltipProvider>
-      </QueryClientProvider>
-    </ClerkProvider>
+      <p className="text-sm text-muted-foreground">Preparing secure access…</p>
+    </main>
   );
 }
 
-export default App;
+function RoutedExperience() {
+  const [location] = useLocation();
+  const surface = classifyRoute(location);
+
+  useEffect(() => {
+    if (surface !== "public") {
+      applyPrivateDocumentMetadata("Secure access | Valo");
+    }
+  }, [surface]);
+
+  if (surface === "public") return <SignedOutRoutes />;
+
+  return (
+    <Suspense fallback={<LoadingAccess />}>
+      <AuthenticatedGateway
+        accessRoute={surface === "access"}
+        requestedLocation={location}
+      />
+    </Suspense>
+  );
+}
+
+export default function App() {
+  return (
+    <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+      <AppErrorBoundary>
+        <RoutedExperience />
+      </AppErrorBoundary>
+    </WouterRouter>
+  );
+}

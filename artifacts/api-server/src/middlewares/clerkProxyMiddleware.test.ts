@@ -1,0 +1,70 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import {
+  clerkProxyHostsFromOrigins,
+  getClerkProxyHost,
+} from "./clerkProxyMiddleware";
+
+describe("Clerk proxy public-host boundary", () => {
+  const origins = new Set([
+    "https://valo-mvp-builder.replit.app",
+    "https://bids.valo.example",
+  ]);
+  const hosts = clerkProxyHostsFromOrigins(origins);
+
+  it("derives only exact host values from configured origins", () => {
+    assert.deepEqual([...hosts].sort(), [
+      "bids.valo.example",
+      "valo-mvp-builder.replit.app",
+    ]);
+    assert.deepEqual(
+      [
+        ...clerkProxyHostsFromOrigins(
+          new Set(["not an origin", "javascript:alert(1)"]),
+        ),
+      ],
+      [],
+    );
+  });
+
+  it("accepts the first forwarded hop only when it is allowlisted", () => {
+    assert.equal(
+      getClerkProxyHost(
+        {
+          headers: {
+            "x-forwarded-host": "valo-mvp-builder.replit.app, internal.proxy",
+            host: "internal.proxy",
+          },
+        },
+        hosts,
+      ),
+      "valo-mvp-builder.replit.app",
+    );
+  });
+
+  it("does not fall through to an allowed Host after a spoofed forwarded host", () => {
+    assert.equal(
+      getClerkProxyHost(
+        {
+          headers: {
+            "x-forwarded-host": "attacker.example",
+            host: "valo-mvp-builder.replit.app",
+          },
+        },
+        hosts,
+      ),
+      undefined,
+    );
+  });
+
+  it("uses an allowlisted Host only when no forwarded host exists", () => {
+    assert.equal(
+      getClerkProxyHost({ headers: { host: "BIDS.VALO.EXAMPLE" } }, hosts),
+      "bids.valo.example",
+    );
+    assert.equal(
+      getClerkProxyHost({ headers: { host: "attacker.example/path" } }, hosts),
+      undefined,
+    );
+  });
+});

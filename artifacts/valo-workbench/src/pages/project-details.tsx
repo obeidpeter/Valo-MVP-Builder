@@ -1,4 +1,4 @@
-import { useParams } from "wouter";
+import { Link, useParams, useSearchParams } from "wouter";
 import {
   useGetProject,
   useUpdateProject,
@@ -13,30 +13,95 @@ import {
   getListRetentionRequestsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { Loader2, FileText, CheckSquare, Layers, AlertOctagon, FileBarChart, History, Activity, Calculator, ShieldAlert, Bell, Archive, Save, UserCheck } from "lucide-react";
+import { lazy, Suspense, useEffect, useState } from "react";
+import {
+  Loader2,
+  FileText,
+  CheckSquare,
+  Layers,
+  AlertOctagon,
+  FileBarChart,
+  History,
+  Activity,
+  Calculator,
+  ShieldAlert,
+  Bell,
+  Archive,
+  Save,
+  UserCheck,
+} from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { errorMessage } from "@/lib/errors";
-import { ProjectReadinessGate, type ProjectTab } from "@/components/project-readiness-gate";
+import {
+  ProjectReadinessGate,
+  type ProjectTab,
+} from "@/components/project-readiness-gate";
+import { LoadingPanel } from "@/components/platform-states";
+import { useOrganisationPermission } from "@/contexts/organisation-context";
 
-import { DocumentsTab } from "./project-tabs/documents-tab";
-import { RequirementsTab } from "./project-tabs/requirements-tab";
-import { EvidenceTab } from "./project-tabs/evidence-tab";
-import { DefectsTab } from "./project-tabs/defects-tab";
-import { ReportsTab } from "./project-tabs/reports-tab";
-import { BoqTab } from "./project-tabs/boq-tab";
-import { RiskTab } from "./project-tabs/risk-tab";
-import { AuditTab } from "./project-tabs/audit-tab";
+const DocumentsTab = lazy(() =>
+  import("./project-tabs/documents-tab").then(({ DocumentsTab }) => ({
+    default: DocumentsTab,
+  })),
+);
+const RequirementsTab = lazy(() =>
+  import("./project-tabs/requirements-tab").then(({ RequirementsTab }) => ({
+    default: RequirementsTab,
+  })),
+);
+const EvidenceTab = lazy(() =>
+  import("./project-tabs/evidence-tab").then(({ EvidenceTab }) => ({
+    default: EvidenceTab,
+  })),
+);
+const DefectsTab = lazy(() =>
+  import("./project-tabs/defects-tab").then(({ DefectsTab }) => ({
+    default: DefectsTab,
+  })),
+);
+const ReportsTab = lazy(() =>
+  import("./project-tabs/reports-tab").then(({ ReportsTab }) => ({
+    default: ReportsTab,
+  })),
+);
+const BoqTab = lazy(() =>
+  import("./project-tabs/boq-tab").then(({ BoqTab }) => ({ default: BoqTab })),
+);
+const RiskTab = lazy(() =>
+  import("./project-tabs/risk-tab").then(({ RiskTab }) => ({
+    default: RiskTab,
+  })),
+);
+const AuditTab = lazy(() =>
+  import("./project-tabs/audit-tab").then(({ AuditTab }) => ({
+    default: AuditTab,
+  })),
+);
 
-const STATUS_OPTIONS = ["intake", "extraction", "review", "defects", "reporting", "signed_off", "exported", "archived"] as const;
+const STATUS_OPTIONS = [
+  "intake",
+  "extraction",
+  "review",
+  "defects",
+  "reporting",
+  "signed_off",
+  "exported",
+  "archived",
+] as const;
 const CONFLICT_OPTIONS = ["clear", "blocked", "consented", "declined"] as const;
 // Gate 0 mandate quality (Build Brief §17): a quality mandate is an assisted
 // bid or retainer, not autopsy-only revenue.
@@ -52,22 +117,73 @@ type SlaClass = "standard" | "live";
 type PaymentStatus = "not_required" | "pending" | "confirmed";
 type ConflictStatus = (typeof CONFLICT_OPTIONS)[number];
 
+const PROJECT_TABS: readonly ProjectTab[] = [
+  "overview",
+  "documents",
+  "requirements",
+  "evidence",
+  "boq",
+  "defects",
+  "risk",
+  "reports",
+  "audit",
+];
+
+function isProjectTab(value: string | null): value is ProjectTab {
+  return PROJECT_TABS.some((tab) => tab === value);
+}
+
+function requestStatus(error: unknown): number | undefined {
+  const status = (error as { status?: unknown } | null)?.status;
+  return typeof status === "number" ? status : undefined;
+}
+
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>();
-  const { data: project, isLoading } = useGetProject(id);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const {
+    data: project,
+    error: projectError,
+    isError: projectIsError,
+    isFetching: projectIsFetching,
+    isLoading,
+    refetch: refetchProject,
+  } = useGetProject(id);
   const updateProject = useUpdateProject();
   const confirmPayment = useConfirmProjectPayment();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const canUpdateProject = useOrganisationPermission("project:update");
+  const canManageRetention = useOrganisationPermission("retention:manage");
   const { data: notifications } = useListProjectNotifications(id ?? "", {
-    query: { enabled: Boolean(id), queryKey: getListProjectNotificationsQueryKey(id ?? "") },
+    query: {
+      enabled: Boolean(id),
+      queryKey: getListProjectNotificationsQueryKey(id ?? ""),
+    },
   });
   const { data: cost } = useGetProjectCost(id ?? "", {
-    query: { enabled: Boolean(id), queryKey: getGetProjectCostQueryKey(id ?? "") },
+    query: {
+      enabled: Boolean(id),
+      queryKey: getGetProjectCostQueryKey(id ?? ""),
+    },
   });
   const createNotification = useCreateProjectNotification();
   const createRetentionRequest = useCreateRetentionRequest();
-  const [activeTab, setActiveTab] = useState<ProjectTab>("overview");
+  const requestedTab = searchParams.get("tab");
+  const activeTab: ProjectTab = isProjectTab(requestedTab)
+    ? requestedTab
+    : "overview";
+  const setActiveTab = (tab: ProjectTab) => {
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (tab === "overview") next.delete("tab");
+        else next.set("tab", tab);
+        return next;
+      },
+      { replace: true },
+    );
+  };
   const [governance, setGovernance] = useState<{
     status: ProjectStatus;
     slaClass: SlaClass;
@@ -123,7 +239,8 @@ export default function ProjectDetails() {
   }, [project?.id]);
 
   const refreshProject = () => {
-    if (id) queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(id) });
+    if (id)
+      queryClient.invalidateQueries({ queryKey: getGetProjectQueryKey(id) });
   };
 
   const handleSaveGovernance = () => {
@@ -134,11 +251,8 @@ export default function ProjectDetails() {
         data: {
           status: governance.status,
           slaClass: governance.slaClass,
-          paymentStatus: governance.paymentStatus,
-          conflictStatus: governance.conflictStatus,
-          conflictDecision: governance.conflictDecision.trim() || null,
-          conflictRationale: governance.conflictRationale.trim() || null,
-          physicalArchiveInstruction: governance.physicalArchiveInstruction.trim() || null,
+          physicalArchiveInstruction:
+            governance.physicalArchiveInstruction.trim() || null,
           redactionScope: governance.redactionScope.trim() || null,
           restrictedMode: governance.restrictedMode,
         },
@@ -155,7 +269,10 @@ export default function ProjectDetails() {
           toast({
             variant: "destructive",
             title: "Update blocked",
-            description: errorMessage(err, "The project transition or governance update was rejected."),
+            description: errorMessage(
+              err,
+              "The project transition or governance update was rejected.",
+            ),
           }),
       },
     );
@@ -172,11 +289,17 @@ export default function ProjectDetails() {
           toast({ title: "Mandate quality updated" });
         },
         onError: (err) => {
-          if (project) setMandateQuality((project.mandateQuality ?? "none") as MandateQuality);
+          if (project)
+            setMandateQuality(
+              (project.mandateQuality ?? "none") as MandateQuality,
+            );
           toast({
             variant: "destructive",
             title: "Update failed",
-            description: errorMessage(err, "The mandate quality could not be saved."),
+            description: errorMessage(
+              err,
+              "The mandate quality could not be saved.",
+            ),
           });
         },
       },
@@ -190,18 +313,28 @@ export default function ProjectDetails() {
         id,
         data: {
           template: notificationForm.template,
-          channel: notificationForm.channel as "manual" | "email" | "whatsapp" | "in_app",
+          channel: notificationForm.channel as
+            | "manual"
+            | "email"
+            | "whatsapp"
+            | "in_app",
           recipient: notificationForm.recipient.trim() || undefined,
         },
       },
       {
         onSuccess: () => {
           setNotificationForm({ ...notificationForm, recipient: "" });
-          queryClient.invalidateQueries({ queryKey: getListProjectNotificationsQueryKey(id) });
+          queryClient.invalidateQueries({
+            queryKey: getListProjectNotificationsQueryKey(id),
+          });
           toast({ title: "Notification logged" });
         },
         onError: (err) =>
-          toast({ variant: "destructive", title: "Notification failed", description: errorMessage(err, "") }),
+          toast({
+            variant: "destructive",
+            title: "Notification failed",
+            description: errorMessage(err, ""),
+          }),
       },
     );
   };
@@ -214,11 +347,17 @@ export default function ProjectDetails() {
         onSuccess: () => {
           setRetentionReason("");
           // The admin retention queue on Settings reads this list.
-          queryClient.invalidateQueries({ queryKey: getListRetentionRequestsQueryKey() });
+          queryClient.invalidateQueries({
+            queryKey: getListRetentionRequestsQueryKey(),
+          });
           toast({ title: "Retention request opened" });
         },
         onError: (err) =>
-          toast({ variant: "destructive", title: "Retention request failed", description: errorMessage(err, "") }),
+          toast({
+            variant: "destructive",
+            title: "Retention request failed",
+            description: errorMessage(err, ""),
+          }),
       },
     );
   };
@@ -236,7 +375,10 @@ export default function ProjectDetails() {
           toast({
             variant: "destructive",
             title: "Confirmation rejected",
-            description: errorMessage(err, "Dual confirmation requires two distinct people."),
+            description: errorMessage(
+              err,
+              "Dual confirmation requires two distinct people.",
+            ),
           }),
       },
     );
@@ -250,10 +392,69 @@ export default function ProjectDetails() {
     );
   }
 
-  if (!project || !id) {
+  if (
+    !id ||
+    (projectIsError && requestStatus(projectError) === 404) ||
+    (!projectIsError && !project)
+  ) {
     return (
-      <div className="p-8 max-w-7xl mx-auto text-center">
-        <h1 className="text-2xl font-serif text-destructive">Project not found</h1>
+      <div className="mx-auto flex min-h-[22rem] max-w-2xl flex-col items-center justify-center p-8 text-center">
+        <FileText
+          className="mb-4 h-10 w-10 text-muted-foreground"
+          aria-hidden="true"
+        />
+        <h1 className="text-2xl font-semibold text-foreground">
+          Pursuit not found
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          This pursuit is unavailable in the selected organisation. It may have
+          been removed, or your access may have changed.
+        </p>
+        <Button asChild variant="outline" className="mt-5">
+          <Link href="/projects">Back to pursuits</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  if (projectIsError) {
+    return (
+      <div
+        role="alert"
+        className="mx-auto flex min-h-[22rem] max-w-2xl flex-col items-center justify-center p-8 text-center"
+      >
+        <ShieldAlert
+          className="mb-4 h-10 w-10 text-destructive"
+          aria-hidden="true"
+        />
+        <h1 className="text-2xl font-semibold text-foreground">
+          Pursuit unavailable
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Valo could not verify this pursuit against the server. No missing or
+          readiness state has been inferred from the failed request.
+        </p>
+        <p className="mt-3 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+          {errorMessage(projectError, "The pursuit could not be loaded.")}
+        </p>
+        <div className="mt-5 flex flex-wrap justify-center gap-3">
+          <Button
+            type="button"
+            onClick={() => void refetchProject()}
+            disabled={projectIsFetching}
+          >
+            {projectIsFetching && (
+              <Loader2
+                className="mr-2 h-4 w-4 animate-spin"
+                aria-hidden="true"
+              />
+            )}
+            Try again
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/projects">Back to pursuits</Link>
+          </Button>
+        </div>
       </div>
     );
   }
@@ -263,23 +464,37 @@ export default function ProjectDetails() {
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <Badge variant="outline" className="capitalize text-xs font-mono tracking-wider">
+            <Badge
+              variant="outline"
+              className="capitalize text-xs font-mono tracking-wider"
+            >
               {project.status.replace("_", " ")}
             </Badge>
             {project.riskBand && (
-              <Badge variant={project.riskBand === 'critical' || project.riskBand === 'high' ? 'destructive' : 'secondary'} className="capitalize text-xs font-mono tracking-wider">
+              <Badge
+                variant={
+                  project.riskBand === "critical" || project.riskBand === "high"
+                    ? "destructive"
+                    : "secondary"
+                }
+                className="capitalize text-xs font-mono tracking-wider"
+              >
                 {project.riskBand} Risk
               </Badge>
             )}
-            {project.outcome && project.outcome !== 'none' && (
+            {project.outcome && project.outcome !== "none" && (
               <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 capitalize text-xs font-mono tracking-wider">
                 {project.outcome.replace(/_/g, " ")}
               </Badge>
             )}
           </div>
-          <h1 className="text-3xl font-serif tracking-tight font-semibold text-foreground">{project.tenderTitle}</h1>
+          <h1 className="text-3xl font-serif tracking-tight font-semibold text-foreground">
+            {project.tenderTitle}
+          </h1>
           <p className="text-muted-foreground mt-1 text-sm flex items-center gap-2">
-            <span className="font-medium text-foreground">{project.clientName}</span>
+            <span className="font-medium text-foreground">
+              {project.clientName}
+            </span>
             {project.issuingEntity && (
               <>
                 <span>&bull;</span>
@@ -295,11 +510,22 @@ export default function ProjectDetails() {
           </p>
         </div>
         <div className="shrink-0 space-y-1.5">
-          <Label htmlFor="mandateQuality" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <Label
+            htmlFor="mandateQuality"
+            className="text-xs font-medium text-muted-foreground uppercase tracking-wider"
+          >
             Mandate Quality
           </Label>
-          <Select value={mandateQuality} onValueChange={(v) => handleSaveMandateQuality(v as MandateQuality)}>
-            <SelectTrigger id="mandateQuality" className="w-[220px]">
+          <Select
+            value={mandateQuality}
+            onValueChange={(v) => handleSaveMandateQuality(v as MandateQuality)}
+            disabled={!canUpdateProject}
+          >
+            <SelectTrigger
+              id="mandateQuality"
+              className="w-[220px]"
+              disabled={!canUpdateProject}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -310,343 +536,535 @@ export default function ProjectDetails() {
               ))}
             </SelectContent>
           </Select>
-          <p className="text-[11px] text-muted-foreground max-w-[220px]">
+          <p className="text-xs text-muted-foreground max-w-[220px]">
             Gate 0 counts assisted-bid & retainer mandates, not autopsy-only.
           </p>
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ProjectTab)} className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as ProjectTab)}
+        className="w-full"
+      >
         <TabsList className="w-full justify-start border-b border-border rounded-none bg-transparent h-auto p-0 space-x-6 overflow-x-auto">
-          <TabsTrigger value="overview" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium">
+          <TabsTrigger
+            value="overview"
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium"
+          >
             <Activity className="w-4 h-4 mr-2" />
-            Overview
+            Overview &amp; next actions
           </TabsTrigger>
-          <TabsTrigger value="documents" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium">
+          <TabsTrigger
+            value="documents"
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium"
+          >
             <FileText className="w-4 h-4 mr-2" />
-            Documents
+            Tender documents
           </TabsTrigger>
-          <TabsTrigger value="requirements" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium">
+          <TabsTrigger
+            value="requirements"
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium"
+          >
             <CheckSquare className="w-4 h-4 mr-2" />
             Requirements
           </TabsTrigger>
-          <TabsTrigger value="evidence" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium">
+          <TabsTrigger
+            value="evidence"
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium"
+          >
             <Layers className="w-4 h-4 mr-2" />
-            Evidence
+            Evidence &amp; compliance
           </TabsTrigger>
-          <TabsTrigger value="boq" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium">
+          <TabsTrigger
+            value="boq"
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium"
+          >
             <Calculator className="w-4 h-4 mr-2" />
-            BOQ Lite
+            BOQ
           </TabsTrigger>
-          <TabsTrigger value="defects" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium">
+          <TabsTrigger
+            value="defects"
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium"
+          >
             <AlertOctagon className="w-4 h-4 mr-2" />
-            Defects
+            Issues &amp; red team
           </TabsTrigger>
-          <TabsTrigger value="risk" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium">
+          <TabsTrigger
+            value="risk"
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium"
+          >
             <ShieldAlert className="w-4 h-4 mr-2" />
-            Risk
+            Risk review
           </TabsTrigger>
-          <TabsTrigger value="reports" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium">
+          <TabsTrigger
+            value="reports"
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium"
+          >
             <FileBarChart className="w-4 h-4 mr-2" />
-            Reports
+            Package &amp; export
           </TabsTrigger>
-          <TabsTrigger value="audit" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium">
+          <TabsTrigger
+            value="audit"
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium"
+          >
             <History className="w-4 h-4 mr-2" />
-            Audit
+            Activity &amp; audit
           </TabsTrigger>
         </TabsList>
-        
+
         <div className="pt-6 pb-20">
-          <TabsContent value="overview" className="m-0">
-            <div className="space-y-6">
-              <ProjectReadinessGate project={project} onGoToTab={setActiveTab} />
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-              <div className="bg-card border border-border p-6 rounded-xl shadow-xs">
-                <h3 className="font-serif text-lg font-medium mb-4">Project Metadata</h3>
-                <dl className="space-y-4 text-sm">
-                  <div>
-                    <dt className="text-muted-foreground uppercase text-[10px] tracking-wider font-mono">Reviewer</dt>
-                    <dd className="mt-1">{project.reviewerName || "-"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground uppercase text-[10px] tracking-wider font-mono">Lot</dt>
-                    <dd className="mt-1">{project.lot || "-"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground uppercase text-[10px] tracking-wider font-mono">Scope</dt>
-                    <dd className="mt-1">{project.scope || "-"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground uppercase text-[10px] tracking-wider font-mono">Limitations</dt>
-                    <dd className="mt-1">{project.limitations || "-"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground uppercase text-[10px] tracking-wider font-mono">Created</dt>
-                    <dd className="mt-1">{new Date(project.createdAt).toLocaleString()}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground uppercase text-[10px] tracking-wider font-mono">Model Cost (est.)</dt>
-                    <dd className="mt-1">
-                      {cost
-                        ? `₦${(cost.estimatedKobo / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })} · ${cost.runs} run${cost.runs === 1 ? "" : "s"}`
-                        : "-"}
-                    </dd>
-                  </div>
-                </dl>
-              </div>
-              <div className="bg-card border border-border p-6 rounded-xl shadow-xs xl:col-span-2 space-y-5">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-serif text-lg font-medium">Governance & Gates</h3>
-                  <Button size="sm" onClick={handleSaveGovernance} disabled={updateProject.isPending}>
-                    {updateProject.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                    Save
-                  </Button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>Status</Label>
-                    <Select value={governance.status} onValueChange={(status) => setGovernance({ ...governance, status: status as ProjectStatus })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {STATUS_OPTIONS.map((status) => (
-                          <SelectItem key={status} value={status}>{status.replace(/_/g, " ")}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>SLA Class</Label>
-                    <Select value={governance.slaClass} onValueChange={(slaClass) => setGovernance({ ...governance, slaClass: slaClass as SlaClass })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="standard">Standard</SelectItem>
-                        <SelectItem value="live">Live tender</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Payment Gate</Label>
-                    <Select value={governance.paymentStatus} onValueChange={(paymentStatus) => setGovernance({ ...governance, paymentStatus: paymentStatus as PaymentStatus })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="not_required">Not required</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="confirmed">Confirmed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {([
-                    {
-                      role: "founder" as const,
-                      label: "Founder confirmed",
-                      confirmed: Boolean(project.paymentConfirmedByFounder),
-                      name: project.paymentFounderConfirmedByName ?? null,
-                      at: project.paymentFounderConfirmedAt ?? null,
-                    },
-                    {
-                      role: "advisor" as const,
-                      label: "Advisor confirmed",
-                      confirmed: Boolean(project.paymentConfirmedByAdvisor),
-                      name: project.paymentAdvisorConfirmedByName ?? null,
-                      at: project.paymentAdvisorConfirmedAt ?? null,
-                    },
-                  ]).map((leg) => (
-                    <div key={leg.role} className="flex items-center justify-between gap-2 rounded-md border border-border p-3 text-sm">
-                      <div className="min-w-0">
-                        <span className="block">{leg.label}</span>
-                        {leg.confirmed && leg.name && (
-                          <span className="block text-xs text-muted-foreground truncate">
-                            {leg.name}
-                            {leg.at ? ` · ${new Date(leg.at).toLocaleDateString()}` : ""}
-                          </span>
-                        )}
-                        {leg.confirmed && !leg.name && (
-                          <span className="block text-xs text-amber-700">
-                            Legacy confirmation — no identity recorded
-                          </span>
-                        )}
+          <Suspense
+            fallback={<LoadingPanel label="Loading pursuit workspace" />}
+          >
+            <TabsContent value="overview" className="m-0">
+              <div className="space-y-6">
+                <ProjectReadinessGate
+                  project={project}
+                  onGoToTab={setActiveTab}
+                />
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                  <div className="bg-card border border-border p-6 rounded-xl shadow-xs">
+                    <h3 className="font-serif text-lg font-medium mb-4">
+                      Project Metadata
+                    </h3>
+                    <dl className="space-y-4 text-sm">
+                      <div>
+                        <dt className="text-muted-foreground uppercase text-xs tracking-wider font-mono">
+                          Reviewer
+                        </dt>
+                        <dd className="mt-1">{project.reviewerName || "-"}</dd>
                       </div>
-                      {leg.confirmed && leg.name ? (
-                        <Badge variant="outline" className="text-emerald-700 border-emerald-200 bg-emerald-50 shrink-0">
-                          Confirmed
-                        </Badge>
-                      ) : (
+                      <div>
+                        <dt className="text-muted-foreground uppercase text-xs tracking-wider font-mono">
+                          Lot
+                        </dt>
+                        <dd className="mt-1">{project.lot || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground uppercase text-xs tracking-wider font-mono">
+                          Scope
+                        </dt>
+                        <dd className="mt-1">{project.scope || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground uppercase text-xs tracking-wider font-mono">
+                          Limitations
+                        </dt>
+                        <dd className="mt-1">{project.limitations || "-"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground uppercase text-xs tracking-wider font-mono">
+                          Created
+                        </dt>
+                        <dd className="mt-1">
+                          {new Date(project.createdAt).toLocaleString()}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground uppercase text-xs tracking-wider font-mono">
+                          Model Cost (est.)
+                        </dt>
+                        <dd className="mt-1">
+                          {cost
+                            ? `₦${(cost.estimatedKobo / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })} · ${cost.runs} run${cost.runs === 1 ? "" : "s"}`
+                            : "-"}
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
+                  <div className="bg-card border border-border p-6 rounded-xl shadow-xs xl:col-span-2 space-y-5">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-serif text-lg font-medium">
+                        Governance & Gates
+                      </h3>
+                      {canUpdateProject ? (
                         <Button
                           size="sm"
-                          variant="outline"
-                          className="shrink-0"
-                          onClick={() => handleConfirmPayment(leg.role)}
-                          disabled={confirmPayment.isPending}
+                          onClick={handleSaveGovernance}
+                          disabled={updateProject.isPending}
                         >
-                          <UserCheck className="w-3.5 h-3.5 mr-1.5" />
-                          {leg.confirmed ? `Re-confirm as ${leg.role}` : `Confirm as ${leg.role}`}
+                          {updateProject.isPending ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <Save className="w-4 h-4 mr-2" />
+                          )}
+                          Save
                         </Button>
-                      )}
+                      ) : null}
                     </div>
-                  ))}
-                  <label className="flex items-center justify-between rounded-md border border-border p-3 text-sm">
-                    <span>Restricted mode</span>
-                    <Switch
-                      checked={governance.restrictedMode}
-                      onCheckedChange={(restrictedMode) => setGovernance({ ...governance, restrictedMode })}
-                    />
-                  </label>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>Conflict Status</Label>
-                    <Select value={governance.conflictStatus} onValueChange={(conflictStatus) => setGovernance({ ...governance, conflictStatus: conflictStatus as ConflictStatus })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {CONFLICT_OPTIONS.map((status) => (
-                          <SelectItem key={status} value={status}>{status}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label>Conflict Decision</Label>
-                    <Input
-                      value={governance.conflictDecision}
-                      onChange={(e) => setGovernance({ ...governance, conflictDecision: e.target.value })}
-                      placeholder="Consent, decline, or mitigation decision"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>Conflict Rationale</Label>
-                    <Textarea
-                      value={governance.conflictRationale}
-                      onChange={(e) => setGovernance({ ...governance, conflictRationale: e.target.value })}
-                      className="min-h-[88px]"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Physical Archive</Label>
-                    <Textarea
-                      value={governance.physicalArchiveInstruction}
-                      onChange={(e) => setGovernance({ ...governance, physicalArchiveInstruction: e.target.value })}
-                      className="min-h-[88px]"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Redaction Scope</Label>
-                    <Textarea
-                      value={governance.redactionScope}
-                      onChange={(e) => setGovernance({ ...governance, redactionScope: e.target.value })}
-                      className="min-h-[88px]"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="bg-card border border-border p-6 rounded-xl shadow-xs space-y-4">
-                <div className="flex items-center gap-2">
-                  <Bell className="w-4 h-4 text-muted-foreground" />
-                  <h3 className="font-serif text-lg font-medium">Notifications</h3>
-                </div>
-                <div className="space-y-3">
-                  <Select value={notificationForm.template} onValueChange={(template) => setNotificationForm({ ...notificationForm, template })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="deadline_reminder">Deadline reminder</SelectItem>
-                      <SelectItem value="payment_confirmation">Payment confirmation</SelectItem>
-                      <SelectItem value="certificate_renewal">Certificate renewal</SelectItem>
-                      <SelectItem value="report_ready">Report ready</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Select value={notificationForm.channel} onValueChange={(channel) => setNotificationForm({ ...notificationForm, channel })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="manual">Manual</SelectItem>
-                        <SelectItem value="email">Email</SelectItem>
-                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      value={notificationForm.recipient}
-                      onChange={(e) => setNotificationForm({ ...notificationForm, recipient: e.target.value })}
-                      placeholder="Recipient"
-                    />
-                  </div>
-                  <Button variant="outline" className="w-full" onClick={handleCreateNotification} disabled={createNotification.isPending}>
-                    {createNotification.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    Log Notification
-                  </Button>
-                </div>
-                <div className="divide-y divide-border border border-border rounded-md">
-                  {(notifications ?? []).slice(0, 4).map((event) => (
-                    <div key={event.id} className="p-3 text-xs">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium">{event.template.replace(/_/g, " ")}</span>
-                        <Badge variant="outline" className="text-[10px]">{event.status}</Badge>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label>Status</Label>
+                        <Select
+                          value={governance.status}
+                          onValueChange={(status) =>
+                            setGovernance({
+                              ...governance,
+                              status: status as ProjectStatus,
+                            })
+                          }
+                          disabled={!canUpdateProject}
+                        >
+                          <SelectTrigger disabled={!canUpdateProject}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STATUS_OPTIONS.map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {status.replace(/_/g, " ")}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <p className="text-muted-foreground mt-1">{event.channel} {event.recipient ? `to ${event.recipient}` : ""}</p>
-                      {event.payload && (
-                        <p className="text-muted-foreground/80 mt-1 italic line-clamp-2">{event.payload}</p>
+                      <div className="space-y-2">
+                        <Label>SLA Class</Label>
+                        <Select
+                          value={governance.slaClass}
+                          onValueChange={(slaClass) =>
+                            setGovernance({
+                              ...governance,
+                              slaClass: slaClass as SlaClass,
+                            })
+                          }
+                          disabled={!canUpdateProject}
+                        >
+                          <SelectTrigger disabled={!canUpdateProject}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="standard">Standard</SelectItem>
+                            <SelectItem value="live">Live tender</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Payment Gate</Label>
+                        <Select value={governance.paymentStatus} disabled>
+                          <SelectTrigger disabled>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="not_required">
+                              Not required
+                            </SelectItem>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="confirmed">Confirmed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {[
+                        {
+                          role: "founder" as const,
+                          label: "Founder confirmed",
+                          confirmed: Boolean(project.paymentConfirmedByFounder),
+                          name: project.paymentFounderConfirmedByName ?? null,
+                          at: project.paymentFounderConfirmedAt ?? null,
+                        },
+                        {
+                          role: "advisor" as const,
+                          label: "Advisor confirmed",
+                          confirmed: Boolean(project.paymentConfirmedByAdvisor),
+                          name: project.paymentAdvisorConfirmedByName ?? null,
+                          at: project.paymentAdvisorConfirmedAt ?? null,
+                        },
+                      ].map((leg) => (
+                        <div
+                          key={leg.role}
+                          className="flex items-center justify-between gap-2 rounded-md border border-border p-3 text-sm"
+                        >
+                          <div className="min-w-0">
+                            <span className="block">{leg.label}</span>
+                            {leg.confirmed && leg.name && (
+                              <span className="block text-xs text-muted-foreground truncate">
+                                {leg.name}
+                                {leg.at
+                                  ? ` · ${new Date(leg.at).toLocaleDateString()}`
+                                  : ""}
+                              </span>
+                            )}
+                            {leg.confirmed && !leg.name && (
+                              <span className="block text-xs text-amber-700">
+                                Legacy confirmation — no identity recorded
+                              </span>
+                            )}
+                          </div>
+                          {leg.confirmed && leg.name ? (
+                            <Badge
+                              variant="outline"
+                              className="text-emerald-700 border-emerald-200 bg-emerald-50 shrink-0"
+                            >
+                              Confirmed
+                            </Badge>
+                          ) : canUpdateProject ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="shrink-0"
+                              onClick={() => handleConfirmPayment(leg.role)}
+                              disabled={confirmPayment.isPending}
+                            >
+                              <UserCheck className="w-3.5 h-3.5 mr-1.5" />
+                              {leg.confirmed
+                                ? `Re-confirm as ${leg.role}`
+                                : `Confirm as ${leg.role}`}
+                            </Button>
+                          ) : (
+                            <Badge variant="outline" className="shrink-0">
+                              Pending
+                            </Badge>
+                          )}
+                        </div>
+                      ))}
+                      <label className="flex items-center justify-between rounded-md border border-border p-3 text-sm">
+                        <span>Restricted mode</span>
+                        <Switch
+                          checked={governance.restrictedMode}
+                          onCheckedChange={(restrictedMode) =>
+                            setGovernance({ ...governance, restrictedMode })
+                          }
+                          disabled={!canUpdateProject}
+                        />
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label>Conflict Status</Label>
+                        <Select value={governance.conflictStatus} disabled>
+                          <SelectTrigger disabled>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CONFLICT_OPTIONS.map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {status}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label>Conflict Decision</Label>
+                        <Input
+                          value={governance.conflictDecision}
+                          readOnly
+                          placeholder="Consent, decline, or mitigation decision"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label>Conflict Rationale</Label>
+                        <Textarea
+                          value={governance.conflictRationale}
+                          readOnly
+                          className="min-h-[88px]"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Physical Archive</Label>
+                        <Textarea
+                          value={governance.physicalArchiveInstruction}
+                          onChange={(e) =>
+                            setGovernance({
+                              ...governance,
+                              physicalArchiveInstruction: e.target.value,
+                            })
+                          }
+                          readOnly={!canUpdateProject}
+                          className="min-h-[88px]"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Redaction Scope</Label>
+                        <Textarea
+                          value={governance.redactionScope}
+                          onChange={(e) =>
+                            setGovernance({
+                              ...governance,
+                              redactionScope: e.target.value,
+                            })
+                          }
+                          readOnly={!canUpdateProject}
+                          className="min-h-[88px]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-card border border-border p-6 rounded-xl shadow-xs space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Bell className="w-4 h-4 text-muted-foreground" />
+                      <h3 className="font-serif text-lg font-medium">
+                        Notifications
+                      </h3>
+                    </div>
+                    {canUpdateProject ? (
+                      <div className="space-y-3">
+                        <Select
+                          value={notificationForm.template}
+                          onValueChange={(template) =>
+                            setNotificationForm({
+                              ...notificationForm,
+                              template,
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="deadline_reminder">
+                              Deadline reminder
+                            </SelectItem>
+                            <SelectItem value="payment_confirmation">
+                              Payment confirmation
+                            </SelectItem>
+                            <SelectItem value="certificate_renewal">
+                              Certificate renewal
+                            </SelectItem>
+                            <SelectItem value="report_ready">
+                              Report ready
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <div className="grid grid-cols-2 gap-3">
+                          <Select
+                            value={notificationForm.channel}
+                            onValueChange={(channel) =>
+                              setNotificationForm({
+                                ...notificationForm,
+                                channel,
+                              })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="manual">Manual</SelectItem>
+                              <SelectItem value="email">Email</SelectItem>
+                              <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            value={notificationForm.recipient}
+                            onChange={(e) =>
+                              setNotificationForm({
+                                ...notificationForm,
+                                recipient: e.target.value,
+                              })
+                            }
+                            placeholder="Recipient"
+                          />
+                        </div>
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          onClick={handleCreateNotification}
+                          disabled={createNotification.isPending}
+                        >
+                          {createNotification.isPending && (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          )}
+                          Log Notification
+                        </Button>
+                      </div>
+                    ) : null}
+                    <div className="divide-y divide-border border border-border rounded-md">
+                      {(notifications ?? []).slice(0, 4).map((event) => (
+                        <div key={event.id} className="p-3 text-xs">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium">
+                              {event.template.replace(/_/g, " ")}
+                            </span>
+                            <Badge variant="outline" className="text-xs">
+                              {event.status}
+                            </Badge>
+                          </div>
+                          <p className="text-muted-foreground mt-1">
+                            {event.channel}{" "}
+                            {event.recipient ? `to ${event.recipient}` : ""}
+                          </p>
+                          {event.payload && (
+                            <p className="text-muted-foreground/80 mt-1 italic line-clamp-2">
+                              {event.payload}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                      {(!notifications || notifications.length === 0) && (
+                        <div className="p-3 text-xs text-muted-foreground">
+                          No notification events yet.
+                        </div>
                       )}
                     </div>
-                  ))}
-                  {(!notifications || notifications.length === 0) && (
-                    <div className="p-3 text-xs text-muted-foreground">No notification events yet.</div>
-                  )}
+                  </div>
+                  {canManageRetention ? (
+                    <div className="bg-card border border-border p-6 rounded-xl shadow-xs space-y-4 xl:col-span-2">
+                      <div className="flex items-center gap-2">
+                        <Archive className="w-4 h-4 text-muted-foreground" />
+                        <h3 className="font-serif text-lg font-medium">
+                          Retention Request
+                        </h3>
+                      </div>
+                      <Textarea
+                        value={retentionReason}
+                        onChange={(e) => setRetentionReason(e.target.value)}
+                        placeholder="Reason for deletion or retention workflow"
+                        className="min-h-[88px]"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={handleRetentionRequest}
+                        disabled={createRetentionRequest.isPending}
+                      >
+                        {createRetentionRequest.isPending && (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        )}
+                        Open Retention Workflow
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
               </div>
-              <div className="bg-card border border-border p-6 rounded-xl shadow-xs space-y-4 xl:col-span-2">
-                <div className="flex items-center gap-2">
-                  <Archive className="w-4 h-4 text-muted-foreground" />
-                  <h3 className="font-serif text-lg font-medium">Retention Request</h3>
-                </div>
-                <Textarea
-                  value={retentionReason}
-                  onChange={(e) => setRetentionReason(e.target.value)}
-                  placeholder="Reason for deletion or retention workflow"
-                  className="min-h-[88px]"
-                />
-                <Button variant="outline" onClick={handleRetentionRequest} disabled={createRetentionRequest.isPending}>
-                  {createRetentionRequest.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Open Retention Workflow
-                </Button>
-              </div>
-              </div>
-            </div>
-          </TabsContent>
-          <TabsContent value="documents" className="m-0">
-             <DocumentsTab
-               projectId={id}
-               ndaStatus={project.ndaStatus}
-               conflictStatus={project.conflictStatus}
-               restrictedMode={project.restrictedMode}
-             />
-          </TabsContent>
-          <TabsContent value="requirements" className="m-0">
-             <RequirementsTab projectId={id} />
-          </TabsContent>
-          <TabsContent value="evidence" className="m-0">
-             <EvidenceTab projectId={id} />
-          </TabsContent>
-          <TabsContent value="boq" className="m-0">
-             <BoqTab projectId={id} />
-          </TabsContent>
-          <TabsContent value="defects" className="m-0">
-             <DefectsTab projectId={id} />
-          </TabsContent>
-          <TabsContent value="risk" className="m-0">
-             <RiskTab projectId={id} />
-          </TabsContent>
-          <TabsContent value="reports" className="m-0">
-             <ReportsTab projectId={id} />
-          </TabsContent>
-          <TabsContent value="audit" className="m-0">
-             <AuditTab projectId={id} />
-          </TabsContent>
+            </TabsContent>
+            <TabsContent value="documents" className="m-0">
+              <DocumentsTab
+                projectId={id}
+                ndaStatus={project.ndaStatus}
+                conflictStatus={project.conflictStatus}
+                restrictedMode={project.restrictedMode}
+              />
+            </TabsContent>
+            <TabsContent value="requirements" className="m-0">
+              <RequirementsTab projectId={id} />
+            </TabsContent>
+            <TabsContent value="evidence" className="m-0">
+              <EvidenceTab projectId={id} />
+            </TabsContent>
+            <TabsContent value="boq" className="m-0">
+              <BoqTab projectId={id} />
+            </TabsContent>
+            <TabsContent value="defects" className="m-0">
+              <DefectsTab projectId={id} />
+            </TabsContent>
+            <TabsContent value="risk" className="m-0">
+              <RiskTab projectId={id} />
+            </TabsContent>
+            <TabsContent value="reports" className="m-0">
+              <ReportsTab projectId={id} />
+            </TabsContent>
+            <TabsContent value="audit" className="m-0">
+              <AuditTab projectId={id} />
+            </TabsContent>
+          </Suspense>
         </div>
       </Tabs>
     </div>

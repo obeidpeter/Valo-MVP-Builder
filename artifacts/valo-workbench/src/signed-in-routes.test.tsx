@@ -1,4 +1,4 @@
-import { beforeEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
@@ -6,6 +6,20 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ProtectedRoutes from "./protected-routes";
 
 let currentRole = "reviewer";
+
+const TEST_PERMISSIONS = [
+  "analytics:read",
+  "project:read",
+  "client:read",
+  "requirement:read",
+  "evidence:read",
+  "report:read",
+  "partner_relationship:read",
+  "entitlement:read",
+  "audit:read",
+  "membership:manage",
+  "configuration:manage",
+];
 
 vi.mock("@clerk/clerk-react", () => ({
   SignedIn: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -29,12 +43,37 @@ vi.mock("@workspace/api-client-react", async (importOriginal) => {
       isLoading: false,
     }),
     useGetDashboardMetrics: () => ({ data: undefined, isLoading: false }),
-    useListProjects: () => ({ data: [], isLoading: false }),
-    useGetVaultExpiring: () => ({
-      data: { items: [], buckets: {} },
+    useListProjects: () => ({
+      data: [],
       isLoading: false,
+      isError: false,
+      isSuccess: true,
+      refetch: vi.fn(),
     }),
-    useGetWorkflowAlerts: () => ({ data: undefined, isLoading: false }),
+    useGetVaultExpiring: () => ({
+      data: {
+        items: [],
+        buckets: { expired: 0, critical: 0, warning: 0, upcoming: 0 },
+      },
+      isLoading: false,
+      isError: false,
+      isSuccess: true,
+      refetch: vi.fn(),
+    }),
+    useGetWorkflowAlerts: () => ({
+      data: { slaBreaches: [], redTeamDue: [], vaultExpiring: [] },
+      isLoading: false,
+      isError: false,
+      isSuccess: true,
+      refetch: vi.fn(),
+    }),
+    useListPartnerRelationships: () => ({
+      data: [],
+      isLoading: false,
+      isError: false,
+      isSuccess: true,
+      refetch: vi.fn(),
+    }),
     useGetAccessReview: () => ({
       data: { month: "2026-08", rows: [] },
       isLoading: false,
@@ -46,6 +85,45 @@ vi.mock("@workspace/api-client-react", async (importOriginal) => {
     }),
   };
 });
+
+vi.mock("./contexts/organisation-context", () => ({
+  useOrganisationPermission: (permission: string) =>
+    TEST_PERMISSIONS.includes(permission),
+  useOrganisationAccess: () => {
+    const activeOrganisation = {
+      id: "org-test",
+      name: "Test organisation",
+      slug: "test-organisation",
+      type: "client" as const,
+      status: "active",
+      countryCode: "NG",
+      membershipId: "membership-test",
+      membershipOrganisationId: "org-test",
+      accessSource: "membership" as const,
+      partnerRelationshipId: null,
+      accessExpiresAt: null,
+      roles: [currentRole],
+      permissions: TEST_PERMISSIONS,
+      version: 1,
+    };
+    return {
+      organisations: [activeOrganisation],
+      activeOrganisation,
+      effectiveRoles: [currentRole],
+      effectivePermissions: TEST_PERMISSIONS,
+      isLoading: false,
+      isError: false,
+      error: null,
+      needsSelection: false,
+      isSwitching: false,
+      hasPendingMutation: false,
+      hasCriticalWorkflow: false,
+      beginCriticalWorkflow: () => () => undefined,
+      selectOrganisation: async () => true,
+      refetch: vi.fn(),
+    };
+  },
+}));
 
 function renderAt(path: string) {
   const { hook } = memoryLocation({ path, record: true });
@@ -66,48 +144,97 @@ function renderAt(path: string) {
 describe("signed-in routing", () => {
   beforeEach(() => {
     currentRole = "reviewer";
+    vi.stubEnv("VITE_FEATURE_CLIENT_PORTAL", "false");
+    vi.stubEnv("VITE_FEATURE_PARTNER_WORKSPACE", "false");
   });
 
-  it("renders the Dashboard at the root path", () => {
-    renderAt("/");
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("renders the Command Centre at the protected app path", async () => {
+    renderAt("/app");
     expect(
-      screen.getByRole("heading", { name: /portfolio overview/i }),
+      await screen.findByRole("heading", { name: /^command centre$/i }),
     ).toBeInTheDocument();
   });
 
-  it("renders the NotFound page for an unknown protected path", () => {
+  it("renders the NotFound page for an unknown protected path", async () => {
     renderAt("/no/such/protected/route");
     expect(
-      screen.getByRole("heading", { name: /404 page not found/i }),
+      await screen.findByRole("heading", { name: /404 page not found/i }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: /portfolio overview/i }),
+      screen.queryByRole("heading", { name: /^command centre$/i }),
     ).not.toBeInTheDocument();
   });
 
-  it("renders the activation-gated client portal for a client owner", () => {
+  it("renders the activation-gated client portal for a client owner", async () => {
     currentRole = "client_organisation_owner";
     renderAt("/portal");
     expect(
-      screen.getByRole("heading", { level: 1, name: /^client portal$/i }),
+      await screen.findByRole("heading", {
+        level: 1,
+        name: /^client portal$/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /activation unavailable/i }),
-    ).toBeDisabled();
+      screen.getByRole("heading", {
+        name: /client portal requires activation/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /activation unavailable/i }),
+    ).not.toBeInTheDocument();
     expect(screen.getAllByLabelText(/status: pending/i).length).toBeGreaterThan(
       0,
     );
+    expect(screen.queryByText(/start secure intake/i)).not.toBeInTheDocument();
   });
 
-  it("redirects a client owner away from the internal dashboard", () => {
+  it("renders connected client summaries when the portal is activated", async () => {
     currentRole = "client_organisation_owner";
-    renderAt("/");
+    vi.stubEnv("VITE_FEATURE_CLIENT_PORTAL", "true");
+    renderAt("/portal");
     expect(
-      screen.getByRole("heading", { level: 1, name: /^client portal$/i }),
+      await screen.findByRole("heading", { name: /connected tenant signals/i }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: /portfolio overview/i }),
+      screen.getByText(/no pursuit records returned/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/no workflow alerts returned/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/no evidence in the expiry window/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/start secure intake/i)).not.toBeInTheDocument();
+  });
+
+  it("redirects a client owner to pursuits when the portal is inactive", async () => {
+    currentRole = "client_organisation_owner";
+    renderAt("/app");
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: /tender projects/i,
+      }, { timeout: 5_000 }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /^command centre$/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("redirects a client owner to the client portal when it is active", async () => {
+    currentRole = "client_organisation_owner";
+    vi.stubEnv("VITE_FEATURE_CLIENT_PORTAL", "true");
+    renderAt("/app");
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: /^client portal$/i,
+      }),
+    ).toBeInTheDocument();
   });
 
   it("blocks an internal reviewer from opening the client portal directly", () => {
@@ -121,20 +248,64 @@ describe("signed-in routing", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders the gated partner workspace for a partner reviewer", () => {
+  it("renders the gated partner workspace for a partner reviewer", async () => {
     currentRole = "consultancy_partner_analyst_reviewer";
     renderAt("/partner");
     expect(
-      screen.getByRole("heading", { level: 1, name: /^partner workspace$/i }),
+      await screen.findByRole("heading", {
+        level: 1,
+        name: /^partner workspace$/i,
+      }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/no partner tenant/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: /partner workspace requires activation/i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/add managed client/i)).not.toBeInTheDocument();
   });
 
-  it("allows a read-only auditor to open the tenant-filtered security review", () => {
-    currentRole = "read_only_auditor";
-    renderAt("/security");
+  it("renders connected partner summaries without inferring client data", async () => {
+    currentRole = "consultancy_partner_analyst_reviewer";
+    vi.stubEnv("VITE_FEATURE_PARTNER_WORKSPACE", "true");
+    renderAt("/partner");
     expect(
-      screen.getByRole("heading", { level: 1, name: /security & audit/i }),
+      await screen.findByRole("heading", {
+        name: /connected partner signals/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/no partner relationships returned/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/no partner-tenant pursuits returned/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/no partner-tenant evidence in the expiry window/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/add managed client/i)).not.toBeInTheDocument();
+  });
+
+  it("opens pursuit workbench in the selected authorised partner context", async () => {
+    currentRole = "consultancy_partner_administrator";
+    vi.stubEnv("VITE_FEATURE_PARTNER_WORKSPACE", "true");
+    renderAt("/projects");
+    expect(
+      await screen.findByRole("heading", { name: /tender projects/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /access denied/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("allows a read-only auditor to open the tenant-filtered security review", async () => {
+    currentRole = "read_only_auditor";
+    renderAt("/app/security");
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: /security & audit/i,
+      }),
     ).toBeInTheDocument();
     expect(screen.getByText(/no access rows returned/i)).toBeInTheDocument();
   });

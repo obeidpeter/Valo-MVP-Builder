@@ -25,4 +25,5 @@ export const DocumentExtractionStatus = {
   extracted: 'extracted',
   failed: 'failed',
   skipped: 'skipped',
+  quarantined: 'quarantined',
 } as const;

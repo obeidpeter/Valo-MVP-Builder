@@ -21,6 +21,4 @@ export type DocumentCreateRedactionStatus = typeof DocumentCreateRedactionStatus
 
 export const DocumentCreateRedactionStatus = {
   excluded: 'excluded',
-  redacted: 'redacted',
-  included: 'included',
 } as const;

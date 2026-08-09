@@ -16,14 +16,15 @@ import {
 } from "@workspace/api-zod";
 import { getLocalUser } from "../middlewares/auth";
 import {
-  getAccessContext,
   getOrganisationId,
+  hasRequestPermission,
   requirePermissionOrLegacy,
 } from "../middlewares/tenancy";
 import { serializeRequirement } from "../lib/serializers";
 import { writeAuditTx } from "../lib/audit";
 import { extractRequirements } from "../lib/llm";
 import { computeScorecard } from "../lib/scorecard";
+import { holdTenantDatabaseUntilComplete } from "../middlewares/databaseTenancy";
 
 const router: IRouter = Router();
 
@@ -31,112 +32,128 @@ router.post(
   "/projects/:id/extract-requirements",
   requirePermissionOrLegacy("requirement:write"),
   async (req: Request, res: Response) => {
-    const [project] = await db
-      .select()
-      .from(projects)
-      .where(eq(projects.id, String(req.params.id)));
-    if (!project) {
-      res.status(404).json({ error: "Not found" });
-      return;
-    }
-    const organisationId = getOrganisationId(req);
-    const parsed = ExtractRequirementsBody.safeParse(req.body ?? {});
-    const docIds = parsed.success ? parsed.data?.documentIds : undefined;
-
-    let docs = await db
-      .select()
-      .from(documents)
-      .where(eq(documents.projectId, project.id));
-    if (docIds && docIds.length > 0) {
-      docs = docs.filter((d) => docIds.includes(d.id));
-    } else {
-      // Default to tender-type documents for requirement extraction.
-      const tenderDocs = docs.filter((d) => d.type === "tender");
-      if (tenderDocs.length > 0) docs = tenderDocs;
-    }
-    docs = docs.filter(
-      (d) => d.contentText && d.redactionStatus !== "excluded",
-    );
-
-    if (docs.length === 0) {
-      res.status(400).json({
-        error: "No documents with extracted text available for extraction",
-      });
-      return;
-    }
-
+    const releaseTenantWork = holdTenantDatabaseUntilComplete(req);
+    const disconnectController = new AbortController();
+    const abortOnDisconnect = () => disconnectController.abort();
+    res.once("close", abortOnDisconnect);
+    let workflowError: unknown;
     try {
-      const { requirements: extracted, model } = await extractRequirements(
-        project.id,
-        docs.map((d) => ({
-          id: d.id,
-          filename: d.filename,
-          type: d.type,
-          contentText: d.contentText,
-        })),
-      );
-      const validDocIds = new Set(docs.map((d) => d.id));
-      const inserted = await db.transaction(
-        async (tx) => {
-          const created = extracted.length
-            ? await tx
-                .insert(requirements)
-                .values(
-                  extracted.map((r) => ({
-                    organisationId,
-                    projectId: project.id,
-                    sourceDocId:
-                      r.sourceDocId && validDocIds.has(r.sourceDocId)
-                        ? r.sourceDocId
-                        : null,
-                    pageRef: r.pageRef ?? null,
-                    clauseRef: r.clauseRef ?? null,
-                    text: r.text,
-                    category: r.category ?? "other",
-                    expectedEvidence: r.expectedEvidence ?? null,
-                    isMandatory: r.isMandatory ?? true,
-                    confidence: r.confidence ?? null,
-                    reviewStatus: "suggested",
-                    // Scorecard provenance (FR-EXT-04): engine-surfaced, with the
-                    // proposal frozen so later human edits stay diffable.
-                    origin: "engine",
-                    engineText: r.text,
-                  })),
-                )
-                .returning()
-            : [];
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(eq(projects.id, String(req.params.id)));
+      if (!project) {
+        res.status(404).json({ error: "Not found" });
+        return;
+      }
+      const organisationId = getOrganisationId(req);
+      const parsed = ExtractRequirementsBody.safeParse(req.body ?? {});
+      const docIds = parsed.success ? parsed.data?.documentIds : undefined;
 
-          if (project.status === "intake") {
-            await tx
-              .update(projects)
-              .set({
-                status: "extraction",
-                version: sql`${projects.version} + 1`,
-                updatedAt: new Date(),
-              })
-              .where(eq(projects.id, project.id));
-          }
-          await writeAuditTx(tx, {
-            user: getLocalUser(req),
-            organisationId,
-            projectId: project.id,
-            eventType: "requirements.extracted",
-            objectType: "project",
-            objectId: project.id,
-            details: `${created.length} suggested`,
-          });
-          return created;
-        },
-        { isolationLevel: "read committed" },
+      let docs = await db
+        .select()
+        .from(documents)
+        .where(eq(documents.projectId, project.id));
+      if (docIds && docIds.length > 0) {
+        docs = docs.filter((d) => docIds.includes(d.id));
+      } else {
+        // Default to tender-type documents for requirement extraction.
+        const tenderDocs = docs.filter((d) => d.type === "tender");
+        if (tenderDocs.length > 0) docs = tenderDocs;
+      }
+      docs = docs.filter(
+        (d) => d.contentText && d.redactionStatus !== "excluded",
       );
-      res.json({
-        created: inserted.length,
-        model,
-        requirements: inserted.map((r) => serializeRequirement(r)),
-      });
+
+      if (docs.length === 0) {
+        res.status(400).json({
+          error: "No documents with extracted text available for extraction",
+        });
+        return;
+      }
+
+      try {
+        const { requirements: extracted, model } = await extractRequirements(
+          project.id,
+          docs.map((d) => ({
+            id: d.id,
+            filename: d.filename,
+            type: d.type,
+            contentText: d.contentText,
+          })),
+          { signal: disconnectController.signal },
+        );
+        const validDocIds = new Set(docs.map((d) => d.id));
+        const inserted = await db.transaction(
+          async (tx) => {
+            const created = extracted.length
+              ? await tx
+                  .insert(requirements)
+                  .values(
+                    extracted.map((r) => ({
+                      organisationId,
+                      projectId: project.id,
+                      sourceDocId:
+                        r.sourceDocId && validDocIds.has(r.sourceDocId)
+                          ? r.sourceDocId
+                          : null,
+                      pageRef: r.pageRef ?? null,
+                      clauseRef: r.clauseRef ?? null,
+                      text: r.text,
+                      category: r.category ?? "other",
+                      expectedEvidence: r.expectedEvidence ?? null,
+                      isMandatory: r.isMandatory ?? true,
+                      confidence: r.confidence ?? null,
+                      reviewStatus: "suggested",
+                      // Scorecard provenance (FR-EXT-04): engine-surfaced, with the
+                      // proposal frozen so later human edits stay diffable.
+                      origin: "engine",
+                      engineText: r.text,
+                    })),
+                  )
+                  .returning()
+              : [];
+
+            if (project.status === "intake") {
+              await tx
+                .update(projects)
+                .set({
+                  status: "extraction",
+                  version: sql`${projects.version} + 1`,
+                  updatedAt: new Date(),
+                })
+                .where(eq(projects.id, project.id));
+            }
+            await writeAuditTx(tx, {
+              user: getLocalUser(req),
+              organisationId,
+              projectId: project.id,
+              eventType: "requirements.extracted",
+              objectType: "project",
+              objectId: project.id,
+              details: `${created.length} suggested`,
+            });
+            return created;
+          },
+          { isolationLevel: "read committed" },
+        );
+        res.json({
+          created: inserted.length,
+          model,
+          requirements: inserted.map((r) => serializeRequirement(r)),
+        });
+      } catch (error) {
+        workflowError = error;
+        req.log.error({ err: error }, "requirement extraction failed");
+        if (!disconnectController.signal.aborted && !res.headersSent)
+          res.status(502).json({ error: "LLM requirement extraction failed" });
+      }
     } catch (error) {
-      req.log.error({ err: error }, "requirement extraction failed");
-      res.status(502).json({ error: "LLM requirement extraction failed" });
+      workflowError = error;
+      throw error;
+    } finally {
+      res.off("close", abortOnDisconnect);
+      releaseTenantWork(workflowError);
     }
   },
 );
@@ -210,26 +227,18 @@ router.patch(
       return;
     }
     const user = getLocalUser(req);
-    // A review action (status ruling or a content edit) stamps the acting
-    // reviewer server-side (FR-EXT-03) — identity is never client-supplied.
-    const isReviewAction =
-      parsed.data.reviewStatus !== undefined || parsed.data.text !== undefined;
-    const context = getAccessContext(req);
-    if (
-      isReviewAction &&
-      context &&
-      !context.permissions.has("requirement:review")
-    ) {
+    // Every mutable field affects the governed requirement record (including
+    // readiness, citations, category and reviewer notes). Contributors may
+    // extract suggestions, but only reviewers may alter a requirement row.
+    if (!hasRequestPermission(req, "requirement:review")) {
       res.status(403).json({ error: "Requirement review permission required" });
       return;
     }
-    const reviewerStamp = isReviewAction
-      ? {
-          reviewedBy: user?.id ?? null,
-          reviewedByName: user?.name ?? user?.email ?? null,
-          reviewedAt: new Date(),
-        }
-      : {};
+    const reviewerStamp = {
+      reviewedBy: user?.id ?? null,
+      reviewedByName: user?.name ?? user?.email ?? null,
+      reviewedAt: new Date(),
+    };
     const updated = await db.transaction(
       async (tx) => {
         const [requirement] = await tx

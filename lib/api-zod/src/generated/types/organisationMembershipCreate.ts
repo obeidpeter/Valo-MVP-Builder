@@ -20,8 +20,19 @@ import type { OrganisationRole } from './organisationRole';
 export interface OrganisationMembershipCreate {
   userId: string;
   role: OrganisationRole;
-  /** Must be in the future when supplied. */
+  /**
+     * Must be in the future when supplied. For an existing membership,
+     * omission preserves its current expiry, null explicitly clears it
+     * to indefinite access, and a timestamp replaces it under the same
+     * locked authority check. Reactivation is refused if a preserved
+     * expiry is no longer in the future.
+     */
   accessExpiresAt?: Date | null;
-  /** Must be in the future when supplied. */
+  /**
+     * Must be in the future when supplied. For a reactivated membership
+     * with a retained matching grant, omission preserves that grant's
+     * expiry, null clears it, and a timestamp replaces it under the same
+     * locked authority check.
+     */
   roleExpiresAt?: Date | null;
 }

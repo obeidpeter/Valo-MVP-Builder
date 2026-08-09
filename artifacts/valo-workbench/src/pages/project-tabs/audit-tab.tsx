@@ -68,7 +68,7 @@ export function AuditTab({ projectId }: { projectId: string }) {
                       <span className="font-medium text-sm text-foreground">
                         {event.eventType.replace(/_/g, " ")}
                       </span>
-                      <span className="text-[10px] uppercase font-mono text-muted-foreground">
+                      <span className="text-xs uppercase font-mono text-muted-foreground">
                         {new Date(event.createdAt).toLocaleString()}
                       </span>
                     </div>
@@ -76,8 +76,8 @@ export function AuditTab({ projectId }: { projectId: string }) {
                       variant="outline"
                       className={
                         archived
-                          ? "mb-2 border-amber-300 bg-amber-100 text-[10px] text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"
-                          : "mb-2 border-sky-200 bg-sky-50 text-[10px] text-sky-900"
+                          ? "mb-2 border-amber-300 bg-amber-100 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"
+                          : "mb-2 border-sky-200 bg-sky-50 text-xs text-sky-900"
                       }
                     >
                       {archived

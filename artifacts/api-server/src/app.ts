@@ -7,6 +7,7 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import {
   CLERK_PROXY_PATH,
+  clerkProxyHostsFromOrigins,
   clerkProxyMiddleware,
   getClerkProxyHost,
 } from "./middlewares/clerkProxyMiddleware";
@@ -16,6 +17,7 @@ import {
   parseAllowedOrigins,
   securityHeaders,
 } from "./middlewares/security";
+import { registerProductionWebApp } from "./lib/webApp";
 
 const app: Express = express();
 app.disable("x-powered-by");
@@ -41,10 +43,13 @@ app.use(
   }),
 );
 
-// The Clerk proxy streams raw bytes and must be mounted before body parsers.
-app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
-
 const allowedOrigins = parseAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS);
+const clerkProxyHosts = clerkProxyHostsFromOrigins(allowedOrigins);
+
+// The Clerk proxy streams raw bytes and must be mounted before body parsers.
+// Its public host is selected only from the exact CORS origin allowlist.
+app.use(CLERK_PROXY_PATH, clerkProxyMiddleware(clerkProxyHosts));
+
 app.use(securityHeaders);
 app.use(
   cors({
@@ -84,12 +89,16 @@ app.use(dedupeClerkCookies);
 app.use(
   clerkMiddleware((req) => ({
     publishableKey: publishableKeyFromHost(
-      getClerkProxyHost(req) ?? "",
+      getClerkProxyHost(req, clerkProxyHosts) ?? "",
       process.env.CLERK_PUBLISHABLE_KEY,
     ),
   })),
 );
 
 app.use("/api", router);
+
+if (process.env.NODE_ENV === "production") {
+  registerProductionWebApp(app);
+}
 
 export default app;

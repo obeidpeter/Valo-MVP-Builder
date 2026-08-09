@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, desc, sql } from "drizzle-orm";
+import { and, eq, desc, sql } from "drizzle-orm";
 import { db, vaultItems, clients, documents, projects } from "@workspace/db";
 import { CreateVaultItemBody, UpdateVaultItemBody } from "@workspace/api-zod";
 import { getLocalUser } from "../middlewares/auth";
@@ -10,6 +10,7 @@ import {
 import { serializeVaultItem } from "../lib/serializers";
 import { writeAudit } from "../lib/audit";
 import { computeExpiry, type ExpiryBand } from "../lib/deterministic";
+import { lockStagedUploadObject } from "../lib/stagedUploadLock";
 
 const router: IRouter = Router();
 
@@ -45,6 +46,13 @@ async function findDuplicateVaultHash(
     .from(vaultItems)
     .where(eq(vaultItems.clientId, clientId));
   return rows.find((v) => v.id !== excludeId && v.sha256 === sha256) ?? null;
+}
+
+async function lockObjectPaths(paths: Array<string | null | undefined>) {
+  const uniquePaths = [
+    ...new Set(paths.filter((path): path is string => !!path)),
+  ].sort();
+  for (const path of uniquePaths) await lockStagedUploadObject(path);
 }
 
 router.get(
@@ -98,11 +106,41 @@ router.post(
     const user = getLocalUser(req);
     let sourceDoc: typeof documents.$inferSelect | null = null;
     if (parsed.data.sourceDocumentId) {
-      sourceDoc = await clientDocument(clientId, parsed.data.sourceDocumentId);
-      if (!sourceDoc) {
+      const candidate = await clientDocument(
+        clientId,
+        parsed.data.sourceDocumentId,
+      );
+      if (!candidate) {
         res
           .status(400)
           .json({ error: "sourceDocumentId does not belong to this client" });
+        return;
+      }
+      // Resolve the path once so it can be locked, then re-read the source
+      // document under that lock. Document deletion takes this same lock.
+      await lockObjectPaths([candidate.objectPath]);
+      sourceDoc = await clientDocument(clientId, parsed.data.sourceDocumentId);
+      if (!sourceDoc || sourceDoc.objectPath !== candidate.objectPath) {
+        res.status(409).json({
+          error:
+            "The source document changed while the vault item was being created. Try again.",
+        });
+        return;
+      }
+      if (sourceDoc.extractionStatus === "quarantined") {
+        await writeAudit({
+          user,
+          organisationId: getOrganisationId(req),
+          eventType: "vault.source_link_denied",
+          objectType: "document",
+          objectId: sourceDoc.id,
+          details:
+            "Vault linkage denied because secure re-inspection logically quarantined the source document.",
+        });
+        res.status(409).json({
+          error:
+            "A security-quarantined document cannot be linked into the Certificate Vault.",
+        });
         return;
       }
     }
@@ -165,24 +203,75 @@ router.patch(
       res.status(404).json({ error: "Not found" });
       return;
     }
-    let sourceDoc: typeof documents.$inferSelect | null = null;
+    let sourceDocCandidate: typeof documents.$inferSelect | null = null;
     if (parsed.data.sourceDocumentId) {
-      sourceDoc = await clientDocument(
+      sourceDocCandidate = await clientDocument(
         existing.clientId,
         parsed.data.sourceDocumentId,
       );
-      if (!sourceDoc) {
+      if (!sourceDocCandidate) {
         res
           .status(400)
           .json({ error: "sourceDocumentId does not belong to this client" });
         return;
       }
     }
+    await lockObjectPaths([
+      existing.objectPath,
+      sourceDocCandidate?.objectPath,
+    ]);
+    const [lockedExisting] = await db
+      .select()
+      .from(vaultItems)
+      .where(eq(vaultItems.id, String(req.params.id)));
+    if (
+      !lockedExisting ||
+      lockedExisting.version !== existing.version ||
+      lockedExisting.objectPath !== existing.objectPath
+    ) {
+      res.status(409).json({
+        error: "The vault item changed while it was being updated. Try again.",
+      });
+      return;
+    }
+    let sourceDoc: typeof documents.$inferSelect | null = null;
+    if (parsed.data.sourceDocumentId) {
+      sourceDoc = await clientDocument(
+        lockedExisting.clientId,
+        parsed.data.sourceDocumentId,
+      );
+      if (
+        !sourceDoc ||
+        sourceDoc.objectPath !== sourceDocCandidate?.objectPath
+      ) {
+        res.status(409).json({
+          error:
+            "The source document changed while the vault item was being updated. Try again.",
+        });
+        return;
+      }
+      if (sourceDoc.extractionStatus === "quarantined") {
+        await writeAudit({
+          user: getLocalUser(req),
+          organisationId: getOrganisationId(req),
+          eventType: "vault.source_link_denied",
+          objectType: "document",
+          objectId: sourceDoc.id,
+          details:
+            "Vault source replacement denied because secure re-inspection logically quarantined the source document.",
+        });
+        res.status(409).json({
+          error:
+            "A security-quarantined document cannot be linked into the Certificate Vault.",
+        });
+        return;
+      }
+    }
     const duplicate = sourceDoc?.sha256
       ? await findDuplicateVaultHash(
-          existing.clientId,
+          lockedExisting.clientId,
           sourceDoc.sha256,
-          existing.id,
+          lockedExisting.id,
         )
       : null;
     // Unlinking the source document must also drop the copied file pointers,
@@ -200,15 +289,38 @@ router.patch(
         version: sql`${vaultItems.version} + 1`,
         updatedAt: new Date(),
       })
-      .where(eq(vaultItems.id, String(req.params.id)))
+      .where(
+        and(
+          eq(vaultItems.id, String(req.params.id)),
+          eq(vaultItems.version, lockedExisting.version),
+        ),
+      )
       .returning();
+    if (!updated) {
+      res.status(409).json({
+        error: "The vault item changed while it was being updated. Try again.",
+      });
+      return;
+    }
+    let previousObjectDisposition = "unchanged";
+    if (
+      lockedExisting.objectPath &&
+      lockedExisting.objectPath !== updated.objectPath
+    ) {
+      // Do not delete storage inside the request DB transaction: a later audit
+      // or commit failure could restore the old reference after bytes were
+      // irreversibly removed. A durable post-commit deletion-intent reconciler
+      // must perform final-owner purge.
+      previousObjectDisposition =
+        "retained pending durable storage reconciliation";
+    }
     await writeAudit({
       user: getLocalUser(req),
       organisationId: getOrganisationId(req),
       eventType: "vault.item_updated",
       objectType: "vault_item",
       objectId: updated.id,
-      details: `${updated.artefactType}${duplicate ? ` | duplicate sha256 of vault item ${duplicate.id}` : ""}`,
+      details: `${updated.artefactType}${duplicate ? ` | duplicate sha256 of vault item ${duplicate.id}` : ""} | previous object ${previousObjectDisposition}`,
     });
     res.json(
       serializeVaultItem(
@@ -223,21 +335,40 @@ router.delete(
   "/vault-items/:id",
   requirePermissionOrLegacy("evidence:write"),
   async (req: Request, res: Response) => {
-    const [deleted] = await db
-      .delete(vaultItems)
-      .where(eq(vaultItems.id, String(req.params.id)))
-      .returning();
-    if (!deleted) {
+    const [existing] = await db
+      .select()
+      .from(vaultItems)
+      .where(eq(vaultItems.id, String(req.params.id)));
+    if (!existing) {
       res.status(404).json({ error: "Not found" });
       return;
     }
+    await lockObjectPaths([existing.objectPath]);
+    const [deleted] = await db
+      .delete(vaultItems)
+      .where(
+        and(
+          eq(vaultItems.id, String(req.params.id)),
+          eq(vaultItems.version, existing.version),
+        ),
+      )
+      .returning();
+    if (!deleted) {
+      res.status(409).json({
+        error: "The vault item changed while it was being deleted. Try again.",
+      });
+      return;
+    }
+    const objectDisposition = deleted.objectPath
+      ? "retained pending durable storage reconciliation"
+      : "no linked object";
     await writeAudit({
       user: getLocalUser(req),
       organisationId: getOrganisationId(req),
       eventType: "vault.item_deleted",
       objectType: "vault_item",
       objectId: deleted.id,
-      details: `${deleted.artefactType} (client ${deleted.clientId})`,
+      details: `${deleted.artefactType} (client ${deleted.clientId}) | object ${objectDisposition}`,
     });
     res.status(204).end();
   },

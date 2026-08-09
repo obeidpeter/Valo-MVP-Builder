@@ -193,6 +193,23 @@ describe("role and permission policy", () => {
     );
   });
 
+  test("every vault viewer also has document source download permission", () => {
+    for (const role of ORGANISATION_ROLES) {
+      const permissions = permissionsForRoles([role]);
+      if (permissions.has("evidence:read")) {
+        assert.equal(
+          permissions.has("document:read"),
+          true,
+          `${role} can view vault evidence without document:read`,
+        );
+      }
+    }
+    assert.equal(PARTNER_DERIVED_PERMISSIONS.has("evidence:read"), true);
+    assert.equal(PARTNER_DERIVED_PERMISSIONS.has("document:read"), true);
+    assert.equal(BREAK_GLASS_ELIGIBLE_PERMISSIONS.has("evidence:read"), true);
+    assert.equal(BREAK_GLASS_ELIGIBLE_PERMISSIONS.has("document:read"), true);
+  });
+
   test("roles cannot be granted to an incompatible organisation type", () => {
     assert.equal(isRoleAllowedForOrganisation("bid_manager", "client"), true);
     assert.equal(

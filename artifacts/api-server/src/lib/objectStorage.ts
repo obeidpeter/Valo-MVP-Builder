@@ -48,6 +48,62 @@ export class ObjectTooLargeError extends Error {
   }
 }
 
+export class ObjectPromotionCleanupError extends Error {
+  constructor(
+    public readonly destinationPath: string,
+    public readonly promotionCause: unknown,
+    public readonly cleanupCause: unknown,
+  ) {
+    super("Promoted object cleanup could not be confirmed");
+    this.name = "ObjectPromotionCleanupError";
+    Object.setPrototypeOf(this, ObjectPromotionCleanupError.prototype);
+  }
+}
+
+export class ObjectQuarantinePartialMoveError extends Error {
+  constructor(
+    public readonly quarantinePath: string,
+    public readonly moveCause: unknown,
+    public readonly quarantineCopyConfirmed: boolean,
+  ) {
+    super(
+      quarantineCopyConfirmed
+        ? "The quarantine copy exists, but the move did not complete"
+        : "The quarantine copy may exist, but its disposition could not be confirmed",
+    );
+    this.name = "ObjectQuarantinePartialMoveError";
+    Object.setPrototypeOf(this, ObjectQuarantinePartialMoveError.prototype);
+  }
+}
+
+/**
+ * A delete acknowledgement is not enough to describe a distributed object
+ * cleanup as complete. Confirm the object is absent after the delete attempt;
+ * if the delete acknowledgement was lost but the absence probe succeeds, the
+ * cleanup is still known to be complete.
+ */
+async function deleteAndConfirmAbsent(file: File): Promise<void> {
+  let deleteError: unknown;
+  try {
+    await file.delete({ ignoreNotFound: true });
+  } catch (error) {
+    deleteError = error;
+  }
+
+  try {
+    const [exists] = await file.exists();
+    if (!exists) return;
+    throw new Error("Object still exists after cleanup attempt");
+  } catch (probeError) {
+    throw new AggregateError(
+      [deleteError, probeError].filter(
+        (error): error is NonNullable<unknown> => error != null,
+      ),
+      "Object cleanup could not be confirmed",
+    );
+  }
+}
+
 /**
  * Collect a storage stream without ever buffering more than the configured
  * intake ceiling. The metadata check performed by the caller is only an early
@@ -238,7 +294,11 @@ export class ObjectStorageService {
    * Quarantined paths are denied by the private-object route and are retained
    * only for an authorised scanner/admin recovery workflow.
    */
-  async quarantineObjectEntity(objectPath: string): Promise<string> {
+  async quarantineObjectEntity(
+    objectPath: string,
+    inspectedBytes: Buffer,
+    contentType: string | null,
+  ): Promise<string> {
     if (
       !/^\/objects\/tenants\/[0-9a-f-]{36}\/uploads\/[^/]+$/i.test(objectPath)
     ) {
@@ -248,10 +308,149 @@ export class ObjectStorageService {
     if (!file.name.includes("/uploads/")) {
       throw new Error("Upload object is outside the quarantine move boundary");
     }
-    const destinationName = file.name.replace("/uploads/", "/quarantine/");
-    await file.copy(file.bucket.file(destinationName));
-    await file.delete({ ignoreNotFound: true });
-    return objectPath.replace("/uploads/", "/quarantine/");
+    const quarantineId = randomUUID();
+    const destinationName = file.name.replace(
+      /\/uploads\/[^/]+$/,
+      `/quarantine/${quarantineId}`,
+    );
+    if (destinationName === file.name) {
+      throw new Error("Upload object is outside the quarantine move boundary");
+    }
+    const destination = file.bucket.file(destinationName);
+    const quarantinePath = objectPath.replace(
+      /\/uploads\/[^/]+$/,
+      `/quarantine/${quarantineId}`,
+    );
+    try {
+      // Persist exactly the bytes that were hashed and inspected. The random,
+      // create-only destination cannot be overwritten by the signed staging
+      // PUT or by a later retry.
+      await destination.save(inspectedBytes, {
+        resumable: false,
+        validation: "crc32c",
+        metadata: {
+          contentType: contentType ?? "application/octet-stream",
+        },
+        preconditionOpts: { ifGenerationMatch: 0 },
+      });
+      const storedBytes = await collectStreamWithLimit(
+        destination.createReadStream(),
+        Math.max(1, inspectedBytes.length + 1),
+      );
+      if (!storedBytes.equals(inspectedBytes)) {
+        throw new Error(
+          "Quarantine object did not match the inspected intake bytes",
+        );
+      }
+    } catch (error) {
+      // save() may commit remotely and lose only its response. Delete and
+      // probe the unique destination. Only confirmed absence permits the
+      // caller to fall back to a definite non-quarantine disposition.
+      try {
+        await deleteAndConfirmAbsent(destination);
+      } catch (cleanupError) {
+        throw new ObjectQuarantinePartialMoveError(
+          quarantinePath,
+          new AggregateError(
+            [error, cleanupError],
+            "Quarantine copy cleanup ambiguous",
+          ),
+          false,
+        );
+      }
+      throw error;
+    }
+    try {
+      await file.delete({ ignoreNotFound: true });
+    } catch (error) {
+      // The destination exists even when the move's source-delete half loses
+      // its acknowledgement. Preserve that fact for truthful response/audit
+      // handling instead of falling back to a false "purged" disposition.
+      throw new ObjectQuarantinePartialMoveError(quarantinePath, error, true);
+    }
+    return quarantinePath;
+  }
+
+  /**
+   * Promote inspected tenant bytes out of the still-writable signed-upload
+   * namespace into a server-controlled document path. The destination is
+   * create-only, so a retry can never overwrite an existing immutable source.
+   */
+  async promoteStagedUploadToDocument(
+    objectPath: string,
+    documentId: string,
+    inspectedBytes: Buffer,
+    contentType: string | null,
+  ): Promise<string> {
+    if (
+      !/^\/objects\/tenants\/[0-9a-f-]{36}\/uploads\/[0-9a-f-]{36}$/i.test(
+        objectPath,
+      ) ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        documentId,
+      )
+    ) {
+      throw new Error("Only tenant staged uploads can be promoted");
+    }
+    const source = await this.getObjectEntityFile(objectPath);
+    const destinationName = source.name.replace(
+      /\/uploads\/[0-9a-f-]{36}$/i,
+      `/documents/${documentId}`,
+    );
+    if (destinationName === source.name) {
+      throw new Error("Staged upload path could not be promoted");
+    }
+    const destination = source.bucket.file(destinationName);
+    const destinationPath = objectPath.replace(
+      /\/uploads\/[0-9a-f-]{36}$/i,
+      `/documents/${documentId}`,
+    );
+    // Persist the exact bytes that passed intake inspection. Copying `source`
+    // here would be unsafe: its signed PUT remains usable for a short time and
+    // could replace the staged generation between inspection and promotion.
+    try {
+      await destination.save(inspectedBytes, {
+        resumable: false,
+        validation: "crc32c",
+        metadata: {
+          contentType: contentType ?? "application/octet-stream",
+        },
+        // GCS generation 0 means "destination must not exist".
+        preconditionOpts: { ifGenerationMatch: 0 },
+      });
+    } catch (error) {
+      // A failed save promise is ambiguous: GCS may have committed the bytes
+      // and lost only the acknowledgement. Delete and probe the deterministic
+      // destination before allowing the caller to say no promoted copy exists.
+      try {
+        await deleteAndConfirmAbsent(destination);
+      } catch (cleanupError) {
+        throw new ObjectPromotionCleanupError(
+          destinationPath,
+          error,
+          cleanupError,
+        );
+      }
+      throw error;
+    }
+    try {
+      await source.delete({ ignoreNotFound: true });
+    } catch (error) {
+      // Roll back the promoted copy when we cannot revoke the writable staging
+      // path. If rollback also fails, propagate the original failure; the
+      // caller records cleanup as unconfirmed and stops retry.
+      try {
+        await deleteAndConfirmAbsent(destination);
+      } catch (cleanupError) {
+        throw new ObjectPromotionCleanupError(
+          destinationPath,
+          error,
+          cleanupError,
+        );
+      }
+      throw error;
+    }
+    return destinationPath;
   }
 
   normalizeObjectEntityPath(rawPath: string): string {
