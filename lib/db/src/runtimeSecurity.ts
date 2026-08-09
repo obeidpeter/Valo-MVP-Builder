@@ -817,8 +817,10 @@ export async function assertProductionRuntimeDatabaseSafety(
       explicit_schemas: string[];
       implicit_schemas: string[];
     }>(`
-      SELECT pg_catalog.current_schemas(false) AS explicit_schemas,
-        pg_catalog.current_schemas(true) AS implicit_schemas
+      SELECT pg_catalog.current_schemas(false)::pg_catalog.text[]
+          AS explicit_schemas,
+        pg_catalog.current_schemas(true)::pg_catalog.text[]
+          AS implicit_schemas
     `);
     if (
       JSON.stringify(ambientPath.rows[0]?.explicit_schemas) !==
