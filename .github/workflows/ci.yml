@@ -87,6 +87,9 @@ jobs:
       - name: Validate legacy bridge artifact
         run: pnpm --filter @workspace/db migration:bridge:legacy:check
 
+      - name: Test authoritative legacy evidence contract
+        run: pnpm --filter @workspace/db migration:bridge:legacy:evidence:test
+
       - name: Rehearse populated legacy bridge and fresh-schema parity
         run: pnpm --filter @workspace/db migration:bridge:legacy:rehearse
 

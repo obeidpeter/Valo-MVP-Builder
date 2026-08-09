@@ -53,7 +53,8 @@ does not apply to the current production database. Source synchronisation and
 
 ### Required evidence and quiescence
 
-1. Fix the exact source commit and recovery point. Create a provider backup,
+1. Fix the exact source commit and recovery point. Create an approved
+   custom-format `pg_dump`,
    produce a byte-preserving ordered export of `audit_events`, and capture row
    counts for exactly the 19 legacy tables plus the final audit sequence/hash.
    Store the backup, audit export, and approved rehearsal evidence manifest as
@@ -86,12 +87,71 @@ shape and audit boundary controls. It does not connect to PostgreSQL and is not
 a data dry run. The isolated restore rehearsal is the required operational dry
 run.
 
-On that quiescent isolated legacy restore, compute the non-PII catalog member
-for the authoritative manifest with
-`pnpm --filter @workspace/db migration:bridge:legacy:catalog-evidence`. The
-command locks the 19 restored tables, prints only the canonical algorithm and
-SHA-256, and rolls back. Store that object as `legacyCatalog` in the v3
-manifest; never substitute a digest computed from a different database state.
+### Authoritative evidence capture
+
+Do not assemble the v3 manifest with shell pipelines. While every source writer
+remains stopped, restore the already-created custom dump into an isolated
+PostgreSQL 16 endpoint using `pg_restore --exit-on-error --no-owner
+--no-privileges`. The source and restored URLs must name the same database but
+must use different endpoints. Record the successful restore operation in the
+private deployment record, then run the repository verifier while the freeze is
+still in force.
+
+Create a private `0700` evidence directory outside the checkout and inject all
+inputs through the approved ephemeral secret mechanism:
+
+- `VALO_BRIDGE_EVIDENCE_SOURCE_DATABASE_URL`: quiescent legacy source owner.
+- `VALO_BRIDGE_EVIDENCE_RESTORED_DATABASE_URL`: isolated restored-copy owner.
+- `VALO_BRIDGE_SOURCE_BACKUP_PATH`: the pre-existing custom dump, outside the
+  checkout and `0600` on Linux.
+- `VALO_BRIDGE_PG_RESTORE_PATH`: absolute path to the PostgreSQL 16
+  `pg_restore` binary used to verify the archive list.
+- `VALO_BRIDGE_EVIDENCE_OUTPUT_DIRECTORY`: the empty private evidence
+  directory.
+- `VALO_BRIDGE_EVIDENCE_QUIESCED_ACK`: exactly
+  `APPLICATION_WRITERS_STOPPED_AND_RESTORE_ISOLATED`.
+- `VALO_BRIDGE_EVIDENCE_RESTORE_ACK`: exactly
+  `BOUND_CUSTOM_DUMP_PG_RESTORE_EXIT_STATUS_0`, injected only by the operator
+  or approved restore automation that observed exit status zero for the exact
+  dump named by `VALO_BRIDGE_SOURCE_BACKUP_PATH` and the isolated endpoint.
+
+Run:
+
+```sh
+pnpm --filter @workspace/db migration:bridge:legacy:evidence:capture
+```
+
+The command is inert without its embedded explicit capture flag and both exact
+operational acknowledgements. The restore acknowledgement is what authorises
+the manifest's `scratchRestoreExitStatus: 0` claim; archive-list validation and
+the byte/digest comparison independently fail closed around that claim. The
+command refuses symlinked/in-repository evidence paths, requires the output
+directory to contain zero entries both before validation and immediately before
+publication, and refuses every unrecognized or duplicate table descriptor in
+the custom archive inventory. It binds the dump header/list/hash by comparing
+the file identity and a complete SHA-256 before and after list validation, then takes
+`ACCESS EXCLUSIVE NOWAIT` locks on exactly the 19 legacy tables in both
+databases before reading any database evidence. It compares the PostgreSQL-16
+catalog digest, all 19 deterministic row counts/table digests, ordered audit
+bytes, audit classification/head, and sequence state. Both transactions are
+rolled back and connections closed before files are written; no database row or
+schema is changed.
+
+Success writes only `valo-legacy-audit.ndjson`,
+`valo-legacy-restore-manifest.json`, and
+`valo-legacy-restore-manifest.json.sha256`, all `0600`, outside the repository.
+The manifest is parsed again through the bridge's exact v3/SOURCE_COMMIT
+contract before publication. The command prints no connection string, row,
+identity, audit value, evidence hash, or filesystem path. Independently record
+the sidecar value in the approved private operations store, and keep the source
+frozen until capture finishes. Any failure invalidates the attempted evidence;
+do not treat partially created files as approved.
+
+The older
+`pnpm --filter @workspace/db migration:bridge:legacy:catalog-evidence` command
+remains a non-PII diagnostic for an isolated database. It is not a substitute
+for the authoritative capture command and must not be used to hand-assemble a
+production manifest.
 
 Inject these runner inputs from Replit Secrets or another approved ephemeral
 secret mechanism; refer to secret-manager entries rather than copying values
