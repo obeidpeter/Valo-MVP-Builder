@@ -3,11 +3,16 @@
 import "../test-env";
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import express, { type Request, type Response, type NextFunction } from "express";
+import express, {
+  type Request,
+  type Response,
+  type NextFunction,
+} from "express";
 import { eq } from "drizzle-orm";
-import { db, users, clients, projects } from "@workspace/db";
+import { db, users, organisations, clients, projects } from "@workspace/db";
 import dashboardRouter from "./dashboard";
 import type { LocalUser } from "../middlewares/auth";
 
@@ -34,6 +39,7 @@ let baseUrl: string;
 let currentUser: LocalUser | null = null;
 
 let memberId: string;
+let organisationId: string;
 let clientId: string;
 
 before(async () => {
@@ -51,9 +57,20 @@ before(async () => {
     .returning();
   memberId = member.id;
 
+  const [organisation] = await db
+    .insert(organisations)
+    .values({
+      name: `__DASH_IT_ORG__ ${stamp}`,
+      slug: `dash-it-${randomUUID()}`,
+      type: "valo",
+      createdBy: member.id,
+    })
+    .returning();
+  organisationId = organisation.id;
+
   const [client] = await db
     .insert(clients)
-    .values({ name: `__DASH_IT__ ${stamp}` })
+    .values({ name: `__DASH_IT__ ${stamp}`, organisationId })
     .returning();
   clientId = client.id;
 
@@ -81,6 +98,7 @@ after(async () => {
     server.close((err) => (err ? reject(err) : resolve())),
   );
   await db.delete(clients).where(eq(clients.id, clientId)); // cascades projects
+  await db.delete(organisations).where(eq(organisations.id, organisationId));
   await db.delete(users).where(eq(users.id, memberId));
 });
 
@@ -98,11 +116,16 @@ function quality(body: MetricsBody): Gate0Metric {
 
 describe("Gate 0 mandate quality only counts paid mandates", () => {
   before(() => {
-    currentUser = { id: memberId, role: "admin", name: "Dash Member" } as LocalUser;
+    currentUser = {
+      id: memberId,
+      role: "admin",
+      name: "Dash Member",
+    } as LocalUser;
   });
 
   test("a quality label on a non-paid project does NOT count", async () => {
     await db.insert(projects).values({
+      organisationId,
       clientId,
       reviewerId: memberId,
       tenderTitle: "Assisted bid but not yet paid",
@@ -115,6 +138,7 @@ describe("Gate 0 mandate quality only counts paid mandates", () => {
 
   test("a paid mandate that is autopsy-only does NOT count", async () => {
     await db.insert(projects).values({
+      organisationId,
       clientId,
       reviewerId: memberId,
       tenderTitle: "Paid but autopsy-only",
@@ -127,6 +151,7 @@ describe("Gate 0 mandate quality only counts paid mandates", () => {
 
   test("a paid mandate that is assisted-bid/retainer DOES count", async () => {
     await db.insert(projects).values({
+      organisationId,
       clientId,
       reviewerId: memberId,
       tenderTitle: "Paid assisted bid",

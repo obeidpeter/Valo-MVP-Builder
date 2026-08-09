@@ -133,6 +133,42 @@ function parseCsv(csv: string): {
   return { headers, rows };
 }
 
+async function matchingAuditEventCount(
+  eventType: string,
+  objectId: string,
+): Promise<number> {
+  const events = await db
+    .select({
+      eventType: auditEvents.eventType,
+      objectId: auditEvents.objectId,
+    })
+    .from(auditEvents)
+    .where(eq(auditEvents.projectId, projectId));
+
+  return events.filter(
+    (event) => event.eventType === eventType && event.objectId === objectId,
+  ).length;
+}
+
+async function waitForAuditEventCount(
+  eventType: string,
+  objectId: string,
+  minimumCount: number,
+): Promise<void> {
+  const deadline = Date.now() + 2_000;
+
+  while (Date.now() < deadline) {
+    if ((await matchingAuditEventCount(eventType, objectId)) >= minimumCount) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+
+  assert.fail(
+    `${eventType} audit event for ${objectId} was not committed within 2 seconds`,
+  );
+}
+
 before(async () => {
   const stamp = new Date().toISOString();
 
@@ -806,6 +842,10 @@ describe("object-storage-backed report attach & download", () => {
   });
 
   test("download of a signed-off report streams the .docx bytes + filename", async () => {
+    const auditCountBefore = await matchingAuditEventCount(
+      "report.exported",
+      signedReportId,
+    );
     currentUser = {
       id: adminId,
       role: "admin",
@@ -825,23 +865,22 @@ describe("object-storage-backed report attach & download", () => {
       "downloaded bytes match storage payload",
     );
 
-    // The successful export is audited.
-    const events = await db
-      .select()
-      .from(auditEvents)
-      .where(eq(auditEvents.projectId, projectId));
-    assert.ok(
-      events.some(
-        (e) =>
-          e.eventType === "report.exported" && e.objectId === signedReportId,
-      ),
-      "report.exported audit event written",
+    // The transaction is committed from the response lifecycle, which can
+    // settle just after fetch() returns. Require this request's new event.
+    await waitForAuditEventCount(
+      "report.exported",
+      signedReportId,
+      auditCountBefore + 1,
     );
 
     currentUser = null;
   });
 
   test("download of a not-signed-off report is denied (403) and audited", async () => {
+    const auditCountBefore = await matchingAuditEventCount(
+      "report.export_denied",
+      draftReportId,
+    );
     currentUser = {
       id: adminId,
       role: "admin",
@@ -850,23 +889,20 @@ describe("object-storage-backed report attach & download", () => {
     const res = await fetch(`${baseUrl}/reports/${draftReportId}/download`);
     assert.equal(res.status, 403);
 
-    const events = await db
-      .select()
-      .from(auditEvents)
-      .where(eq(auditEvents.projectId, projectId));
-    assert.ok(
-      events.some(
-        (e) =>
-          e.eventType === "report.export_denied" &&
-          e.objectId === draftReportId,
-      ),
-      "report.export_denied audit event written",
+    await waitForAuditEventCount(
+      "report.export_denied",
+      draftReportId,
+      auditCountBefore + 1,
     );
 
     currentUser = null;
   });
 
   test("download-pdf of a signed-off report streams the .pdf bytes + filename", async () => {
+    const auditCountBefore = await matchingAuditEventCount(
+      "report.exported",
+      signedReportId,
+    );
     currentUser = {
       id: adminId,
       role: "admin",
@@ -889,22 +925,20 @@ describe("object-storage-backed report attach & download", () => {
     );
 
     // The successful PDF export is audited with report.exported, mirroring DOCX.
-    const events = await db
-      .select()
-      .from(auditEvents)
-      .where(eq(auditEvents.projectId, projectId));
-    assert.ok(
-      events.some(
-        (e) =>
-          e.eventType === "report.exported" && e.objectId === signedReportId,
-      ),
-      "report.exported audit event written for PDF",
+    await waitForAuditEventCount(
+      "report.exported",
+      signedReportId,
+      auditCountBefore + 1,
     );
 
     currentUser = null;
   });
 
   test("download-pdf of a not-signed-off report is denied (403) and audited", async () => {
+    const auditCountBefore = await matchingAuditEventCount(
+      "report.export_denied",
+      draftReportId,
+    );
     currentUser = {
       id: adminId,
       role: "admin",
@@ -913,17 +947,10 @@ describe("object-storage-backed report attach & download", () => {
     const res = await fetch(`${baseUrl}/reports/${draftReportId}/download-pdf`);
     assert.equal(res.status, 403);
 
-    const events = await db
-      .select()
-      .from(auditEvents)
-      .where(eq(auditEvents.projectId, projectId));
-    assert.ok(
-      events.some(
-        (e) =>
-          e.eventType === "report.export_denied" &&
-          e.objectId === draftReportId,
-      ),
-      "report.export_denied audit event written for PDF",
+    await waitForAuditEventCount(
+      "report.export_denied",
+      draftReportId,
+      auditCountBefore + 1,
     );
 
     currentUser = null;
