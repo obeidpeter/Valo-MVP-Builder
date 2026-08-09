@@ -130,6 +130,25 @@ The owner URL was nevertheless exposed briefly to the process. Record that
 residual platform limitation, restrict access, and rotate after the operation;
 environment erasure does not make an RCE/native-process boundary.
 
+The production attestation is a PostgreSQL-16 contract, not a count-only smoke
+test. In a repeatable-read, read-only snapshot it first requires the ambient
+runtime path to resolve exactly to `pg_catalog, public`, then deparses under a
+transaction-local `search_path=pg_catalog`. It pins all 96 public-table RLS
+flags, the exact 85 FORCE-RLS identities, all 104 policy definitions, all 116
+security triggers, all nine `valo_security` routine signatures and bodies, and
+the complete effective table/column/sequence privilege matrix. It also requires
+`row_security=on`, `session_replication_role=origin`, the fixed runtime identity,
+no inherited/owned or schema-creation escape, and only the two tenant-context
+routines to be runtime-executable. Any mismatch stops the listener/job before
+application queries.
+
+`app.current_organisation_id` is a transaction-local database boundary, not an
+authentication credential: anyone holding the raw runtime database credential
+can invoke its setter. Keep that credential private, authenticate and authorize
+the selected membership in the API before setting it, and treat RLS plus the
+tenant-parent/control-plane guards as defense in depth against application SQL
+mistakes—not as a replacement for Clerk and permission checks.
+
 ### Rehearse and execute
 
 1. On the isolated restore, inject environment-scoped inputs and run the exact
@@ -141,9 +160,10 @@ environment erasure does not make an RCE/native-process boundary.
 
 2. Preserve the sanitized runner result and independently reconcile source and
    archive counts, primary keys, tenant assignments, role grants, audit
-   boundary, migration journal, 85 forced-RLS tables, 104 policies, and runtime
-   role negative tests. Run same-tenant success and cross-tenant denial tests
-   through `VALO_RUNTIME_DATABASE_URL`.
+   boundary, migration journal, the exact 96/85/104 table/RLS/policy catalog,
+   116-trigger and nine-routine security contracts, and the runtime privilege
+   matrix. Run same-tenant success and cross-tenant denial tests through
+   `VALO_RUNTIME_DATABASE_URL`.
 3. Obtain explicit approval of the authoritative restore manifest and its
    independently recorded hash. In the source change window, stop all writers,
    then inject the quiescence acknowledgement and run the same command once.
@@ -152,6 +172,11 @@ environment erasure does not make an RCE/native-process boundary.
    lock failure or any preflight/reconciliation mismatch is an abort, never a
    reason to weaken an input or retry over a changing source.
    A pre-commit error rolls the transaction back. If the runner emits
+   `BRIDGE_COMMIT_OUTCOME_UNKNOWN`, the COMMIT call lost a definitive response:
+   keep the app stopped, do not retry, reconnect with the owner credential, and
+   prove whether the target is still exact legacy or fully completed v2.5
+   before a reviewed forward-repair/PITR decision. Never record this state as a
+   rollback. If the runner emits
    `BRIDGE_COMMITTED_POSTCHECK_FAILED`, the database has committed but runtime
    validation failed: keep the app stopped, preserve all evidence, and make a
    reviewed forward-repair versus PITR decision. Never assume rollback or

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   db,
   pool,
@@ -447,22 +448,30 @@ async function seed() {
   }
   console.log("Seeding Valo Bid Autopsy Workbench sample data...");
 
-  const [seedOrganisation] = await db
-    .insert(organisations)
-    .values({
-      name: "Valo Sample Workspace",
-      slug: "valo-sample-workspace",
-      type: "valo",
-    })
-    .onConflictDoUpdate({
-      target: organisations.slug,
-      set: {
+  const [existingSeedOrganisation] = await db
+    .select({ id: organisations.id })
+    .from(organisations)
+    .where(eq(organisations.slug, "valo-sample-workspace"));
+  const seedOrganisationId = existingSeedOrganisation?.id ?? randomUUID();
+  const [seedOrganisation] = await withTenantDatabase(seedOrganisationId, () =>
+    db
+      .insert(organisations)
+      .values({
+        id: seedOrganisationId,
         name: "Valo Sample Workspace",
-        status: "active",
-        updatedAt: new Date(),
-      },
-    })
-    .returning();
+        slug: "valo-sample-workspace",
+        type: "valo",
+      })
+      .onConflictDoUpdate({
+        target: organisations.slug,
+        set: {
+          name: "Valo Sample Workspace",
+          status: "active",
+          updatedAt: new Date(),
+        },
+      })
+      .returning(),
+  );
 
   // A seed run may replace only its own tenant. It must never erase another
   // organisation's production or evaluation data.

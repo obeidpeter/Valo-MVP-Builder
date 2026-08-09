@@ -155,6 +155,24 @@ briefly; record that residual Replit limitation, restrict project access, and
 rotate it after the operation. Environment erasure is defense-in-depth, not an
 RCE/native-process isolation boundary.
 
+That startup proof is pinned to PostgreSQL 16 and runs in a repeatable-read,
+read-only transaction. It requires the ambient path to be exactly
+`pg_catalog, public`, then uses transaction-local `search_path=pg_catalog` for
+deterministic catalog deparsing. It verifies the exact 96-table RLS flag set,
+85 FORCE-RLS table identities, 104 policy contracts, 116 security triggers,
+nine `valo_security` routine contracts, and every effective runtime
+table/column/sequence privilege. It also requires `row_security=on`,
+`session_replication_role=origin`, no ownership/schema-creation path, and
+EXECUTE only on the two tenant-context helpers. A same-count but semantically
+drifted database must not start.
+
+The transaction-local `app.current_organisation_id` GUC is a database boundary,
+not authentication. A holder of the raw runtime credential can call its setter,
+so keep that URL private and let the API establish Clerk identity, selected
+membership, and permission before opening the tenant transaction. RLS and the
+tenant graph/control-plane triggers remain defense in depth for application SQL
+errors; they do not replace application authorization.
+
 The source audit chain has a recorded known historical discontinuity. The
 original rows remain byte-preserved in `legacy_audit_events` with an explicit
 `known_discontinuity` assessment; the bridge does not rewrite or claim to repair
@@ -172,6 +190,14 @@ manifest's legacy `<seq>:<hash>:<prev-hash>` anchor and archive digest via
 `AUDIT_ORGANISATION_ID`). Run
 `pnpm --filter @workspace/api-server verify:audit`; its active-v2 and preserved
 legacy verdicts are intentionally separate.
+
+Bridge failure markers are operationally distinct. A pre-COMMIT failure is
+rolled back. `BRIDGE_COMMIT_OUTCOME_UNKNOWN` means the COMMIT response was lost:
+keep the app stopped, never retry blindly, and reconnect to classify the target
+as exact legacy or fully completed v2.5. `BRIDGE_COMMITTED_POSTCHECK_FAILED`
+means the transaction committed but a later runtime proof failed; preserve the
+evidence and choose reviewed forward repair versus PITR. Neither marker permits
+an assumption of rollback.
 
 ## Feature-gated scope
 
