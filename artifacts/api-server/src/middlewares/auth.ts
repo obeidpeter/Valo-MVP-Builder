@@ -1,7 +1,8 @@
 import type { Request, Response, NextFunction } from "express";
 import { getAuth, clerkClient } from "@clerk/express";
 import { db, users } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
+import { isBootstrapIdentity } from "../lib/bootstrap";
 
 export type LocalUser = typeof users.$inferSelect;
 
@@ -13,8 +14,9 @@ export { getLocalUser };
 
 /**
  * Requires a valid Clerk session, then loads (or just-in-time provisions) the
- * matching internal user row. The very first user to sign in becomes an admin;
- * every subsequent new user is provisioned with role "none" (awaiting approval).
+ * matching internal user row. Elevated bootstrap access is granted only to an
+ * identity explicitly named in VALO_BOOTSTRAP_CLERK_USER_IDS or
+ * VALO_BOOTSTRAP_EMAILS. Database insertion order never grants privilege.
  */
 export async function attachUser(
   req: Request,
@@ -36,11 +38,6 @@ export async function attachUser(
       .where(eq(users.clerkUserId, clerkUserId));
 
     if (!user) {
-      const [{ count }] = await db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(users);
-      const isFirst = Number(count) === 0;
-
       let email = `${clerkUserId}@unknown.local`;
       let name: string | null = null;
       try {
@@ -57,13 +54,21 @@ export async function attachUser(
         // Fall back to placeholder identity if Clerk lookup fails.
       }
 
+      const bootstrap = isBootstrapIdentity(
+        { clerkUserId, email },
+        {
+          clerkUserIds: process.env.VALO_BOOTSTRAP_CLERK_USER_IDS,
+          emails: process.env.VALO_BOOTSTRAP_EMAILS,
+        },
+      );
+
       [user] = await db
         .insert(users)
         .values({
           clerkUserId,
           email,
           name,
-          role: isFirst ? "admin" : "none",
+          role: bootstrap ? "restricted_platform_administrator" : "none",
           status: "active",
           lastLoginAt: new Date(),
         })
@@ -73,10 +78,22 @@ export async function attachUser(
         })
         .returning();
     } else {
+      const bootstrap = isBootstrapIdentity(
+        { clerkUserId, email: user.email },
+        {
+          clerkUserIds: process.env.VALO_BOOTSTRAP_CLERK_USER_IDS,
+          emails: process.env.VALO_BOOTSTRAP_EMAILS,
+        },
+      );
+      const role =
+        user.role === "none" && bootstrap
+          ? "restricted_platform_administrator"
+          : user.role;
       await db
         .update(users)
-        .set({ lastLoginAt: new Date() })
+        .set({ lastLoginAt: new Date(), role })
         .where(eq(users.id, user.id));
+      user = { ...user, role };
     }
 
     if (user.status === "disabled") {

@@ -5,11 +5,16 @@ import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import express, { type Request, type Response, type NextFunction } from "express";
+import express, {
+  type Request,
+  type Response,
+  type NextFunction,
+} from "express";
 import { eq } from "drizzle-orm";
 import {
   db,
   users,
+  organisations,
   clients,
   projects,
   conflictRecords,
@@ -17,18 +22,20 @@ import {
 } from "@workspace/db";
 import projectsRouter from "./projects";
 import type { LocalUser } from "../middlewares/auth";
+import { type AccessContext } from "../middlewares/tenancy";
+import { attachTenantDatabase } from "../middlewares/databaseTenancy";
+import { normalizeLegacyRole, permissionsForRoles } from "../lib/permissions";
 
 /**
  * End-to-end proof of the two governance invariants hardened in the sweep:
  *
- *  1. Dual payment confirmation requires two DISTINCT people — the same user
- *     cannot stamp both legs (409), and two different users satisfy the gate
- *     with identities and paymentConfirmedAt recorded.
+ *  1. Direct payment confirmation remains disabled until founder/adviser
+ *     authority is bound to server-side grants; legacy role-shaped requests
+ *     cannot stamp either identity leg.
  *
- *  2. Conflict consent is scoped to the tender identity it was granted for —
- *     an unrelated PATCH keeps the consent (no re-block, no duplicate
- *     conflict record), while changing tenderRef onto a DIFFERENT active
- *     tender re-blocks and opens a fresh conflict record.
+ *  2. Generic PATCH cannot decide conflicts. Ordinary versioned edits preserve
+ *     a block, while changing tenderRef onto a different active tender opens a
+ *     fresh blocked conflict record.
  */
 
 let server: Server;
@@ -37,12 +44,14 @@ let currentUser: LocalUser | null = null;
 
 let founderId: string;
 let advisorId: string;
+let organisationId: string;
 let clientId: string;
 
 const projectIds: string[] = [];
 
 interface ProjectBody {
   id: string;
+  version: number;
   status: string;
   conflictStatus: string;
   paymentConfirmedByFounder: boolean;
@@ -83,9 +92,19 @@ before(async () => {
     .returning();
   advisorId = advisor.id;
 
+  const [organisation] = await db
+    .insert(organisations)
+    .values({
+      name: `__GOV_IT_ORG__ ${stamp}`,
+      slug: `gov-it-${Date.now()}`,
+      type: "valo",
+    })
+    .returning();
+  organisationId = organisation.id;
+
   const [client] = await db
     .insert(clients)
-    .values({ name: `__GOV_IT__ ${stamp}` })
+    .values({ name: `__GOV_IT__ ${stamp}`, organisationId })
     .returning();
   clientId = client.id;
 
@@ -93,6 +112,20 @@ before(async () => {
   app.use(express.json());
   app.use((req: Request, _res: Response, next: NextFunction) => {
     (req as unknown as { localUser: LocalUser | null }).localUser = currentUser;
+    const role = currentUser ? normalizeLegacyRole(currentUser.role) : null;
+    if (role) {
+      (req as Request & { accessContext?: AccessContext }).accessContext = {
+        organisationId,
+        membershipId: currentUser!.id,
+        membershipOrganisationId: organisationId,
+        source: "membership",
+        roles: [role],
+        permissions: permissionsForRoles([role]),
+        breakGlassSessionId: null,
+        partnerRelationshipId: null,
+        partnerCoSigningRequired: false,
+      };
+    }
     (req as unknown as { log: unknown }).log = {
       error() {},
       warn() {},
@@ -101,6 +134,7 @@ before(async () => {
     };
     next();
   });
+  app.use(attachTenantDatabase);
   app.use(projectsRouter);
 
   server = createServer(app);
@@ -118,9 +152,12 @@ after(async () => {
   await db.delete(clients).where(eq(clients.id, clientId)); // cascades projects + conflict records
   await db.delete(users).where(eq(users.id, founderId));
   await db.delete(users).where(eq(users.id, advisorId));
+  await db.delete(organisations).where(eq(organisations.id, organisationId));
 });
 
-async function createProject(body: Record<string, unknown>): Promise<ProjectBody> {
+async function createProject(
+  body: Record<string, unknown>,
+): Promise<ProjectBody> {
   const res = await fetch(`${baseUrl}/projects`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -132,15 +169,28 @@ async function createProject(body: Record<string, unknown>): Promise<ProjectBody
   return created;
 }
 
-async function patchProject(id: string, body: Record<string, unknown>): Promise<globalThis.Response> {
+async function patchProject(
+  id: string,
+  body: Record<string, unknown>,
+  expectedVersion?: number,
+): Promise<globalThis.Response> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (expectedVersion !== undefined) {
+    headers["If-Match"] = `"${expectedVersion}"`;
+  }
   return fetch(`${baseUrl}/projects/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(body),
   });
 }
 
-async function confirmPayment(id: string, role: "founder" | "advisor"): Promise<globalThis.Response> {
+async function confirmPayment(
+  id: string,
+  role: "founder" | "advisor",
+): Promise<globalThis.Response> {
   return fetch(`${baseUrl}/projects/${id}/payment-confirmations`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -156,84 +206,132 @@ async function conflictRecordCount(projectId: string): Promise<number> {
   return rows.length;
 }
 
-describe("dual payment confirmation identities", () => {
+describe("payment confirmation is fail-closed until authority is bound", () => {
   let projectId: string;
 
-  test("first leg records the confirming identity", async () => {
-    currentUser = { id: founderId, role: "admin", name: "Founder One" } as LocalUser;
-    const project = await createProject({ tenderTitle: "Payment identity proof" });
+  test("an operations administrator cannot stamp the founder leg", async () => {
+    currentUser = {
+      id: founderId,
+      role: "admin",
+      name: "Founder One",
+    } as LocalUser;
+    const project = await createProject({
+      tenderTitle: "Payment identity proof",
+    });
     projectId = project.id;
 
     const res = await confirmPayment(projectId, "founder");
-    assert.equal(res.status, 200);
+    assert.equal(res.status, 503);
     const body = await json(res);
-    assert.equal(body.paymentConfirmedByFounder, true);
-    assert.equal(body.paymentFounderConfirmedByName, "Founder One");
+    assert.match(body.error, /disabled.*authority|authority.*bound/i);
   });
 
-  test("the same person cannot confirm the second leg", async () => {
-    currentUser = { id: founderId, role: "admin", name: "Founder One" } as LocalUser;
+  test("a reviewer cannot use the legacy adviser-shaped payload", async () => {
+    currentUser = {
+      id: advisorId,
+      role: "reviewer",
+      name: "Advisor Two",
+    } as LocalUser;
     const res = await confirmPayment(projectId, "advisor");
-    assert.equal(res.status, 409);
-    const body = await json(res);
-    assert.match(body.error, /distinct/i);
+    assert.equal(res.status, 403);
   });
 
-  test("a different person completes the dual confirmation", async () => {
-    currentUser = { id: advisorId, role: "reviewer", name: "Advisor Two" } as LocalUser;
-    const res = await confirmPayment(projectId, "advisor");
-    assert.equal(res.status, 200);
-    const body = await json(res);
-    assert.equal(body.paymentConfirmedByAdvisor, true);
-    assert.equal(body.paymentAdvisorConfirmedByName, "Advisor Two");
-
-    const [row] = await db.select().from(projects).where(eq(projects.id, projectId));
-    assert.ok(row.paymentConfirmedAt, "dual-completion timestamp stamped");
-    assert.notEqual(row.paymentFounderConfirmedBy, row.paymentAdvisorConfirmedBy);
+  test("denied attempts leave both identity legs and the audit stream untouched", async () => {
+    const [row] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, projectId));
+    assert.equal(row.paymentConfirmedByFounder, false);
+    assert.equal(row.paymentConfirmedByAdvisor, false);
+    assert.equal(row.paymentFounderConfirmedBy, null);
+    assert.equal(row.paymentAdvisorConfirmedBy, null);
+    assert.equal(row.paymentConfirmedAt, null);
+    const events = await db
+      .select()
+      .from(auditEvents)
+      .where(eq(auditEvents.projectId, projectId));
+    assert.equal(
+      events.some((event) => event.eventType === "project.payment_confirmed"),
+      false,
+    );
   });
 });
 
-describe("conflict consent is scoped to the tender it was granted for", () => {
+describe("conflict decisions require a dedicated authorised workflow", () => {
   let blockedId: string;
+  let blockedVersion: number;
 
   test("a same-tender/lot project is created blocked with a conflict record", async () => {
-    currentUser = { id: founderId, role: "admin", name: "Founder One" } as LocalUser;
-    await createProject({ tenderTitle: "Original holder", tenderRef: "TX-100", lot: "L1" });
-    const blocked = await createProject({ tenderTitle: "Challenger", tenderRef: "TX-100", lot: "L1" });
+    currentUser = {
+      id: founderId,
+      role: "admin",
+      name: "Founder One",
+    } as LocalUser;
+    await createProject({
+      tenderTitle: "Original holder",
+      tenderRef: "TX-100",
+      lot: "L1",
+    });
+    const blocked = await createProject({
+      tenderTitle: "Challenger",
+      tenderRef: "TX-100",
+      lot: "L1",
+    });
     blockedId = blocked.id;
+    blockedVersion = blocked.version;
     assert.equal(blocked.conflictStatus, "blocked");
     assert.equal(await conflictRecordCount(blockedId), 1);
   });
 
-  test("consent decision stamps the open conflict record", async () => {
+  test("generic PATCH cannot stamp a consent decision", async () => {
     const res = await patchProject(blockedId, {
       conflictStatus: "consented",
       conflictDecision: "Client consented in writing",
     });
-    assert.equal(res.status, 200);
-    assert.equal((await json(res)).conflictStatus, "consented");
+    assert.equal(res.status, 409);
+    assert.match((await json(res)).error, /dedicated authorised workflows/i);
 
+    const [project] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, blockedId));
+    assert.equal(project.conflictStatus, "blocked");
     const [record] = await db
       .select()
       .from(conflictRecords)
       .where(eq(conflictRecords.projectId, blockedId));
-    assert.equal(record.status, "consented");
-    assert.equal(record.decidedBy, founderId);
-    assert.ok(record.decidedAt);
+    assert.equal(record.status, "blocked");
+    assert.equal(record.decidedBy, null);
+    assert.equal(record.decidedAt, null);
   });
 
-  test("an unrelated PATCH keeps the consent and adds no duplicate record", async () => {
-    const res = await patchProject(blockedId, { deadline: "2026-12-31" });
+  test("an unrelated versioned PATCH preserves the block and adds no duplicate", async () => {
+    const res = await patchProject(
+      blockedId,
+      { deadline: "2026-12-31" },
+      blockedVersion,
+    );
     assert.equal(res.status, 200);
-    assert.equal((await json(res)).conflictStatus, "consented");
+    const body = await json(res);
+    blockedVersion = body.version;
+    assert.equal(body.conflictStatus, "blocked");
     assert.equal(await conflictRecordCount(blockedId), 1);
   });
 
-  test("moving the project onto a DIFFERENT conflicting tender re-blocks it", async () => {
-    // A third project holds tender TZ-200 — the old consent cannot cover it.
-    await createProject({ tenderTitle: "Other tender holder", tenderRef: "TZ-200", lot: "L1" });
+  test("moving the project onto a different conflict creates a fresh blocked record", async () => {
+    // A third project holds tender TZ-200. Changing the tender identity must
+    // open a fresh record; the existing TX-100 block does not cover it.
+    await createProject({
+      tenderTitle: "Other tender holder",
+      tenderRef: "TZ-200",
+      lot: "L1",
+    });
 
-    const res = await patchProject(blockedId, { tenderRef: "TZ-200" });
+    const res = await patchProject(
+      blockedId,
+      { tenderRef: "TZ-200" },
+      blockedVersion,
+    );
     assert.equal(res.status, 200);
     const body = await json(res);
     assert.equal(body.conflictStatus, "blocked");

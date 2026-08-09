@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { build as esbuild } from "esbuild";
 
 globalThis.require = createRequire(import.meta.url);
@@ -23,5 +23,5 @@ globalThis.require = __cr(import.meta.url);`,
   },
 });
 
-const mod = await import(outfile);
+const mod = await import(pathToFileURL(outfile).href);
 void mod;

@@ -1,5 +1,6 @@
 import { ObjectStorageService } from "./objectStorage";
 import { extractPdfTextMultimodal } from "./llm";
+import { getMaxUploadBytes } from "./intakeLimits";
 
 const objectStorage = new ObjectStorageService();
 
@@ -7,7 +8,11 @@ const objectStorage = new ObjectStorageService();
 // scanned / image-only and fall back to multimodal OCR.
 const LOW_TEXT_THRESHOLD = 100;
 
-export type ExtractionMethod = "textual" | "text_layer" | "multimodal_ocr" | "none";
+export type ExtractionMethod =
+  | "textual"
+  | "text_layer"
+  | "multimodal_ocr"
+  | "none";
 
 export interface ExtractionResult {
   text: string | null;
@@ -39,16 +44,19 @@ function isTextual(contentType: string | null | undefined): boolean {
 }
 
 async function readObjectBuffer(objectPath: string): Promise<Buffer> {
-  const file = await objectStorage.getObjectEntityFile(objectPath);
-  const [buf] = await file.download();
-  return buf;
+  return objectStorage.downloadObjectEntityBuffer(
+    objectPath,
+    getMaxUploadBytes(),
+  );
 }
 
 /**
  * Download the stored object once so callers can both hash it (FR-INT-02
  * manifest) and extract text from the same bytes. Throws on storage failure.
  */
-export async function downloadDocumentBuffer(objectPath: string): Promise<Buffer> {
+export async function downloadDocumentBuffer(
+  objectPath: string,
+): Promise<Buffer> {
   return readObjectBuffer(objectPath);
 }
 
@@ -113,7 +121,9 @@ export async function extractDocumentTextFromBuffer(
               confidence: 0.6,
               notes:
                 `low embedded text layer (${layerChars} chars` +
-                (pdfParseError ? `; pdf-parse error: ${pdfParseError.slice(0, 200)}` : "") +
+                (pdfParseError
+                  ? `; pdf-parse error: ${pdfParseError.slice(0, 200)}`
+                  : "") +
                 `); multimodal OCR transcription used: ${ocr.length.toLocaleString()} chars — verify against source pages`,
             };
           }
@@ -129,7 +139,9 @@ export async function extractDocumentTextFromBuffer(
             confidence: null,
             notes:
               `no embedded text layer` +
-              (pdfParseError ? ` (pdf-parse error: ${pdfParseError.slice(0, 200)})` : "") +
+              (pdfParseError
+                ? ` (pdf-parse error: ${pdfParseError.slice(0, 200)})`
+                : "") +
               `; OCR fallback failed: ${ocrError?.slice(0, 200) ?? "unknown"}`,
           };
         }
@@ -148,7 +160,9 @@ export async function extractDocumentTextFromBuffer(
             status: "failed",
             method: "none",
             confidence: null,
-            notes: pdfParseError ? `pdf-parse error: ${pdfParseError.slice(0, 200)}` : "empty text layer",
+            notes: pdfParseError
+              ? `pdf-parse error: ${pdfParseError.slice(0, 200)}`
+              : "empty text layer",
           };
     }
 

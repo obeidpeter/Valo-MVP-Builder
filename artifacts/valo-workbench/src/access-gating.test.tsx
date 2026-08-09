@@ -16,10 +16,15 @@ vi.mock("@clerk/clerk-react", () => ({
   useAuth: () => ({ isSignedIn: true, getToken: async () => "test-token" }),
 }));
 
-vi.mock("@workspace/api-client-react", () => ({
-  useGetMe: () => meResult,
-  getGetMeQueryKey: () => ["/api/me"],
-}));
+vi.mock("@workspace/api-client-react", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@workspace/api-client-react")>();
+  return {
+    ...actual,
+    useGetMe: () => meResult,
+    getGetMeQueryKey: () => ["/api/me"],
+  };
+});
 
 function renderLayout() {
   return render(
@@ -36,23 +41,36 @@ describe("access gating in Layout", () => {
 
   it("shows the Pending Access screen for a role 'none' account and hides the app", () => {
     meResult = {
-      data: { id: "u1", email: "pending@example.com", name: "Pending User", role: "none", status: "active" },
+      data: {
+        id: "u1",
+        email: "pending@example.com",
+        name: "Pending User",
+        role: "none",
+        status: "active",
+      },
       isLoading: false,
     };
     renderLayout();
     expect(screen.getByText(/pending access/i)).toBeInTheDocument();
-    expect(screen.queryByText(/valo workbench/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/valo platform/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId("protected-child")).not.toBeInTheDocument();
   });
 
-  it("shows the Pending Access screen for a disabled account and hides the app", () => {
+  it("shows the blocked Account Disabled screen for a disabled account and hides the app", () => {
     meResult = {
-      data: { id: "u2", email: "disabled@example.com", name: "Disabled User", role: "reviewer", status: "disabled" },
+      data: {
+        id: "u2",
+        email: "disabled@example.com",
+        name: "Disabled User",
+        role: "reviewer",
+        status: "disabled",
+      },
       isLoading: false,
     };
     renderLayout();
-    expect(screen.getByText(/pending access/i)).toBeInTheDocument();
-    expect(screen.queryByText(/valo workbench/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/account disabled/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/status: blocked/i)).toBeInTheDocument();
+    expect(screen.queryByText(/valo platform/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId("protected-child")).not.toBeInTheDocument();
   });
 
@@ -70,22 +88,54 @@ describe("access gating in Layout", () => {
     expect(screen.queryByTestId("protected-child")).not.toBeInTheDocument();
   });
 
-  it("renders the nav and children for a valid approved user", () => {
+  it("fails closed when the server returns an unknown role", () => {
     meResult = {
-      data: { id: "u3", email: "approved@example.com", name: "Approved User", role: "reviewer", status: "active" },
+      data: {
+        id: "ux",
+        email: "unknown@example.com",
+        name: "Unknown Role",
+        role: "unexpected_role",
+        status: "active",
+      },
       isLoading: false,
     };
     renderLayout();
-    expect(screen.getByText(/valo workbench/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/role configuration unsupported/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("protected-child")).not.toBeInTheDocument();
+  });
+
+  it("renders the nav and children for a valid approved user", () => {
+    meResult = {
+      data: {
+        id: "u3",
+        email: "approved@example.com",
+        name: "Approved User",
+        role: "reviewer",
+        status: "active",
+      },
+      isLoading: false,
+    };
+    renderLayout();
+    expect(screen.getAllByText(/valo platform/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/dashboard/i)).toBeInTheDocument();
     expect(screen.getByTestId("protected-child")).toBeInTheDocument();
     expect(screen.queryByText(/pending access/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/authentication failed/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/authentication failed/i),
+    ).not.toBeInTheDocument();
   });
 
   it("shows the Settings nav item for an approved admin", () => {
     meResult = {
-      data: { id: "u4", email: "admin@example.com", name: "Admin User", role: "admin", status: "active" },
+      data: {
+        id: "u4",
+        email: "admin@example.com",
+        name: "Admin User",
+        role: "admin",
+        status: "active",
+      },
       isLoading: false,
     };
     renderLayout();
@@ -94,11 +144,75 @@ describe("access gating in Layout", () => {
 
   it("hides the Settings nav item from an approved reviewer", () => {
     meResult = {
-      data: { id: "u5", email: "reviewer@example.com", name: "Reviewer User", role: "reviewer", status: "active" },
+      data: {
+        id: "u5",
+        email: "reviewer@example.com",
+        name: "Reviewer User",
+        role: "reviewer",
+        status: "active",
+      },
       isLoading: false,
     };
     renderLayout();
     expect(screen.getByText(/dashboard/i)).toBeInTheDocument();
+    expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
+  });
+
+  it("shows only client-facing surfaces to a client owner", () => {
+    meResult = {
+      data: {
+        id: "u8",
+        email: "owner@example.com",
+        name: "Client Owner",
+        role: "client_organisation_owner",
+        status: "active",
+      },
+      isLoading: false,
+    };
+    renderLayout();
+    expect(screen.getByText(/client portal/i)).toBeInTheDocument();
+    expect(screen.getByText(/evidence & readiness/i)).toBeInTheDocument();
+    expect(screen.getByText(/billing & entitlements/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^clients$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/operations queues/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
+  });
+
+  it("shows the channel review surfaces to a partner reviewer", () => {
+    meResult = {
+      data: {
+        id: "u9",
+        email: "partner@example.com",
+        name: "Partner Reviewer",
+        role: "consultancy_partner_analyst_reviewer",
+        status: "active",
+      },
+      isLoading: false,
+    };
+    renderLayout();
+    expect(screen.getByText(/partner workspace/i)).toBeInTheDocument();
+    expect(screen.getByText(/evidence & readiness/i)).toBeInTheDocument();
+    expect(screen.getByText(/notifications/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/billing & entitlements/i),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/security & audit/i)).not.toBeInTheDocument();
+  });
+
+  it("gives the canonical quality-adviser role review access without settings", () => {
+    meResult = {
+      data: {
+        id: "u10",
+        email: "qa@example.com",
+        name: "Quality Adviser",
+        role: "valo_quality_adviser",
+        status: "active",
+      },
+      isLoading: false,
+    };
+    renderLayout();
+    expect(screen.getByText(/operations queues/i)).toBeInTheDocument();
+    expect(screen.getByText(/evidence & readiness/i)).toBeInTheDocument();
     expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
   });
 });
@@ -110,7 +224,13 @@ describe("RequireAdmin route guard for the settings page", () => {
 
   it("blocks an approved reviewer from the settings route with access denied", () => {
     meResult = {
-      data: { id: "u6", email: "reviewer@example.com", name: "Reviewer User", role: "reviewer", status: "active" },
+      data: {
+        id: "u6",
+        email: "reviewer@example.com",
+        name: "Reviewer User",
+        role: "reviewer",
+        status: "active",
+      },
       isLoading: false,
     };
     render(
@@ -119,12 +239,40 @@ describe("RequireAdmin route guard for the settings page", () => {
       </RequireAdmin>,
     );
     expect(screen.getByText(/access denied/i)).toBeInTheDocument();
-    expect(screen.queryByTestId("settings-admin-controls")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("settings-admin-controls"),
+    ).not.toBeInTheDocument();
   });
 
   it("renders the settings admin controls for an approved admin", () => {
     meResult = {
-      data: { id: "u7", email: "admin@example.com", name: "Admin User", role: "admin", status: "active" },
+      data: {
+        id: "u7",
+        email: "admin@example.com",
+        name: "Admin User",
+        role: "admin",
+        status: "active",
+      },
+      isLoading: false,
+    };
+    render(
+      <RequireAdmin>
+        <div data-testid="settings-admin-controls">Personnel Management</div>
+      </RequireAdmin>,
+    );
+    expect(screen.getByTestId("settings-admin-controls")).toBeInTheDocument();
+    expect(screen.queryByText(/access denied/i)).not.toBeInTheDocument();
+  });
+
+  it("renders supported settings controls for a canonical operations administrator", () => {
+    meResult = {
+      data: {
+        id: "u11",
+        email: "operations@example.com",
+        name: "Operations Admin",
+        role: "valo_operations_administrator",
+        status: "active",
+      },
       isLoading: false,
     };
     render(

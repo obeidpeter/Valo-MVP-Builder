@@ -6,6 +6,7 @@ import { ClerkProvider, SignedIn, SignedOut } from "@clerk/clerk-react";
 import SignedOutRoutes from "@/signed-out-routes";
 import ProtectedRoutes from "@/protected-routes";
 import Layout from "@/components/layout";
+import { OrganisationProvider } from "@/contexts/organisation-context";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,9 +21,11 @@ const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 function ProtectedApp() {
   return (
-    <Layout>
-      <ProtectedRoutes />
-    </Layout>
+    <OrganisationProvider>
+      <Layout>
+        <ProtectedRoutes />
+      </Layout>
+    </OrganisationProvider>
   );
 }
 
@@ -31,8 +34,12 @@ function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4 text-center">
         <div className="max-w-md space-y-4">
-          <h1 className="text-xl font-bold text-destructive">Missing Clerk Configuration</h1>
-          <p className="text-muted-foreground">VITE_CLERK_PUBLISHABLE_KEY is not set in your environment variables.</p>
+          <h1 className="text-xl font-bold text-destructive">
+            Missing Clerk Configuration
+          </h1>
+          <p className="text-muted-foreground">
+            VITE_CLERK_PUBLISHABLE_KEY is not set in your environment variables.
+          </p>
         </div>
       </div>
     );

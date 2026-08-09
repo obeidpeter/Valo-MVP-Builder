@@ -20,7 +20,17 @@ import sbdRouter from "./sbd";
 import operationsRouter from "./operations";
 import analyticsRouter from "./analytics";
 import configRouter from "./config";
+import organisationsRouter from "./organisations";
+import partnerRelationshipsRouter from "./partnerRelationships";
+import breakGlassRouter from "./breakGlass";
+import featureFlagsRouter from "./featureFlags";
 import { attachUser } from "../middlewares/auth";
+import {
+  attachTenantContext,
+  auditBreakGlassUse,
+  enforceTenantResourceBoundary,
+} from "../middlewares/tenancy";
+import { attachTenantDatabase } from "../middlewares/databaseTenancy";
 
 const router: IRouter = Router();
 
@@ -31,6 +41,20 @@ router.use(healthRouter);
 router.use(attachUser);
 
 router.use(meRouter);
+// Organisation discovery/bootstrap and emergency-access lifecycle must run
+// before selecting a tenant. Each tenant-sensitive endpoint in these routers
+// attaches and verifies its own explicit context.
+router.use(organisationsRouter);
+router.use(partnerRelationshipsRouter);
+router.use(breakGlassRouter);
+router.use(featureFlagsRouter);
+
+// Every legacy/domain route below operates inside exactly one resolved tenant.
+router.use(attachTenantContext);
+router.use(auditBreakGlassUse);
+router.use(attachTenantDatabase);
+router.use(enforceTenantResourceBoundary);
+
 router.use(usersRouter);
 router.use(clientsRouter);
 router.use(dashboardRouter);

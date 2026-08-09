@@ -1,0 +1,453 @@
+{
+  "packId": "NG-RULES-2026-08-08",
+  "jurisdiction": "NG",
+  "publishedAt": "2026-08-08T00:00:00Z",
+  "advisoryOnly": true,
+  "defaultTimezone": "Africa/Lagos",
+  "rules": [
+    {
+      "ruleId": "NG-PRIV-NDPA-2023",
+      "domain": "privacy",
+      "instrument": "Nigeria Data Protection Act 2023",
+      "sourceUrls": [
+        "https://ndpc.gov.ng/wp-content/uploads/2024/03/Nigeria_Data_Protection_Act_2023.pdf",
+        "https://ndpc.gov.ng/Home/FAQ"
+      ],
+      "jurisdiction": "NG",
+      "effectiveFrom": "2023-06-12",
+      "effectiveTo": null,
+      "entityScope": [
+        "controller",
+        "processor",
+        "foreign_processor_of_subject_in_nigeria"
+      ],
+      "categoryScope": ["personal_data"],
+      "controls": {
+        "affirmativeConsentEvidence": true,
+        "privacyNoticeVersion": true,
+        "dpiaBeforeHighRiskProcessing": true,
+        "unresolvedHighRiskPriorConsultation": true,
+        "processorControllerNotice": "without_undue_delay",
+        "controllerCommissionNoticeHours": 72,
+        "highRiskSubjectNotice": "immediate",
+        "crossBorderTransferRecord": true
+      },
+      "approvalOwner": "privacy_officer",
+      "evidenceRequirements": [
+        "processing_record",
+        "lawful_basis",
+        "notice_version",
+        "retention_schedule"
+      ],
+      "severity": "blocking",
+      "legalReviewStatus": "verified_primary_source",
+      "enabled": true,
+      "supersedes": [],
+      "supersededBy": null
+    },
+    {
+      "ruleId": "NG-PRIV-GAID-2025",
+      "domain": "privacy",
+      "instrument": "NDPA General Application and Implementation Directive 2025",
+      "sourceUrls": [
+        "https://ndpc.gov.ng/wp-content/uploads/2025/07/NDP-ACT-GAID-2025-MARCH-20TH.pdf",
+        "https://ndpc.gov.ng/wp-content/uploads/2026/02/NDPC-Journal-2026-1.pdf"
+      ],
+      "jurisdiction": "NG",
+      "effectiveFrom": "2025-09-19",
+      "effectiveTo": null,
+      "entityScope": ["dcmpi_configured_designation"],
+      "categoryScope": ["personal_data"],
+      "controls": {
+        "designationMustBeCounselConfirmed": true,
+        "classificationConfigurable": ["UHL", "EHL", "OHL"],
+        "registrationAndCarEvidence": true,
+        "dpcoEvidence": true
+      },
+      "approvalOwner": "privacy_officer",
+      "evidenceRequirements": [
+        "designation_basis",
+        "registration_record",
+        "car_record",
+        "dpco_confirmation"
+      ],
+      "severity": "blocking",
+      "legalReviewStatus": "requires_entity_specific_confirmation",
+      "enabled": true,
+      "supersedes": [],
+      "supersededBy": null
+    },
+    {
+      "ruleId": "NG-PRIV-XFER-2023",
+      "domain": "cross_border_transfer",
+      "instrument": "Nigeria Data Protection Act 2023 sections 41-43",
+      "sourceUrls": ["https://ndpc.gov.ng/Home/FAQ"],
+      "jurisdiction": "NG",
+      "effectiveFrom": "2023-06-12",
+      "effectiveTo": null,
+      "entityScope": ["data_exporter", "data_importer"],
+      "categoryScope": ["personal_data_transfer"],
+      "controls": {
+        "approvedTransferBasisRequired": true,
+        "universalNigeriaLocalisation": false,
+        "liveAdequacyInstrumentCheckBeforeProduction": true
+      },
+      "approvalOwner": "privacy_officer",
+      "evidenceRequirements": [
+        "exporter_importer_roles",
+        "countries",
+        "data_purpose",
+        "transfer_basis",
+        "approval",
+        "review_date"
+      ],
+      "severity": "blocking",
+      "legalReviewStatus": "live_process_confirmation_required",
+      "enabled": true,
+      "supersedes": [],
+      "supersededBy": null
+    },
+    {
+      "ruleId": "NG-PROC-PPA-2007-FED",
+      "domain": "procurement",
+      "instrument": "Public Procurement Act 2007",
+      "sourceUrls": [
+        "https://www.bpp.gov.ng/wp-content/uploads/2019/01/Public-Procurement-Act-2007pdf.pdf"
+      ],
+      "jurisdiction": "NG-FED",
+      "effectiveFrom": "2007-06-04",
+      "effectiveTo": null,
+      "entityScope": [
+        "federal_procuring_entity",
+        "outside_entity_federation_funded_35_percent_or_more"
+      ],
+      "categoryScope": [
+        "goods",
+        "works",
+        "consulting_services",
+        "non_consulting_services"
+      ],
+      "controls": {
+        "openCompetitiveBiddingDefault": true,
+        "awardBasis": "lowest_evaluated_responsive_bid",
+        "humanAwardApprovalRequired": true,
+        "electronicSubmissionSupplementalUnlessAuthorised": true,
+        "restrictedDirectEmergencyRequireStatutoryPredicates": true
+      },
+      "approvalOwner": "configured_procuring_authority",
+      "evidenceRequirements": [
+        "procurement_plan",
+        "appropriation",
+        "funding",
+        "evaluation_record",
+        "approval_record"
+      ],
+      "severity": "blocking",
+      "legalReviewStatus": "verified_primary_source",
+      "enabled": true,
+      "supersedes": [],
+      "supersededBy": null
+    },
+    {
+      "ruleId": "NG-PROC-THRESH-2025-05",
+      "domain": "procurement_threshold",
+      "instrument": "Revised Federal Public Procurement Thresholds May 2025",
+      "sourceUrls": [
+        "https://fmino.gov.ng/wp-content/uploads/2025/05/DGs-Press-Statement-signed.pdf",
+        "https://fmino.gov.ng/bpp-announces-the-newly-revised-public-procurement-thresholds-to-reflect-current-economic-realities-2/"
+      ],
+      "jurisdiction": "NG-FED",
+      "effectiveFrom": "2025-05-01",
+      "effectiveTo": null,
+      "entityScope": ["federal_procuring_entity"],
+      "categoryScope": [
+        "goods",
+        "works",
+        "consulting_services",
+        "non_consulting_services"
+      ],
+      "monetaryBands": {
+        "currency": "NGN",
+        "approval": [
+          {
+            "owner": "FEC_via_BPP",
+            "category": "goods_services",
+            "minimumNaira": "5000000000",
+            "maximumNairaExclusive": null
+          },
+          {
+            "owner": "FEC_via_BPP",
+            "category": "works",
+            "minimumNaira": "10000000000",
+            "maximumNairaExclusive": null
+          },
+          {
+            "owner": "BPP_no_objection_MTB",
+            "category": "goods_services",
+            "minimumNaira": "1000000000",
+            "maximumNairaExclusive": "5000000000"
+          },
+          {
+            "owner": "BPP_no_objection_MTB",
+            "category": "works",
+            "minimumNaira": "5000000000",
+            "maximumNairaExclusive": "10000000000"
+          }
+        ],
+        "methods": [
+          {
+            "method": "I_NCB",
+            "category": "goods_non_consulting",
+            "minimumNaira": "1000000000",
+            "maximumNairaExclusive": null
+          },
+          {
+            "method": "I_NCB",
+            "category": "works",
+            "minimumNaira": "5000000000",
+            "maximumNairaExclusive": null
+          },
+          {
+            "method": "NCB",
+            "category": "goods_non_consulting",
+            "minimumNaira": "30000000",
+            "maximumNairaExclusive": "1000000000"
+          },
+          {
+            "method": "NCB",
+            "category": "works",
+            "minimumNaira": "50000000",
+            "maximumNairaExclusive": "5000000000"
+          },
+          {
+            "method": "RFQ",
+            "category": "goods_non_consulting",
+            "minimumNaira": "0",
+            "maximumNairaExclusive": "30000000"
+          },
+          {
+            "method": "RFQ",
+            "category": "works",
+            "minimumNaira": "0",
+            "maximumNairaExclusive": "50000000"
+          }
+        ]
+      },
+      "approvalOwner": "configured_procuring_authority",
+      "evidenceRequirements": [
+        "jurisdiction",
+        "funding_source",
+        "entity_type",
+        "category",
+        "effective_date",
+        "amount"
+      ],
+      "severity": "advisory_requires_human_approval",
+      "legalReviewStatus": "verified_official_signed_table",
+      "enabled": true,
+      "supersedes": ["prior_federal_threshold_pack"],
+      "supersededBy": null
+    },
+    {
+      "ruleId": "NG-PROC-VARIATION-2026-05-15",
+      "domain": "procurement_variation",
+      "instrument": "BPP Contract Variation Guidelines 2026",
+      "sourceUrls": [
+        "https://fmino.gov.ng/contract-variations-bpp-releases-guidelines/"
+      ],
+      "jurisdiction": "NG-FED",
+      "effectiveFrom": "2026-05-15",
+      "effectiveTo": null,
+      "entityScope": ["ongoing_federal_project"],
+      "categoryScope": ["variation", "fluctuation", "scope_modification"],
+      "controls": {
+        "bppCertificateRequired": true,
+        "thresholdBasis": "augmentation_amount",
+        "noObjectionValidityMonths": 6,
+        "publicationDaysAfterTenderBoardApproval": 30,
+        "newScopeSeparateProcurement": true
+      },
+      "approvalOwner": "BPP_then_configured_approving_authority",
+      "evidenceRequirements": [
+        "original_revised_boq_beme",
+        "final_design",
+        "backup_sheets",
+        "progress_evidence",
+        "capacity_assessment",
+        "certificates",
+        "invoices"
+      ],
+      "severity": "blocking",
+      "legalReviewStatus": "verified_official_notice",
+      "enabled": true,
+      "supersedes": [],
+      "supersededBy": null
+    },
+    {
+      "ruleId": "NG-TAX-NTA-2025@2026-01-01",
+      "domain": "tax",
+      "instrument": "Nigeria Tax Act 2025 and Nigeria Tax Administration Act 2025",
+      "sourceUrls": [
+        "https://www.nipc.gov.ng/wp-content/uploads/2025/08/Nigeria-Tax-Act-2025-Gazette.pdf",
+        "https://www.nipc.gov.ng/wp-content/uploads/2025/08/Nigeria-Tax-Administration-Act-2025-Gazette.pdf",
+        "https://finance.gov.ng/federal-government-issues-transition-guidelines-for-tax-acts-2025/"
+      ],
+      "jurisdiction": "NG",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": null,
+      "entityScope": ["taxable_supplier", "government_contractor"],
+      "categoryScope": ["vat", "invoice", "input_credit"],
+      "monetaryBands": { "currency": "NGN", "standardVatBasisPoints": 750 },
+      "controls": {
+        "taxPointPolicy": "payment_due_received_or_invoice_whichever_first",
+        "vatSeparateFromNetBase": true,
+        "whtIsPaymentDeductionNotUnitPrice": true,
+        "governmentContractTaxClearanceYears": 3,
+        "generalReturnDayFollowingMonth": 21
+      },
+      "approvalOwner": "tax_reviewer",
+      "evidenceRequirements": [
+        "supplier_tax_id",
+        "invoice",
+        "tax_point_date",
+        "regime_version",
+        "tax_clearance_when_applicable"
+      ],
+      "severity": "advisory_requires_tax_review",
+      "legalReviewStatus": "verified_primary_source",
+      "enabled": true,
+      "supersedes": ["pre_2026_tax_regime_for_post_effective_periods"],
+      "supersededBy": null
+    },
+    {
+      "ruleId": "NG-TAX-WHT-2024-TRANSITION-REVIEW",
+      "domain": "tax",
+      "instrument": "Deduction at Source (Withholding) Regulations 2024; NTAA 2025 transition",
+      "sourceUrls": [
+        "https://fiscalreforms.ng/wp-content/uploads/2024/10/Deduction-of-Tax-at-Source-Withholding-Regulations-2024_Gazetted.pdf",
+        "https://www.nrs.gov.ng/uploads/NIGERIA_TAX_ADMINISTRATION_ACT_2025_8c945071a7.pdf"
+      ],
+      "jurisdiction": "NG",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": null,
+      "entityScope": ["payer", "payee"],
+      "categoryScope": ["withholding_tax"],
+      "controls": { "ratesRequireNrsOrTaxCounselConfirmation": true },
+      "approvalOwner": "tax_reviewer",
+      "evidenceRequirements": [
+        "supplier_residency",
+        "entity_type",
+        "transaction_category",
+        "legal_signoff"
+      ],
+      "severity": "disabled_pending_legal_signoff",
+      "legalReviewStatus": "transition_review_required",
+      "enabled": false,
+      "supersedes": [],
+      "supersededBy": null
+    },
+    {
+      "ruleId": "NG-ESIGN-CYBER-2015+2024",
+      "domain": "electronic_signature",
+      "instrument": "Cybercrimes (Prohibition, Prevention, etc.) Act 2015 as amended 2024 section 17",
+      "sourceUrls": [
+        "https://cert.gov.ng/ngcert/resources/CyberCrime__Prohibition_Prevention_etc__Act__2024.pdf"
+      ],
+      "jurisdiction": "NG",
+      "effectiveFrom": "2024-02-28",
+      "effectiveTo": null,
+      "entityScope": ["transaction_signer"],
+      "categoryScope": ["electronic_signature"],
+      "controls": {
+        "excludedInstrumentAndCtcChecks": true,
+        "signatureDoesNotOverrideProcurementForm": true
+      },
+      "approvalOwner": "legal_reviewer",
+      "evidenceRequirements": [
+        "signer_identity",
+        "authority",
+        "mfa",
+        "intent",
+        "document_hash",
+        "timestamp",
+        "event_log",
+        "verification_result"
+      ],
+      "severity": "blocking_when_signature_required",
+      "legalReviewStatus": "verified_primary_source",
+      "enabled": true,
+      "supersedes": ["NG-ESIGN-CYBER-2015"],
+      "supersededBy": null
+    },
+    {
+      "ruleId": "NG-EVID-EA-2023",
+      "domain": "electronic_evidence",
+      "instrument": "Evidence (Amendment) Act 2023",
+      "sourceUrls": [
+        "https://www.wipo.int/wipolex/en/legislation/details/22678"
+      ],
+      "jurisdiction": "NG",
+      "effectiveFrom": "2023-06-12",
+      "effectiveTo": null,
+      "entityScope": ["electronic_record_keeper"],
+      "categoryScope": ["electronic_record", "digital_signature"],
+      "controls": {
+        "laterAccessibility": true,
+        "reliableAuthentication": true,
+        "detectableAlteration": true,
+        "section84OperationRecords": true
+      },
+      "approvalOwner": "legal_reviewer",
+      "evidenceRequirements": [
+        "generation_record",
+        "operation_record",
+        "hash",
+        "authentication_log"
+      ],
+      "severity": "blocking_when_relied_upon",
+      "legalReviewStatus": "verified_primary_source",
+      "enabled": true,
+      "supersedes": [],
+      "supersededBy": null
+    },
+    {
+      "ruleId": "NG-STAMP-NTA-2025",
+      "domain": "stamp_duty",
+      "instrument": "Nigeria Tax Act 2025",
+      "sourceUrls": ["https://nass.gov.ng/documents/download/11249"],
+      "jurisdiction": "NG",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": null,
+      "entityScope": ["dutiable_instrument_party"],
+      "categoryScope": ["instrument_execution"],
+      "controls": {
+        "generalStampDeadlineDays": 30,
+        "electronicTagOrReceipt": true,
+        "dutiabilityConfigurable": true
+      },
+      "approvalOwner": "legal_or_tax_reviewer",
+      "evidenceRequirements": [
+        "instrument_class",
+        "execution_date",
+        "dutiability_decision",
+        "payment_reference",
+        "exception_basis"
+      ],
+      "severity": "blocking_when_dutiable",
+      "legalReviewStatus": "verified_primary_source",
+      "enabled": true,
+      "supersedes": [],
+      "supersededBy": null
+    }
+  ],
+  "excludedInstruments": [
+    {
+      "name": "National Digital Economy and E-Governance Bill 2025",
+      "reason": "Official sources still describe it as a bill; it must not be implemented as enacted law.",
+      "sourceUrls": [
+        "https://nass.gov.ng/documents/billdownload/11219.pdf",
+        "https://statehouse.gov.ng/regimes-of-volatile-unstable-economy-now-over-says-vp-shettima/"
+      ]
+    }
+  ]
+}

@@ -1,15 +1,32 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, desc } from "drizzle-orm";
-import { db, capabilityItems, clients, documents, projects } from "@workspace/db";
-import { CreateCapabilityItemBody, UpdateCapabilityItemBody } from "@workspace/api-zod";
-import { requireMember, getLocalUser } from "../middlewares/auth";
+import { eq, desc, sql } from "drizzle-orm";
+import {
+  db,
+  capabilityItems,
+  clients,
+  documents,
+  projects,
+} from "@workspace/db";
+import {
+  CreateCapabilityItemBody,
+  UpdateCapabilityItemBody,
+} from "@workspace/api-zod";
+import { getLocalUser } from "../middlewares/auth";
+import {
+  getAccessContext,
+  getOrganisationId,
+  requirePermissionOrLegacy,
+} from "../middlewares/tenancy";
 import { serializeCapabilityItem } from "../lib/serializers";
 import { writeAudit } from "../lib/audit";
 
 const router: IRouter = Router();
 
 async function clientExists(clientId: string): Promise<boolean> {
-  const [row] = await db.select({ id: clients.id }).from(clients).where(eq(clients.id, clientId));
+  const [row] = await db
+    .select({ id: clients.id })
+    .from(clients)
+    .where(eq(clients.id, clientId));
   return !!row;
 }
 
@@ -29,7 +46,7 @@ async function clientDocumentIds(clientId: string): Promise<Set<string>> {
 
 router.get(
   "/clients/:id/documents",
-  requireMember,
+  requirePermissionOrLegacy("document:read"),
   async (req: Request, res: Response) => {
     const clientId = String(req.params.id);
     if (!(await clientExists(clientId))) {
@@ -53,7 +70,7 @@ router.get(
 
 router.get(
   "/clients/:id/capability-items",
-  requireMember,
+  requirePermissionOrLegacy("evidence:read"),
   async (req: Request, res: Response) => {
     const clientId = String(req.params.id);
     if (!(await clientExists(clientId))) {
@@ -66,13 +83,15 @@ router.get(
       .leftJoin(documents, eq(capabilityItems.evidenceDocId, documents.id))
       .where(eq(capabilityItems.clientId, clientId))
       .orderBy(desc(capabilityItems.createdAt));
-    res.json(rows.map((r) => serializeCapabilityItem(r.item, r.evidenceDocName)));
+    res.json(
+      rows.map((r) => serializeCapabilityItem(r.item, r.evidenceDocName)),
+    );
   },
 );
 
 router.post(
   "/clients/:id/capability-items",
-  requireMember,
+  requirePermissionOrLegacy("evidence:write"),
   async (req: Request, res: Response) => {
     const parsed = CreateCapabilityItemBody.safeParse(req.body);
     if (!parsed.success) {
@@ -88,17 +107,24 @@ router.post(
     if (parsed.data.evidenceDocId) {
       const ownDocs = await clientDocumentIds(clientId);
       if (!ownDocs.has(parsed.data.evidenceDocId)) {
-        res.status(400).json({ error: "evidenceDocId does not belong to this client" });
+        res
+          .status(400)
+          .json({ error: "evidenceDocId does not belong to this client" });
         return;
       }
     }
     const user = getLocalUser(req);
     const [created] = await db
       .insert(capabilityItems)
-      .values({ ...parsed.data, clientId })
+      .values({
+        ...parsed.data,
+        organisationId: getOrganisationId(req),
+        clientId,
+      })
       .returning();
     await writeAudit({
       user,
+      organisationId: getOrganisationId(req),
       eventType: "capability.item_created",
       objectType: "capability_item",
       objectId: created.id,
@@ -108,89 +134,128 @@ router.post(
   },
 );
 
-router.patch("/capability-items/:id", requireMember, async (req: Request, res: Response) => {
-  const parsed = UpdateCapabilityItemBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  const [existing] = await db
-    .select()
-    .from(capabilityItems)
-    .where(eq(capabilityItems.id, String(req.params.id)));
-  if (!existing) {
-    res.status(404).json({ error: "Not found" });
-    return;
-  }
-  if (parsed.data.evidenceDocId) {
-    const ownDocs = await clientDocumentIds(existing.clientId);
-    if (!ownDocs.has(parsed.data.evidenceDocId)) {
-      res.status(400).json({ error: "evidenceDocId does not belong to this client" });
+router.patch(
+  "/capability-items/:id",
+  requirePermissionOrLegacy("evidence:write"),
+  async (req: Request, res: Response) => {
+    const parsed = UpdateCapabilityItemBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request" });
       return;
     }
-  }
-  // Approval doctrine: a claim cannot be approved without an evidence link —
-  // approving an unevidenced claim would legitimise fabrication (TRD I4).
-  const nextEvidence =
-    parsed.data.evidenceDocId !== undefined ? parsed.data.evidenceDocId : existing.evidenceDocId;
-  const nextStatus =
-    parsed.data.approvedStatus !== undefined ? parsed.data.approvedStatus : existing.approvedStatus;
-  if (nextStatus === "approved" && !nextEvidence) {
-    res.status(409).json({
-      error: "A capability claim cannot be approved without an evidence link. Attach evidence first.",
+    const [existing] = await db
+      .select()
+      .from(capabilityItems)
+      .where(eq(capabilityItems.id, String(req.params.id)));
+    if (!existing) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    if (parsed.data.evidenceDocId) {
+      const ownDocs = await clientDocumentIds(existing.clientId);
+      if (!ownDocs.has(parsed.data.evidenceDocId)) {
+        res
+          .status(400)
+          .json({ error: "evidenceDocId does not belong to this client" });
+        return;
+      }
+    }
+    // Approval doctrine: a claim cannot be approved without an evidence link —
+    // approving an unevidenced claim would legitimise fabrication (TRD I4).
+    const nextEvidence =
+      parsed.data.evidenceDocId !== undefined
+        ? parsed.data.evidenceDocId
+        : existing.evidenceDocId;
+    const nextStatus =
+      parsed.data.approvedStatus !== undefined
+        ? parsed.data.approvedStatus
+        : existing.approvedStatus;
+    if (nextStatus === "approved" && !nextEvidence) {
+      res.status(409).json({
+        error:
+          "A capability claim cannot be approved without an evidence link. Attach evidence first.",
+      });
+      return;
+    }
+    const context = getAccessContext(req);
+    if (
+      parsed.data.approvedStatus !== undefined &&
+      context &&
+      !context.permissions.has("evidence:approve")
+    ) {
+      res.status(403).json({ error: "Evidence approval permission required" });
+      return;
+    }
+
+    const user = getLocalUser(req);
+    const verificationPatch =
+      parsed.data.approvedStatus === "approved" &&
+      existing.approvedStatus !== "approved"
+        ? {
+            verifierId: user?.id ?? null,
+            verifierName: user?.name ?? user?.email ?? null,
+            verifiedAt: new Date(),
+          }
+        : parsed.data.approvedStatus &&
+            parsed.data.approvedStatus !== "approved"
+          ? { verifierId: null, verifierName: null, verifiedAt: null }
+          : {};
+    const [updated] = await db
+      .update(capabilityItems)
+      .set({
+        ...parsed.data,
+        ...verificationPatch,
+        version: sql`${capabilityItems.version} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(capabilityItems.id, existing.id))
+      .returning();
+    await writeAudit({
+      user,
+      organisationId: getOrganisationId(req),
+      eventType:
+        parsed.data.approvedStatus &&
+        parsed.data.approvedStatus !== existing.approvedStatus
+          ? `capability.item_${parsed.data.approvedStatus}`
+          : "capability.item_updated",
+      objectType: "capability_item",
+      objectId: updated.id,
+      details: updated.claimType,
     });
-    return;
-  }
+    const evidenceDocName = updated.evidenceDocId
+      ? ((
+          await db
+            .select({ f: documents.filename })
+            .from(documents)
+            .where(eq(documents.id, updated.evidenceDocId))
+        )[0]?.f ?? null)
+      : null;
+    res.json(serializeCapabilityItem(updated, evidenceDocName));
+  },
+);
 
-  const user = getLocalUser(req);
-  const verificationPatch =
-    parsed.data.approvedStatus === "approved" && existing.approvedStatus !== "approved"
-      ? {
-          verifierId: user?.id ?? null,
-          verifierName: user?.name ?? user?.email ?? null,
-          verifiedAt: new Date(),
-        }
-      : parsed.data.approvedStatus && parsed.data.approvedStatus !== "approved"
-        ? { verifierId: null, verifierName: null, verifiedAt: null }
-        : {};
-  const [updated] = await db
-    .update(capabilityItems)
-    .set({ ...parsed.data, ...verificationPatch })
-    .where(eq(capabilityItems.id, existing.id))
-    .returning();
-  await writeAudit({
-    user,
-    eventType:
-      parsed.data.approvedStatus && parsed.data.approvedStatus !== existing.approvedStatus
-        ? `capability.item_${parsed.data.approvedStatus}`
-        : "capability.item_updated",
-    objectType: "capability_item",
-    objectId: updated.id,
-    details: updated.claimType,
-  });
-  const evidenceDocName = updated.evidenceDocId
-    ? (await db.select({ f: documents.filename }).from(documents).where(eq(documents.id, updated.evidenceDocId)))[0]?.f ?? null
-    : null;
-  res.json(serializeCapabilityItem(updated, evidenceDocName));
-});
-
-router.delete("/capability-items/:id", requireMember, async (req: Request, res: Response) => {
-  const [deleted] = await db
-    .delete(capabilityItems)
-    .where(eq(capabilityItems.id, String(req.params.id)))
-    .returning();
-  if (!deleted) {
-    res.status(404).json({ error: "Not found" });
-    return;
-  }
-  await writeAudit({
-    user: getLocalUser(req),
-    eventType: "capability.item_deleted",
-    objectType: "capability_item",
-    objectId: deleted.id,
-    details: `${deleted.claimType} (client ${deleted.clientId})`,
-  });
-  res.status(204).end();
-});
+router.delete(
+  "/capability-items/:id",
+  requirePermissionOrLegacy("evidence:write"),
+  async (req: Request, res: Response) => {
+    const [deleted] = await db
+      .delete(capabilityItems)
+      .where(eq(capabilityItems.id, String(req.params.id)))
+      .returning();
+    if (!deleted) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    await writeAudit({
+      user: getLocalUser(req),
+      organisationId: getOrganisationId(req),
+      eventType: "capability.item_deleted",
+      objectType: "capability_item",
+      objectId: deleted.id,
+      details: `${deleted.claimType} (client ${deleted.clientId})`,
+    });
+    res.status(204).end();
+  },
+);
 
 export default router;

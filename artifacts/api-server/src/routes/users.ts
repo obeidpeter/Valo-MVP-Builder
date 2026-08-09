@@ -1,44 +1,59 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq } from "drizzle-orm";
-import { db, users } from "@workspace/db";
-import { UpdateUserBody } from "@workspace/api-zod";
-import { requireRoles, getLocalUser } from "../middlewares/auth";
+import { eq, inArray } from "drizzle-orm";
+import { db, organisationMemberships, roleGrants, users } from "@workspace/db";
+import {
+  getOrganisationId,
+  requirePermissionOrLegacy,
+} from "../middlewares/tenancy";
 import { serializeUser } from "../lib/serializers";
-import { writeAudit } from "../lib/audit";
 
 const router: IRouter = Router();
 
-router.get("/users", requireRoles("admin"), async (_req: Request, res: Response) => {
-  const rows = await db.select().from(users).orderBy(users.createdAt);
-  res.json(rows.map(serializeUser));
-});
+router.get(
+  "/users",
+  requirePermissionOrLegacy("membership:read"),
+  async (req: Request, res: Response) => {
+    const organisationId = getOrganisationId(req);
+    const rows = await db
+      .select({ user: users, membership: organisationMemberships })
+      .from(organisationMemberships)
+      .innerJoin(users, eq(organisationMemberships.userId, users.id))
+      .where(
+        organisationId
+          ? eq(organisationMemberships.organisationId, organisationId)
+          : undefined,
+      )
+      .orderBy(users.createdAt);
+    const membershipIds = rows.map(({ membership }) => membership.id);
+    const grants = membershipIds.length
+      ? await db
+          .select()
+          .from(roleGrants)
+          .where(inArray(roleGrants.membershipId, membershipIds))
+      : [];
+    res.json(
+      rows.map(({ user, membership }) => ({
+        ...serializeUser(user),
+        role:
+          grants.find(
+            (grant) => grant.membershipId === membership.id && !grant.revokedAt,
+          )?.role ?? "none",
+        membershipId: membership.id,
+        membershipStatus: membership.status,
+        membershipVersion: membership.version,
+      })),
+    );
+  },
+);
 
 router.patch(
   "/users/:id",
-  requireRoles("admin"),
-  async (req: Request, res: Response) => {
-    const parsed = UpdateUserBody.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: "Invalid request" });
-      return;
-    }
-    const [updated] = await db
-      .update(users)
-      .set({ ...parsed.data })
-      .where(eq(users.id, String(req.params.id)))
-      .returning();
-    if (!updated) {
-      res.status(404).json({ error: "Not found" });
-      return;
-    }
-    await writeAudit({
-      user: getLocalUser(req),
-      eventType: "user.updated",
-      objectType: "user",
-      objectId: updated.id,
-      details: JSON.stringify(parsed.data),
+  requirePermissionOrLegacy("membership:manage"),
+  async (_req: Request, res: Response) => {
+    res.status(410).json({
+      error:
+        "Global user-role updates are retired; update the organisation membership with If-Match instead",
     });
-    res.json(serializeUser(updated));
   },
 );
 

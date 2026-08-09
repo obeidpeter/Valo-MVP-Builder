@@ -1,17 +1,31 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, desc } from "drizzle-orm";
-import { db, defects, requirements, evidenceItems, projects } from "@workspace/db";
+import { and, eq, desc, sql } from "drizzle-orm";
+import {
+  db,
+  defects,
+  requirements,
+  evidenceItems,
+  projects,
+} from "@workspace/db";
 import { CreateDefectBody, UpdateDefectBody } from "@workspace/api-zod";
-import { requireMember, getLocalUser } from "../middlewares/auth";
+import { getLocalUser } from "../middlewares/auth";
+import {
+  getOrganisationId,
+  hasRequestPermission,
+  parseExpectedVersion,
+  requirePermissionOrLegacy,
+} from "../middlewares/tenancy";
 import { serializeDefect } from "../lib/serializers";
-import { writeAudit } from "../lib/audit";
+import { writeAuditTx } from "../lib/audit";
 import { suggestDefects } from "../lib/llm";
+import { isDirectDefectMutationAllowed } from "../lib/defectGovernance";
+import type { Severity } from "../lib/deterministic";
 
 const router: IRouter = Router();
 
 router.get(
   "/projects/:id/defects",
-  requireMember,
+  requirePermissionOrLegacy("defect:read"),
   async (req: Request, res: Response) => {
     const rows = await db
       .select({ def: defects, requirementText: requirements.text })
@@ -25,15 +39,25 @@ router.get(
 
 router.post(
   "/projects/:id/suggest-defects",
-  requireMember,
+  requirePermissionOrLegacy("defect:write"),
   async (req: Request, res: Response) => {
-    const [project] = await db.select().from(projects).where(eq(projects.id, String(req.params.id)));
+    const [project] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, String(req.params.id)));
     if (!project) {
       res.status(404).json({ error: "Not found" });
       return;
     }
-    const reqs = await db.select().from(requirements).where(eq(requirements.projectId, project.id));
-    const ev = await db.select().from(evidenceItems).where(eq(evidenceItems.projectId, project.id));
+    const organisationId = getOrganisationId(req);
+    const reqs = await db
+      .select()
+      .from(requirements)
+      .where(eq(requirements.projectId, project.id));
+    const ev = await db
+      .select()
+      .from(evidenceItems)
+      .where(eq(evidenceItems.projectId, project.id));
     if (reqs.length === 0) {
       res.status(400).json({ error: "No requirements available to analyse" });
       return;
@@ -41,39 +65,69 @@ router.post(
     try {
       const { defects: suggested, model } = await suggestDefects(
         project.id,
-        reqs.map((r) => ({ id: r.id, text: r.text, isMandatory: r.isMandatory })),
-        ev.map((e) => ({ requirementId: e.requirementId, evidenceStatus: e.evidenceStatus, notes: e.notes })),
+        reqs.map((r) => ({
+          id: r.id,
+          text: r.text,
+          isMandatory: r.isMandatory,
+        })),
+        ev.map((e) => ({
+          requirementId: e.requirementId,
+          evidenceStatus: e.evidenceStatus,
+          notes: e.notes,
+        })),
       );
       const validReqIds = new Set(reqs.map((r) => r.id));
-      const inserted = suggested.length
-        ? await db
-            .insert(defects)
-            .values(
-              suggested.map((d) => ({
-                projectId: project.id,
-                requirementId: d.requirementId && validReqIds.has(d.requirementId) ? d.requirementId : null,
-                type: d.type,
-                severity: d.severity,
-                description: d.description,
-                remediation: d.remediation ?? null,
-                status: "suggested",
-                suggested: true,
-              })),
-            )
-            .returning()
-        : [];
-      if (project.status === "review") {
-        await db.update(projects).set({ status: "defects" }).where(eq(projects.id, project.id));
-      }
-      await writeAudit({
-        user: getLocalUser(req),
-        projectId: project.id,
-        eventType: "defects.suggested",
-        objectType: "project",
-        objectId: project.id,
-        details: `${inserted.length} suggested`,
+      const inserted = await db.transaction(
+        async (tx) => {
+          const created = suggested.length
+            ? await tx
+                .insert(defects)
+                .values(
+                  suggested.map((d) => ({
+                    organisationId,
+                    projectId: project.id,
+                    requirementId:
+                      d.requirementId && validReqIds.has(d.requirementId)
+                        ? d.requirementId
+                        : null,
+                    type: d.type,
+                    severity: d.severity,
+                    description: d.description,
+                    remediation: d.remediation ?? null,
+                    status: "suggested",
+                    suggested: true,
+                  })),
+                )
+                .returning()
+            : [];
+          if (project.status === "review") {
+            await tx
+              .update(projects)
+              .set({
+                status: "defects",
+                version: sql`${projects.version} + 1`,
+                updatedAt: new Date(),
+              })
+              .where(eq(projects.id, project.id));
+          }
+          await writeAuditTx(tx, {
+            user: getLocalUser(req),
+            organisationId,
+            projectId: project.id,
+            eventType: "defects.suggested",
+            objectType: "project",
+            objectId: project.id,
+            details: `${created.length} suggested`,
+          });
+          return created;
+        },
+        { isolationLevel: "read committed" },
+      );
+      res.json({
+        created: inserted.length,
+        model,
+        defects: inserted.map((d) => serializeDefect(d)),
       });
-      res.json({ created: inserted.length, model, defects: inserted.map((d) => serializeDefect(d)) });
     } catch (error) {
       req.log.error({ err: error }, "defect suggestion failed");
       res.status(502).json({ error: "LLM defect suggestion failed" });
@@ -81,66 +135,144 @@ router.post(
   },
 );
 
-router.post("/defects", requireMember, async (req: Request, res: Response) => {
-  const parsed = CreateDefectBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  const [created] = await db
-    .insert(defects)
-    .values({ ...parsed.data, suggested: false, status: parsed.data.status ?? "open" })
-    .returning();
-  await writeAudit({
-    user: getLocalUser(req),
-    projectId: created.projectId,
-    eventType: "defect.created",
-    objectType: "defect",
-    objectId: created.id,
-  });
-  res.status(201).json(serializeDefect(created));
-});
+router.post(
+  "/defects",
+  requirePermissionOrLegacy("defect:review"),
+  async (req: Request, res: Response) => {
+    const parsed = CreateDefectBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request" });
+      return;
+    }
+    if (parsed.data.status !== undefined && parsed.data.status !== "open") {
+      res.status(409).json({
+        error:
+          "New defects must start open; dispositions require a governed defect decision.",
+      });
+      return;
+    }
+    const organisationId = getOrganisationId(req);
+    const created = await db.transaction(
+      async (tx) => {
+        const [defect] = await tx
+          .insert(defects)
+          .values({
+            ...parsed.data,
+            organisationId,
+            suggested: false,
+            status: parsed.data.status ?? "open",
+          })
+          .returning();
+        await writeAuditTx(tx, {
+          user: getLocalUser(req),
+          organisationId,
+          projectId: defect.projectId,
+          eventType: "defect.created",
+          objectType: "defect",
+          objectId: defect.id,
+        });
+        return defect;
+      },
+      { isolationLevel: "read committed" },
+    );
+    res.status(201).json(serializeDefect(created));
+  },
+);
 
-router.patch("/defects/:id", requireMember, async (req: Request, res: Response) => {
-  const parsed = UpdateDefectBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  const [updated] = await db
-    .update(defects)
-    .set({ ...parsed.data })
-    .where(eq(defects.id, String(req.params.id)))
-    .returning();
-  if (!updated) {
-    res.status(404).json({ error: "Not found" });
-    return;
-  }
-  await writeAudit({
-    user: getLocalUser(req),
-    projectId: updated.projectId,
-    eventType: "defect.updated",
-    objectType: "defect",
-    objectId: updated.id,
-    details: parsed.data.status ? `status=${parsed.data.status}` : undefined,
-  });
-  res.json(serializeDefect(updated));
-});
+router.patch(
+  "/defects/:id",
+  requirePermissionOrLegacy("defect:write"),
+  async (req: Request, res: Response) => {
+    const parsed = UpdateDefectBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request" });
+      return;
+    }
+    const [existing] = await db
+      .select()
+      .from(defects)
+      .where(eq(defects.id, String(req.params.id)));
+    if (!existing) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const expectedVersion = parseExpectedVersion(req.header("if-match"));
+    if (expectedVersion === null) {
+      res.status(428).json({ error: "A valid If-Match version is required" });
+      return;
+    }
+    if (
+      !isDirectDefectMutationAllowed({
+        currentStatus: existing.status,
+        proposedStatus: parsed.data.status,
+        currentSeverity: existing.severity as Severity,
+        proposedSeverity: parsed.data.severity as Severity | undefined,
+      })
+    ) {
+      res.status(409).json({
+        error:
+          "Disposition and severity downgrades require a governed defect decision with evidence and independent approval.",
+      });
+      return;
+    }
+    const isReviewDecision =
+      parsed.data.status !== undefined ||
+      (parsed.data.severity !== undefined &&
+        parsed.data.severity !== existing.severity);
+    if (isReviewDecision && !hasRequestPermission(req, "defect:review")) {
+      res.status(403).json({ error: "Defect review permission required" });
+      return;
+    }
+    const updated = await db.transaction(
+      async (tx) => {
+        const [defect] = await tx
+          .update(defects)
+          .set({
+            ...parsed.data,
+            version: sql`${defects.version} + 1`,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(defects.id, String(req.params.id)),
+              eq(defects.version, expectedVersion),
+            ),
+          )
+          .returning();
+        if (!defect) return undefined;
+        await writeAuditTx(tx, {
+          user: getLocalUser(req),
+          organisationId: getOrganisationId(req),
+          projectId: defect.projectId,
+          eventType: "defect.updated",
+          objectType: "defect",
+          objectId: defect.id,
+          details: parsed.data.status
+            ? `status=${parsed.data.status}`
+            : undefined,
+        });
+        return defect;
+      },
+      { isolationLevel: "read committed" },
+    );
+    if (!updated) {
+      res.status(409).json({ error: "Defect changed; reload before retrying" });
+      return;
+    }
+    res.json(serializeDefect(updated));
+  },
+);
 
-router.delete("/defects/:id", requireMember, async (req: Request, res: Response) => {
-  const [deleted] = await db.delete(defects).where(eq(defects.id, String(req.params.id))).returning();
-  if (!deleted) {
-    res.status(404).json({ error: "Not found" });
-    return;
-  }
-  await writeAudit({
-    user: getLocalUser(req),
-    projectId: deleted.projectId,
-    eventType: "defect.deleted",
-    objectType: "defect",
-    objectId: deleted.id,
-  });
-  res.status(204).end();
-});
+router.delete(
+  "/defects/:id",
+  requirePermissionOrLegacy("defect:review"),
+  async (req: Request, res: Response) => {
+    void req;
+    res.status(409).json({
+      error:
+        "Defects are immutable; supersede them through a governed defect decision.",
+    });
+  },
+);
 
 export default router;

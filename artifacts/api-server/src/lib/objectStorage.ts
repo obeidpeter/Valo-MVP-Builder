@@ -37,6 +37,46 @@ export class ObjectNotFoundError extends Error {
   }
 }
 
+export class ObjectTooLargeError extends Error {
+  constructor(
+    public readonly maxBytes: number,
+    public readonly observedBytes: number,
+  ) {
+    super(`Object exceeds the ${maxBytes}-byte intake limit`);
+    this.name = "ObjectTooLargeError";
+    Object.setPrototypeOf(this, ObjectTooLargeError.prototype);
+  }
+}
+
+/**
+ * Collect a storage stream without ever buffering more than the configured
+ * intake ceiling. The metadata check performed by the caller is only an early
+ * rejection; this byte counter is the authoritative guard against stale or
+ * misleading metadata and oversized replacement uploads.
+ */
+export async function collectStreamWithLimit(
+  stream: AsyncIterable<Buffer | Uint8Array | string>,
+  maxBytes: number,
+): Promise<Buffer> {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1) {
+    throw new Error("maxBytes must be a positive safe integer");
+  }
+
+  const chunks: Buffer[] = [];
+  let observedBytes = 0;
+  for await (const chunk of stream) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    observedBytes += buffer.length;
+    if (observedBytes > maxBytes) {
+      const destroyable = stream as { destroy?: (error?: Error) => void };
+      destroyable.destroy?.();
+      throw new ObjectTooLargeError(maxBytes, observedBytes);
+    }
+    chunks.push(buffer);
+  }
+  return Buffer.concat(chunks, observedBytes);
+}
+
 export class ObjectStorageService {
   constructor() {}
 
@@ -47,13 +87,13 @@ export class ObjectStorageService {
         pathsStr
           .split(",")
           .map((path) => path.trim())
-          .filter((path) => path.length > 0)
-      )
+          .filter((path) => path.length > 0),
+      ),
     );
     if (paths.length === 0) {
       throw new Error(
         "PUBLIC_OBJECT_SEARCH_PATHS not set. Create a bucket in 'Object Storage' " +
-          "tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths)."
+          "tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths).",
       );
     }
     return paths;
@@ -64,7 +104,7 @@ export class ObjectStorageService {
     if (!dir) {
       throw new Error(
         "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
-          "tool and set PRIVATE_OBJECT_DIR env var."
+          "tool and set PRIVATE_OBJECT_DIR env var.",
       );
     }
     return dir;
@@ -87,7 +127,10 @@ export class ObjectStorageService {
     return null;
   }
 
-  async downloadObject(file: File, cacheTtlSec: number = 3600): Promise<Response> {
+  async downloadObject(
+    file: File,
+    cacheTtlSec: number = 3600,
+  ): Promise<Response> {
     const [metadata] = await file.getMetadata();
     const aclPolicy = await getObjectAclPolicy(file);
     const isPublic = aclPolicy?.visibility === "public";
@@ -96,7 +139,8 @@ export class ObjectStorageService {
     const webStream = Readable.toWeb(nodeStream) as ReadableStream;
 
     const headers: Record<string, string> = {
-      "Content-Type": (metadata.contentType as string) || "application/octet-stream",
+      "Content-Type":
+        (metadata.contentType as string) || "application/octet-stream",
       "Cache-Control": `${isPublic ? "public" : "private"}, max-age=${cacheTtlSec}`,
     };
     if (metadata.size) {
@@ -106,17 +150,21 @@ export class ObjectStorageService {
     return new Response(webStream, { headers });
   }
 
-  async getObjectEntityUploadURL(): Promise<string> {
+  async getObjectEntityUploadURL(organisationId?: string): Promise<string> {
     const privateObjectDir = this.getPrivateObjectDir();
     if (!privateObjectDir) {
       throw new Error(
         "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
-          "tool and set PRIVATE_OBJECT_DIR env var."
+          "tool and set PRIVATE_OBJECT_DIR env var.",
       );
     }
 
+    if (organisationId && !/^[0-9a-f-]{36}$/i.test(organisationId)) {
+      throw new Error("Invalid organisation namespace");
+    }
     const objectId = randomUUID();
-    const fullPath = `${privateObjectDir}/uploads/${objectId}`;
+    const namespace = organisationId ? `tenants/${organisationId}` : "legacy";
+    const fullPath = `${privateObjectDir}/${namespace}/uploads/${objectId}`;
 
     const { bucketName, objectName } = parseObjectPath(fullPath);
 
@@ -154,6 +202,24 @@ export class ObjectStorageService {
     return objectFile;
   }
 
+  /**
+   * Read a private object with a hard in-process byte ceiling. Never replace
+   * this with File.download() on an untrusted intake path: that API buffers the
+   * complete object before the application can enforce a limit.
+   */
+  async downloadObjectEntityBuffer(
+    objectPath: string,
+    maxBytes: number,
+  ): Promise<Buffer> {
+    const file = await this.getObjectEntityFile(objectPath);
+    const [metadata] = await file.getMetadata();
+    const metadataSize = Number(metadata.size);
+    if (Number.isFinite(metadataSize) && metadataSize > maxBytes) {
+      throw new ObjectTooLargeError(maxBytes, metadataSize);
+    }
+    return collectStreamWithLimit(file.createReadStream(), maxBytes);
+  }
+
   async deleteObjectEntity(objectPath: string): Promise<boolean> {
     try {
       const file = await this.getObjectEntityFile(objectPath);
@@ -165,6 +231,27 @@ export class ObjectStorageService {
       }
       throw error;
     }
+  }
+
+  /**
+   * Move an untrusted tenant upload out of the ordinary upload namespace.
+   * Quarantined paths are denied by the private-object route and are retained
+   * only for an authorised scanner/admin recovery workflow.
+   */
+  async quarantineObjectEntity(objectPath: string): Promise<string> {
+    if (
+      !/^\/objects\/tenants\/[0-9a-f-]{36}\/uploads\/[^/]+$/i.test(objectPath)
+    ) {
+      throw new Error("Only tenant upload objects can be quarantined");
+    }
+    const file = await this.getObjectEntityFile(objectPath);
+    if (!file.name.includes("/uploads/")) {
+      throw new Error("Upload object is outside the quarantine move boundary");
+    }
+    const destinationName = file.name.replace("/uploads/", "/quarantine/");
+    await file.copy(file.bucket.file(destinationName));
+    await file.delete({ ignoreNotFound: true });
+    return objectPath.replace("/uploads/", "/quarantine/");
   }
 
   normalizeObjectEntityPath(rawPath: string): string {
@@ -190,7 +277,7 @@ export class ObjectStorageService {
 
   async trySetObjectEntityAclPolicy(
     rawPath: string,
-    aclPolicy: ObjectAclPolicy
+    aclPolicy: ObjectAclPolicy,
   ): Promise<string> {
     const normalizedPath = this.normalizeObjectEntityPath(rawPath);
     if (!normalizedPath.startsWith("/")) {
@@ -266,12 +353,12 @@ async function signObjectURL({
       },
       body: JSON.stringify(request),
       signal: AbortSignal.timeout(30_000),
-    }
+    },
   );
   if (!response.ok) {
     throw new Error(
       `Failed to sign object URL, errorcode: ${response.status}, ` +
-        `make sure you're running on Replit`
+        `make sure you're running on Replit`,
     );
   }
 

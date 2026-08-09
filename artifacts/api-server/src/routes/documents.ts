@@ -1,9 +1,13 @@
 import { createHash } from "node:crypto";
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, desc } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { db, documents, users, projects, clients } from "@workspace/db";
 import { CreateDocumentBody, UpdateDocumentBody } from "@workspace/api-zod";
-import { requireMember, requireRoles, getLocalUser } from "../middlewares/auth";
+import { getLocalUser } from "../middlewares/auth";
+import {
+  getOrganisationId,
+  requirePermissionOrLegacy,
+} from "../middlewares/tenancy";
 import { serializeDocument } from "../lib/serializers";
 import { writeAudit } from "../lib/audit";
 import {
@@ -13,6 +17,8 @@ import {
 } from "../lib/extractText";
 import { ObjectStorageService } from "../lib/objectStorage";
 import { vaultReferencedPaths } from "../lib/purge";
+import { inspectDocumentIntake } from "../lib/documentIntakeSecurity";
+import { productionFeatureIssues } from "../lib/productionReadiness";
 
 const sha256Hex = (buf: Buffer): string =>
   createHash("sha256").update(buf).digest("hex");
@@ -24,7 +30,10 @@ async function projectNdaStatus(
   projectId: string,
 ): Promise<{ ndaStatus: string | null; conflictStatus: string | null } | null> {
   const [row] = await db
-    .select({ ndaStatus: clients.ndaStatus, conflictStatus: projects.conflictStatus })
+    .select({
+      ndaStatus: clients.ndaStatus,
+      conflictStatus: projects.conflictStatus,
+    })
     .from(projects)
     .leftJoin(clients, eq(projects.clientId, clients.id))
     .where(eq(projects.id, projectId));
@@ -37,7 +46,7 @@ const router: IRouter = Router();
 
 router.get(
   "/projects/:id/documents",
-  requireMember,
+  requirePermissionOrLegacy("document:read"),
   async (req: Request, res: Response) => {
     const rows = await db
       .select({ doc: documents, uploadedByName: users.name })
@@ -51,7 +60,7 @@ router.get(
 
 router.post(
   "/projects/:id/documents",
-  requireMember,
+  requirePermissionOrLegacy("document:upload"),
   async (req: Request, res: Response) => {
     const parsed = CreateDocumentBody.safeParse(req.body);
     if (!parsed.success) {
@@ -61,6 +70,16 @@ router.post(
 
     const projectId = String(req.params.id);
     const user = getLocalUser(req);
+    const organisationId = getOrganisationId(req);
+    if (
+      organisationId &&
+      !parsed.data.objectPath.startsWith(`/objects/tenants/${organisationId}/`)
+    ) {
+      res
+        .status(400)
+        .json({ error: "Uploaded object is outside the active organisation" });
+      return;
+    }
 
     // NDA gate: documents cannot be uploaded until the client's NDA position
     // is recorded (signed or explicitly not required). Pending/declined blocks.
@@ -91,7 +110,10 @@ router.post(
       await denyNda(gate.ndaStatus);
       return;
     }
-    if (gate.conflictStatus === "blocked" || gate.conflictStatus === "declined") {
+    if (
+      gate.conflictStatus === "blocked" ||
+      gate.conflictStatus === "declined"
+    ) {
       await writeAudit({
         user,
         projectId,
@@ -101,7 +123,8 @@ router.post(
         details: `Conflict gate blocked upload of "${parsed.data.filename}" (status: ${gate.conflictStatus}).`,
       });
       res.status(409).json({
-        error: "Conflict check is not clear or consented. Resolve conflict status before intake.",
+        error:
+          "Conflict check is not clear or consented. Resolve conflict status before intake.",
         conflictStatus: gate.conflictStatus,
       });
       return;
@@ -134,7 +157,126 @@ router.post(
       });
       return;
     }
-    const sha256 = sha256Hex(buffer);
+    const measuredSha256 = sha256Hex(buffer);
+    const knownTenantHashes = organisationId
+      ? (
+          await db
+            .select({ sha256: documents.sha256 })
+            .from(documents)
+            .where(
+              and(
+                eq(documents.organisationId, organisationId),
+                eq(documents.sha256, measuredSha256),
+              ),
+            )
+        )
+          .map((row) => row.sha256)
+          .filter((value): value is string => Boolean(value))
+      : [];
+    const inspection = await inspectDocumentIntake({
+      tenantId: organisationId ?? "legacy",
+      filename: parsed.data.filename,
+      declaredMime: parsed.data.contentType ?? "application/octet-stream",
+      bytes: buffer,
+      idempotencyKey: req.get("Idempotency-Key") ?? parsed.data.objectPath,
+      knownTenantHashes,
+    });
+    const providerIssues =
+      process.env.NODE_ENV === "production"
+        ? productionFeatureIssues("document_intake")
+        : [];
+    if (!inspection.mayProcess || providerIssues.length > 0) {
+      let storedObjectDisposition = "retained outside the document corpus";
+      let quarantinedPath: string | null = null;
+      try {
+        if (
+          inspection.disposition === "rejected" ||
+          inspection.disposition === "duplicate"
+        ) {
+          const deleted = await objectStorage.deleteObjectEntity(
+            parsed.data.objectPath,
+          );
+          storedObjectDisposition = deleted ? "purged" : "already absent";
+        } else {
+          quarantinedPath = await objectStorage.quarantineObjectEntity(
+            parsed.data.objectPath,
+          );
+          storedObjectDisposition = "moved to inaccessible quarantine";
+        }
+      } catch (error) {
+        req.log.error(
+          { err: error, objectPath: parsed.data.objectPath },
+          "failed to move rejected intake into quarantine",
+        );
+        try {
+          const deleted = await objectStorage.deleteObjectEntity(
+            parsed.data.objectPath,
+          );
+          storedObjectDisposition = deleted
+            ? "purged after quarantine move failed"
+            : "not found after quarantine move failed";
+        } catch (deleteError) {
+          req.log.error(
+            { err: deleteError, objectPath: parsed.data.objectPath },
+            "failed to purge rejected intake after quarantine move failed",
+          );
+          storedObjectDisposition = "quarantine move and purge both failed";
+        }
+      }
+      const eventDisposition = providerIssues.length
+        ? "quarantined"
+        : inspection.disposition;
+      await writeAudit({
+        user,
+        projectId,
+        eventType: `document.intake_${eventDisposition}`,
+        objectType: "project",
+        objectId: projectId,
+        details: JSON.stringify({
+          filename: parsed.data.filename,
+          sha256: inspection.sha256,
+          detectedFormat: inspection.detectedFormat,
+          findings: inspection.findings.map((finding) => finding.code),
+          providerIssues: providerIssues.map((issue) => ({
+            kind: issue.kind,
+            code: issue.code,
+          })),
+          malware: {
+            state: inspection.malware.state,
+            provider: inspection.malware.provider,
+            engineVersion: inspection.malware.engineVersion,
+          },
+          archiveReason: inspection.archiveReason,
+          storedObjectDisposition,
+          quarantinedPath,
+        }),
+      });
+      const scannerUnavailable =
+        inspection.findings.some(
+          (finding) => finding.code === "malware_scan_incomplete",
+        ) || providerIssues.length > 0;
+      res
+        .status(
+          scannerUnavailable
+            ? 503
+            : inspection.disposition === "duplicate"
+              ? 409
+              : 422,
+        )
+        .json({
+          error: scannerUnavailable
+            ? "Secure document intake is temporarily unavailable. The file was not accepted or extracted."
+            : "The file failed secure intake and was not accepted or extracted.",
+          disposition: eventDisposition,
+          findings: inspection.findings.map((finding) => finding.code),
+          providerIssues: providerIssues.map((issue) => ({
+            kind: issue.kind,
+            code: issue.code,
+          })),
+        });
+      return;
+    }
+    const sha256 = inspection.sha256;
 
     // Re-check the NDA gate after the (slow) download so a mid-flight NDA
     // revocation cannot slip a document in behind the earlier check.
@@ -143,7 +285,10 @@ router.post(
       await denyNda(regate?.ndaStatus ?? null);
       return;
     }
-    if (regate.conflictStatus === "blocked" || regate.conflictStatus === "declined") {
+    if (
+      regate.conflictStatus === "blocked" ||
+      regate.conflictStatus === "declined"
+    ) {
       await writeAudit({
         user,
         projectId,
@@ -153,7 +298,8 @@ router.post(
         details: `Conflict gate blocked upload of "${parsed.data.filename}" after storage read (status: ${regate.conflictStatus}).`,
       });
       res.status(409).json({
-        error: "Conflict check is not clear or consented. Resolve conflict status before intake.",
+        error:
+          "Conflict check is not clear or consented. Resolve conflict status before intake.",
         conflictStatus: regate.conflictStatus,
       });
       return;
@@ -163,6 +309,7 @@ router.post(
       .insert(documents)
       .values({
         ...parsed.data,
+        organisationId,
         projectId,
         uploadedBy: user?.id ?? null,
         sha256,
@@ -188,7 +335,14 @@ router.post(
 
     // Kick off text extraction OFF the request path. The row is already
     // persisted with extractionStatus "pending"; the UI polls until it flips.
-    void runExtraction(created.id, buffer, created.contentType, created.projectId, created.filename, req);
+    void runExtraction(
+      created.id,
+      buffer,
+      created.contentType,
+      created.projectId,
+      created.filename,
+      req,
+    );
 
     res.status(201).json(serializeDocument(created, user?.name));
   },
@@ -213,10 +367,14 @@ async function runExtraction(
       .update(documents)
       .set({ extractionStatus: "extracting" })
       .where(eq(documents.id, documentId));
-    const extraction: ExtractionResult = await extractDocumentTextFromBuffer(buffer, contentType, {
-      projectId,
-      filename,
-    });
+    const extraction: ExtractionResult = await extractDocumentTextFromBuffer(
+      buffer,
+      contentType,
+      {
+        projectId,
+        filename,
+      },
+    );
     await db
       .update(documents)
       .set({
@@ -242,37 +400,108 @@ async function runExtraction(
   }
 }
 
-router.post("/documents/:id/extract", requireMember, async (req: Request, res: Response) => {
-  const [doc] = await db.select().from(documents).where(eq(documents.id, String(req.params.id)));
-  if (!doc) {
-    res.status(404).json({ error: "Not found" });
-    return;
-  }
-  let buffer: Buffer;
-  try {
-    buffer = await downloadDocumentBuffer(doc.objectPath);
-  } catch (error) {
-    req.log.error({ err: error, objectPath: doc.objectPath }, "re-extract: object unreadable");
-    await db.update(documents).set({ extractionStatus: "failed" }).where(eq(documents.id, doc.id));
-    res.status(404).json({ error: "Stored object could not be read" });
-    return;
-  }
-  await db.update(documents).set({ extractionStatus: "pending" }).where(eq(documents.id, doc.id));
-  await writeAudit({
-    user: getLocalUser(req),
-    projectId: doc.projectId,
-    eventType: "document.reextract",
-    objectType: "document",
-    objectId: doc.id,
-    details: doc.filename,
-  });
-  void runExtraction(doc.id, buffer, doc.contentType, doc.projectId, doc.filename, req);
-  res.status(202).json(serializeDocument({ ...doc, extractionStatus: "pending" }));
-});
+router.post(
+  "/documents/:id/extract",
+  requirePermissionOrLegacy("document:upload"),
+  async (req: Request, res: Response) => {
+    const [doc] = await db
+      .select()
+      .from(documents)
+      .where(eq(documents.id, String(req.params.id)));
+    if (!doc) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    let buffer: Buffer;
+    try {
+      buffer = await downloadDocumentBuffer(doc.objectPath);
+    } catch (error) {
+      req.log.error(
+        { err: error, objectPath: doc.objectPath },
+        "re-extract: object unreadable",
+      );
+      await db
+        .update(documents)
+        .set({ extractionStatus: "failed" })
+        .where(eq(documents.id, doc.id));
+      res.status(404).json({ error: "Stored object could not be read" });
+      return;
+    }
+    const inspection = await inspectDocumentIntake({
+      tenantId: doc.organisationId ?? "legacy",
+      filename: doc.filename,
+      declaredMime: doc.contentType ?? "application/octet-stream",
+      bytes: buffer,
+      idempotencyKey: `reextract:${doc.id}:${doc.sha256 ?? sha256Hex(buffer)}`,
+    });
+    const providerIssues =
+      process.env.NODE_ENV === "production"
+        ? productionFeatureIssues("document_intake")
+        : [];
+    if (!inspection.mayProcess || providerIssues.length > 0) {
+      await db
+        .update(documents)
+        .set({
+          extractionStatus: "failed",
+          extractionMethod: "none",
+          extractionNotes: `Secure re-inspection blocked extraction: ${[
+            ...inspection.findings.map((finding) => finding.code),
+            ...providerIssues.map(
+              (issue) => `provider_${issue.kind}_${issue.code}`,
+            ),
+          ].join(", ")}`.slice(0, 500),
+        })
+        .where(eq(documents.id, doc.id));
+      await writeAudit({
+        user: getLocalUser(req),
+        projectId: doc.projectId,
+        eventType: "document.reextract_quarantined",
+        objectType: "document",
+        objectId: doc.id,
+        details: JSON.stringify({
+          findings: inspection.findings.map((finding) => finding.code),
+          providerIssues: providerIssues.map((issue) => ({
+            kind: issue.kind,
+            code: issue.code,
+          })),
+          malwareState: inspection.malware.state,
+        }),
+      });
+      res.status(503).json({
+        error:
+          "Secure re-inspection did not clear this file, so extraction remains blocked.",
+      });
+      return;
+    }
+    await db
+      .update(documents)
+      .set({ extractionStatus: "pending" })
+      .where(eq(documents.id, doc.id));
+    await writeAudit({
+      user: getLocalUser(req),
+      projectId: doc.projectId,
+      eventType: "document.reextract",
+      objectType: "document",
+      objectId: doc.id,
+      details: doc.filename,
+    });
+    void runExtraction(
+      doc.id,
+      buffer,
+      doc.contentType,
+      doc.projectId,
+      doc.filename,
+      req,
+    );
+    res
+      .status(202)
+      .json(serializeDocument({ ...doc, extractionStatus: "pending" }));
+  },
+);
 
 router.post(
   "/documents/:id/verify",
-  requireMember,
+  requirePermissionOrLegacy("document:read"),
   async (req: Request, res: Response) => {
     const [doc] = await db
       .select()
@@ -296,7 +525,10 @@ router.post(
     try {
       actualSha256 = sha256Hex(await downloadDocumentBuffer(doc.objectPath));
     } catch (error) {
-      req.log.error({ err: error, objectPath: doc.objectPath }, "verify: object unreadable");
+      req.log.error(
+        { err: error, objectPath: doc.objectPath },
+        "verify: object unreadable",
+      );
     }
 
     // Three distinct outcomes, three distinct immutable audit records: a
@@ -328,55 +560,63 @@ router.post(
   },
 );
 
-router.get("/documents/:id", requireMember, async (req: Request, res: Response) => {
-  const [row] = await db
-    .select({ doc: documents, uploadedByName: users.name })
-    .from(documents)
-    .leftJoin(users, eq(documents.uploadedBy, users.id))
-    .where(eq(documents.id, String(req.params.id)));
-  if (!row) {
-    res.status(404).json({ error: "Not found" });
-    return;
-  }
-  await writeAudit({
-    user: getLocalUser(req),
-    projectId: row.doc.projectId,
-    eventType: "document.viewed",
-    objectType: "document",
-    objectId: row.doc.id,
-    details: row.doc.filename,
-  });
-  res.json(serializeDocument(row.doc, row.uploadedByName));
-});
+router.get(
+  "/documents/:id",
+  requirePermissionOrLegacy("document:read"),
+  async (req: Request, res: Response) => {
+    const [row] = await db
+      .select({ doc: documents, uploadedByName: users.name })
+      .from(documents)
+      .leftJoin(users, eq(documents.uploadedBy, users.id))
+      .where(eq(documents.id, String(req.params.id)));
+    if (!row) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    await writeAudit({
+      user: getLocalUser(req),
+      projectId: row.doc.projectId,
+      eventType: "document.viewed",
+      objectType: "document",
+      objectId: row.doc.id,
+      details: row.doc.filename,
+    });
+    res.json(serializeDocument(row.doc, row.uploadedByName));
+  },
+);
 
-router.patch("/documents/:id", requireMember, async (req: Request, res: Response) => {
-  const parsed = UpdateDocumentBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request" });
-    return;
-  }
-  const [updated] = await db
-    .update(documents)
-    .set({ ...parsed.data })
-    .where(eq(documents.id, String(req.params.id)))
-    .returning();
-  if (!updated) {
-    res.status(404).json({ error: "Not found" });
-    return;
-  }
-  await writeAudit({
-    user: getLocalUser(req),
-    projectId: updated.projectId,
-    eventType: "document.updated",
-    objectType: "document",
-    objectId: updated.id,
-  });
-  res.json(serializeDocument(updated));
-});
+router.patch(
+  "/documents/:id",
+  requirePermissionOrLegacy("document:upload"),
+  async (req: Request, res: Response) => {
+    const parsed = UpdateDocumentBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request" });
+      return;
+    }
+    const [updated] = await db
+      .update(documents)
+      .set({ ...parsed.data })
+      .where(eq(documents.id, String(req.params.id)))
+      .returning();
+    if (!updated) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    await writeAudit({
+      user: getLocalUser(req),
+      projectId: updated.projectId,
+      eventType: "document.updated",
+      objectType: "document",
+      objectId: updated.id,
+    });
+    res.json(serializeDocument(updated));
+  },
+);
 
 router.delete(
   "/documents/:id",
-  requireRoles("admin"),
+  requirePermissionOrLegacy("document:delete"),
   async (req: Request, res: Response) => {
     const [deleted] = await db
       .delete(documents)
@@ -388,13 +628,19 @@ router.delete(
     }
     // A blob a Certificate Vault item points at belongs to the client's
     // vault, not to this document row — keep the file, drop only the row.
-    const vaultOwned = (await vaultReferencedPaths([deleted.objectPath])).size > 0;
+    const vaultOwned =
+      (await vaultReferencedPaths([deleted.objectPath])).size > 0;
     let blobDeleted = false;
     if (!vaultOwned) {
       try {
-        blobDeleted = await objectStorage.deleteObjectEntity(deleted.objectPath);
+        blobDeleted = await objectStorage.deleteObjectEntity(
+          deleted.objectPath,
+        );
       } catch (error) {
-        req.log.error({ err: error, objectPath: deleted.objectPath }, "failed to delete document blob");
+        req.log.error(
+          { err: error, objectPath: deleted.objectPath },
+          "failed to delete document blob",
+        );
       }
     }
     await writeAudit({
@@ -404,7 +650,11 @@ router.delete(
       objectType: "document",
       objectId: deleted.id,
       details: `${deleted.filename} (file ${
-        vaultOwned ? "retained as client vault artefact" : blobDeleted ? "purged" : "not found"
+        vaultOwned
+          ? "retained as client vault artefact"
+          : blobDeleted
+            ? "purged"
+            : "not found"
       } in storage)`,
     });
     res.status(204).end();
