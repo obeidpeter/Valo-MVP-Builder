@@ -1,20 +1,10 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { resolve } from "node:path";
 
 function routeSource(name: string): string {
-  return readFileSync(
-    join(
-      process.cwd(),
-      "artifacts",
-      "api-server",
-      "src",
-      "routes",
-      `${name}.ts`,
-    ),
-    "utf8",
-  );
+  return readFileSync(resolve(import.meta.dirname, `${name}.ts`), "utf8");
 }
 
 describe("control-plane RLS integration", () => {

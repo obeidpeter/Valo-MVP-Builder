@@ -40,7 +40,7 @@ export interface RetentionScanRunResult {
  * rather than a duplicate request.
  */
 export async function runRetentionScan(
-  options: { now?: Date } = {},
+  options: { now?: Date; organisationId?: string } = {},
 ): Promise<RetentionScanRunResult> {
   const now = options.now ?? new Date();
   const { retentionDefaultDays } = await getActiveConfig();
@@ -52,7 +52,14 @@ export async function runRetentionScan(
   const activeOrganisations = await db
     .select({ id: organisations.id })
     .from(organisations)
-    .where(eq(organisations.status, "active"));
+    .where(
+      options.organisationId
+        ? and(
+            eq(organisations.status, "active"),
+            eq(organisations.id, options.organisationId),
+          )
+        : eq(organisations.status, "active"),
+    );
   const aggregate: RetentionScanRunResult = {
     scanned: 0,
     opened: [],
