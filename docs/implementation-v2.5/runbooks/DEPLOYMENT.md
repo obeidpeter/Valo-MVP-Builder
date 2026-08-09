@@ -42,6 +42,14 @@ reviewed, fail-closed bridge in
 `scripts/migrations/replit-legacy-v1-to-v2.5.sql`, invoked through the database
 package runner.
 
+Exactly two ordered column fingerprints are supported: the canonical legacy
+shape at that source commit and the observed Replit variant whose `documents`
+table places `sha256` last and predates nullable `extraction_method`,
+`extraction_confidence`, and `extraction_notes`. The bridge maps only that
+explicit variant, preserves every populated source column, and initializes the
+three historically absent fields to `NULL`. A missing, extra, or reordered
+column anywhere else is not inferred as a compatible intersection and aborts.
+
 The current live Replit production database is confirmed to be a populated copy
 of the same 19-table legacy lineage, not a fresh or separate database. The
 legacy bridge is mandatory for that production target. Do not run `0000`,
@@ -132,7 +140,8 @@ the custom archive inventory. It binds the dump header/list/hash by comparing
 the file identity and a complete SHA-256 before and after list validation, then takes
 `ACCESS EXCLUSIVE NOWAIT` locks on exactly the 19 legacy tables in both
 databases before reading any database evidence. It compares the PostgreSQL-16
-catalog digest, all 19 deterministic row counts/table digests, ordered audit
+catalog digest, the exact legacy-lineage ID and ordered-column fingerprint, all
+19 deterministic row counts/table digests, ordered audit
 bytes, audit classification/head, and sequence state. Both transactions are
 rolled back and connections closed before files are written; no database row or
 schema is changed.
@@ -174,7 +183,7 @@ into commands, source, tickets, screenshots, or logs:
 - `VALO_BRIDGE_REHEARSAL_MANIFEST_PATH`: a private path to the approved
   authoritative v3 rehearsal manifest binding target, backup/export, all 19
   counts and deterministic table digests, the normalized legacy catalog
-  fingerprint, and audit evidence.
+  fingerprint, the exact ordered-column lineage, and audit evidence.
 - `VALO_BRIDGE_EXPECTED_REHEARSAL_MANIFEST_SHA256`: the independently recorded
   SHA-256 of that manifest. Neither it nor any production evidence belongs in
   the repository. On Linux, all three evidence paths must be regular `0600`

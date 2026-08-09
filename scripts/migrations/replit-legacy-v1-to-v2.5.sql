@@ -3,7 +3,9 @@
 -- This is one self-contained PostgreSQL transaction. It is intentionally not
 -- part of the normal fresh-database migration chain: it upgrades only the
 -- exact 19-table, unjournalled schema at commit
--- b71adcec4a7060c0ce2192266c81d880c5e56277. The canonical 0000/0001/0002
+-- b71adcec4a7060c0ce2192266c81d880c5e56277, or the pinned Replit lineage
+-- whose documents table predates the three nullable extraction metadata
+-- columns. The canonical 0000/0001/0002
 -- definitions are embedded below and checked by scripts/run-legacy-bridge.mjs.
 --
 -- Replace every __VALO_BRIDGE_*__ token only through the runner (preferred) or
@@ -35,6 +37,7 @@ SELECT pg_advisory_xact_lock(564142502025::bigint);
 CREATE TEMPORARY TABLE _valo_bridge_inputs (
   acknowledgement text NOT NULL,
   expected_database text NOT NULL,
+  expected_legacy_lineage text NOT NULL,
   expected_counts_text text NOT NULL,
   expected_audit_head_seq_text text NOT NULL,
   expected_audit_head_hash text NOT NULL,
@@ -57,6 +60,7 @@ CREATE TEMPORARY TABLE _valo_bridge_inputs (
 INSERT INTO _valo_bridge_inputs VALUES (
   '__VALO_BRIDGE_ACK__',
   '__VALO_BRIDGE_EXPECTED_DATABASE__',
+  '__VALO_BRIDGE_EXPECTED_LEGACY_LINEAGE__',
   '__VALO_BRIDGE_EXPECTED_COUNTS_JSON__',
   '__VALO_BRIDGE_EXPECTED_AUDIT_HEAD_SEQ__',
   '__VALO_BRIDGE_EXPECTED_AUDIT_HEAD_HASH__',
@@ -194,6 +198,12 @@ BEGIN
   IF inputs.expected_database <> current_database() THEN
     RAISE EXCEPTION 'wrong database: expected %, connected to %',
       inputs.expected_database, current_database();
+  END IF;
+  IF inputs.expected_legacy_lineage NOT IN (
+    'replit-legacy-v1-canonical',
+    'replit-legacy-v1-documents-pre-extraction'
+  ) THEN
+    RAISE EXCEPTION 'legacy lineage is not one of the two pinned fingerprints';
   END IF;
   IF inputs.runtime_role <> 'valo_app_runtime' THEN
     RAISE EXCEPTION 'runtime role must be the fixed valo_app_runtime login';
@@ -345,6 +355,27 @@ BEGIN
 END;
 $preflight$;
 
+CREATE TEMPORARY TABLE _valo_effective_legacy_columns (
+  table_name text PRIMARY KEY,
+  column_names text[] NOT NULL
+) ON COMMIT DROP;
+
+INSERT INTO _valo_effective_legacy_columns
+SELECT expected.table_name,
+  CASE
+    WHEN expected.table_name = 'documents'
+      AND inputs.expected_legacy_lineage =
+        'replit-legacy-v1-documents-pre-extraction'
+    THEN ARRAY[
+      'id','project_id','type','filename','object_path','content_type','size',
+      'source','date_received','redaction_status','uploaded_by','content_text',
+      'extracted_chars','extraction_status','created_at','sha256'
+    ]
+    ELSE expected.column_names
+  END
+FROM _valo_expected_legacy_columns AS expected
+CROSS JOIN _valo_bridge_inputs AS inputs;
+
 DO $complete_state_validation$
 DECLARE
   inputs _valo_bridge_inputs%ROWTYPE;
@@ -457,14 +488,15 @@ BEGIN
   END IF;
   SELECT * INTO STRICT inputs FROM _valo_bridge_inputs;
 
-  FOR expected IN SELECT * FROM _valo_expected_legacy_columns ORDER BY table_name LOOP
+  FOR expected IN SELECT * FROM _valo_effective_legacy_columns ORDER BY table_name LOOP
     SELECT array_agg(column_name ORDER BY ordinal_position)
       INTO actual_columns
       FROM information_schema.columns
       WHERE table_schema = 'public' AND table_name = expected.table_name;
     IF actual_columns IS DISTINCT FROM expected.column_names THEN
-      RAISE EXCEPTION 'legacy column fingerprint mismatch for %: expected %, got %',
-        expected.table_name, expected.column_names, actual_columns;
+      RAISE EXCEPTION 'legacy column fingerprint mismatch for % in lineage %: expected %, got %',
+        expected.table_name, inputs.expected_legacy_lineage,
+        expected.column_names, actual_columns;
     END IF;
     EXECUTE format('SELECT count(*) FROM public.%I', expected.table_name)
       INTO actual_count;
@@ -5483,6 +5515,7 @@ DECLARE
     'sbd_templates','vault_items'
   ];
   column_list text;
+  copy_columns text[];
   mismatch_exists boolean;
   copied_count bigint;
   archived_count bigint;
@@ -5511,19 +5544,30 @@ BEGIN
   END IF;
 
   FOREACH table_to_copy IN ARRAY copy_order LOOP
-    SELECT string_agg(format('%I', target.column_name), ', ' ORDER BY target.ordinal_position)
+    SELECT expected.column_names
+      INTO STRICT copy_columns
+      FROM _valo_effective_legacy_columns AS expected
+      WHERE expected.table_name = table_to_copy;
+    IF EXISTS (
+      SELECT 1
+      FROM unnest(copy_columns) AS source_column(column_name)
+      WHERE NOT EXISTS (
+        SELECT 1 FROM information_schema.columns AS target
+        WHERE target.table_schema = 'public'
+          AND target.table_name = table_to_copy
+          AND target.column_name = source_column.column_name
+      )
+    ) THEN
+      RAISE EXCEPTION 'pinned source column has no canonical target for %',
+        table_to_copy;
+    END IF;
+    SELECT string_agg(format('%I', source_column.column_name), ', '
+                      ORDER BY source_column.ordinality)
       INTO column_list
-      FROM information_schema.columns AS target
-      WHERE target.table_schema = 'public'
-        AND target.table_name = table_to_copy
-        AND EXISTS (
-          SELECT 1 FROM information_schema.columns AS archived
-          WHERE archived.table_schema = 'valo_legacy_bridge_archive'
-            AND archived.table_name = table_to_copy
-            AND archived.column_name = target.column_name
-        );
+      FROM unnest(copy_columns) WITH ORDINALITY
+        AS source_column(column_name, ordinality);
     IF column_list IS NULL THEN
-      RAISE EXCEPTION 'no copyable columns found for %', table_to_copy;
+      RAISE EXCEPTION 'pinned copy columns are absent for %', table_to_copy;
     END IF;
     EXECUTE format(
       'INSERT INTO public.%1$I (%2$s) SELECT %2$s FROM valo_legacy_bridge_archive.%1$I',
@@ -5557,6 +5601,17 @@ BEGIN
       EXECUTE format('UPDATE public.%I SET version = 1', table_to_copy);
     END IF;
   END LOOP;
+
+  IF inputs.expected_legacy_lineage =
+       'replit-legacy-v1-documents-pre-extraction'
+     AND EXISTS (
+       SELECT 1 FROM public.documents
+       WHERE extraction_method IS NOT NULL
+          OR extraction_confidence IS NOT NULL
+          OR extraction_notes IS NOT NULL
+     ) THEN
+    RAISE EXCEPTION 'absent legacy extraction metadata was not mapped to NULL';
+  END IF;
 
   INSERT INTO public.organisations (
     id, name, slug, type, status, country_code, created_by,
