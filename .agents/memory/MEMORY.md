@@ -4,3 +4,4 @@
 - [Valo web Clerk auth transport](valo-clerk-web-auth-transport.md) — web must use Clerk session cookies; never call setAuthTokenGetter/getToken/Bearer on web (mobile-only). Caused permanent "Authentication Failed".
 - [Clerk dev-preview duplicate cookies](clerk-dev-preview-duplicate-cookies.md) — signed-in 401s in Replit preview from duplicate Clerk cookies (one stale); dedupe to freshest before clerkMiddleware.
 - [GitHub push workflow scope](github-push-workflow-scope.md) — Replit pane's "remote has commits you're missing" often really means the token lacks `workflow` scope for a `.github/workflows/` change; push via CLI with a PAT-in-Secrets.
+- [Valo workbench manual build env vars](valo-workbench-build-env.md) — manual vite build needs PORT=21921 BASE_PATH=/; Replit injects both from artifact.toml [services.env] but shells do not.
