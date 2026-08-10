@@ -11,6 +11,7 @@ import { Menu, X } from "lucide-react";
 import { BidAutopsyCta } from "@/components/public/public-primary-cta";
 import { Button } from "@/components/ui/button";
 import { ValoMark } from "@/components/valo-mark";
+import { cn } from "@/lib/utils";
 
 const NAVIGATION = [
   { href: "/#how-it-works", label: "How It Works" },
@@ -50,6 +51,7 @@ function PublicNavigation({
 export function PublicShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [location] = useLocation();
+  const isLandingPage = location.split(/[?#]/)[0] === "/";
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const firstMobileLinkRef = useRef<HTMLAnchorElement>(null);
 
@@ -74,7 +76,12 @@ export function PublicShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div
+      className={cn(
+        "public-site-shell min-h-screen bg-background text-foreground",
+        isLandingPage && "dark public-landing-shell",
+      )}
+    >
       <a
         href="#public-main"
         className="sr-only z-50 rounded-md bg-card px-4 py-2 text-sm font-medium shadow-sm focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
@@ -82,7 +89,12 @@ export function PublicShell({ children }: { children: ReactNode }) {
         Skip to main content
       </a>
       <header
-        className="sticky top-0 z-40 border-b border-border/80 bg-background/85 shadow-xs backdrop-blur-xl"
+        className={cn(
+          "sticky top-0 z-40 border-b backdrop-blur-xl",
+          isLandingPage
+            ? "border-sidebar-border/70 bg-background/80 shadow-none"
+            : "border-border/80 bg-background/85 shadow-xs",
+        )}
         onKeyDown={handleMenuKeyDown}
       >
         <div className="content-shell flex min-h-16 items-center justify-between gap-4">

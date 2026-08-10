@@ -1,5 +1,4 @@
 import {
-  ArrowDown,
   BadgeCheck,
   Calculator,
   FileSearch,
@@ -33,8 +32,8 @@ const reviewTrail = [
 
 export function BidAutopsySample() {
   return (
-    <figure className="overflow-hidden rounded-2xl border border-sidebar-border bg-sidebar-accent/70 text-sidebar-foreground shadow-[0_28px_80px_-42px_hsl(var(--sidebar-primary)/0.75)]">
-      <div className="flex flex-col gap-3 border-b border-sidebar-border bg-sidebar-accent px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <figure className="overflow-hidden rounded-[2rem] border border-sidebar-border bg-sidebar-accent/65 text-sidebar-foreground shadow-[0_34px_110px_-58px_hsl(var(--sidebar-primary)/0.85)]">
+      <div className="flex flex-col gap-3 border-b border-sidebar-border bg-sidebar/55 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-sidebar-primary">
             Representative report extract
@@ -52,50 +51,48 @@ export function BidAutopsySample() {
         </span>
       </div>
 
-      <div className="grid bg-sidebar/45 lg:grid-cols-[1fr_16rem]">
-        <div className="p-5 sm:p-6">
-          <div className="space-y-2">
+      <div className="grid bg-sidebar/35 lg:grid-cols-[1fr_18rem]">
+        <div className="p-5 sm:p-7">
+          <div className="border-y border-sidebar-border">
             {reviewTrail.map((item, index) => (
-              <div key={item.label}>
-                <div className="grid gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent p-4 shadow-sm sm:grid-cols-[9rem_1fr]">
-                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.1em] text-sidebar-primary">
-                    {index === 0 ? (
-                      <FileSearch aria-hidden="true" className="size-4" />
-                    ) : index === 1 ? (
-                      <Link2 aria-hidden="true" className="size-4" />
-                    ) : index === 2 ? (
-                      <BadgeCheck aria-hidden="true" className="size-4" />
-                    ) : (
-                      <UserRoundCheck aria-hidden="true" className="size-4" />
-                    )}
-                    {item.label}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium leading-6 text-sidebar-foreground">
-                      {item.value}
-                    </p>
-                    <p className="mt-1 text-xs text-sidebar-foreground/60">
-                      {item.note}
-                    </p>
-                  </div>
+              <div
+                key={item.label}
+                className="grid gap-4 border-b border-sidebar-border py-5 last:border-b-0 sm:grid-cols-[2.5rem_9rem_1fr] sm:items-start"
+              >
+                <span className="font-mono text-xs text-sidebar-foreground/55">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.1em] text-sidebar-primary">
+                  {index === 0 ? (
+                    <FileSearch aria-hidden="true" className="size-4" />
+                  ) : index === 1 ? (
+                    <Link2 aria-hidden="true" className="size-4" />
+                  ) : index === 2 ? (
+                    <BadgeCheck aria-hidden="true" className="size-4" />
+                  ) : (
+                    <UserRoundCheck aria-hidden="true" className="size-4" />
+                  )}
+                  {item.label}
                 </div>
-                {index < reviewTrail.length - 1 ? (
-                  <ArrowDown
-                    aria-hidden="true"
-                    className="mx-auto my-1 size-4 text-sidebar-primary/45"
-                  />
-                ) : null}
+                <div>
+                  <p className="text-sm font-medium leading-6 text-sidebar-foreground">
+                    {item.value}
+                  </p>
+                  <p className="mt-1 text-xs text-sidebar-foreground/60">
+                    {item.note}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="border-t border-sidebar-border bg-sidebar-accent/60 p-5 lg:border-l lg:border-t-0">
+        <div className="border-t border-sidebar-border bg-sidebar-accent/55 p-6 lg:border-l lg:border-t-0 lg:p-7">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/60">
             Review snapshot
           </p>
-          <dl className="mt-5 space-y-5">
-            <div>
+          <dl className="mt-8 space-y-6">
+            <div className="border-t border-sidebar-border pt-4">
               <dt className="text-xs text-sidebar-foreground/60">
                 Classification
               </dt>
@@ -103,17 +100,17 @@ export function BidAutopsySample() {
                 Compliance gap
               </dd>
             </div>
-            <div>
+            <div className="border-t border-sidebar-border pt-4">
               <dt className="text-xs text-sidebar-foreground/60">Status</dt>
               <dd className="mt-1 font-semibold">Open</dd>
             </div>
-            <div>
+            <div className="border-t border-sidebar-border pt-4">
               <dt className="text-xs text-sidebar-foreground/60">
                 Evidence state
               </dt>
               <dd className="mt-1 font-semibold">Partial</dd>
             </div>
-            <div>
+            <div className="border-t border-sidebar-border pt-4">
               <dt className="flex items-center gap-2 text-xs text-sidebar-foreground/60">
                 <Calculator aria-hidden="true" className="size-4" />
                 BOQ check
