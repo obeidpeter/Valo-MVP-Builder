@@ -166,11 +166,20 @@ describe("v2.5 platform access", () => {
       "defect:read",
       "report:read",
       "draft:read",
+      "evaluation:read",
     ];
     expect(
       navigationForRole("client_reviewer", enabledFlags, basePermissions).map(
         (item) => item.href,
       ),
+    ).not.toContain("/intelligence");
+    expect(
+      navigationForRole("client_reviewer", enabledFlags, [
+        ...basePermissions.filter(
+          (permission) => permission !== "evaluation:read",
+        ),
+        "package:read",
+      ]).map((item) => item.href),
     ).not.toContain("/intelligence");
     expect(
       navigationForRole("client_reviewer", enabledFlags, [

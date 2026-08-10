@@ -83,6 +83,7 @@ export const INTELLIGENCE_READ_PERMISSIONS = [
   "report:read",
   "draft:read",
   "package:read",
+  "evaluation:read",
 ] as const;
 
 const CLIENT_ROLES = new Set<PlatformRole>([

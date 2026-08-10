@@ -80,6 +80,11 @@ import type {
   GetMonthlyCostReportParams,
   HealthStatus,
   IntelligenceCentreSnapshot,
+  IntelligenceEvidenceSearchRequest,
+  IntelligenceEvidenceSearchResponse,
+  IntelligenceReviewClaimRequest,
+  IntelligenceReviewDecisionRequest,
+  IntelligenceReviewMutationResponse,
   InternalServerErrorResponse,
   LegacyAuditIntegrityAssessment,
   ListProjectsParams,
@@ -6421,7 +6426,7 @@ export const getGetProjectIntelligenceUrl = (id: string,) => {
 }
 
 /**
- * Returns content-minimised, tenant-scoped projections for twenty-two intelligence capabilities. This operation never invokes a model, authorises submission, changes pricing or performs an external action. Because the response combines multiple governed source classes, the caller must hold client, project, document, requirement, evidence, defect, report, draft and package read authority in the active tenant.
+ * Returns content-minimised, tenant-scoped projections for twenty-two intelligence capabilities together with a deterministic verified-span evidence summary and a source-version-bound human review inbox. This operation never invokes a model, approves evidence, authorises submission, changes pricing or performs an external action. Because the response combines multiple governed source classes, the caller must hold client, project, document, requirement, evidence, defect, report, draft, package and evaluation read authority in the active tenant.
  * @summary Get the deterministic Intelligence Centre snapshot for a pursuit
  */
 export const getProjectIntelligence = async (id: string, options?: RequestInit): Promise<IntelligenceCentreSnapshot> => {
@@ -6446,7 +6451,7 @@ export const getGetProjectIntelligenceQueryKey = (id: string,) => {
     }
 
 
-export const getGetProjectIntelligenceQueryOptions = <TData = Awaited<ReturnType<typeof getProjectIntelligence>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectIntelligence>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetProjectIntelligenceQueryOptions = <TData = Awaited<ReturnType<typeof getProjectIntelligence>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectIntelligence>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -6465,14 +6470,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetProjectIntelligenceQueryResult = NonNullable<Awaited<ReturnType<typeof getProjectIntelligence>>>
-export type GetProjectIntelligenceQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse>
+export type GetProjectIntelligenceQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse>
 
 
 /**
  * @summary Get the deterministic Intelligence Centre snapshot for a pursuit
  */
 
-export function useGetProjectIntelligence<TData = Awaited<ReturnType<typeof getProjectIntelligence>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse>>(
+export function useGetProjectIntelligence<TData = Awaited<ReturnType<typeof getProjectIntelligence>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse>>(
  id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectIntelligence>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -6489,6 +6494,222 @@ export function useGetProjectIntelligence<TData = Awaited<ReturnType<typeof getP
 
 
 
+
+export const getSearchProjectIntelligenceEvidenceUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/intelligence/evidence-search`
+}
+
+/**
+ * Performs bounded lexical retrieval over only the tenant-scoped, named-verifier evidence spans admitted to the supplied manifest. It invokes no model and returns a blocked disposition when the manifest, actor scope or evidence visibility changed.
+ * @summary Search the current verified evidence manifest deterministically
+ */
+export const searchProjectIntelligenceEvidence = async (id: string,
+    intelligenceEvidenceSearchRequest: IntelligenceEvidenceSearchRequest, options?: RequestInit): Promise<IntelligenceEvidenceSearchResponse> => {
+
+  return customFetch<IntelligenceEvidenceSearchResponse>(getSearchProjectIntelligenceEvidenceUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(intelligenceEvidenceSearchRequest)
+  }
+);}
+
+
+
+
+export const getSearchProjectIntelligenceEvidenceMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof searchProjectIntelligenceEvidence>>, TError,{id: string;data: BodyType<IntelligenceEvidenceSearchRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof searchProjectIntelligenceEvidence>>, TError,{id: string;data: BodyType<IntelligenceEvidenceSearchRequest>}, TContext> => {
+
+const mutationKey = ['searchProjectIntelligenceEvidence'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof searchProjectIntelligenceEvidence>>, {id: string;data: BodyType<IntelligenceEvidenceSearchRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  searchProjectIntelligenceEvidence(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SearchProjectIntelligenceEvidenceMutationResult = NonNullable<Awaited<ReturnType<typeof searchProjectIntelligenceEvidence>>>
+    export type SearchProjectIntelligenceEvidenceMutationBody = BodyType<IntelligenceEvidenceSearchRequest>
+    export type SearchProjectIntelligenceEvidenceMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse>
+
+    /**
+ * @summary Search the current verified evidence manifest deterministically
+ */
+export const useSearchProjectIntelligenceEvidence = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof searchProjectIntelligenceEvidence>>, TError,{id: string;data: BodyType<IntelligenceEvidenceSearchRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof searchProjectIntelligenceEvidence>>,
+        TError,
+        {id: string;data: BodyType<IntelligenceEvidenceSearchRequest>},
+        TContext
+      > => {
+      return useMutation(getSearchProjectIntelligenceEvidenceMutationOptions(options));
+    }
+
+export const getClaimIntelligenceReviewUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/intelligence/reviews/claim`
+}
+
+/**
+ * Assigns the named caller to a deterministic Intelligence item using optimistic source and review versions. Claiming records human review responsibility only; it does not approve evidence, release a package or authorise model execution.
+ * @summary Claim a source-version-bound Intelligence review item
+ */
+export const claimIntelligenceReview = async (id: string,
+    intelligenceReviewClaimRequest: IntelligenceReviewClaimRequest, options?: RequestInit): Promise<IntelligenceReviewMutationResponse> => {
+
+  return customFetch<IntelligenceReviewMutationResponse>(getClaimIntelligenceReviewUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(intelligenceReviewClaimRequest)
+  }
+);}
+
+
+
+
+export const getClaimIntelligenceReviewMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimIntelligenceReview>>, TError,{id: string;data: BodyType<IntelligenceReviewClaimRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof claimIntelligenceReview>>, TError,{id: string;data: BodyType<IntelligenceReviewClaimRequest>}, TContext> => {
+
+const mutationKey = ['claimIntelligenceReview'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof claimIntelligenceReview>>, {id: string;data: BodyType<IntelligenceReviewClaimRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  claimIntelligenceReview(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClaimIntelligenceReviewMutationResult = NonNullable<Awaited<ReturnType<typeof claimIntelligenceReview>>>
+    export type ClaimIntelligenceReviewMutationBody = BodyType<IntelligenceReviewClaimRequest>
+    export type ClaimIntelligenceReviewMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse>
+
+    /**
+ * @summary Claim a source-version-bound Intelligence review item
+ */
+export const useClaimIntelligenceReview = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof claimIntelligenceReview>>, TError,{id: string;data: BodyType<IntelligenceReviewClaimRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof claimIntelligenceReview>>,
+        TError,
+        {id: string;data: BodyType<IntelligenceReviewClaimRequest>},
+        TContext
+      > => {
+      return useMutation(getClaimIntelligenceReviewMutationOptions(options));
+    }
+
+export const getDecideIntelligenceReviewUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/intelligence/reviews/decision`
+}
+
+/**
+ * Records changes requested, review acceptance or rejection against the exact current source manifest and review version. The wire value `approved` denotes review acceptance only and grants no release, evidence-approval or model-execution authority.
+ * @summary Record a named review decision for an Intelligence item
+ */
+export const decideIntelligenceReview = async (id: string,
+    intelligenceReviewDecisionRequest: IntelligenceReviewDecisionRequest, options?: RequestInit): Promise<IntelligenceReviewMutationResponse> => {
+
+  return customFetch<IntelligenceReviewMutationResponse>(getDecideIntelligenceReviewUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(intelligenceReviewDecisionRequest)
+  }
+);}
+
+
+
+
+export const getDecideIntelligenceReviewMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideIntelligenceReview>>, TError,{id: string;data: BodyType<IntelligenceReviewDecisionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideIntelligenceReview>>, TError,{id: string;data: BodyType<IntelligenceReviewDecisionRequest>}, TContext> => {
+
+const mutationKey = ['decideIntelligenceReview'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideIntelligenceReview>>, {id: string;data: BodyType<IntelligenceReviewDecisionRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  decideIntelligenceReview(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideIntelligenceReviewMutationResult = NonNullable<Awaited<ReturnType<typeof decideIntelligenceReview>>>
+    export type DecideIntelligenceReviewMutationBody = BodyType<IntelligenceReviewDecisionRequest>
+    export type DecideIntelligenceReviewMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse>
+
+    /**
+ * @summary Record a named review decision for an Intelligence item
+ */
+export const useDecideIntelligenceReview = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideIntelligenceReview>>, TError,{id: string;data: BodyType<IntelligenceReviewDecisionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof decideIntelligenceReview>>,
+        TError,
+        {id: string;data: BodyType<IntelligenceReviewDecisionRequest>},
+        TContext
+      > => {
+      return useMutation(getDecideIntelligenceReviewMutationOptions(options));
+    }
 
 export const getOverrideRiskUrl = (id: string,) => {
 

@@ -49,6 +49,63 @@ export interface IntelligenceCapabilitySnapshot {
   lastUpdatedAt?: string | null;
 }
 
+export interface IntelligenceEvidenceLayerSnapshot {
+  policyVersion: string;
+  disposition: "ready" | "abstain" | "blocked";
+  requestedMode: "complete_corpus" | "verified_spans";
+  actualMode: "complete_corpus" | "verified_spans";
+  manifestSha256: string | null;
+  versionSha256: string | null;
+  sourceCount: number;
+  rejectedCount: number;
+  blockers: readonly { code: string; path: string }[];
+  coverage: {
+    visibleDocumentCount: number;
+    redactionEligibleDocumentCount: number;
+    safeCurrentDocumentCount: number;
+    verifiedDocumentCount: number;
+    fullyVerifiedDocumentCount: number;
+  };
+}
+
+export type IntelligenceReviewStatus =
+  | "pending"
+  | "in_review"
+  | "changes_requested"
+  | "approved"
+  | "rejected";
+
+export type IntelligenceReviewPriority = "critical" | "high" | "normal" | "low";
+
+export interface IntelligenceReviewInboxSnapshot {
+  projectId: string;
+  generatedAt: string;
+  environment: "production" | "staging" | "development";
+  productionAiEnabled: boolean;
+  sourceVersion: number | null;
+  sourceManifestSha256: string | null;
+  readOnly: boolean;
+  authorityNote: string;
+  counts: Record<IntelligenceReviewStatus, number>;
+  items: readonly {
+    id: string;
+    capabilityId: IntelligenceCapabilityId;
+    title: string;
+    summary: string;
+    status: IntelligenceReviewStatus;
+    priority: IntelligenceReviewPriority;
+    reviewType: string;
+    reviewerName: string | null;
+    assignedToCurrentUser: boolean;
+    dueAt: string | null;
+    sourceCount: number;
+    staleSource: boolean;
+    href: string | null;
+    sourceVersion: number;
+    reviewVersion: number | null;
+  }[];
+}
+
 export interface IntelligenceCentreSnapshot {
   environment: "production" | "staging" | "development";
   productionAiEnabled: boolean;
@@ -61,6 +118,8 @@ export interface IntelligenceCentreSnapshot {
     deadline: string | null;
   };
   capabilities: readonly IntelligenceCapabilitySnapshot[];
+  evidenceLayer?: IntelligenceEvidenceLayerSnapshot;
+  reviewInbox?: IntelligenceReviewInboxSnapshot;
 }
 
 export type IntelligenceCentreLoadState =
@@ -359,6 +418,43 @@ export function createProductionDisabledIntelligenceSnapshot(): IntelligenceCent
     productionAiEnabled: false,
     restrictedMode: false,
     generatedAt: null,
+    evidenceLayer: {
+      policyVersion: "unavailable",
+      disposition: "blocked",
+      requestedMode: "verified_spans",
+      actualMode: "verified_spans",
+      manifestSha256: null,
+      versionSha256: null,
+      sourceCount: 0,
+      rejectedCount: 0,
+      blockers: [{ code: "not_connected", path: "evidenceLayer" }],
+      coverage: {
+        visibleDocumentCount: 0,
+        redactionEligibleDocumentCount: 0,
+        safeCurrentDocumentCount: 0,
+        verifiedDocumentCount: 0,
+        fullyVerifiedDocumentCount: 0,
+      },
+    },
+    reviewInbox: {
+      projectId: "",
+      generatedAt: new Date(0).toISOString(),
+      environment: "production",
+      productionAiEnabled: false,
+      sourceVersion: null,
+      sourceManifestSha256: null,
+      readOnly: true,
+      authorityNote:
+        "No connected review source is available. No approval can be inferred.",
+      counts: {
+        pending: 0,
+        in_review: 0,
+        changes_requested: 0,
+        approved: 0,
+        rejected: 0,
+      },
+      items: [],
+    },
     capabilities: INTELLIGENCE_CAPABILITY_CATALOG.map((capability) => ({
       id: capability.id,
       state: "production_disabled",

@@ -8,6 +8,9 @@ import IntelligenceCentreRoute from "./intelligence-centre-route";
 const projectRefetch = vi.fn();
 const intelligenceRefetch = vi.fn();
 const getIntelligence = vi.fn();
+const claimReview = vi.fn();
+const decideReview = vi.fn();
+const toast = vi.fn();
 
 const state = {
   projectsError: false,
@@ -21,6 +24,8 @@ const state = {
     "report:read",
     "draft:read",
     "package:read",
+    "evaluation:read",
+    "intelligence:review",
   ],
   projects: [
     {
@@ -46,6 +51,18 @@ vi.mock("@workspace/api-client-react", () => ({
     refetch: projectRefetch,
   }),
   useGetProjectIntelligence: (...args: unknown[]) => getIntelligence(...args),
+  useClaimIntelligenceReview: () => ({
+    mutate: claimReview,
+    isPending: false,
+  }),
+  useDecideIntelligenceReview: () => ({
+    mutate: decideReview,
+    isPending: false,
+  }),
+}));
+
+vi.mock("@/hooks/use-toast", () => ({
+  useToast: () => ({ toast }),
 }));
 
 vi.mock("@/contexts/organisation-context", () => ({
@@ -74,6 +91,66 @@ function snapshot(projectId: string) {
   };
 }
 
+function reviewSnapshot(projectId: string) {
+  return {
+    ...snapshot(projectId),
+    reviewInbox: {
+      projectId,
+      generatedAt: "2026-08-10T12:00:00.000Z",
+      environment: "development" as const,
+      productionAiEnabled: false,
+      sourceVersion: 4,
+      sourceManifestSha256: "a".repeat(64),
+      readOnly: false,
+      authorityNote:
+        "A named review records scrutiny only and grants no release authority.",
+      counts: {
+        pending: 1,
+        in_review: 1,
+        changes_requested: 0,
+        approved: 0,
+        rejected: 0,
+      },
+      items: [
+        {
+          id: "evidence_graph",
+          capabilityId: "evidence_graph" as const,
+          title: "Evidence Graph",
+          summary: "One evidence mapping requires review.",
+          status: "pending" as const,
+          priority: "high" as const,
+          reviewType: "intelligence_capability",
+          reviewerName: null,
+          assignedToCurrentUser: false,
+          dueAt: null,
+          sourceCount: 2,
+          staleSource: false,
+          href: null,
+          sourceVersion: 4,
+          reviewVersion: null as number | null,
+        },
+        {
+          id: "eligibility_passport",
+          capabilityId: "eligibility_passport" as const,
+          title: "Eligibility Passport",
+          summary: "The assigned reviewer must decide this item.",
+          status: "in_review" as const,
+          priority: "critical" as const,
+          reviewType: "intelligence_capability",
+          reviewerName: "Ada Reviewer",
+          assignedToCurrentUser: true,
+          dueAt: null,
+          sourceCount: 3,
+          staleSource: false,
+          href: null,
+          sourceVersion: 4,
+          reviewVersion: 2,
+        },
+      ],
+    },
+  };
+}
+
 function renderAt(path: string) {
   const location = memoryLocation({ path });
   render(
@@ -96,6 +173,8 @@ describe("Intelligence Centre route", () => {
       "report:read",
       "draft:read",
       "package:read",
+      "evaluation:read",
+      "intelligence:review",
     ];
     state.projects = [
       { id: "project-1", tenderTitle: "Road rehabilitation" },
@@ -104,6 +183,9 @@ describe("Intelligence Centre route", () => {
     projectRefetch.mockReset();
     intelligenceRefetch.mockReset();
     getIntelligence.mockReset();
+    claimReview.mockReset();
+    decideReview.mockReset();
+    toast.mockReset();
     getIntelligence.mockImplementation((projectId: string) => ({
       data: snapshot(projectId),
       isLoading: false,
@@ -182,5 +264,70 @@ describe("Intelligence Centre route", () => {
         query: expect.objectContaining({ enabled: false }),
       }),
     );
+  });
+
+  it("binds claim and decision mutations to the exact source and review versions", async () => {
+    getIntelligence.mockImplementation((projectId: string) => ({
+      data: reviewSnapshot(projectId),
+      isLoading: false,
+      isError: false,
+      refetch: intelligenceRefetch,
+    }));
+    renderAt("/intelligence?project=project-1");
+
+    await userEvent.click(screen.getByRole("button", { name: "Claim review" }));
+    expect(claimReview).toHaveBeenCalledWith({
+      id: "project-1",
+      data: {
+        capabilityId: "evidence_graph",
+        expectedSourceVersion: 4,
+        expectedSourceManifestSha256: "a".repeat(64),
+        expectedReviewVersion: null,
+      },
+    });
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Accept review" }),
+    );
+    expect(decideReview).toHaveBeenCalledWith({
+      id: "project-1",
+      data: {
+        capabilityId: "eligibility_passport",
+        expectedSourceVersion: 4,
+        expectedSourceManifestSha256: "a".repeat(64),
+        expectedReviewVersion: 2,
+        decision: "approved",
+      },
+    });
+  });
+
+  it("allows a stale review projection to be reclaimed against the current source binding", async () => {
+    getIntelligence.mockImplementation((projectId: string) => {
+      const data = reviewSnapshot(projectId);
+      data.reviewInbox.items[0] = {
+        ...data.reviewInbox.items[0],
+        staleSource: true,
+        sourceVersion: data.reviewInbox.sourceVersion,
+        reviewVersion: 3,
+      };
+      return {
+        data,
+        isLoading: false,
+        isError: false,
+        refetch: intelligenceRefetch,
+      };
+    });
+    renderAt("/intelligence?project=project-1");
+
+    await userEvent.click(screen.getByRole("button", { name: "Claim review" }));
+    expect(claimReview).toHaveBeenCalledWith({
+      id: "project-1",
+      data: {
+        capabilityId: "evidence_graph",
+        expectedSourceVersion: 4,
+        expectedSourceManifestSha256: "a".repeat(64),
+        expectedReviewVersion: 3,
+      },
+    });
   });
 });

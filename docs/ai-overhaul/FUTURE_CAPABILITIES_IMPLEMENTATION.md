@@ -1,12 +1,14 @@
 # Future intelligence capabilities: implementation handoff
 
-Status: **deterministic foundation implemented; production model execution remains disabled**.
+Status: **deterministic evidence and named review connected; production model execution remains disabled**.
 
 This handoff covers the twenty-two Intelligence Centre capabilities in the
-current working tree. The release is deliberately read-only: it projects
-tenant-scoped, human-review decision support from records Valo already holds.
-It does not call an AI provider and it does not create or change authoritative
-workflow state.
+current working tree. The capability outputs remain deterministic and
+read-only: they project tenant-scoped, human-review decision support from
+records Valo already holds. The connected Review Inbox can persist a named
+person's claim or review disposition, but that review metadata is not an
+authoritative evidence approval, package release or model-execution decision.
+No route in this delivery calls an AI provider.
 
 No provider calls were made while implementing or validating this capability
 set. Valo does not autonomously send a clarification, submit a tender, approve
@@ -16,27 +18,48 @@ migration.
 
 ## What is connected now
 
-- `GET /projects/{id}/intelligence` is the sole public endpoint for this set.
-  It requires the complete server-side read-authority set for every returned
-  data class and returns a content-minimised snapshot for exactly one
-  server-authorised pursuit.
-- The endpoint is deterministic and read-only. It invokes no model, performs no
-  insert/update/delete, returns explicit empty/partial/restricted states, and
-  sets `Cache-Control: private, no-store`.
+- `GET /projects/{id}/intelligence` requires the complete server-side
+  read-authority set for every returned data class. It returns a
+  content-minimised snapshot, deterministic evidence-layer summary and Review
+  Inbox for exactly one server-authorised pursuit.
+- `POST /projects/{id}/intelligence/evidence-search` performs bounded lexical
+  retrieval over the exact current manifest of accepted, verified spans. It
+  validates tenant, project, actor permissions, document visibility, source
+  versions and hashes and fails closed on stale manifests. Every match marks
+  document text with `instructionAuthority: none`. It invokes no model, vector
+  service or external tool and writes no search output.
+- `POST /projects/{id}/intelligence/reviews/claim` and
+  `POST /projects/{id}/intelligence/reviews/decision` persist named review
+  responsibility and dispositions with source-manifest and optimistic-version
+  checks. They require explicit `intelligence:review` authority, emit audit
+  events and never approve source evidence, release a package or authorise
+  model execution.
+- The Intelligence read and evidence-search routes return explicit
+  empty/partial/restricted states or `abstain`/`blocked` dispositions as
+  applicable and set `Cache-Control: private, no-store`.
 - The snapshot joins existing project, document/version, requirement/citation,
   evidence, Vault, capability, draft/claim, defect, BOQ, package, report, task,
   opportunity and outcome records. Missing evidence stays missing; it is never
   converted into an approval, score or inferred obligation.
 - `/intelligence` is a protected Intelligence Centre screen with pursuit
-  selection, loading/error/empty/partial/restricted handling, source locators
-  and the human-control boundary for every card.
-- The OpenAPI operation and generated client expose the same twenty-two-item
-  contract.
+  selection, loading/error/empty/partial/restricted handling, source locators,
+  the Review Inbox and the human-control boundary for every card.
+- The OpenAPI operations and generated clients expose the same twenty-two-item,
+  evidence-search and named-review contracts.
   `productionAiEnabled` is intentionally `false` for this release.
 - Pure, deterministic domain functions provide fail-closed building blocks for
-  all twenty-two capabilities. They validate source scope, versions, exact citations,
-  review state and bounded inputs where applicable; they do not persist their
-  outputs or perform external actions.
+  all twenty-two capabilities. They validate source scope, versions, exact
+  citations, review state and bounded inputs where applicable; they do not
+  persist capability outputs or perform external actions. Only the separate,
+  named Review Inbox workflow persists human review metadata.
+
+The connected evidence layer resolves whether a citation's verifier is a
+currently active, direct member of the same tenant with a current native role
+grant containing `evidence:approve`. Existing rows do not contain an immutable
+attestation of the verifier's authority at the historical verification time.
+The current-state check must therefore not be represented as historical proof,
+and production model activation remains blocked until that provenance is
+persisted and independently validated.
 
 The public snapshot states are `review_ready`, `partial`, `empty`, `restricted`
 and `production_disabled`. `review_ready` is emitted only when the
@@ -46,12 +69,14 @@ means approved, eligible, compliant, priced, submitted or awarded.
 
 ## Capability boundary
 
-The **current runtime level is Level 0 for every row**: deterministic projection
-only, with no model output and no mutation. The “bounded product ceiling” below
-describes the most autonomous future behaviour represented by the product
-catalogue, not an enabled runtime. Level 1 is a non-persistent preview; Level 2
-is a reversible proposal or draft that still requires named-human review. No
-Level 3 bounded action or Level 4 autonomous consequential action is authorised.
+The **current capability runtime level is Level 0 for every row**: deterministic
+projection only, with no model output and no mutation of capability source data
+or generated drafts. The Review Inbox can mutate only named human-review
+metadata. The “bounded product ceiling” below describes the most autonomous
+future behaviour represented by the product catalogue, not an enabled runtime.
+Level 1 is a non-persistent preview; Level 2 is a reversible proposal or draft
+that still requires named-human review. No Level 3 bounded action or Level 4
+autonomous consequential action is authorised.
 
 | Capability                                          | ID                            | Implemented deterministic behaviour                                                                                                                                        | Bounded product ceiling                                                                      |
 | --------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
@@ -84,6 +109,15 @@ The public API is implemented by
 [`routes/intelligence.ts`](../../artifacts/api-server/src/routes/intelligence.ts)
 and the content-minimised projection by
 [`snapshot.ts`](../../artifacts/api-server/src/lib/intelligence/snapshot.ts).
+The deterministic verified-span layer and its tenant-scoped storage adapter are
+implemented by
+[`evidenceLayer.ts`](../../artifacts/api-server/src/lib/intelligence/evidenceLayer.ts)
+and
+[`evidenceLayerStore.ts`](../../artifacts/api-server/src/lib/intelligence/evidenceLayerStore.ts).
+Review projection and source-version-bound mutations are implemented by
+[`reviewInbox.ts`](../../artifacts/api-server/src/lib/intelligence/reviewInbox.ts)
+and
+[`intelligenceReviewStore.ts`](../../artifacts/api-server/src/lib/intelligence/intelligenceReviewStore.ts).
 The internal deterministic function surface is exported from
 [`lib/intelligence/index.ts`](../../artifacts/api-server/src/lib/intelligence/index.ts):
 
@@ -127,9 +161,11 @@ Unit and static tests sit beside the deterministic engines, route and UI.
   source quotations are validated before a bounded proposal can be used.
 - Restricted Mode and absent/partial evidence fail closed. The UI does not hide
   those states behind a confidence score.
-- Model execution, persistence, notifications, emails, portal operations,
-  submissions, approvals, pricing changes, award decisions and downstream task
-  creation are outside this implementation.
+- Model execution, model-output or draft persistence, notifications, emails,
+  portal operations, submissions, authoritative approvals, pricing changes,
+  award decisions and downstream task creation are outside this implementation.
+  Persistence is limited to named Review Inbox metadata and the disconnected
+  workflow/evaluation control stores described below.
 - A deterministic check passing is evidence for a reviewer, not a release
   decision. Human approval cannot be inferred from system output.
 - The feature set adds no general tool-execution plane, cross-client learning or
@@ -137,22 +173,30 @@ Unit and static tests sit beside the deterministic engines, route and UI.
 
 ## Production blockers and next stages
 
-1. **Authoritative retrieval:** build immutable page/table text ingestion,
-   version-aware indexing and citation re-verification, with tenant-isolation
-   and deletion tests. The current Copilot is an extractive planner, not a
-   conversational retrieval service.
+1. **Authoritative retrieval:** the connected route now provides bounded,
+   deterministic lexical search over accepted, hash-checked verified spans. A
+   production data plane still needs immutable page/table ingestion and
+   historical verifier-authority attestations, version-aware index and deletion
+   reconciliation, and independent two-tenant tests. The current Copilot is an
+   extractive planner, not a conversational retrieval service.
 2. **Governance decisions:** approve provider/model, processing region,
    retention, privacy terms, customer-data scope, rate card and budget. Keep the
    global/capability kill switches and fail-closed gateway in the activation
    path.
-3. **Durable workflow controls:** add idempotent background jobs, audit ledger,
-   transactional outbox and explicit review/persistence endpoints before any
-   Level 2 draft is connected. Schema changes, if later required, need their own
-   migration and tenant-policy review.
-4. **Feature evaluations:** assemble representative and adversarial holdouts for
-   citation correctness, abstention, addendum recall, eligibility false claims,
-   BOQ arithmetic and scope leakage. Retain model/prompt/schema/data versions
-   with every evaluation and require release thresholds.
+3. **Durable workflow controls:** the typed Drizzle store now persists bounded,
+   idempotent jobs/runs, leases, retries, cancellation, recovery and review
+   records in the existing schema. No worker, scheduler, provider runner,
+   transactional outbox or automated reconciliation loop is connected. Those
+   runtime controls and explicit capacity admission must pass production review
+   before any Level 2 model-backed draft is connected.
+4. **Feature evaluations:** the continuous-evaluation store now persists
+   version-bound cases, runs, results, aggregate evidence and named reviews in
+   the existing schema. No evaluation runner, authorised production holdout,
+   live observation feed or release-approval writer is connected.
+   Representative and adversarial cohorts for citation correctness,
+   abstention, addendum recall, eligibility false claims, BOQ arithmetic and
+   scope leakage still need independent adjudication and approved release
+   thresholds.
 5. **Operational proof:** exercise shadow, pilot and canary stages; verify
    concurrency, cost ceilings, alert delivery, incident handling, rollback and
    Restricted Mode in a production-like environment.

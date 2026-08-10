@@ -67,6 +67,7 @@ export const PERMISSIONS = [
   "processing_job:retry",
   "evaluation:read",
   "evaluation:manage",
+  "intelligence:review",
   "rule_pack:read",
   "rule_pack:manage",
   "partner_report:read",
@@ -120,6 +121,7 @@ const REVIEW: Permission[] = [
   "report:sign_off",
   "draft:review",
   "package:sign_off",
+  "intelligence:review",
 ];
 
 const MANAGE_WORK: Permission[] = [

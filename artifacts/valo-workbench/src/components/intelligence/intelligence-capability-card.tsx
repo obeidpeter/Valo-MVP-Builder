@@ -61,6 +61,7 @@ export function IntelligenceCapabilityCard({
 
   return (
     <Card
+      id={`capability-${definition.id}`}
       className="flex h-full flex-col shadow-none"
       data-capability-id={definition.id}
     >
