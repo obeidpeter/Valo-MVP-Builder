@@ -65,6 +65,7 @@ Activation also requires a named authorised queue/reconciliation owner, an appro
 - `0003_zippy_skrulls.sql`: isolated public Bid Autopsy request store and bounded insert function.
 - `0004_dizzy_virginia_dare.sql`: shared HMAC-keyed rate-limit buckets and consume function.
 - `0005_tranquil_jack_power.sql`: explicit lead retention deadline plus owner-only lead and expired-bucket purge functions.
+- `scripts/start-replit-production.mjs`: shared same-process entrypoint used by both the effective API artifact and legacy `.replit` path; it awaits the bounded migration launcher before importing the compiled API, preserves the inherited deployment environment and keeps the port closed on migration failure.
 - `migration:replit:intake`: Replit-production-only launcher that pins the accepted journal and source hashes, validates separated same-target credentials, serializes Autoscale starts, applies only the pending three-migration suffix, and verifies the final intake catalog before API startup.
 
 The launcher applies migrations with owner authority and then starts the application with the dedicated least-privilege runtime database role. CI proves the migration chain on its isolated PostgreSQL target; the live production journal and runtime attestation remain deployment evidence gates.

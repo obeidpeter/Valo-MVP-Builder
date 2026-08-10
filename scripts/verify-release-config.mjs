@@ -13,12 +13,50 @@ async function loadText(relativePath) {
   return readFile(resolve(root, relativePath), "utf8");
 }
 
+function readTomlSection(source, name) {
+  const lines = source.replaceAll("\r\n", "\n").split("\n");
+  const header = `[${name}]`;
+  const sectionStarts = lines.flatMap((line, index) =>
+    line === header ? [index] : [],
+  );
+  assert.equal(
+    sectionStarts.length,
+    1,
+    `Expected one ${header} section in the Replit configuration`,
+  );
+
+  const start = sectionStarts[0];
+  const relativeEnd = lines
+    .slice(start + 1)
+    .findIndex((line) => /^\[\[?.+\]\]?$/.test(line));
+  const end = relativeEnd === -1 ? lines.length : start + 1 + relativeEnd;
+  return lines.slice(start + 1, end).join("\n");
+}
+
 const rulePack = await loadJson("config/rules/nigeria/v2026-08-08.json");
 const alerts = await loadJson("config/observability/alerts.v2.5.json");
 const dbPackage = await loadJson("lib/db/package.json");
 const replitConfiguration = await loadText(".replit");
+const replitArtifactConfiguration = await loadText(
+  "artifacts/api-server/.replit-artifact/artifact.toml",
+);
+const replitProductionStartup = await loadText(
+  "scripts/start-replit-production.mjs",
+);
 const replitMigrationLauncher = await loadText(
   "lib/db/scripts/replit-intake-migrations.mjs",
+);
+const legacyDeploymentConfiguration = readTomlSection(
+  replitConfiguration,
+  "deployment",
+);
+const artifactRunConfiguration = readTomlSection(
+  replitArtifactConfiguration,
+  "services.production.run",
+);
+const artifactRunEnvironment = readTomlSection(
+  replitArtifactConfiguration,
+  "services.production.run.env",
 );
 
 assert.equal(
@@ -28,14 +66,72 @@ assert.equal(
 );
 
 assert.match(
-  replitConfiguration,
+  legacyDeploymentConfiguration,
   /^build = "PORT=3000 BASE_PATH=\/ NODE_ENV=production pnpm run build"$/m,
   "Replit publishing must build both production artifacts",
 );
 assert.match(
-  replitConfiguration,
-  /^run = "NODE_ENV=production pnpm --filter @workspace\/db migration:replit:intake && CORS_ALLOWED_ORIGINS=https:\/\/valo-mvp-builder\.replit\.app VALO_PUBLIC_LEAD_DESTINATION=database TRUST_PROXY=1 NODE_ENV=production pnpm --filter @workspace\/api-server start"$/m,
-  "Replit publishing must run the bounded intake migration gate before starting the combined production web/API service",
+  legacyDeploymentConfiguration,
+  /^run = "CORS_ALLOWED_ORIGINS=https:\/\/valo-mvp-builder\.replit\.app VALO_PUBLIC_LEAD_DESTINATION=database TRUST_PROXY=1 NODE_ENV=production node --enable-source-maps scripts\/start-replit-production\.mjs"$/m,
+  "The legacy Replit deployment path must use the shared production startup wrapper",
+);
+assert.doesNotMatch(
+  legacyDeploymentConfiguration,
+  /&&|migration:replit:intake|artifacts\/api-server\/dist\/index\.mjs/,
+  "The legacy Replit path must not duplicate or bypass the shared startup gate",
+);
+assert.match(
+  artifactRunConfiguration,
+  /^args = \["node", "--enable-source-maps", "scripts\/start-replit-production\.mjs"\]$/m,
+  "The effective Replit API artifact must use the shared production startup wrapper",
+);
+assert.doesNotMatch(
+  artifactRunConfiguration,
+  /artifacts\/api-server\/dist\/index\.mjs|migration:replit:intake|&&/,
+  "The effective Replit API artifact must not bypass or duplicate the shared startup gate",
+);
+for (const [name, value] of [
+  ["PORT", "8080"],
+  ["NODE_ENV", "production"],
+  ["CORS_ALLOWED_ORIGINS", "https://valo-mvp-builder.replit.app"],
+  ["VALO_PUBLIC_LEAD_DESTINATION", "database"],
+  ["TRUST_PROXY", "1"],
+]) {
+  assert.match(
+    artifactRunEnvironment,
+    new RegExp(`^${name} = "${value.replaceAll(".", "\\.")}"$`, "m"),
+    `The effective Replit API artifact must pin ${name}`,
+  );
+}
+assert.doesNotMatch(
+  `${legacyDeploymentConfiguration}\n${artifactRunEnvironment}`,
+  /(?:PUBLIC_LEAD_RATE_LIMIT_HMAC_SECRET|VALO_PUBLIC_LEAD_RETENTION_DAYS)\s*=/,
+  "Secrets and unapproved retention values must remain outside Replit source configuration",
+);
+assert.match(
+  replitProductionStartup,
+  /import \{ runReplitIntakeMigrations \} from "\.\.\/lib\/db\/scripts\/replit-intake-migrations\.mjs";/,
+  "The shared production startup wrapper must import the bounded migration launcher",
+);
+assert.match(
+  replitProductionStartup,
+  /"\.\.\/artifacts\/api-server\/dist\/index\.mjs",\s+import\.meta\.url,/,
+  "The shared production startup wrapper must pin the compiled API entrypoint relative to its own file",
+);
+assert.match(
+  replitProductionStartup,
+  /await runMigrations\(environment\);\s+await importApiServer\(\);/,
+  "The production startup wrapper must finish migrations before importing the API",
+);
+assert.match(
+  replitProductionStartup,
+  /import\(API_SERVER_ENTRYPOINT\.href\)/,
+  "The production startup wrapper must load the compiled API in-process after the gate",
+);
+assert.doesNotMatch(
+  replitProductionStartup,
+  /node:child_process|\b(?:exec|spawn|fork|execFile)\s*\(/,
+  "The production startup wrapper must preserve process signals and inherited environment without a child shell",
 );
 assert.doesNotMatch(
   replitConfiguration,

@@ -211,6 +211,21 @@ async function conflictRecordCount(projectId: string): Promise<number> {
   return rows.length;
 }
 
+async function waitForProjectVisibility(projectId: string): Promise<void> {
+  const deadline = Date.now() + 2_000;
+
+  while (Date.now() < deadline) {
+    const [project] = await db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(eq(projects.id, projectId));
+    if (project) return;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+
+  assert.fail(`Expected project ${projectId} to be committed within 2 seconds`);
+}
+
 async function waitForConflictRecordCount(
   projectId: string,
   expectedCount: number,
@@ -288,11 +303,12 @@ describe("conflict decisions require a dedicated authorised workflow", () => {
       role: "admin",
       name: "Founder One",
     } as LocalUser;
-    await createProject({
+    const original = await createProject({
       tenderTitle: "Original holder",
       tenderRef: "TX-100",
       lot: "L1",
     });
+    await waitForProjectVisibility(original.id);
     const blocked = await createProject({
       tenderTitle: "Challenger",
       tenderRef: "TX-100",
@@ -342,11 +358,12 @@ describe("conflict decisions require a dedicated authorised workflow", () => {
   test("moving the project onto a different conflict creates a fresh blocked record", async () => {
     // A third project holds tender TZ-200. Changing the tender identity must
     // open a fresh record; the existing TX-100 block does not cover it.
-    await createProject({
+    const otherHolder = await createProject({
       tenderTitle: "Other tender holder",
       tenderRef: "TZ-200",
       lot: "L1",
     });
+    await waitForProjectVisibility(otherHolder.id);
 
     const res = await patchProject(
       blockedId,

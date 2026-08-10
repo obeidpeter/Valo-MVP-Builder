@@ -7,7 +7,7 @@ Valo is an internal bid-compliance workbench for tender intake, reviewer-confirm
 - Supported runtime: Node.js 22 through 24 and pnpm 10.34.0. Replit selects Node.js 24 in `.replit`; CI validates Node.js 22.
 - Replit's **Project** workflow runs the API on port 5000 and the Vite workbench on port 3000, proxying `/api` to the API.
 - API liveness is `GET /api/healthz`. It proves only that the process can answer; it does not prove database, storage, identity-provider, model-provider, RLS, or migration readiness.
-- Production publishing runs the `.replit` build command with `PORT=3000 BASE_PATH=/ NODE_ENV=production pnpm run build`, then starts the compiled API with Replit's assigned `PORT`. The checked-in run command pins the current `https://valo-mvp-builder.replit.app` origin and one-hop Replit proxy posture; update the exact allowlist before activating any approved custom domain. In production the API serves `artifacts/valo-workbench/dist/public`, including SPA deep-link fallback; only the ten implemented public paths are indexable and every authentication, workspace, or unknown fallback response carries `X-Robots-Tag: noindex, nofollow`.
+- Production publishing runs the `.replit` build command with `PORT=3000 BASE_PATH=/ NODE_ENV=production pnpm run build`, then the effective API artifact and legacy `.replit` run path both invoke `scripts/start-replit-production.mjs` with Replit's assigned `PORT`. The wrapper completes the bounded migration gate before it imports the compiled API in the same Node process. Both checked-in run paths pin the current `https://valo-mvp-builder.replit.app` origin and one-hop Replit proxy posture; update the exact allowlist before activating any approved custom domain. In production the API serves `artifacts/valo-workbench/dist/public`, including SPA deep-link fallback; only the ten implemented public paths are indexable and every authentication, workspace, or unknown fallback response carries `X-Robots-Tag: noindex, nofollow`.
 
 Useful local/Replit checks:
 
@@ -69,8 +69,9 @@ live schema and constraints match them.
 
 The Replit production database has completed the reviewed legacy bridge and has
 the exact adopted `0000`-`0002` journal. Never replay that bridge, the baseline,
-or a push/schema-diff operation. The deployment command may run only
-`migration:replit:intake`: it pins the six source migration hashes, requires the
+or a push/schema-diff operation. Both production run manifests use the shared
+same-process startup wrapper, which may invoke only the bounded
+`migration:replit:intake` implementation: it pins the six source migration hashes, requires the
 production journal to be exactly `0000`-`0002` or `0000`-`0005`, validates the
 separate same-target owner/runtime credentials, serializes Autoscale starts with
 a PostgreSQL advisory lock, and atomically applies only the pending
@@ -233,8 +234,10 @@ Server-side commercial flags also default off when no tenant/global record exist
    an approved rehearsal. Stop on journal, schema, count, audit, ownership, or
    RLS differences.
 4. Confirm production is still the exact bridged `0000`-`0002` state and do not
-   replay the bridge or baseline. Replit deployment startup runs the bounded
-   `migration:replit:intake` owner-side gate before the API; it may apply only
+   replay the bridge or baseline. Verify both checked-in Replit run paths name
+   `scripts/start-replit-production.mjs`; it runs the bounded
+   `migration:replit:intake` owner-side implementation before importing the API
+   in the same process. The gate may apply only
    `0003`-`0005` and then requires the exact six-entry journal and two-table,
    four-function intake catalog. API startup separately proves
    `valo_app_runtime` has only schema usage and bounded store/limiter execution,

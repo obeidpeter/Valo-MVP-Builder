@@ -12,7 +12,7 @@
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "format:check": "node ./scripts/check-format-changed.mjs",
     "lint": "node ./scripts/lint-policy.mjs",
-    "verify:release-config": "node ./scripts/verify-release-config.mjs",
+    "verify:release-config": "node --test ./scripts/start-replit-production.test.mjs && node ./scripts/verify-release-config.mjs",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
