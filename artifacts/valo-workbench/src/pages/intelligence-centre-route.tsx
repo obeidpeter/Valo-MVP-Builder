@@ -1,5 +1,7 @@
 import {
   getGetProjectIntelligenceQueryKey,
+  useClaimIntelligenceReview,
+  useDecideIntelligenceReview,
   useGetProjectIntelligence,
   useListProjects,
 } from "@workspace/api-client-react";
@@ -10,7 +12,9 @@ import IntelligenceCentre, {
 import type { IntelligenceCentreSnapshot } from "@/components/intelligence/intelligence-contract";
 import { StatusPanel } from "@/components/platform-states";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
+import { useToast } from "@/hooks/use-toast";
 import { INTELLIGENCE_READ_PERMISSIONS } from "@/lib/platform-access";
+import type { IntelligenceReviewDecision } from "@/components/intelligence/intelligence-review-inbox";
 
 function disconnectedSnapshot(): IntelligenceCentreSnapshot {
   return {
@@ -24,6 +28,7 @@ function disconnectedSnapshot(): IntelligenceCentreSnapshot {
 
 export default function IntelligenceCentreRoute() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { toast } = useToast();
   const organisationAccess = useOrganisationAccess();
   const hasCompleteReadAccess = Boolean(
     organisationAccess?.activeOrganisation &&
@@ -41,6 +46,38 @@ export default function IntelligenceCentreRoute() {
     query: {
       enabled: hasCompleteReadAccess && selectedProjectId.length > 0,
       queryKey: getGetProjectIntelligenceQueryKey(selectedProjectId),
+    },
+  });
+  const claimReview = useClaimIntelligenceReview({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Review item claimed" });
+        void intelligenceQuery.refetch();
+      },
+      onError: () => {
+        toast({
+          variant: "destructive",
+          title: "Review claim could not be recorded",
+          description:
+            "Refresh the current pursuit before trying again. The source or review version may have changed.",
+        });
+      },
+    },
+  });
+  const decideReview = useDecideIntelligenceReview({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Review decision recorded" });
+        void intelligenceQuery.refetch();
+      },
+      onError: () => {
+        toast({
+          variant: "destructive",
+          title: "Review decision could not be recorded",
+          description:
+            "Refresh the current pursuit before trying again. No release or evidence approval was granted.",
+        });
+      },
     },
   });
 
@@ -76,6 +113,76 @@ export default function IntelligenceCentreRoute() {
       },
       { replace: true },
     );
+  };
+
+  const reviewInbox = intelligenceQuery.data?.reviewInbox;
+  const hasReviewAccess = Boolean(
+    organisationAccess?.effectivePermissions.includes("intelligence:review"),
+  );
+  const reviewItem = (itemId: string) =>
+    reviewInbox?.items.find((item) => item.id === itemId);
+  const reviewSourceManifest = () => {
+    const value = reviewInbox?.sourceManifestSha256;
+    return typeof value === "string" && /^[a-f0-9]{64}$/u.test(value)
+      ? value
+      : null;
+  };
+  const showStaleReviewMessage = () =>
+    toast({
+      variant: "destructive",
+      title: "Review source is no longer current",
+      description:
+        "Refresh the pursuit before recording responsibility or a decision.",
+    });
+  const claimReviewItem = (itemId: string) => {
+    const item = reviewItem(itemId);
+    const sourceManifestSha256 = reviewSourceManifest();
+    if (
+      !hasReviewAccess ||
+      !item ||
+      !sourceManifestSha256 ||
+      item.status !== "pending"
+    ) {
+      showStaleReviewMessage();
+      return;
+    }
+    claimReview.mutate({
+      id: selectedProjectId,
+      data: {
+        capabilityId: item.capabilityId,
+        expectedSourceVersion: item.sourceVersion,
+        expectedSourceManifestSha256: sourceManifestSha256,
+        expectedReviewVersion: item.reviewVersion,
+      },
+    });
+  };
+  const decideReviewItem = (
+    itemId: string,
+    decision: IntelligenceReviewDecision,
+  ) => {
+    const item = reviewItem(itemId);
+    const sourceManifestSha256 = reviewSourceManifest();
+    if (
+      !hasReviewAccess ||
+      !item ||
+      !sourceManifestSha256 ||
+      !item.assignedToCurrentUser ||
+      item.status !== "in_review" ||
+      item.reviewVersion === null
+    ) {
+      showStaleReviewMessage();
+      return;
+    }
+    decideReview.mutate({
+      id: selectedProjectId,
+      data: {
+        capabilityId: item.capabilityId,
+        expectedSourceVersion: item.sourceVersion,
+        expectedSourceManifestSha256: sourceManifestSha256,
+        expectedReviewVersion: item.reviewVersion,
+        decision,
+      },
+    });
   };
 
   if (!hasCompleteReadAccess) {
@@ -131,7 +238,12 @@ export default function IntelligenceCentreRoute() {
           </div>
         </section>
       ) : null}
-      <IntelligenceCentre loadState={loadState} />
+      <IntelligenceCentre
+        loadState={loadState}
+        reviewMutationPending={claimReview.isPending || decideReview.isPending}
+        onReviewClaim={hasReviewAccess ? claimReviewItem : undefined}
+        onReviewDecision={hasReviewAccess ? decideReviewItem : undefined}
+      />
     </div>
   );
 }

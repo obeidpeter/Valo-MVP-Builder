@@ -6,8 +6,25 @@ const source = readFileSync(
   new URL("./intelligence.ts", import.meta.url),
   "utf8",
 );
+const snapshotRouteStart = source.indexOf(
+  'router.get(\n  "/projects/:id/intelligence"',
+);
+const evidenceRouteStart = source.indexOf(
+  'router.post(\n  "/projects/:id/intelligence/evidence-search"',
+);
+const snapshotRouteSource = source.slice(
+  snapshotRouteStart,
+  evidenceRouteStart,
+);
 const snapshotSource = readFileSync(
   new URL("../lib/intelligence/snapshot.ts", import.meta.url),
+  "utf8",
+);
+const sourceBindingSource = readFileSync(
+  new URL(
+    "../lib/intelligence/intelligenceSourceBindingStore.ts",
+    import.meta.url,
+  ),
   "utf8",
 );
 const routes = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
@@ -18,6 +35,13 @@ const openApi = readFileSync(
 const reactClient = readFileSync(
   new URL(
     "../../../../lib/api-client-react/src/generated/api.ts",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const reactSchemas = readFileSync(
+  new URL(
+    "../../../../lib/api-client-react/src/generated/api.schemas.ts",
     import.meta.url,
   ),
   "utf8",
@@ -38,7 +62,8 @@ const platformAccess = readFileSync(
   "utf8",
 );
 
-test("Intelligence Centre is tenant-bound, read-only and model-free", () => {
+test("Intelligence snapshot is tenant-bound, read-only and model-free", () => {
+  assert.ok(snapshotRouteStart >= 0 && evidenceRouteStart > snapshotRouteStart);
   assert.match(source, /"\/projects\/:id\/intelligence"/);
   for (const permission of [
     "client:read",
@@ -50,6 +75,7 @@ test("Intelligence Centre is tenant-bound, read-only and model-free", () => {
     "report:read",
     "draft:read",
     "package:read",
+    "evaluation:read",
   ]) {
     assert.match(source, new RegExp(`"${permission}"`));
   }
@@ -57,44 +83,60 @@ test("Intelligence Centre is tenant-bound, read-only and model-free", () => {
     source,
     /INTELLIGENCE_READ_PERMISSIONS\.map\(\(permission\)\s*=>\s*requirePermissionOrLegacy\(permission\)/,
   );
-  assert.match(source, /buildIntelligenceCentreSnapshot/);
-  assert.match(source, /productionAiEnabled:\s*false/);
+  assert.match(source, /loadIntelligenceSourceProjection/);
+  assert.match(source, /const snapshot = projection\.snapshot/);
+  assert.match(sourceBindingSource, /productionAiEnabled:\s*false/);
   assert.match(source, /Cache-Control", "private, no-store"/);
-  assert.doesNotMatch(source, /executeProjectAi|executeAiGatewayRequest/);
-  assert.doesNotMatch(source, /\.insert\(|\.update\(|\.delete\(/);
-  assert.doesNotMatch(source, /writeAudit/);
+  assert.doesNotMatch(
+    snapshotRouteSource,
+    /executeProjectAi|executeAiGatewayRequest/,
+  );
+  assert.doesNotMatch(snapshotRouteSource, /\.insert\(|\.update\(|\.delete\(/);
+  assert.doesNotMatch(snapshotRouteSource, /writeAudit/);
 });
 
-test("Intelligence Centre joins citation provenance and scopes opportunity reads to the project tender", () => {
-  assert.match(source, /\.from\(requirementCitations\)/);
-  assert.match(source, /\.innerJoin\(\s*documentVersions/);
-  assert.match(source, /\.innerJoin\(\s*documents/);
-  assert.match(source, /\.leftJoin\(\s*users/);
+test("Intelligence Centre uses bounded source, citation and review projections", () => {
+  assert.match(sourceBindingSource, /\.from\(requirementCitations\)/);
+  assert.match(sourceBindingSource, /\.innerJoin\(\s*documentVersions/);
+  assert.match(sourceBindingSource, /\.innerJoin\(documents/);
+  assert.match(sourceBindingSource, /\.leftJoin\(users/);
   assert.match(
-    source,
+    sourceBindingSource,
     /sourceSnippetHash:\s*requirementCitations\.sourceSnippetHash/,
   );
   assert.match(
-    source,
+    sourceBindingSource,
     /verifiedByUserId:\s*requirementCitations\.verifiedByUserId/,
   );
-  assert.match(source, /verifiedByName:\s*users\.name/);
-  assert.match(source, /verifiedAt:\s*requirementCitations\.verifiedAt/);
-  assert.match(source, /eq\(documents\.projectId, projectId\)/);
+  assert.match(sourceBindingSource, /verifiedByName:\s*users\.name/);
+  assert.match(
+    sourceBindingSource,
+    /verifiedAt:\s*requirementCitations\.verifiedAt/,
+  );
+  assert.match(
+    sourceBindingSource,
+    /currentEvidenceApproverIds[\s\S]*verifierAuthority/,
+  );
+  assert.match(sourceBindingSource, /eq\(documents\.projectId, projectId\)/);
+  assert.match(
+    sourceBindingSource,
+    /eq\(tenders\.reference, project\.tenderRef\)/,
+  );
+  assert.match(
+    sourceBindingSource,
+    /eq\(tenders\.organisationId, project\.organisationId\)/,
+  );
+  assert.match(sourceBindingSource, /sourceDocId:\s*boqChecks\.sourceDocId/);
+  assert.match(sourceBindingSource, /version:\s*reports\.version/);
+  assert.match(source, /REVIEW_PROJECTION_BOUNDS\.rows \+ 1/);
+  assert.match(source, /char_length\(\$\{reviews\.findings\}\)/);
+  assert.match(source, /octet_length\(\$\{users\.name\}\)/);
   assert.match(
     source,
-    /\.from\(tenders\)\s*\.where\(eq\(tenders\.reference, project\.tenderRef\)\)/,
+    /intelligenceCapabilityFromReviewType[\s\S]*new Set\(reviewCapabilityIds\)/,
   );
-  assert.match(source, /sourceDocId:\s*check\.sourceDocId/);
-  assert.match(
-    source,
-    /\.from\(boqChecks\)\.where\(eq\(boqChecks\.projectId, projectId\)\)/,
-  );
-  assert.match(source, /version:\s*report\.version/);
-  assert.match(
-    source,
-    /\.from\(reports\)[\s\S]*?\.orderBy\(desc\(reports\.version\)\)[\s\S]*?\.limit\(1\)/,
-  );
+  assert.doesNotMatch(snapshotRouteSource, /\.from\(requirementCitations\)/);
+  assert.doesNotMatch(snapshotRouteSource, /\.from\(documents\)/);
 });
 
 test("public Intelligence citations match the closed OpenAPI DTO and keep proof fields internal", () => {
@@ -138,10 +180,26 @@ test("Intelligence Centre is registered only after tenant middleware", () => {
 });
 
 test("Intelligence Centre OpenAPI, generated clients and protected UI stay connected", () => {
+  const operationStart = openApi.indexOf("  /projects/{id}/intelligence:");
+  const operationEnd = openApi.indexOf(
+    "  /projects/{id}/intelligence/evidence-search:",
+    operationStart,
+  );
+  const operation = openApi.slice(operationStart, operationEnd);
+
+  assert.ok(operationStart >= 0 && operationEnd > operationStart);
   assert.match(openApi, /^  \/projects\/\{id\}\/intelligence:/m);
   assert.match(openApi, /operationId: getProjectIntelligence/);
+  assert.match(
+    operation,
+    /"409":\s*\n\s*\$ref: "#\/components\/responses\/Conflict"/,
+  );
   assert.match(openApi, /minItems: 22[\s\S]*maxItems: 22/);
   assert.match(reactClient, /export function useGetProjectIntelligence/);
+  assert.match(
+    reactClient,
+    /GetProjectIntelligenceQueryError = ErrorType<[^>]*ConflictResponse/,
+  );
   assert.match(zodClient, /export const GetProjectIntelligenceResponse/);
   assert.match(protectedRoutes, /path="\/intelligence"/);
   assert.match(
@@ -150,4 +208,29 @@ test("Intelligence Centre OpenAPI, generated clients and protected UI stay conne
   );
   assert.match(platformAccess, /href: "\/intelligence"/);
   assert.match(platformAccess, /label: "Intelligence Centre"/);
+});
+
+test("evidence search preserves the no-instruction-authority marker across every contract layer", () => {
+  const contractStart = openApi.indexOf("    IntelligenceEvidenceSearchMatch:");
+  const contractEnd = openApi.indexOf(
+    "    IntelligenceEvidenceSearchResponse:",
+    contractStart,
+  );
+  const contract = openApi.slice(contractStart, contractEnd);
+
+  assert.ok(contractStart >= 0 && contractEnd > contractStart);
+  assert.match(
+    source,
+    /instructionAuthority:\s*match\.source\.instructionAuthority/,
+  );
+  assert.match(contract, /- instructionAuthority/);
+  assert.match(
+    contract,
+    /instructionAuthority:\s*\n\s*type: string\s*\n\s*enum: \[none\]/,
+  );
+  assert.match(
+    reactSchemas,
+    /instructionAuthority: IntelligenceEvidenceSearchMatchInstructionAuthority/,
+  );
+  assert.match(zodClient, /"instructionAuthority": zod\.enum\(\['none'\]\)/);
 });

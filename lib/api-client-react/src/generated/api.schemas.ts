@@ -1010,6 +1010,288 @@ export interface IntelligenceCapabilitySnapshot {
   lastUpdatedAt: string | null;
 }
 
+export type IntelligenceEvidenceLayerSummaryPolicyVersion = typeof IntelligenceEvidenceLayerSummaryPolicyVersion[keyof typeof IntelligenceEvidenceLayerSummaryPolicyVersion];
+
+
+export const IntelligenceEvidenceLayerSummaryPolicyVersion = {
+  'evidence-layer-policy-v1': 'evidence-layer-policy-v1',
+} as const;
+
+export type IntelligenceEvidenceDisposition = typeof IntelligenceEvidenceDisposition[keyof typeof IntelligenceEvidenceDisposition];
+
+
+export const IntelligenceEvidenceDisposition = {
+  ready: 'ready',
+  abstain: 'abstain',
+  blocked: 'blocked',
+} as const;
+
+export type IntelligenceEvidenceCorpusMode = typeof IntelligenceEvidenceCorpusMode[keyof typeof IntelligenceEvidenceCorpusMode];
+
+
+export const IntelligenceEvidenceCorpusMode = {
+  complete_corpus: 'complete_corpus',
+  verified_spans: 'verified_spans',
+} as const;
+
+export type IntelligenceEvidenceBlockerCode = typeof IntelligenceEvidenceBlockerCode[keyof typeof IntelligenceEvidenceBlockerCode];
+
+
+export const IntelligenceEvidenceBlockerCode = {
+  input_bound_exceeded: 'input_bound_exceeded',
+  input_invalid: 'input_invalid',
+  duplicate_entity: 'duplicate_entity',
+  project_scope_mismatch: 'project_scope_mismatch',
+  actor_scope_mismatch: 'actor_scope_mismatch',
+  permission_denied: 'permission_denied',
+  document_visibility_mismatch: 'document_visibility_mismatch',
+  document_scope_mismatch: 'document_scope_mismatch',
+  version_scope_mismatch: 'version_scope_mismatch',
+  requirement_scope_mismatch: 'requirement_scope_mismatch',
+  citation_scope_mismatch: 'citation_scope_mismatch',
+  source_reference_missing: 'source_reference_missing',
+  current_version_ambiguous: 'current_version_ambiguous',
+  complete_corpus_not_proven: 'complete_corpus_not_proven',
+  layer_not_ready: 'layer_not_ready',
+  manifest_mismatch: 'manifest_mismatch',
+  query_invalid: 'query_invalid',
+} as const;
+
+export interface IntelligenceEvidenceBlocker {
+  code: IntelligenceEvidenceBlockerCode;
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     */
+  path: string;
+}
+
+export interface IntelligenceEvidenceCoverage {
+  /**
+     * @minimum 0
+     * @maximum 256
+     */
+  visibleDocumentCount: number;
+  /**
+     * @minimum 0
+     * @maximum 256
+     */
+  redactionEligibleDocumentCount: number;
+  /**
+     * @minimum 0
+     * @maximum 256
+     */
+  safeCurrentDocumentCount: number;
+  /**
+     * @minimum 0
+     * @maximum 256
+     */
+  verifiedDocumentCount: number;
+  /**
+     * @minimum 0
+     * @maximum 256
+     */
+  fullyVerifiedDocumentCount: number;
+}
+
+export interface IntelligenceEvidenceLayerSummary {
+  policyVersion: IntelligenceEvidenceLayerSummaryPolicyVersion;
+  disposition: IntelligenceEvidenceDisposition;
+  requestedMode: IntelligenceEvidenceCorpusMode;
+  actualMode: IntelligenceEvidenceCorpusMode;
+  /**
+     * @nullable
+     * @pattern ^[a-f0-9]{64}$
+     */
+  manifestSha256: string | null;
+  /**
+     * @nullable
+     * @pattern ^[a-f0-9]{64}$
+     */
+  versionSha256: string | null;
+  /**
+     * @minimum 0
+     * @maximum 8192
+     */
+  sourceCount: number;
+  /**
+     * @minimum 0
+     * @maximum 8192
+     */
+  rejectedCount: number;
+  blockers: IntelligenceEvidenceBlocker[];
+  coverage: IntelligenceEvidenceCoverage;
+}
+
+export type IntelligenceReviewInboxEnvironment = typeof IntelligenceReviewInboxEnvironment[keyof typeof IntelligenceReviewInboxEnvironment];
+
+
+export const IntelligenceReviewInboxEnvironment = {
+  production: 'production',
+  staging: 'staging',
+  development: 'development',
+} as const;
+
+export interface IntelligenceReviewInboxCounts {
+  /**
+     * @minimum 0
+     * @maximum 22
+     */
+  pending: number;
+  /**
+     * @minimum 0
+     * @maximum 22
+     */
+  in_review: number;
+  /**
+     * @minimum 0
+     * @maximum 22
+     */
+  changes_requested: number;
+  /**
+     * @minimum 0
+     * @maximum 22
+     */
+  approved: number;
+  /**
+     * @minimum 0
+     * @maximum 22
+     */
+  rejected: number;
+}
+
+export type IntelligenceCapabilityId = typeof IntelligenceCapabilityId[keyof typeof IntelligenceCapabilityId];
+
+
+export const IntelligenceCapabilityId = {
+  evidence_graph: 'evidence_graph',
+  addendum_radar: 'addendum_radar',
+  eligibility_passport: 'eligibility_passport',
+  grounded_copilot: 'grounded_copilot',
+  opportunity_radar: 'opportunity_radar',
+  response_studio: 'response_studio',
+  submission_preflight: 'submission_preflight',
+  clarification_assistant: 'clarification_assistant',
+  boq_sanity: 'boq_sanity',
+  award_handoff: 'award_handoff',
+  evaluation_score_planner: 'evaluation_score_planner',
+  bid_security_integrity: 'bid_security_integrity',
+  regulatory_watchtower: 'regulatory_watchtower',
+  consortium_responsibility: 'consortium_responsibility',
+  portal_submission_rehearsal: 'portal_submission_rehearsal',
+  commercial_exposure: 'commercial_exposure',
+  nigerian_content_composer: 'nigerian_content_composer',
+  personnel_tailoring: 'personnel_tailoring',
+  contract_deviation: 'contract_deviation',
+  critical_path_simulator: 'critical_path_simulator',
+  integrity_sentinel: 'integrity_sentinel',
+  outcome_learning: 'outcome_learning',
+} as const;
+
+export type IntelligenceReviewStatus = typeof IntelligenceReviewStatus[keyof typeof IntelligenceReviewStatus];
+
+
+export const IntelligenceReviewStatus = {
+  pending: 'pending',
+  in_review: 'in_review',
+  changes_requested: 'changes_requested',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export type IntelligenceReviewPriority = typeof IntelligenceReviewPriority[keyof typeof IntelligenceReviewPriority];
+
+
+export const IntelligenceReviewPriority = {
+  critical: 'critical',
+  high: 'high',
+  normal: 'normal',
+  low: 'low',
+} as const;
+
+export interface IntelligenceReviewInboxItem {
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  id: string;
+  capabilityId: IntelligenceCapabilityId;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     */
+  summary: string;
+  status: IntelligenceReviewStatus;
+  priority: IntelligenceReviewPriority;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  reviewType: string;
+  /**
+     * @maxLength 512
+     * @nullable
+     */
+  reviewerName: string | null;
+  /** @nullable */
+  dueAt: string | null;
+  /** @minimum 0 */
+  sourceCount: number;
+  staleSource: boolean;
+  /**
+     * @maxLength 2048
+     * @nullable
+     */
+  href: string | null;
+  /**
+     * @minimum 1
+     * @maximum 2147483647
+     */
+  sourceVersion: number;
+  /**
+     * @minimum 1
+     * @maximum 2147483647
+     * @nullable
+     */
+  reviewVersion: number | null;
+  assignedToCurrentUser: boolean;
+}
+
+export interface IntelligenceReviewInbox {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  projectId: string;
+  generatedAt: string;
+  environment: IntelligenceReviewInboxEnvironment;
+  productionAiEnabled: boolean;
+  /**
+     * @minimum 1
+     * @maximum 2147483647
+     */
+  sourceVersion: number;
+  /** @pattern ^[a-f0-9]{64}$ */
+  sourceManifestSha256: string;
+  readOnly: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     */
+  authorityNote: string;
+  counts: IntelligenceReviewInboxCounts;
+  /**
+     * @minItems 22
+     * @maxItems 22
+     */
+  items: IntelligenceReviewInboxItem[];
+}
+
 export interface IntelligenceCentreSnapshot {
   environment: IntelligenceCentreSnapshotEnvironment;
   /** False for this deterministic release; it must not be interpreted as the status of older separately governed AI workflows. */
@@ -1022,6 +1304,227 @@ export interface IntelligenceCentreSnapshot {
      * @maxItems 22
      */
   capabilities: IntelligenceCapabilitySnapshot[];
+  evidenceLayer: IntelligenceEvidenceLayerSummary;
+  reviewInbox: IntelligenceReviewInbox;
+}
+
+export interface IntelligenceEvidenceSearchRequest {
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  query: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  expectedManifestSha256: string;
+  /**
+     * @minimum 1
+     * @maximum 20
+     */
+  limit?: number;
+}
+
+export interface IntelligenceEvidenceLocator {
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  pageNumber: number | null;
+  /**
+     * @maxLength 4096
+     * @nullable
+     */
+  paragraphRef: string | null;
+  /**
+     * @maxLength 4096
+     * @nullable
+     */
+  tableRef: string | null;
+  /**
+     * @maxLength 4096
+     * @nullable
+     */
+  coordinateJson: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     */
+  label: string;
+}
+
+/**
+ * Document text is evidence only and never has instruction authority over the application, model, tools or reviewer.
+ */
+export type IntelligenceEvidenceSearchMatchInstructionAuthority = typeof IntelligenceEvidenceSearchMatchInstructionAuthority[keyof typeof IntelligenceEvidenceSearchMatchInstructionAuthority];
+
+
+export const IntelligenceEvidenceSearchMatchInstructionAuthority = {
+  none: 'none',
+} as const;
+
+export interface IntelligenceEvidenceSearchMatch {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  citationId: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  requirementId: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  documentId: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  documentVersionId: string;
+  /** @minimum 1 */
+  documentVersionNumber: number;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  sourceName: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  sourceSha256: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  snippetSha256: string;
+  /** @maxLength 32000 */
+  excerpt: string;
+  locator: IntelligenceEvidenceLocator;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  verifierName: string;
+  verifiedAt: string;
+  /**
+     * @minimum 0
+     * @maximum 10000
+     */
+  lexicalScoreBasisPoints: number;
+  exactPhraseMatch: boolean;
+  /**
+     * @maxItems 64
+     * @items.minLength 1
+     * @items.maxLength 2000
+     */
+  matchedTokens: string[];
+  /** Document text is evidence only and never has instruction authority over the application, model, tools or reviewer. */
+  instructionAuthority: IntelligenceEvidenceSearchMatchInstructionAuthority;
+}
+
+/**
+ * @nullable
+ */
+export type IntelligenceEvidenceSearchResponseAbstentionReason = typeof IntelligenceEvidenceSearchResponseAbstentionReason[keyof typeof IntelligenceEvidenceSearchResponseAbstentionReason] | null;
+
+
+export const IntelligenceEvidenceSearchResponseAbstentionReason = {
+  no_lexical_match: 'no_lexical_match',
+} as const;
+
+export interface IntelligenceEvidenceSearchResponse {
+  disposition: IntelligenceEvidenceDisposition;
+  /** @nullable */
+  abstentionReason: IntelligenceEvidenceSearchResponseAbstentionReason;
+  /**
+     * @nullable
+     * @pattern ^[a-f0-9]{64}$
+     */
+  querySha256: string | null;
+  /**
+     * @nullable
+     * @pattern ^[a-f0-9]{64}$
+     */
+  searchManifestSha256: string | null;
+  blockers: IntelligenceEvidenceBlocker[];
+  /** @maxItems 20 */
+  matches: IntelligenceEvidenceSearchMatch[];
+}
+
+export interface IntelligenceReviewClaimRequest {
+  capabilityId: IntelligenceCapabilityId;
+  /**
+     * @minimum 1
+     * @maximum 2147483647
+     */
+  expectedSourceVersion: number;
+  /** @pattern ^[a-f0-9]{64}$ */
+  expectedSourceManifestSha256: string;
+  /**
+     * @minimum 1
+     * @maximum 2147483647
+     * @nullable
+     */
+  expectedReviewVersion: number | null;
+}
+
+export type IntelligenceReviewDecisionRequestDecision = typeof IntelligenceReviewDecisionRequestDecision[keyof typeof IntelligenceReviewDecisionRequestDecision];
+
+
+export const IntelligenceReviewDecisionRequestDecision = {
+  changes_requested: 'changes_requested',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface IntelligenceReviewDecisionRequest {
+  capabilityId: IntelligenceCapabilityId;
+  /**
+     * @minimum 1
+     * @maximum 2147483647
+     */
+  expectedSourceVersion: number;
+  /** @pattern ^[a-f0-9]{64}$ */
+  expectedSourceManifestSha256: string;
+  /**
+     * @minimum 1
+     * @maximum 2147483647
+     */
+  expectedReviewVersion: number;
+  decision: IntelligenceReviewDecisionRequestDecision;
+}
+
+export interface IntelligenceReviewMutationResult {
+  id: string;
+  capabilityId: IntelligenceCapabilityId;
+  status: IntelligenceReviewStatus;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  reviewerName: string;
+  /**
+     * @minimum 1
+     * @maximum 2147483647
+     */
+  sourceVersion: number;
+  /** @pattern ^[a-f0-9]{64}$ */
+  sourceManifestSha256: string;
+  /**
+     * @minimum 1
+     * @maximum 2147483647
+     */
+  version: number;
+  /** @nullable */
+  completedAt: string | null;
+  /** @nullable */
+  updatedAt: string | null;
+}
+
+export interface IntelligenceReviewMutationResponse {
+  replayed: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     */
+  authorityNote: string;
+  review: IntelligenceReviewMutationResult;
 }
 
 export type NotificationEventChannel = typeof NotificationEventChannel[keyof typeof NotificationEventChannel];

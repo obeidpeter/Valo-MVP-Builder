@@ -121,6 +121,7 @@ function addGroundedRequirement(
     verifiedByUserId: "reviewer-1",
     verifiedByName: "Amina Reviewer",
     verifiedAt: "2026-08-10T09:03:00.000Z",
+    verifierAuthority: "active_direct_tenant_evidence_approver",
     updatedAt: "2026-08-10T09:03:00.000Z",
   });
   value.evidence.push({
@@ -264,6 +265,7 @@ test("surfaces reviewed, cited evidence and deterministic blockers without autho
     verifiedByUserId: "reviewer-1",
     verifiedByName: "Amina Reviewer",
     verifiedAt: "2026-08-10T09:03:00.000Z",
+    verifierAuthority: "active_direct_tenant_evidence_approver",
     updatedAt: "2026-08-10T09:03:00.000Z",
   });
   value.evidence.push({
@@ -385,6 +387,18 @@ test("fails citation coverage closed for unsafe lifecycle, hash mismatch, or unn
         value.requirementCitations[0]!.verifiedByName = null;
       },
     ],
+    [
+      "verifier authority",
+      (value) => {
+        value.requirementCitations[0]!.verifierAuthority = "not_authorized";
+      },
+    ],
+    [
+      "future verification",
+      (value) => {
+        value.requirementCitations[0]!.verifiedAt = "2026-08-10T12:01:00.000Z";
+      },
+    ],
   ];
 
   for (const [name, mutate] of cases) {
@@ -400,6 +414,111 @@ test("fails citation coverage closed for unsafe lifecycle, hash mismatch, or unn
       assert.deepEqual(graph?.citations, []);
     });
   }
+});
+
+test("requires the evidence-layer exact locator semantics for frozen verified citations", async (t) => {
+  const invalidCases: Array<
+    [
+      string,
+      (
+        citation: ProjectIntelligenceInput["requirementCitations"][number],
+      ) => void,
+    ]
+  > = [
+    [
+      "zero page",
+      (citation) => {
+        citation.pageNumber = 0;
+      },
+    ],
+    [
+      "fractional page",
+      (citation) => {
+        citation.pageNumber = 1.5;
+      },
+    ],
+    [
+      "unsafe page",
+      (citation) => {
+        citation.pageNumber = Number.MAX_SAFE_INTEGER + 1;
+      },
+    ],
+    [
+      "invalid coordinates",
+      (citation) => {
+        citation.pageNumber = null;
+        citation.paragraphRef = null;
+        citation.coordinateJson = "{not-json";
+      },
+    ],
+    [
+      "missing exact locator",
+      (citation) => {
+        citation.pageNumber = null;
+        citation.paragraphRef = "   ";
+        citation.tableRef = null;
+        citation.coordinateJson = null;
+      },
+    ],
+  ];
+
+  for (const [name, mutate] of invalidCases) {
+    await t.test(name, () => {
+      const value = input();
+      addGroundedRequirement(value);
+      mutate(value.requirementCitations[0]!);
+      const graph = buildIntelligenceCentreSnapshot(value).capabilities.find(
+        ({ id }) => id === "evidence_graph",
+      );
+      assert.equal(graph?.citationCount, 0);
+      assert.deepEqual(graph?.citations, []);
+    });
+  }
+
+  await t.test("valid coordinate-only locator", () => {
+    const value = input();
+    addGroundedRequirement(value);
+    const citation = value.requirementCitations[0]!;
+    citation.pageNumber = null;
+    citation.paragraphRef = null;
+    citation.tableRef = null;
+    citation.coordinateJson = '{"page":14,"x":120,"y":240}';
+    const graph = buildIntelligenceCentreSnapshot(value).capabilities.find(
+      ({ id }) => id === "evidence_graph",
+    );
+    assert.equal(graph?.citationCount, 1);
+    assert.match(graph?.citations[0]?.locator ?? "", /Coordinates retained/u);
+  });
+});
+
+test("admits citations only from the unique latest document version", () => {
+  const value = input();
+  addGroundedRequirement(value);
+  value.documentVersions.push({
+    ...value.documentVersions[0]!,
+    id: "version-doc-1-v2",
+    versionNumber: 2,
+  });
+
+  let graph = buildIntelligenceCentreSnapshot(value).capabilities.find(
+    ({ id }) => id === "evidence_graph",
+  );
+  assert.equal(graph?.citationCount, 0);
+
+  value.requirementCitations[0]!.documentVersionId = "version-doc-1-v2";
+  graph = buildIntelligenceCentreSnapshot(value).capabilities.find(
+    ({ id }) => id === "evidence_graph",
+  );
+  assert.equal(graph?.citationCount, 1);
+
+  value.documentVersions.push({
+    ...value.documentVersions[1]!,
+    id: "version-doc-1-v2-duplicate",
+  });
+  graph = buildIntelligenceCentreSnapshot(value).capabilities.find(
+    ({ id }) => id === "evidence_graph",
+  );
+  assert.equal(graph?.citationCount, 0);
 });
 
 test("requires every current response draft and claim to be immutably bound and grounded", () => {

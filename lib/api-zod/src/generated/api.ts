@@ -2829,7 +2829,7 @@ export const GetRiskResponse = zod.object({
 
 
 /**
- * Returns content-minimised, tenant-scoped projections for twenty-two intelligence capabilities. This operation never invokes a model, authorises submission, changes pricing or performs an external action. Because the response combines multiple governed source classes, the caller must hold client, project, document, requirement, evidence, defect, report, draft and package read authority in the active tenant.
+ * Returns content-minimised, tenant-scoped projections for twenty-two intelligence capabilities together with a deterministic verified-span evidence summary and a source-version-bound human review inbox. This operation never invokes a model, approves evidence, authorises submission, changes pricing or performs an external action. Because the response combines multiple governed source classes, the caller must hold client, project, document, requirement, evidence, defect, report, draft, package and evaluation read authority in the active tenant.
  * @summary Get the deterministic Intelligence Centre snapshot for a pursuit
  */
 export const GetProjectIntelligenceParams = zod.object({
@@ -2846,6 +2846,74 @@ export const getProjectIntelligenceResponseCapabilitiesItemCitationsMax = 20;
 
 export const getProjectIntelligenceResponseCapabilitiesMin = 22;
 export const getProjectIntelligenceResponseCapabilitiesMax = 22;
+
+export const getProjectIntelligenceResponseEvidenceLayerManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getProjectIntelligenceResponseEvidenceLayerVersionSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getProjectIntelligenceResponseEvidenceLayerSourceCountMin = 0;
+export const getProjectIntelligenceResponseEvidenceLayerSourceCountMax = 8192;
+
+export const getProjectIntelligenceResponseEvidenceLayerRejectedCountMin = 0;
+export const getProjectIntelligenceResponseEvidenceLayerRejectedCountMax = 8192;
+
+export const getProjectIntelligenceResponseEvidenceLayerBlockersItemPathMax = 4096;
+
+export const getProjectIntelligenceResponseEvidenceLayerCoverageVisibleDocumentCountMin = 0;
+export const getProjectIntelligenceResponseEvidenceLayerCoverageVisibleDocumentCountMax = 256;
+
+export const getProjectIntelligenceResponseEvidenceLayerCoverageRedactionEligibleDocumentCountMin = 0;
+export const getProjectIntelligenceResponseEvidenceLayerCoverageRedactionEligibleDocumentCountMax = 256;
+
+export const getProjectIntelligenceResponseEvidenceLayerCoverageSafeCurrentDocumentCountMin = 0;
+export const getProjectIntelligenceResponseEvidenceLayerCoverageSafeCurrentDocumentCountMax = 256;
+
+export const getProjectIntelligenceResponseEvidenceLayerCoverageVerifiedDocumentCountMin = 0;
+export const getProjectIntelligenceResponseEvidenceLayerCoverageVerifiedDocumentCountMax = 256;
+
+export const getProjectIntelligenceResponseEvidenceLayerCoverageFullyVerifiedDocumentCountMin = 0;
+export const getProjectIntelligenceResponseEvidenceLayerCoverageFullyVerifiedDocumentCountMax = 256;
+
+export const getProjectIntelligenceResponseReviewInboxProjectIdMax = 128;
+
+export const getProjectIntelligenceResponseReviewInboxSourceVersionMax = 2147483647;
+
+export const getProjectIntelligenceResponseReviewInboxSourceManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getProjectIntelligenceResponseReviewInboxAuthorityNoteMax = 1024;
+
+export const getProjectIntelligenceResponseReviewInboxCountsPendingMin = 0;
+export const getProjectIntelligenceResponseReviewInboxCountsPendingMax = 22;
+
+export const getProjectIntelligenceResponseReviewInboxCountsInReviewMin = 0;
+export const getProjectIntelligenceResponseReviewInboxCountsInReviewMax = 22;
+
+export const getProjectIntelligenceResponseReviewInboxCountsChangesRequestedMin = 0;
+export const getProjectIntelligenceResponseReviewInboxCountsChangesRequestedMax = 22;
+
+export const getProjectIntelligenceResponseReviewInboxCountsApprovedMin = 0;
+export const getProjectIntelligenceResponseReviewInboxCountsApprovedMax = 22;
+
+export const getProjectIntelligenceResponseReviewInboxCountsRejectedMin = 0;
+export const getProjectIntelligenceResponseReviewInboxCountsRejectedMax = 22;
+
+export const getProjectIntelligenceResponseReviewInboxItemsItemIdMax = 512;
+
+export const getProjectIntelligenceResponseReviewInboxItemsItemTitleMax = 512;
+
+export const getProjectIntelligenceResponseReviewInboxItemsItemSummaryMax = 4096;
+
+export const getProjectIntelligenceResponseReviewInboxItemsItemReviewTypeMax = 256;
+
+export const getProjectIntelligenceResponseReviewInboxItemsItemReviewerNameMax = 512;
+
+export const getProjectIntelligenceResponseReviewInboxItemsItemSourceCountMin = 0;
+
+export const getProjectIntelligenceResponseReviewInboxItemsItemHrefMax = 2048;
+
+export const getProjectIntelligenceResponseReviewInboxItemsItemSourceVersionMax = 2147483647;
+
+export const getProjectIntelligenceResponseReviewInboxItemsItemReviewVersionMax = 2147483647;
+
+export const getProjectIntelligenceResponseReviewInboxItemsMin = 22;
+export const getProjectIntelligenceResponseReviewInboxItemsMax = 22;
 
 
 
@@ -2874,7 +2942,262 @@ export const GetProjectIntelligenceResponse = zod.object({
   "excerpt": zod.string().max(getProjectIntelligenceResponseCapabilitiesItemCitationsItemExcerptMax).optional()
 })).max(getProjectIntelligenceResponseCapabilitiesItemCitationsMax),
   "lastUpdatedAt": zod.coerce.date().nullable()
-})).min(getProjectIntelligenceResponseCapabilitiesMin).max(getProjectIntelligenceResponseCapabilitiesMax)
+})).min(getProjectIntelligenceResponseCapabilitiesMin).max(getProjectIntelligenceResponseCapabilitiesMax),
+  "evidenceLayer": zod.object({
+  "policyVersion": zod.enum(['evidence-layer-policy-v1']),
+  "disposition": zod.enum(['ready', 'abstain', 'blocked']),
+  "requestedMode": zod.enum(['complete_corpus', 'verified_spans']),
+  "actualMode": zod.enum(['complete_corpus', 'verified_spans']),
+  "manifestSha256": zod.string().regex(getProjectIntelligenceResponseEvidenceLayerManifestSha256RegExp).nullable(),
+  "versionSha256": zod.string().regex(getProjectIntelligenceResponseEvidenceLayerVersionSha256RegExp).nullable(),
+  "sourceCount": zod.number().min(getProjectIntelligenceResponseEvidenceLayerSourceCountMin).max(getProjectIntelligenceResponseEvidenceLayerSourceCountMax),
+  "rejectedCount": zod.number().min(getProjectIntelligenceResponseEvidenceLayerRejectedCountMin).max(getProjectIntelligenceResponseEvidenceLayerRejectedCountMax),
+  "blockers": zod.array(zod.object({
+  "code": zod.enum(['input_bound_exceeded', 'input_invalid', 'duplicate_entity', 'project_scope_mismatch', 'actor_scope_mismatch', 'permission_denied', 'document_visibility_mismatch', 'document_scope_mismatch', 'version_scope_mismatch', 'requirement_scope_mismatch', 'citation_scope_mismatch', 'source_reference_missing', 'current_version_ambiguous', 'complete_corpus_not_proven', 'layer_not_ready', 'manifest_mismatch', 'query_invalid']),
+  "path": zod.string().min(1).max(getProjectIntelligenceResponseEvidenceLayerBlockersItemPathMax)
+})),
+  "coverage": zod.object({
+  "visibleDocumentCount": zod.number().min(getProjectIntelligenceResponseEvidenceLayerCoverageVisibleDocumentCountMin).max(getProjectIntelligenceResponseEvidenceLayerCoverageVisibleDocumentCountMax),
+  "redactionEligibleDocumentCount": zod.number().min(getProjectIntelligenceResponseEvidenceLayerCoverageRedactionEligibleDocumentCountMin).max(getProjectIntelligenceResponseEvidenceLayerCoverageRedactionEligibleDocumentCountMax),
+  "safeCurrentDocumentCount": zod.number().min(getProjectIntelligenceResponseEvidenceLayerCoverageSafeCurrentDocumentCountMin).max(getProjectIntelligenceResponseEvidenceLayerCoverageSafeCurrentDocumentCountMax),
+  "verifiedDocumentCount": zod.number().min(getProjectIntelligenceResponseEvidenceLayerCoverageVerifiedDocumentCountMin).max(getProjectIntelligenceResponseEvidenceLayerCoverageVerifiedDocumentCountMax),
+  "fullyVerifiedDocumentCount": zod.number().min(getProjectIntelligenceResponseEvidenceLayerCoverageFullyVerifiedDocumentCountMin).max(getProjectIntelligenceResponseEvidenceLayerCoverageFullyVerifiedDocumentCountMax)
+})
+}),
+  "reviewInbox": zod.object({
+  "projectId": zod.string().min(1).max(getProjectIntelligenceResponseReviewInboxProjectIdMax),
+  "generatedAt": zod.coerce.date(),
+  "environment": zod.enum(['production', 'staging', 'development']),
+  "productionAiEnabled": zod.boolean(),
+  "sourceVersion": zod.number().min(1).max(getProjectIntelligenceResponseReviewInboxSourceVersionMax),
+  "sourceManifestSha256": zod.string().regex(getProjectIntelligenceResponseReviewInboxSourceManifestSha256RegExp),
+  "readOnly": zod.boolean(),
+  "authorityNote": zod.string().min(1).max(getProjectIntelligenceResponseReviewInboxAuthorityNoteMax),
+  "counts": zod.object({
+  "pending": zod.number().min(getProjectIntelligenceResponseReviewInboxCountsPendingMin).max(getProjectIntelligenceResponseReviewInboxCountsPendingMax),
+  "in_review": zod.number().min(getProjectIntelligenceResponseReviewInboxCountsInReviewMin).max(getProjectIntelligenceResponseReviewInboxCountsInReviewMax),
+  "changes_requested": zod.number().min(getProjectIntelligenceResponseReviewInboxCountsChangesRequestedMin).max(getProjectIntelligenceResponseReviewInboxCountsChangesRequestedMax),
+  "approved": zod.number().min(getProjectIntelligenceResponseReviewInboxCountsApprovedMin).max(getProjectIntelligenceResponseReviewInboxCountsApprovedMax),
+  "rejected": zod.number().min(getProjectIntelligenceResponseReviewInboxCountsRejectedMin).max(getProjectIntelligenceResponseReviewInboxCountsRejectedMax)
+}),
+  "items": zod.array(zod.object({
+  "id": zod.string().min(1).max(getProjectIntelligenceResponseReviewInboxItemsItemIdMax),
+  "capabilityId": zod.enum(['evidence_graph', 'addendum_radar', 'eligibility_passport', 'grounded_copilot', 'opportunity_radar', 'response_studio', 'submission_preflight', 'clarification_assistant', 'boq_sanity', 'award_handoff', 'evaluation_score_planner', 'bid_security_integrity', 'regulatory_watchtower', 'consortium_responsibility', 'portal_submission_rehearsal', 'commercial_exposure', 'nigerian_content_composer', 'personnel_tailoring', 'contract_deviation', 'critical_path_simulator', 'integrity_sentinel', 'outcome_learning']),
+  "title": zod.string().min(1).max(getProjectIntelligenceResponseReviewInboxItemsItemTitleMax),
+  "summary": zod.string().min(1).max(getProjectIntelligenceResponseReviewInboxItemsItemSummaryMax),
+  "status": zod.enum(['pending', 'in_review', 'changes_requested', 'approved', 'rejected']),
+  "priority": zod.enum(['critical', 'high', 'normal', 'low']),
+  "reviewType": zod.string().min(1).max(getProjectIntelligenceResponseReviewInboxItemsItemReviewTypeMax),
+  "reviewerName": zod.string().max(getProjectIntelligenceResponseReviewInboxItemsItemReviewerNameMax).nullable(),
+  "dueAt": zod.string().nullable(),
+  "sourceCount": zod.number().min(getProjectIntelligenceResponseReviewInboxItemsItemSourceCountMin),
+  "staleSource": zod.boolean(),
+  "href": zod.string().max(getProjectIntelligenceResponseReviewInboxItemsItemHrefMax).nullable(),
+  "sourceVersion": zod.number().min(1).max(getProjectIntelligenceResponseReviewInboxItemsItemSourceVersionMax),
+  "reviewVersion": zod.number().min(1).max(getProjectIntelligenceResponseReviewInboxItemsItemReviewVersionMax).nullable(),
+  "assignedToCurrentUser": zod.boolean()
+})).min(getProjectIntelligenceResponseReviewInboxItemsMin).max(getProjectIntelligenceResponseReviewInboxItemsMax)
+})
+})
+
+
+/**
+ * Performs bounded lexical retrieval over only the tenant-scoped, named-verifier evidence spans admitted to the supplied manifest. It invokes no model and returns a blocked disposition when the manifest, actor scope or evidence visibility changed.
+ * @summary Search the current verified evidence manifest deterministically
+ */
+export const SearchProjectIntelligenceEvidenceParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const searchProjectIntelligenceEvidenceBodyQueryMax = 2000;
+
+export const searchProjectIntelligenceEvidenceBodyExpectedManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const searchProjectIntelligenceEvidenceBodyLimitDefault = 10;
+export const searchProjectIntelligenceEvidenceBodyLimitMax = 20;
+
+
+
+export const SearchProjectIntelligenceEvidenceBody = zod.object({
+  "query": zod.string().min(1).max(searchProjectIntelligenceEvidenceBodyQueryMax),
+  "expectedManifestSha256": zod.string().regex(searchProjectIntelligenceEvidenceBodyExpectedManifestSha256RegExp),
+  "limit": zod.number().min(1).max(searchProjectIntelligenceEvidenceBodyLimitMax).default(searchProjectIntelligenceEvidenceBodyLimitDefault)
+})
+
+export const searchProjectIntelligenceEvidenceResponseQuerySha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const searchProjectIntelligenceEvidenceResponseSearchManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const searchProjectIntelligenceEvidenceResponseBlockersItemPathMax = 4096;
+
+export const searchProjectIntelligenceEvidenceResponseMatchesItemCitationIdMax = 128;
+
+export const searchProjectIntelligenceEvidenceResponseMatchesItemRequirementIdMax = 128;
+
+export const searchProjectIntelligenceEvidenceResponseMatchesItemDocumentIdMax = 128;
+
+export const searchProjectIntelligenceEvidenceResponseMatchesItemDocumentVersionIdMax = 128;
+
+
+export const searchProjectIntelligenceEvidenceResponseMatchesItemSourceNameMax = 512;
+
+export const searchProjectIntelligenceEvidenceResponseMatchesItemSourceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const searchProjectIntelligenceEvidenceResponseMatchesItemSnippetSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const searchProjectIntelligenceEvidenceResponseMatchesItemExcerptMax = 32000;
+
+
+export const searchProjectIntelligenceEvidenceResponseMatchesItemLocatorParagraphRefMax = 4096;
+
+export const searchProjectIntelligenceEvidenceResponseMatchesItemLocatorTableRefMax = 4096;
+
+export const searchProjectIntelligenceEvidenceResponseMatchesItemLocatorCoordinateJsonMax = 4096;
+
+export const searchProjectIntelligenceEvidenceResponseMatchesItemLocatorLabelMax = 4096;
+
+export const searchProjectIntelligenceEvidenceResponseMatchesItemVerifierNameMax = 256;
+
+export const searchProjectIntelligenceEvidenceResponseMatchesItemLexicalScoreBasisPointsMin = 0;
+export const searchProjectIntelligenceEvidenceResponseMatchesItemLexicalScoreBasisPointsMax = 10000;
+
+export const searchProjectIntelligenceEvidenceResponseMatchesItemMatchedTokensItemMax = 2000;
+
+export const searchProjectIntelligenceEvidenceResponseMatchesItemMatchedTokensMax = 64;
+
+export const searchProjectIntelligenceEvidenceResponseMatchesMax = 20;
+
+
+
+export const SearchProjectIntelligenceEvidenceResponse = zod.object({
+  "disposition": zod.enum(['ready', 'abstain', 'blocked']),
+  "abstentionReason": zod.union([zod.literal('no_lexical_match'),zod.literal(null)]).nullable(),
+  "querySha256": zod.string().regex(searchProjectIntelligenceEvidenceResponseQuerySha256RegExp).nullable(),
+  "searchManifestSha256": zod.string().regex(searchProjectIntelligenceEvidenceResponseSearchManifestSha256RegExp).nullable(),
+  "blockers": zod.array(zod.object({
+  "code": zod.enum(['input_bound_exceeded', 'input_invalid', 'duplicate_entity', 'project_scope_mismatch', 'actor_scope_mismatch', 'permission_denied', 'document_visibility_mismatch', 'document_scope_mismatch', 'version_scope_mismatch', 'requirement_scope_mismatch', 'citation_scope_mismatch', 'source_reference_missing', 'current_version_ambiguous', 'complete_corpus_not_proven', 'layer_not_ready', 'manifest_mismatch', 'query_invalid']),
+  "path": zod.string().min(1).max(searchProjectIntelligenceEvidenceResponseBlockersItemPathMax)
+})),
+  "matches": zod.array(zod.object({
+  "citationId": zod.string().min(1).max(searchProjectIntelligenceEvidenceResponseMatchesItemCitationIdMax),
+  "requirementId": zod.string().min(1).max(searchProjectIntelligenceEvidenceResponseMatchesItemRequirementIdMax),
+  "documentId": zod.string().min(1).max(searchProjectIntelligenceEvidenceResponseMatchesItemDocumentIdMax),
+  "documentVersionId": zod.string().min(1).max(searchProjectIntelligenceEvidenceResponseMatchesItemDocumentVersionIdMax),
+  "documentVersionNumber": zod.number().min(1),
+  "sourceName": zod.string().min(1).max(searchProjectIntelligenceEvidenceResponseMatchesItemSourceNameMax),
+  "sourceSha256": zod.string().regex(searchProjectIntelligenceEvidenceResponseMatchesItemSourceSha256RegExp),
+  "snippetSha256": zod.string().regex(searchProjectIntelligenceEvidenceResponseMatchesItemSnippetSha256RegExp),
+  "excerpt": zod.string().max(searchProjectIntelligenceEvidenceResponseMatchesItemExcerptMax),
+  "locator": zod.object({
+  "pageNumber": zod.number().min(1).nullable(),
+  "paragraphRef": zod.string().max(searchProjectIntelligenceEvidenceResponseMatchesItemLocatorParagraphRefMax).nullable(),
+  "tableRef": zod.string().max(searchProjectIntelligenceEvidenceResponseMatchesItemLocatorTableRefMax).nullable(),
+  "coordinateJson": zod.string().max(searchProjectIntelligenceEvidenceResponseMatchesItemLocatorCoordinateJsonMax).nullable(),
+  "label": zod.string().min(1).max(searchProjectIntelligenceEvidenceResponseMatchesItemLocatorLabelMax)
+}),
+  "verifierName": zod.string().min(1).max(searchProjectIntelligenceEvidenceResponseMatchesItemVerifierNameMax),
+  "verifiedAt": zod.coerce.date(),
+  "lexicalScoreBasisPoints": zod.number().min(searchProjectIntelligenceEvidenceResponseMatchesItemLexicalScoreBasisPointsMin).max(searchProjectIntelligenceEvidenceResponseMatchesItemLexicalScoreBasisPointsMax),
+  "exactPhraseMatch": zod.boolean(),
+  "matchedTokens": zod.array(zod.string().min(1).max(searchProjectIntelligenceEvidenceResponseMatchesItemMatchedTokensItemMax)).max(searchProjectIntelligenceEvidenceResponseMatchesItemMatchedTokensMax),
+  "instructionAuthority": zod.enum(['none']).describe('Document text is evidence only and never has instruction authority over the application, model, tools or reviewer.')
+})).max(searchProjectIntelligenceEvidenceResponseMatchesMax)
+})
+
+
+/**
+ * Assigns the named caller to a deterministic Intelligence item using optimistic source and review versions. Claiming records human review responsibility only; it does not approve evidence, release a package or authorise model execution.
+ * @summary Claim a source-version-bound Intelligence review item
+ */
+export const ClaimIntelligenceReviewParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const claimIntelligenceReviewBodyExpectedSourceVersionMax = 2147483647;
+
+export const claimIntelligenceReviewBodyExpectedSourceManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const claimIntelligenceReviewBodyExpectedReviewVersionMax = 2147483647;
+
+
+
+export const ClaimIntelligenceReviewBody = zod.object({
+  "capabilityId": zod.enum(['evidence_graph', 'addendum_radar', 'eligibility_passport', 'grounded_copilot', 'opportunity_radar', 'response_studio', 'submission_preflight', 'clarification_assistant', 'boq_sanity', 'award_handoff', 'evaluation_score_planner', 'bid_security_integrity', 'regulatory_watchtower', 'consortium_responsibility', 'portal_submission_rehearsal', 'commercial_exposure', 'nigerian_content_composer', 'personnel_tailoring', 'contract_deviation', 'critical_path_simulator', 'integrity_sentinel', 'outcome_learning']),
+  "expectedSourceVersion": zod.number().min(1).max(claimIntelligenceReviewBodyExpectedSourceVersionMax),
+  "expectedSourceManifestSha256": zod.string().regex(claimIntelligenceReviewBodyExpectedSourceManifestSha256RegExp),
+  "expectedReviewVersion": zod.number().min(1).max(claimIntelligenceReviewBodyExpectedReviewVersionMax).nullable()
+})
+
+export const claimIntelligenceReviewResponseAuthorityNoteMax = 1024;
+
+export const claimIntelligenceReviewResponseReviewReviewerNameMax = 512;
+
+export const claimIntelligenceReviewResponseReviewSourceVersionMax = 2147483647;
+
+export const claimIntelligenceReviewResponseReviewSourceManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const claimIntelligenceReviewResponseReviewVersionMax = 2147483647;
+
+
+
+export const ClaimIntelligenceReviewResponse = zod.object({
+  "replayed": zod.boolean(),
+  "authorityNote": zod.string().min(1).max(claimIntelligenceReviewResponseAuthorityNoteMax),
+  "review": zod.object({
+  "id": zod.string().uuid(),
+  "capabilityId": zod.enum(['evidence_graph', 'addendum_radar', 'eligibility_passport', 'grounded_copilot', 'opportunity_radar', 'response_studio', 'submission_preflight', 'clarification_assistant', 'boq_sanity', 'award_handoff', 'evaluation_score_planner', 'bid_security_integrity', 'regulatory_watchtower', 'consortium_responsibility', 'portal_submission_rehearsal', 'commercial_exposure', 'nigerian_content_composer', 'personnel_tailoring', 'contract_deviation', 'critical_path_simulator', 'integrity_sentinel', 'outcome_learning']),
+  "status": zod.enum(['pending', 'in_review', 'changes_requested', 'approved', 'rejected']),
+  "reviewerName": zod.string().min(1).max(claimIntelligenceReviewResponseReviewReviewerNameMax),
+  "sourceVersion": zod.number().min(1).max(claimIntelligenceReviewResponseReviewSourceVersionMax),
+  "sourceManifestSha256": zod.string().regex(claimIntelligenceReviewResponseReviewSourceManifestSha256RegExp),
+  "version": zod.number().min(1).max(claimIntelligenceReviewResponseReviewVersionMax),
+  "completedAt": zod.coerce.date().nullable(),
+  "updatedAt": zod.coerce.date().nullable()
+})
+})
+
+
+/**
+ * Records changes requested, review acceptance or rejection against the exact current source manifest and review version. The wire value `approved` denotes review acceptance only and grants no release, evidence-approval or model-execution authority.
+ * @summary Record a named review decision for an Intelligence item
+ */
+export const DecideIntelligenceReviewParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const decideIntelligenceReviewBodyExpectedSourceVersionMax = 2147483647;
+
+export const decideIntelligenceReviewBodyExpectedSourceManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const decideIntelligenceReviewBodyExpectedReviewVersionMax = 2147483647;
+
+
+
+export const DecideIntelligenceReviewBody = zod.object({
+  "capabilityId": zod.enum(['evidence_graph', 'addendum_radar', 'eligibility_passport', 'grounded_copilot', 'opportunity_radar', 'response_studio', 'submission_preflight', 'clarification_assistant', 'boq_sanity', 'award_handoff', 'evaluation_score_planner', 'bid_security_integrity', 'regulatory_watchtower', 'consortium_responsibility', 'portal_submission_rehearsal', 'commercial_exposure', 'nigerian_content_composer', 'personnel_tailoring', 'contract_deviation', 'critical_path_simulator', 'integrity_sentinel', 'outcome_learning']),
+  "expectedSourceVersion": zod.number().min(1).max(decideIntelligenceReviewBodyExpectedSourceVersionMax),
+  "expectedSourceManifestSha256": zod.string().regex(decideIntelligenceReviewBodyExpectedSourceManifestSha256RegExp),
+  "expectedReviewVersion": zod.number().min(1).max(decideIntelligenceReviewBodyExpectedReviewVersionMax),
+  "decision": zod.enum(['changes_requested', 'approved', 'rejected'])
+})
+
+export const decideIntelligenceReviewResponseAuthorityNoteMax = 1024;
+
+export const decideIntelligenceReviewResponseReviewReviewerNameMax = 512;
+
+export const decideIntelligenceReviewResponseReviewSourceVersionMax = 2147483647;
+
+export const decideIntelligenceReviewResponseReviewSourceManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const decideIntelligenceReviewResponseReviewVersionMax = 2147483647;
+
+
+
+export const DecideIntelligenceReviewResponse = zod.object({
+  "replayed": zod.boolean(),
+  "authorityNote": zod.string().min(1).max(decideIntelligenceReviewResponseAuthorityNoteMax),
+  "review": zod.object({
+  "id": zod.string().uuid(),
+  "capabilityId": zod.enum(['evidence_graph', 'addendum_radar', 'eligibility_passport', 'grounded_copilot', 'opportunity_radar', 'response_studio', 'submission_preflight', 'clarification_assistant', 'boq_sanity', 'award_handoff', 'evaluation_score_planner', 'bid_security_integrity', 'regulatory_watchtower', 'consortium_responsibility', 'portal_submission_rehearsal', 'commercial_exposure', 'nigerian_content_composer', 'personnel_tailoring', 'contract_deviation', 'critical_path_simulator', 'integrity_sentinel', 'outcome_learning']),
+  "status": zod.enum(['pending', 'in_review', 'changes_requested', 'approved', 'rejected']),
+  "reviewerName": zod.string().min(1).max(decideIntelligenceReviewResponseReviewReviewerNameMax),
+  "sourceVersion": zod.number().min(1).max(decideIntelligenceReviewResponseReviewSourceVersionMax),
+  "sourceManifestSha256": zod.string().regex(decideIntelligenceReviewResponseReviewSourceManifestSha256RegExp),
+  "version": zod.number().min(1).max(decideIntelligenceReviewResponseReviewVersionMax),
+  "completedAt": zod.coerce.date().nullable(),
+  "updatedAt": zod.coerce.date().nullable()
+})
 })
 
 

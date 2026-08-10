@@ -65,6 +65,10 @@ describe("role and permission policy", () => {
       true,
     );
     assert.equal(
+      hasPermission(["client_reviewer_approver"], "intelligence:review"),
+      true,
+    );
+    assert.equal(
       hasPermission(["client_reviewer_approver"], "billing:read"),
       false,
     );
@@ -168,6 +172,7 @@ describe("role and permission policy", () => {
       "processing_job:retry",
       "evaluation:read",
       "evaluation:manage",
+      "intelligence:review",
       "rule_pack:read",
       "rule_pack:manage",
       "partner_report:read",
@@ -208,6 +213,26 @@ describe("role and permission policy", () => {
     assert.equal(PARTNER_DERIVED_PERMISSIONS.has("document:read"), true);
     assert.equal(BREAK_GLASS_ELIGIBLE_PERMISSIONS.has("evidence:read"), true);
     assert.equal(BREAK_GLASS_ELIGIBLE_PERMISSIONS.has("document:read"), true);
+  });
+
+  test("intelligence review remains a direct-tenant named-review authority", () => {
+    assert.equal(hasPermission(["contributor"], "intelligence:review"), false);
+    assert.equal(
+      hasPermission(["client_reviewer_approver"], "intelligence:review"),
+      true,
+    );
+    assert.equal(
+      hasPermission(
+        ["consultancy_partner_analyst_reviewer"],
+        "intelligence:review",
+      ),
+      true,
+    );
+    assert.equal(PARTNER_DERIVED_PERMISSIONS.has("intelligence:review"), false);
+    assert.equal(
+      BREAK_GLASS_ELIGIBLE_PERMISSIONS.has("intelligence:review"),
+      false,
+    );
   });
 
   test("roles cannot be granted to an incompatible organisation type", () => {

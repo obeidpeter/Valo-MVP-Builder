@@ -14,6 +14,9 @@ import {
   type SurfaceState,
 } from "@/components/platform-states";
 import { IntelligenceCapabilityCard } from "@/components/intelligence/intelligence-capability-card";
+import IntelligenceReviewInbox, {
+  type IntelligenceReviewDecision,
+} from "@/components/intelligence/intelligence-review-inbox";
 import {
   INTELLIGENCE_CAPABILITY_CATALOG,
   createProductionDisabledIntelligenceSnapshot,
@@ -26,6 +29,12 @@ export type { IntelligenceCentreLoadState } from "@/components/intelligence/inte
 
 export interface IntelligenceCentreProps {
   loadState?: IntelligenceCentreLoadState;
+  reviewMutationPending?: boolean;
+  onReviewClaim?: (itemId: string) => void;
+  onReviewDecision?: (
+    itemId: string,
+    decision: IntelligenceReviewDecision,
+  ) => void;
 }
 
 const DEFAULT_LOAD_STATE: IntelligenceCentreLoadState = {
@@ -124,8 +133,14 @@ function SummaryMetric({
 
 function IntelligenceCentreReady({
   loadState,
+  reviewMutationPending = false,
+  onReviewClaim,
+  onReviewDecision,
 }: {
   loadState: Extract<IntelligenceCentreLoadState, { status: "ready" }>;
+  reviewMutationPending?: boolean;
+  onReviewClaim?: IntelligenceCentreProps["onReviewClaim"];
+  onReviewDecision?: IntelligenceCentreProps["onReviewDecision"];
 }) {
   const { snapshot } = loadState;
   const capabilityById = new Map(
@@ -209,6 +224,32 @@ function IntelligenceCentreReady({
         />
       ) : null}
 
+      {snapshot.evidenceLayer ? (
+        <StatusPanel
+          state={
+            snapshot.evidenceLayer.disposition === "ready"
+              ? "active"
+              : snapshot.evidenceLayer.disposition === "abstain"
+                ? "partial"
+                : "blocked"
+          }
+          title={
+            snapshot.evidenceLayer.disposition === "ready"
+              ? "Verified evidence spans are searchable"
+              : snapshot.evidenceLayer.disposition === "abstain"
+                ? "Evidence search is abstaining"
+                : "Evidence search is blocked"
+          }
+          description={`${snapshot.evidenceLayer.sourceCount.toLocaleString("en-NG")} exact, current and named-verified source span${snapshot.evidenceLayer.sourceCount === 1 ? " is" : "s are"} available. ${snapshot.evidenceLayer.rejectedCount.toLocaleString("en-NG")} candidate span${snapshot.evidenceLayer.rejectedCount === 1 ? " was" : "s were"} rejected. This deterministic layer does not invoke a model or approve a claim.`}
+        />
+      ) : (
+        <StatusPanel
+          state="partial"
+          title="Evidence layer status is unavailable"
+          description="No searchable evidence state was supplied. Do not infer that evidence is absent or verified."
+        />
+      )}
+
       <section
         aria-labelledby="intelligence-summary-heading"
         className="space-y-4"
@@ -260,6 +301,25 @@ function IntelligenceCentreReady({
           />
         </div>
       </section>
+
+      {snapshot.reviewInbox ? (
+        <IntelligenceReviewInbox
+          items={snapshot.reviewInbox.items}
+          environment={snapshot.reviewInbox.environment}
+          productionAiEnabled={snapshot.reviewInbox.productionAiEnabled}
+          readOnly={snapshot.reviewInbox.readOnly || reviewMutationPending}
+          authorityNote={snapshot.reviewInbox.authorityNote}
+          showRuntimeBoundary={false}
+          onClaim={onReviewClaim}
+          onDecision={onReviewDecision}
+        />
+      ) : (
+        <StatusPanel
+          state="partial"
+          title="Review inbox is unavailable"
+          description="No review queue was supplied. Do not infer that there is nothing to review."
+        />
+      )}
 
       <section
         aria-labelledby="capability-catalogue-heading"
@@ -356,6 +416,9 @@ function IntelligenceCentreReady({
 
 export default function IntelligenceCentre({
   loadState = DEFAULT_LOAD_STATE,
+  reviewMutationPending = false,
+  onReviewClaim,
+  onReviewDecision,
 }: IntelligenceCentreProps) {
   const state = overallState(loadState);
 
@@ -381,7 +444,12 @@ export default function IntelligenceCentre({
       ) : null}
 
       {loadState.status === "ready" ? (
-        <IntelligenceCentreReady loadState={loadState} />
+        <IntelligenceCentreReady
+          loadState={loadState}
+          reviewMutationPending={reviewMutationPending}
+          onReviewClaim={onReviewClaim}
+          onReviewDecision={onReviewDecision}
+        />
       ) : null}
     </main>
   );

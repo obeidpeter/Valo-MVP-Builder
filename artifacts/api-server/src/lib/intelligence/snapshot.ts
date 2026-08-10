@@ -122,12 +122,16 @@ export interface ProjectIntelligenceInput {
     pageNumber?: number | null;
     paragraphRef?: string | null;
     tableRef?: string | null;
+    coordinateJson?: string | null;
     sourceSnippet: string;
     sourceSnippetHash: string;
     verificationStatus: string;
     verifiedByUserId?: string | null;
     verifiedByName?: string | null;
     verifiedAt?: string | null;
+    verifierAuthority?:
+      | "active_direct_tenant_evidence_approver"
+      | "not_authorized";
     updatedAt?: string | null;
   }>;
   evidence: Array<{
@@ -301,13 +305,41 @@ function locatorFor(input: {
   pageNumber?: number | null;
   paragraphRef?: string | null;
   tableRef?: string | null;
+  coordinateJson?: string | null;
 }): string {
   const parts = [
-    input.pageNumber ? `Page ${input.pageNumber}` : null,
+    input.pageNumber != null ? `Page ${input.pageNumber}` : null,
     input.paragraphRef?.trim() || null,
     input.tableRef?.trim() || null,
+    input.coordinateJson != null ? "Coordinates retained" : null,
   ].filter((value): value is string => Boolean(value));
-  return parts.join(" · ") || "Exact source locator retained";
+  return parts.join(" · ");
+}
+
+function hasValidExactLocator(input: {
+  pageNumber?: number | null;
+  paragraphRef?: string | null;
+  tableRef?: string | null;
+  coordinateJson?: string | null;
+}): boolean {
+  if (
+    input.pageNumber != null &&
+    (!Number.isSafeInteger(input.pageNumber) || input.pageNumber < 1)
+  )
+    return false;
+  if (input.coordinateJson != null) {
+    try {
+      JSON.parse(input.coordinateJson);
+    } catch {
+      return false;
+    }
+  }
+  return Boolean(
+    input.pageNumber != null ||
+    input.paragraphRef?.trim() ||
+    input.tableRef?.trim() ||
+    input.coordinateJson?.trim(),
+  );
 }
 
 function capability(
@@ -333,6 +365,36 @@ export function buildIntelligenceCentreSnapshot(
   const versionById = new Map(
     input.documentVersions.map((item) => [item.id, item]),
   );
+  const versionsByDocumentId = new Map<
+    string,
+    ProjectIntelligenceInput["documentVersions"]
+  >();
+  for (const version of input.documentVersions) {
+    const versions = versionsByDocumentId.get(version.documentId) ?? [];
+    versions.push(version);
+    versionsByDocumentId.set(version.documentId, versions);
+  }
+  const currentVersionByDocumentId = new Map<
+    string,
+    ProjectIntelligenceInput["documentVersions"][number]
+  >();
+  for (const [documentId, versions] of versionsByDocumentId) {
+    const validVersions = versions.filter(
+      (version) =>
+        Number.isSafeInteger(version.versionNumber) &&
+        version.versionNumber > 0,
+    );
+    const highestVersion = validVersions.reduce(
+      (highest, version) => Math.max(highest, version.versionNumber),
+      0,
+    );
+    const candidates = validVersions.filter(
+      (version) => version.versionNumber === highestVersion,
+    );
+    if (candidates.length === 1) {
+      currentVersionByDocumentId.set(documentId, candidates[0]!);
+    }
+  }
   const requirementById = new Map(
     input.requirements.map((item) => [item.id, item]),
   );
@@ -340,8 +402,10 @@ export function buildIntelligenceCentreSnapshot(
     version: ProjectIntelligenceInput["documentVersions"][number],
   ): boolean => {
     const document = documentById.get(version.documentId);
+    const currentVersion = currentVersionByDocumentId.get(version.documentId);
     return Boolean(
       document &&
+      currentVersion?.id === version.id &&
       INCLUDED_DOCUMENT_STATES.has(document.redactionStatus) &&
       document.extractionStatus === "extracted" &&
       isSha256(document.sha256) &&
@@ -362,6 +426,7 @@ export function buildIntelligenceCentreSnapshot(
     const document = version ? documentById.get(version.documentId) : undefined;
     const exactSnippetHash = sha256(citation.sourceSnippet);
     const verifiedAt = validDate(citation.verifiedAt);
+    const evaluatedAt = validDate(input.generatedAt);
     const valid = Boolean(
       requirement &&
       version &&
@@ -373,9 +438,13 @@ export function buildIntelligenceCentreSnapshot(
       citation.sourceSnippet.length > 0 &&
       document.contentText?.includes(citation.sourceSnippet) &&
       citation.verificationStatus === "verified" &&
+      hasValidExactLocator(citation) &&
       citation.verifiedByUserId?.trim() &&
       citation.verifiedByName?.trim() &&
-      verifiedAt != null,
+      citation.verifierAuthority === "active_direct_tenant_evidence_approver" &&
+      verifiedAt != null &&
+      evaluatedAt != null &&
+      verifiedAt <= evaluatedAt,
     );
     if (!valid || !version || !document || !citation.verifiedAt) return [];
     return [

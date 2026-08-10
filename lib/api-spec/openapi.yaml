@@ -1994,11 +1994,13 @@ paths:
       summary: Get the deterministic Intelligence Centre snapshot for a pursuit
       description: >-
         Returns content-minimised, tenant-scoped projections for twenty-two
-        intelligence capabilities. This operation never invokes a model,
-        authorises submission, changes pricing or performs an external action.
-        Because the response combines multiple governed source classes, the
-        caller must hold client, project, document, requirement, evidence,
-        defect, report, draft and package read authority in the active tenant.
+        intelligence capabilities together with a deterministic verified-span
+        evidence summary and a source-version-bound human review inbox. This
+        operation never invokes a model, approves evidence, authorises
+        submission, changes pricing or performs an external action. Because the
+        response combines multiple governed source classes, the caller must
+        hold client, project, document, requirement, evidence, defect, report,
+        draft, package and evaluation read authority in the active tenant.
       parameters:
         - $ref: "#/components/parameters/IdParam"
       responses:
@@ -2014,6 +2016,117 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /projects/{id}/intelligence/evidence-search:
+    post:
+      operationId: searchProjectIntelligenceEvidence
+      tags: [Intelligence]
+      summary: Search the current verified evidence manifest deterministically
+      description: >-
+        Performs bounded lexical retrieval over only the tenant-scoped,
+        named-verifier evidence spans admitted to the supplied manifest. It
+        invokes no model and returns a blocked disposition when the manifest,
+        actor scope or evidence visibility changed.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IntelligenceEvidenceSearchRequest"
+      responses:
+        "200":
+          description: Deterministic evidence search result or fail-closed disposition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntelligenceEvidenceSearchResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /projects/{id}/intelligence/reviews/claim:
+    post:
+      operationId: claimIntelligenceReview
+      tags: [Intelligence]
+      summary: Claim a source-version-bound Intelligence review item
+      description: >-
+        Assigns the named caller to a deterministic Intelligence item using
+        optimistic source and review versions. Claiming records human review
+        responsibility only; it does not approve evidence, release a package
+        or authorise model execution.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IntelligenceReviewClaimRequest"
+      responses:
+        "200":
+          description: Claimed review item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntelligenceReviewMutationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /projects/{id}/intelligence/reviews/decision:
+    post:
+      operationId: decideIntelligenceReview
+      tags: [Intelligence]
+      summary: Record a named review decision for an Intelligence item
+      description: >-
+        Records changes requested, review acceptance or rejection against the
+        exact current source manifest and review version. The wire value
+        `approved` denotes review acceptance only and grants no release,
+        evidence-approval or model-execution authority.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IntelligenceReviewDecisionRequest"
+      responses:
+        "200":
+          description: Recorded review decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntelligenceReviewMutationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "500":
           $ref: "#/components/responses/InternalServerError"
   /projects/{id}/risk/override:
@@ -3472,6 +3585,8 @@ components:
         - generatedAt
         - project
         - capabilities
+        - evidenceLayer
+        - reviewInbox
       properties:
         environment:
           type: string
@@ -3491,6 +3606,10 @@ components:
           maxItems: 22
           items:
             $ref: "#/components/schemas/IntelligenceCapabilitySnapshot"
+        evidenceLayer:
+          $ref: "#/components/schemas/IntelligenceEvidenceLayerSummary"
+        reviewInbox:
+          $ref: "#/components/schemas/IntelligenceReviewInbox"
     IntelligenceProjectSummary:
       type: object
       additionalProperties: false
@@ -3564,6 +3683,442 @@ components:
         sourceName: { type: string }
         locator: { type: string }
         excerpt: { type: string, maxLength: 280 }
+    IntelligenceCapabilityId:
+      type: string
+      enum:
+        - evidence_graph
+        - addendum_radar
+        - eligibility_passport
+        - grounded_copilot
+        - opportunity_radar
+        - response_studio
+        - submission_preflight
+        - clarification_assistant
+        - boq_sanity
+        - award_handoff
+        - evaluation_score_planner
+        - bid_security_integrity
+        - regulatory_watchtower
+        - consortium_responsibility
+        - portal_submission_rehearsal
+        - commercial_exposure
+        - nigerian_content_composer
+        - personnel_tailoring
+        - contract_deviation
+        - critical_path_simulator
+        - integrity_sentinel
+        - outcome_learning
+    IntelligenceEvidenceDisposition:
+      type: string
+      enum: [ready, abstain, blocked]
+    IntelligenceEvidenceCorpusMode:
+      type: string
+      enum: [complete_corpus, verified_spans]
+    IntelligenceEvidenceBlocker:
+      type: object
+      additionalProperties: false
+      required: [code, path]
+      properties:
+        code:
+          type: string
+          enum:
+            - input_bound_exceeded
+            - input_invalid
+            - duplicate_entity
+            - project_scope_mismatch
+            - actor_scope_mismatch
+            - permission_denied
+            - document_visibility_mismatch
+            - document_scope_mismatch
+            - version_scope_mismatch
+            - requirement_scope_mismatch
+            - citation_scope_mismatch
+            - source_reference_missing
+            - current_version_ambiguous
+            - complete_corpus_not_proven
+            - layer_not_ready
+            - manifest_mismatch
+            - query_invalid
+        path:
+          type: string
+          minLength: 1
+          maxLength: 4096
+    IntelligenceEvidenceCoverage:
+      type: object
+      additionalProperties: false
+      required:
+        - visibleDocumentCount
+        - redactionEligibleDocumentCount
+        - safeCurrentDocumentCount
+        - verifiedDocumentCount
+        - fullyVerifiedDocumentCount
+      properties:
+        visibleDocumentCount:
+          type: integer
+          minimum: 0
+          maximum: 256
+        redactionEligibleDocumentCount:
+          type: integer
+          minimum: 0
+          maximum: 256
+        safeCurrentDocumentCount:
+          type: integer
+          minimum: 0
+          maximum: 256
+        verifiedDocumentCount:
+          type: integer
+          minimum: 0
+          maximum: 256
+        fullyVerifiedDocumentCount:
+          type: integer
+          minimum: 0
+          maximum: 256
+    IntelligenceEvidenceLayerSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - policyVersion
+        - disposition
+        - requestedMode
+        - actualMode
+        - manifestSha256
+        - versionSha256
+        - sourceCount
+        - rejectedCount
+        - blockers
+        - coverage
+      properties:
+        policyVersion:
+          type: string
+          enum: [evidence-layer-policy-v1]
+        disposition:
+          $ref: "#/components/schemas/IntelligenceEvidenceDisposition"
+        requestedMode:
+          $ref: "#/components/schemas/IntelligenceEvidenceCorpusMode"
+        actualMode:
+          $ref: "#/components/schemas/IntelligenceEvidenceCorpusMode"
+        manifestSha256:
+          type: [string, "null"]
+          pattern: "^[a-f0-9]{64}$"
+        versionSha256:
+          type: [string, "null"]
+          pattern: "^[a-f0-9]{64}$"
+        sourceCount:
+          type: integer
+          minimum: 0
+          maximum: 8192
+        rejectedCount:
+          type: integer
+          minimum: 0
+          maximum: 8192
+        blockers:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntelligenceEvidenceBlocker"
+        coverage:
+          $ref: "#/components/schemas/IntelligenceEvidenceCoverage"
+    IntelligenceReviewStatus:
+      type: string
+      enum: [pending, in_review, changes_requested, approved, rejected]
+    IntelligenceReviewPriority:
+      type: string
+      enum: [critical, high, normal, low]
+    IntelligenceReviewInboxCounts:
+      type: object
+      additionalProperties: false
+      required: [pending, in_review, changes_requested, approved, rejected]
+      properties:
+        pending: { type: integer, minimum: 0, maximum: 22 }
+        in_review: { type: integer, minimum: 0, maximum: 22 }
+        changes_requested: { type: integer, minimum: 0, maximum: 22 }
+        approved: { type: integer, minimum: 0, maximum: 22 }
+        rejected: { type: integer, minimum: 0, maximum: 22 }
+    IntelligenceReviewInboxItem:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - capabilityId
+        - title
+        - summary
+        - status
+        - priority
+        - reviewType
+        - reviewerName
+        - dueAt
+        - sourceCount
+        - staleSource
+        - href
+        - sourceVersion
+        - reviewVersion
+        - assignedToCurrentUser
+      properties:
+        id: { type: string, minLength: 1, maxLength: 512 }
+        capabilityId:
+          $ref: "#/components/schemas/IntelligenceCapabilityId"
+        title: { type: string, minLength: 1, maxLength: 512 }
+        summary: { type: string, minLength: 1, maxLength: 4096 }
+        status:
+          $ref: "#/components/schemas/IntelligenceReviewStatus"
+        priority:
+          $ref: "#/components/schemas/IntelligenceReviewPriority"
+        reviewType: { type: string, minLength: 1, maxLength: 256 }
+        reviewerName: { type: [string, "null"], maxLength: 512 }
+        dueAt: { type: [string, "null"] }
+        sourceCount: { type: integer, minimum: 0 }
+        staleSource: { type: boolean }
+        href: { type: [string, "null"], maxLength: 2048 }
+        sourceVersion:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+        reviewVersion:
+          type: [integer, "null"]
+          minimum: 1
+          maximum: 2147483647
+        assignedToCurrentUser: { type: boolean }
+    IntelligenceReviewInbox:
+      type: object
+      additionalProperties: false
+      required:
+        - projectId
+        - generatedAt
+        - environment
+        - productionAiEnabled
+        - sourceVersion
+        - sourceManifestSha256
+        - readOnly
+        - authorityNote
+        - counts
+        - items
+      properties:
+        projectId: { type: string, minLength: 1, maxLength: 128 }
+        generatedAt: { type: string, format: date-time }
+        environment:
+          type: string
+          enum: [production, staging, development]
+        productionAiEnabled: { type: boolean }
+        sourceVersion:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+        sourceManifestSha256:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+        readOnly: { type: boolean }
+        authorityNote: { type: string, minLength: 1, maxLength: 1024 }
+        counts:
+          $ref: "#/components/schemas/IntelligenceReviewInboxCounts"
+        items:
+          type: array
+          minItems: 22
+          maxItems: 22
+          items:
+            $ref: "#/components/schemas/IntelligenceReviewInboxItem"
+    IntelligenceEvidenceSearchRequest:
+      type: object
+      additionalProperties: false
+      required: [query, expectedManifestSha256]
+      properties:
+        query:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        expectedManifestSha256:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 10
+    IntelligenceEvidenceLocator:
+      type: object
+      additionalProperties: false
+      required: [pageNumber, paragraphRef, tableRef, coordinateJson, label]
+      properties:
+        pageNumber:
+          type: [integer, "null"]
+          minimum: 1
+        paragraphRef: { type: [string, "null"], maxLength: 4096 }
+        tableRef: { type: [string, "null"], maxLength: 4096 }
+        coordinateJson: { type: [string, "null"], maxLength: 4096 }
+        label: { type: string, minLength: 1, maxLength: 4096 }
+    IntelligenceEvidenceSearchMatch:
+      type: object
+      additionalProperties: false
+      required:
+        - citationId
+        - requirementId
+        - documentId
+        - documentVersionId
+        - documentVersionNumber
+        - sourceName
+        - sourceSha256
+        - snippetSha256
+        - excerpt
+        - locator
+        - verifierName
+        - verifiedAt
+        - lexicalScoreBasisPoints
+        - exactPhraseMatch
+        - matchedTokens
+        - instructionAuthority
+      properties:
+        citationId: { type: string, minLength: 1, maxLength: 128 }
+        requirementId: { type: string, minLength: 1, maxLength: 128 }
+        documentId: { type: string, minLength: 1, maxLength: 128 }
+        documentVersionId: { type: string, minLength: 1, maxLength: 128 }
+        documentVersionNumber: { type: integer, minimum: 1 }
+        sourceName: { type: string, minLength: 1, maxLength: 512 }
+        sourceSha256:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+        snippetSha256:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+        excerpt: { type: string, maxLength: 32000 }
+        locator:
+          $ref: "#/components/schemas/IntelligenceEvidenceLocator"
+        verifierName: { type: string, minLength: 1, maxLength: 256 }
+        verifiedAt: { type: string, format: date-time }
+        lexicalScoreBasisPoints:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        exactPhraseMatch: { type: boolean }
+        matchedTokens:
+          type: array
+          uniqueItems: true
+          maxItems: 64
+          items: { type: string, minLength: 1, maxLength: 2000 }
+        instructionAuthority:
+          type: string
+          enum: [none]
+          description: >-
+            Document text is evidence only and never has instruction authority
+            over the application, model, tools or reviewer.
+    IntelligenceEvidenceSearchResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - disposition
+        - abstentionReason
+        - querySha256
+        - searchManifestSha256
+        - blockers
+        - matches
+      properties:
+        disposition:
+          $ref: "#/components/schemas/IntelligenceEvidenceDisposition"
+        abstentionReason:
+          type: [string, "null"]
+          enum: [no_lexical_match, null]
+        querySha256:
+          type: [string, "null"]
+          pattern: "^[a-f0-9]{64}$"
+        searchManifestSha256:
+          type: [string, "null"]
+          pattern: "^[a-f0-9]{64}$"
+        blockers:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntelligenceEvidenceBlocker"
+        matches:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/IntelligenceEvidenceSearchMatch"
+    IntelligenceReviewClaimRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - capabilityId
+        - expectedSourceVersion
+        - expectedSourceManifestSha256
+        - expectedReviewVersion
+      properties:
+        capabilityId:
+          $ref: "#/components/schemas/IntelligenceCapabilityId"
+        expectedSourceVersion:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+        expectedSourceManifestSha256:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+        expectedReviewVersion:
+          type: [integer, "null"]
+          minimum: 1
+          maximum: 2147483647
+    IntelligenceReviewDecisionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - capabilityId
+        - expectedSourceVersion
+        - expectedSourceManifestSha256
+        - expectedReviewVersion
+        - decision
+      properties:
+        capabilityId:
+          $ref: "#/components/schemas/IntelligenceCapabilityId"
+        expectedSourceVersion:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+        expectedSourceManifestSha256:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+        expectedReviewVersion:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+        decision:
+          type: string
+          enum: [changes_requested, approved, rejected]
+    IntelligenceReviewMutationResult:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - capabilityId
+        - status
+        - reviewerName
+        - sourceVersion
+        - sourceManifestSha256
+        - version
+        - completedAt
+        - updatedAt
+      properties:
+        id: { type: string, format: uuid }
+        capabilityId:
+          $ref: "#/components/schemas/IntelligenceCapabilityId"
+        status:
+          $ref: "#/components/schemas/IntelligenceReviewStatus"
+        reviewerName: { type: string, minLength: 1, maxLength: 512 }
+        sourceVersion:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+        sourceManifestSha256:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+        version:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+        completedAt: { type: [string, "null"], format: date-time }
+        updatedAt: { type: [string, "null"], format: date-time }
+    IntelligenceReviewMutationResponse:
+      type: object
+      additionalProperties: false
+      required: [replayed, authorityNote, review]
+      properties:
+        replayed: { type: boolean }
+        authorityNote: { type: string, minLength: 1, maxLength: 1024 }
+        review:
+          $ref: "#/components/schemas/IntelligenceReviewMutationResult"
     AiModelConfigurationStatus:
       type: object
       additionalProperties: false

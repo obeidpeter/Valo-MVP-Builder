@@ -17,7 +17,9 @@
  */
 import type { IntelligenceCapabilitySnapshot } from './intelligenceCapabilitySnapshot';
 import type { IntelligenceCentreSnapshotEnvironment } from './intelligenceCentreSnapshotEnvironment';
+import type { IntelligenceEvidenceLayerSummary } from './intelligenceEvidenceLayerSummary';
 import type { IntelligenceProjectSummary } from './intelligenceProjectSummary';
+import type { IntelligenceReviewInbox } from './intelligenceReviewInbox';
 
 export interface IntelligenceCentreSnapshot {
   environment: IntelligenceCentreSnapshotEnvironment;
@@ -31,4 +33,6 @@ export interface IntelligenceCentreSnapshot {
      * @maxItems 22
      */
   capabilities: IntelligenceCapabilitySnapshot[];
+  evidenceLayer: IntelligenceEvidenceLayerSummary;
+  reviewInbox: IntelligenceReviewInbox;
 }
