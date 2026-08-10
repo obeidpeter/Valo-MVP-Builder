@@ -2,6 +2,7 @@ import {
   BadgeCheck,
   Calculator,
   Check,
+  ChevronDown,
   ClipboardCheck,
   FileSearch,
   Fingerprint,
@@ -208,38 +209,40 @@ const faqs = [
 export function LandingSections() {
   return (
     <>
-      <section
-        className="border-y border-border bg-card"
-        aria-label="Operating boundaries"
-      >
-        <div className="content-shell grid grid-cols-2 divide-x divide-y divide-border py-1 sm:grid-cols-4 sm:divide-y-0">
-          {[
-            "No award promises",
-            "Named human review",
-            "Client-supplied pricing",
-            "Source-linked findings",
-          ].map((item) => (
-            <p
-              key={item}
-              className="flex min-h-16 items-center gap-2 px-3 text-sm font-medium sm:justify-center"
-            >
-              <Check
-                aria-hidden="true"
-                className="size-4 shrink-0 text-success"
-              />
-              {item}
-            </p>
-          ))}
+      <section className="relative z-10" aria-label="Operating boundaries">
+        <div className="content-shell sm:-mt-7">
+          <div className="grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-md sm:grid-cols-4 sm:divide-y-0">
+            {[
+              "No award promises",
+              "Named human review",
+              "Client-supplied pricing",
+              "Source-linked findings",
+            ].map((item) => (
+              <p
+                key={item}
+                className="flex min-h-18 items-center gap-3 px-4 text-sm font-medium sm:justify-center"
+              >
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-success/10">
+                  <Check aria-hidden="true" className="size-4 text-success" />
+                </span>
+                {item}
+              </p>
+            ))}
+          </div>
         </div>
       </section>
 
-      <section className="content-shell py-16 sm:py-20 lg:py-24">
-        <div className="grid gap-10 lg:grid-cols-[0.75fr_1.25fr] lg:gap-20">
-          <div>
+      <section className="relative overflow-hidden py-16 sm:py-20 lg:py-24">
+        <div
+          aria-hidden="true"
+          className="absolute -right-32 top-12 size-80 rounded-full bg-warning/5 blur-3xl"
+        />
+        <div className="content-shell relative grid gap-10 lg:grid-cols-[0.75fr_1.25fr] lg:gap-20">
+          <div className="lg:sticky lg:top-28 lg:self-start">
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">
               Survive the compliance gate
             </p>
-            <h2 className="mt-4 text-balance text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
+            <h2 className="public-display mt-4 text-balance text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
               A capable bid can be excluded before merit is considered.
             </h2>
             <p className="mt-5 text-base leading-7 text-muted-foreground">
@@ -248,18 +251,18 @@ export function LandingSections() {
               point to in the published rules.
             </p>
           </div>
-          <ul className="grid border-t border-border sm:grid-cols-2">
-            {complianceDefects.map((item, index) => (
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {complianceDefects.map((item) => (
               <li
                 key={item}
-                className={`flex min-h-20 items-start gap-3 border-b border-border py-5 text-sm leading-6 ${
-                  index % 2 === 0 ? "sm:pr-6" : "sm:border-l sm:pl-6"
-                }`}
+                className="flex min-h-24 items-start gap-4 rounded-xl border border-border bg-card p-5 text-sm leading-6 shadow-xs"
               >
                 <span
-                  className="mt-1.5 size-2 shrink-0 bg-warning"
+                  className="mt-1 flex size-6 shrink-0 items-center justify-center rounded-full bg-warning/12"
                   aria-hidden="true"
-                />
+                >
+                  <span className="size-2 rounded-full bg-warning" />
+                </span>
                 {item}
               </li>
             ))}
@@ -269,15 +272,15 @@ export function LandingSections() {
 
       <section
         id="what-we-check"
-        className="scroll-mt-20 border-y border-border bg-card"
+        className="scroll-mt-20 border-y border-border bg-accent/35"
       >
         <div className="content-shell py-16 sm:py-20 lg:py-24">
           <div className="grid gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:gap-16">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">
+            <div className="lg:sticky lg:top-28 lg:self-start">
+              <p className="inline-flex rounded-full border border-primary/20 bg-card/70 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-primary">
                 The Bid Autopsy
               </p>
-              <h2 className="mt-4 text-balance text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
+              <h2 className="public-display mt-5 text-balance text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
                 A concrete review record—not a generic proposal critique.
               </h2>
               <p className="mt-5 text-base leading-7 text-muted-foreground">
@@ -285,17 +288,18 @@ export function LandingSections() {
                 came from, what evidence was found, what remains exposed and
                 what to do next. Scope and limitations stay visible.
               </p>
-              <BidAutopsyCta className="mt-8" />
+              <BidAutopsyCta className="mt-8 rounded-lg shadow-sm" />
             </div>
-            <div className="grid border-t border-border sm:grid-cols-2">
-              {autopsyDeliverables.map(([title, body], index) => (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {autopsyDeliverables.map(([title, body]) => (
                 <article
                   key={title}
-                  className={`border-b border-border py-5 ${
-                    index % 2 === 0 ? "sm:pr-6" : "sm:border-l sm:pl-6"
-                  }`}
+                  className="rounded-xl border border-primary/15 bg-card/85 p-5 shadow-xs"
                 >
-                  <h3 className="font-semibold">{title}</h3>
+                  <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Check aria-hidden="true" className="size-4" />
+                  </span>
+                  <h3 className="mt-4 font-semibold">{title}</h3>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
                     {body}
                   </p>
@@ -314,22 +318,20 @@ export function LandingSections() {
           <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">
             How it works
           </p>
-          <h2 className="mt-4 text-balance text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
+          <h2 className="public-display mt-4 text-balance text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
             From first contact to a review your team can act on.
           </h2>
         </div>
-        <ol className="mt-10 grid border-y border-border md:grid-cols-2 xl:grid-cols-4">
-          {process.map((step, index) => (
+        <ol className="relative mt-12 grid gap-4 before:absolute before:left-[12.5%] before:right-[12.5%] before:top-5 before:hidden before:h-px before:bg-primary/25 xl:grid-cols-4 xl:before:block">
+          {process.map((step) => (
             <li
               key={step.number}
-              className={`p-6 ${index > 0 ? "border-t border-border md:border-l" : ""} ${
-                index === 2 ? "md:border-l-0 xl:border-l" : ""
-              } ${index > 1 ? "xl:border-t-0" : ""}`}
+              className="relative rounded-xl border border-border bg-card p-6 shadow-xs"
             >
-              <span className="font-mono text-xs font-semibold text-primary">
+              <span className="relative z-10 flex size-10 items-center justify-center rounded-full border border-primary/25 bg-background font-mono text-xs font-semibold text-primary shadow-xs">
                 {step.number}
               </span>
-              <h3 className="mt-6 font-semibold">{step.title}</h3>
+              <h3 className="mt-5 font-semibold">{step.title}</h3>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">
                 {step.body}
               </p>
@@ -338,16 +340,24 @@ export function LandingSections() {
         </ol>
       </section>
 
-      <section className="border-y border-border bg-[#0d1b2f]">
-        <div className="content-shell py-16 sm:py-20 lg:py-24">
-          <div className="mb-10 max-w-3xl text-white">
-            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[#74d6c4]">
+      <section className="relative isolate overflow-hidden border-y border-sidebar-border bg-sidebar">
+        <div
+          aria-hidden="true"
+          className="public-dark-glow pointer-events-none absolute inset-0"
+        />
+        <div
+          aria-hidden="true"
+          className="public-document-grid pointer-events-none absolute inset-0 opacity-20"
+        />
+        <div className="content-shell relative py-16 sm:py-20 lg:py-24">
+          <div className="mb-10 max-w-3xl text-sidebar-foreground">
+            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-sidebar-primary">
               Show the work
             </p>
-            <h2 className="mt-4 text-balance text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
+            <h2 className="public-display mt-4 text-balance text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
               Follow the line from tender clause to remediation.
             </h2>
-            <p className="mt-5 text-base leading-7 text-slate-300">
+            <p className="mt-5 text-base leading-7 text-sidebar-foreground/70">
               Valo separates source, requirement, evidence, finding and action
               so a reviewer can challenge the conclusion without losing its
               basis.
@@ -362,11 +372,11 @@ export function LandingSections() {
         className="content-shell scroll-mt-20 py-16 sm:py-20 lg:py-24"
       >
         <div className="grid gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:gap-16">
-          <div>
+          <div className="lg:sticky lg:top-28 lg:self-start">
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">
               From diagnosis to submission
             </p>
-            <h2 className="mt-4 text-balance text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
+            <h2 className="public-display mt-4 text-balance text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
               Start with the diagnosis. Continue where Valo can add measurable
               value.
             </h2>
@@ -375,17 +385,17 @@ export function LandingSections() {
               each engagement. The Bid Autopsy remains the first conversation.
             </p>
           </div>
-          <div className="divide-y divide-border border-y border-border">
+          <div className="grid gap-3 sm:grid-cols-2">
             {services.map((service, index) => (
               <article
                 key={service.title}
-                className="grid gap-2 py-5 sm:grid-cols-[2rem_12rem_1fr] sm:gap-4"
+                className="rounded-xl border border-border bg-card p-5 shadow-xs"
               >
-                <span className="font-mono text-xs font-semibold text-primary">
+                <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 font-mono text-xs font-semibold text-primary">
                   {String(index + 1).padStart(2, "0")}
                 </span>
-                <h3 className="font-semibold">{service.title}</h3>
-                <p className="text-sm leading-6 text-muted-foreground">
+                <h3 className="mt-5 font-semibold">{service.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   {service.body}
                 </p>
               </article>
@@ -394,27 +404,25 @@ export function LandingSections() {
         </div>
       </section>
 
-      <section className="border-y border-border bg-card">
+      <section className="border-y border-border bg-accent/20">
         <div className="content-shell py-16 sm:py-20 lg:py-24">
           <div className="max-w-3xl">
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">
               Why Valo
             </p>
-            <h2 className="mt-4 text-balance text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
+            <h2 className="public-display mt-4 text-balance text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
               Built around the evidence a decision should withstand.
             </h2>
           </div>
-          <div className="mt-10 grid border-y border-border md:grid-cols-2 xl:grid-cols-3">
-            {differentiators.map(([Icon, title, body], index) => (
+          <div className="mt-10 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {differentiators.map(([Icon, title, body]) => (
               <article
                 key={title}
-                className={`p-6 ${index > 0 ? "border-t border-border md:border-l" : ""} ${
-                  index % 2 === 0 && index > 0 ? "md:border-l-0" : ""
-                } ${index > 1 ? "xl:border-t-0" : ""} ${
-                  index === 3 ? "xl:border-l-0" : ""
-                }`}
+                className="rounded-xl border border-primary/10 bg-card p-6 shadow-xs"
               >
-                <Icon aria-hidden="true" className="size-5 text-primary" />
+                <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-primary">
+                  <Icon aria-hidden="true" className="size-5" />
+                </span>
                 <h3 className="mt-5 font-semibold">{title}</h3>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   {body}
@@ -426,60 +434,70 @@ export function LandingSections() {
       </section>
 
       <section className="content-shell py-16 sm:py-20 lg:py-24">
-        <div className="grid gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:gap-16">
-          <div>
-            <UsersRound aria-hidden="true" className="size-6 text-primary" />
-            <h2 className="mt-5 text-balance text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
-              For teams that cannot treat compliance as a final-day check.
-            </h2>
-          </div>
-          <div className="divide-y divide-border border-y border-border">
-            {audiences.map(([title, body]) => (
-              <article
-                key={title}
-                className="grid gap-2 py-5 sm:grid-cols-[12rem_1fr] sm:gap-6"
-              >
-                <h3 className="font-semibold">{title}</h3>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  {body}
-                </p>
-              </article>
-            ))}
-          </div>
+        <div className="max-w-3xl">
+          <span className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <UsersRound aria-hidden="true" className="size-6" />
+          </span>
+          <h2 className="public-display mt-5 text-balance text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
+            For teams that cannot treat compliance as a final-day check.
+          </h2>
+        </div>
+        <div className="mt-10 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {audiences.map(([title, body]) => (
+            <article
+              key={title}
+              className="rounded-xl border border-border bg-card p-5 shadow-xs"
+            >
+              <h3 className="font-semibold text-primary">{title}</h3>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                {body}
+              </p>
+            </article>
+          ))}
         </div>
       </section>
 
       <section
         id="trust"
-        className="scroll-mt-20 border-y border-border bg-[#0d1b2f] text-white"
+        className="relative isolate scroll-mt-20 overflow-hidden border-y border-sidebar-border bg-sidebar text-sidebar-foreground"
       >
-        <div className="content-shell grid gap-12 py-16 sm:py-20 lg:grid-cols-[0.75fr_1.25fr] lg:py-24">
+        <div
+          aria-hidden="true"
+          className="public-dark-glow pointer-events-none absolute inset-0"
+        />
+        <span
+          aria-hidden="true"
+          className="public-display pointer-events-none absolute -bottom-32 -left-8 text-[24rem] leading-none text-sidebar-primary/5"
+        >
+          V
+        </span>
+        <div className="content-shell relative grid gap-12 py-16 sm:py-20 lg:grid-cols-[0.75fr_1.25fr] lg:py-24">
           <div>
-            <ShieldCheck aria-hidden="true" className="size-7 text-[#74d6c4]" />
-            <p className="mt-6 text-sm font-semibold uppercase tracking-[0.14em] text-[#74d6c4]">
+            <span className="flex size-12 items-center justify-center rounded-xl border border-sidebar-primary/25 bg-sidebar-accent text-sidebar-primary">
+              <ShieldCheck aria-hidden="true" className="size-7" />
+            </span>
+            <p className="mt-6 text-sm font-semibold uppercase tracking-[0.14em] text-sidebar-primary">
               Integrity and data trust
             </p>
-            <h2 className="mt-4 text-balance text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
+            <h2 className="public-display mt-4 text-balance text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
               Commercial trust begins with clear boundaries.
             </h2>
-            <p className="mt-5 text-base leading-7 text-slate-300">
+            <p className="mt-5 text-base leading-7 text-sidebar-foreground/70">
               AI-assisted features operate only where the relevant provider and
               environment are approved. They do not replace human approval or
               turn an unsupported claim into evidence.
             </p>
-            <BidAutopsyCta className="mt-8 bg-[#74d6c4] text-[#0d1b2f] [border-color:#74d6c4]" />
+            <BidAutopsyCta className="mt-8 rounded-lg border-sidebar-primary bg-sidebar-primary text-sidebar-primary-foreground shadow-md" />
           </div>
-          <ul className="grid border-t border-slate-700 sm:grid-cols-2">
-            {integrityPrinciples.map((item, index) => (
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {integrityPrinciples.map((item) => (
               <li
                 key={item}
-                className={`flex items-start gap-3 border-b border-slate-700 py-5 text-sm leading-6 text-slate-200 ${
-                  index % 2 === 0 ? "sm:pr-6" : "sm:border-l sm:pl-6"
-                }`}
+                className="flex items-start gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/70 p-5 text-sm leading-6 text-sidebar-foreground/80"
               >
                 <BadgeCheck
                   aria-hidden="true"
-                  className="mt-0.5 size-5 shrink-0 text-[#74d6c4]"
+                  className="mt-0.5 size-5 shrink-0 text-sidebar-primary"
                 />
                 {item}
               </li>
@@ -497,17 +515,24 @@ export function LandingSections() {
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">
               FAQ
             </p>
-            <h2 className="mt-4 text-balance text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
+            <h2 className="public-display mt-4 text-balance text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
               Questions before the first review.
             </h2>
           </div>
-          <div className="divide-y divide-border border-y border-border">
+          <div className="space-y-3">
             {faqs.map(([question, answer]) => (
-              <details key={question} className="group py-5">
-                <summary className="min-h-11 cursor-pointer rounded-sm pr-8 text-base font-semibold leading-7 marker:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4">
-                  {question}
+              <details
+                key={question}
+                className="group rounded-xl border border-border bg-card px-5 shadow-xs open:border-primary/20 open:shadow-sm"
+              >
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 rounded-lg py-1.5 text-base font-semibold leading-7 marker:text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 [&::-webkit-details-marker]:hidden">
+                  <span>{question}</span>
+                  <ChevronDown
+                    aria-hidden="true"
+                    className="size-5 shrink-0 text-primary transition-transform group-open:rotate-180"
+                  />
                 </summary>
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
+                <p className="max-w-3xl pb-5 text-sm leading-6 text-muted-foreground">
                   {answer}
                 </p>
               </details>
@@ -516,22 +541,28 @@ export function LandingSections() {
         </div>
       </section>
 
-      <section className="border-t border-border bg-accent/55">
-        <div className="content-shell flex flex-col gap-7 py-14 sm:py-16 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-3xl">
-            <ClipboardCheck
+      <section className="border-t border-border py-12 sm:py-16">
+        <div className="content-shell">
+          <div className="relative isolate flex flex-col gap-8 overflow-hidden rounded-2xl border border-sidebar-border bg-sidebar px-6 py-10 text-sidebar-foreground shadow-md sm:px-10 sm:py-12 lg:flex-row lg:items-center lg:justify-between">
+            <div
               aria-hidden="true"
-              className="size-6 text-primary"
+              className="public-dark-glow pointer-events-none absolute inset-0"
             />
-            <h2 className="mt-5 text-balance text-3xl font-semibold tracking-[-0.035em]">
-              Give the package a review trail before it faces an evaluator.
-            </h2>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              Start with ordinary business contact details. No tender documents
-              or sensitive commercial information are requested here.
-            </p>
+            <div className="relative max-w-3xl">
+              <span className="flex size-11 items-center justify-center rounded-xl border border-sidebar-primary/25 bg-sidebar-accent text-sidebar-primary">
+                <ClipboardCheck aria-hidden="true" className="size-6" />
+              </span>
+              <h2 className="public-display mt-5 text-balance text-3xl font-semibold tracking-[-0.035em]">
+                Give the package a review trail before it faces an evaluator.
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-sidebar-foreground/70">
+                Start with ordinary business contact details. No tender
+                documents or sensitive commercial information are requested
+                here.
+              </p>
+            </div>
+            <BidAutopsyCta className="relative shrink-0 rounded-lg border-sidebar-primary bg-sidebar-primary text-sidebar-primary-foreground shadow-md" />
           </div>
-          <BidAutopsyCta className="shrink-0" />
         </div>
       </section>
     </>

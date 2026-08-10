@@ -28,35 +28,38 @@ const sampleFindings = [
 function HeroReviewPreview() {
   return (
     <figure
-      className="border border-border bg-card shadow-md"
+      className="relative overflow-hidden rounded-2xl border border-primary/20 bg-card shadow-[0_24px_70px_-34px_hsl(var(--foreground)/0.4)]"
       aria-label="Representative Bid Autopsy defect register"
     >
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sidebar-border bg-sidebar px-4 py-4 text-sidebar-foreground sm:px-5">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-sidebar-primary">
             Bid Autopsy / sample
           </p>
-          <p className="mt-1 text-sm font-semibold">
+          <p className="mt-1 text-sm font-semibold text-sidebar-foreground">
             Pre-submission defect register
           </p>
         </div>
-        <span className="inline-flex items-center gap-2 border border-border px-2.5 py-1.5 text-xs text-muted-foreground">
-          <UserRoundCheck aria-hidden="true" className="size-4 text-primary" />
+        <span className="inline-flex items-center gap-2 rounded-full border border-sidebar-border bg-sidebar-accent px-3 py-1.5 text-xs text-sidebar-foreground/80">
+          <UserRoundCheck
+            aria-hidden="true"
+            className="size-4 text-sidebar-primary"
+          />
           Reviewer assigned
         </span>
       </div>
       <div className="p-4 sm:p-5">
-        <div className="grid grid-cols-3 border border-border bg-muted/40 text-center">
+        <div className="grid grid-cols-3 overflow-hidden rounded-xl border border-border bg-muted/45 text-center">
           <div className="p-3">
-            <p className="text-xl font-semibold">42</p>
+            <p className="text-xl font-semibold text-primary">42</p>
             <p className="mt-1 text-xs text-muted-foreground">Requirements</p>
           </div>
           <div className="border-x border-border p-3">
-            <p className="text-xl font-semibold">3</p>
+            <p className="text-xl font-semibold text-warning-foreground">3</p>
             <p className="mt-1 text-xs text-muted-foreground">Open findings</p>
           </div>
           <div className="p-3">
-            <p className="text-xl font-semibold">1</p>
+            <p className="text-xl font-semibold text-destructive">1</p>
             <p className="mt-1 text-xs text-muted-foreground">
               Release blocker
             </p>
@@ -64,7 +67,10 @@ function HeroReviewPreview() {
         </div>
         <div className="mt-4 space-y-3">
           {sampleFindings.map((finding) => (
-            <article key={finding.title} className="border border-border p-4">
+            <article
+              key={finding.title}
+              className="rounded-xl border border-border bg-background/55 p-4 shadow-xs"
+            >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-sm font-semibold">{finding.title}</p>
@@ -77,7 +83,7 @@ function HeroReviewPreview() {
                   </p>
                 </div>
                 <span
-                  className={`w-fit shrink-0 border px-2 py-1 text-xs font-semibold ${finding.tone}`}
+                  className={`w-fit shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold ${finding.tone}`}
                 >
                   {finding.label}
                 </span>
@@ -85,7 +91,7 @@ function HeroReviewPreview() {
             </article>
           ))}
         </div>
-        <div className="mt-4 flex items-start gap-3 border border-primary/20 bg-accent/55 p-4">
+        <div className="mt-4 flex items-start gap-3 rounded-xl border border-primary/20 bg-accent/55 p-4">
           <Check
             aria-hidden="true"
             className="mt-0.5 size-4 shrink-0 text-primary"
@@ -96,7 +102,7 @@ function HeroReviewPreview() {
           </p>
         </div>
       </div>
-      <figcaption className="border-t border-border px-4 py-3 text-xs text-muted-foreground sm:px-5">
+      <figcaption className="border-t border-border bg-muted/25 px-4 py-3 text-xs text-muted-foreground sm:px-5">
         Representative Valo output using fictional tender data.
       </figcaption>
     </figure>
@@ -112,13 +118,25 @@ export default function LandingPage() {
         path="/"
       />
 
-      <section className="relative border-b border-border">
-        <div className="landing-hero-grid content-shell grid gap-12 py-10 sm:py-18 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-16 lg:py-24">
+      <section className="relative isolate overflow-hidden border-b border-border">
+        <div
+          aria-hidden="true"
+          className="public-document-grid pointer-events-none absolute inset-0 opacity-75"
+        />
+        <div
+          aria-hidden="true"
+          className="public-light-glow pointer-events-none absolute inset-0"
+        />
+        <div className="landing-hero-grid content-shell relative grid gap-12 py-12 sm:py-18 lg:min-h-[46rem] lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-16 lg:py-24">
           <div className="landing-hero-copy max-w-2xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">
+            <p className="inline-flex min-h-8 items-center rounded-full border border-primary/20 bg-card/75 px-3 text-xs font-semibold uppercase tracking-[0.14em] text-primary shadow-xs backdrop-blur-sm">
+              <span
+                aria-hidden="true"
+                className="mr-2 size-1.5 rounded-full bg-success"
+              />
               Tender compliance review for Nigerian bid teams
             </p>
-            <h1 className="mt-5 max-w-2xl text-balance text-4xl font-semibold leading-[1.06] tracking-[-0.045em] sm:text-5xl lg:text-[3.75rem]">
+            <h1 className="public-display mt-6 max-w-2xl text-balance text-4xl font-semibold leading-[1.02] tracking-[-0.045em] sm:text-5xl lg:text-[4.15rem]">
               Find the defects before submission.
             </h1>
             <p className="landing-hero-summary mt-6 max-w-xl text-lg leading-8 text-muted-foreground">
@@ -131,23 +149,31 @@ export default function LandingPage() {
               arithmetic, red-teams the package and records a named reviewer.
             </p>
             <div className="landing-hero-actions mt-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-              <BidAutopsyCta />
+              <BidAutopsyCta className="rounded-lg shadow-md transition-transform hover:-translate-y-0.5" />
               <a
                 href="#what-we-check"
-                className="inline-flex min-h-11 items-center gap-2 px-1 text-sm font-semibold text-primary underline-offset-4 hover:underline"
+                className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm font-semibold text-primary underline-offset-4 hover:bg-accent/60 hover:underline"
               >
                 See What the Autopsy Checks
                 <ArrowDown aria-hidden="true" className="size-4" />
               </a>
             </div>
-            <p className="landing-hero-trust mt-5 max-w-xl text-xs leading-5 text-muted-foreground">
+            <p className="landing-hero-trust mt-6 max-w-xl border-l-2 border-primary/25 pl-4 text-xs leading-5 text-muted-foreground">
               Valo strengthens the review process; it does not guarantee an
               award or evaluator acceptance. Model-assisted steps operate only
               where provider, privacy and evaluation gates are approved; human
               review remains authoritative.
             </p>
           </div>
-          <div className="landing-hero-preview">
+          <div className="landing-hero-preview relative mx-auto w-full max-w-2xl lg:mx-0">
+            <div
+              aria-hidden="true"
+              className="absolute inset-3 translate-x-3 translate-y-3 rounded-2xl border border-primary/15 bg-accent/70 shadow-sm"
+            />
+            <div
+              aria-hidden="true"
+              className="absolute inset-6 translate-x-3 translate-y-3 rounded-2xl border border-primary/10 bg-card/70"
+            />
             <HeroReviewPreview />
           </div>
         </div>
