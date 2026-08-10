@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, test } from "node:test";
 import {
+  assertIntakeFunctionAttestation,
   assertTenantGraphAttestation,
   assertRuntimePolicyAttestation,
   isProductionRuntime,
@@ -115,6 +116,112 @@ const tenantRlsMigration = readFileSync(
   new URL("../migrations/0001_tenant_rls.sql", import.meta.url),
   "utf8",
 );
+const runtimeSecuritySource = readFileSync(
+  new URL("./runtimeSecurity.ts", import.meta.url),
+  "utf8",
+);
+const intakeLimiterMigration = readFileSync(
+  new URL("../migrations/0004_dizzy_virginia_dare.sql", import.meta.url),
+  "utf8",
+);
+const intakeRetentionMigration = readFileSync(
+  new URL("../migrations/0005_tranquil_jack_power.sql", import.meta.url),
+  "utf8",
+);
+
+function intakeFunctionSource(migration: string, functionName: string): string {
+  const match = migration.match(
+    new RegExp(
+      `CREATE(?: OR REPLACE)? FUNCTION "valo_intake"\\."${functionName}"\\([\\s\\S]*?AS \\$function\\$\\r?\\n([\\s\\S]*?)\\r?\\n\\$function\\$;`,
+    ),
+  );
+  assert.ok(match?.[1], `missing ${functionName} migration body`);
+  return match[1];
+}
+
+function migrationIntakeFunctions() {
+  const common = {
+    language_name: "plpgsql",
+    function_kind: "f",
+    security_definer: true,
+    leakproof: false,
+    strict: false,
+    volatility: "v",
+    parallel_safety: "u",
+    function_config: "search_path=pg_catalog",
+    returns_trigger: false,
+    owner_name: "database_owner",
+    owner_is_schema_owner: true,
+    public_can_execute: false,
+  };
+  return [
+    {
+      ...common,
+      function_name: "consume_bid_autopsy_rate_limit",
+      argument_count: 3,
+      argument_types: "text,integer,integer",
+      identity_arguments:
+        "p_client_key_hash text, p_window_seconds integer, p_max_requests integer",
+      return_type: "record",
+      function_result:
+        "TABLE(allowed boolean, remaining integer, reset_at timestamp with time zone)",
+      returns_set: true,
+      runtime_can_execute: true,
+      function_source: intakeFunctionSource(
+        intakeLimiterMigration,
+        "consume_bid_autopsy_rate_limit",
+      ),
+    },
+    {
+      ...common,
+      function_name: "purge_expired_bid_autopsy_rate_limits",
+      argument_count: 0,
+      argument_types: "",
+      identity_arguments: "",
+      return_type: "integer",
+      function_result: "integer",
+      returns_set: false,
+      runtime_can_execute: false,
+      function_source: intakeFunctionSource(
+        intakeRetentionMigration,
+        "purge_expired_bid_autopsy_rate_limits",
+      ),
+    },
+    {
+      ...common,
+      function_name: "purge_expired_bid_autopsy_requests",
+      argument_count: 0,
+      argument_types: "",
+      identity_arguments: "",
+      return_type: "integer",
+      function_result: "integer",
+      returns_set: false,
+      runtime_can_execute: false,
+      function_source: intakeFunctionSource(
+        intakeRetentionMigration,
+        "purge_expired_bid_autopsy_requests",
+      ),
+    },
+    {
+      ...common,
+      function_name: "store_bid_autopsy_request",
+      argument_count: 12,
+      argument_types:
+        "text,text,text,text,text,text,text,text,date,text,text,integer",
+      identity_arguments:
+        "p_idempotency_key_hash text, p_payload_fingerprint text, p_contact_name text, p_company_name text, p_business_email text, p_business_telephone text, p_tender_category text, p_bid_stage text, p_tender_deadline date, p_preferred_contact_method text, p_privacy_notice_version text, p_retention_days integer",
+      return_type: "record",
+      function_result:
+        "TABLE(request_id uuid, received_at timestamp with time zone, replayed boolean, payload_matches boolean)",
+      returns_set: true,
+      runtime_can_execute: true,
+      function_source: intakeFunctionSource(
+        intakeRetentionMigration,
+        "store_bid_autopsy_request",
+      ),
+    },
+  ];
+}
 
 function migrationTenantEdges() {
   const start = migration.indexOf(
@@ -520,6 +627,106 @@ describe("production RLS policy attestation", () => {
     assert.throws(
       () => assertRuntimePolicyAttestation([], 170_001),
       /RLS policy catalog is drifted/,
+    );
+  });
+});
+
+describe("production public-intake least privilege attestation", () => {
+  test("uses PostgreSQL bound expressions without invalid catalog qualification", () => {
+    assert.doesNotMatch(
+      intakeLimiterMigration,
+      /pg_catalog\.(?:least|greatest)\s*\(/i,
+    );
+    assert.match(intakeLimiterMigration, /\bLEAST\s*\(/);
+    assert.match(intakeLimiterMigration, /\bGREATEST\s*\(/);
+  });
+
+  test("pins the complete privileged intake routine catalog", () => {
+    const proofs = migrationIntakeFunctions();
+    assert.doesNotThrow(() => assertIntakeFunctionAttestation(proofs));
+
+    for (const mutate of [
+      (candidate: (typeof proofs)[number]) => {
+        candidate.public_can_execute = true;
+      },
+      (candidate: (typeof proofs)[number]) => {
+        candidate.function_source += "\n-- drift";
+      },
+      (candidate: (typeof proofs)[number]) => {
+        candidate.argument_types += ",text";
+      },
+    ]) {
+      const drifted = structuredClone(proofs);
+      mutate(drifted[0]!);
+      assert.throws(
+        () => assertIntakeFunctionAttestation(drifted),
+        /intake function catalog is drifted/,
+      );
+    }
+
+    assert.throws(
+      () => assertIntakeFunctionAttestation(proofs.slice(1)),
+      /intake function catalog is drifted/,
+    );
+  });
+
+  test("checks every PostgreSQL table privilege class on both intake tables", () => {
+    for (const table of ["bid_autopsy_requests", "bid_autopsy_rate_limits"]) {
+      for (const privilege of [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER",
+      ]) {
+        assert.match(
+          runtimeSecuritySource,
+          new RegExp(`current_user,'valo_intake\\.${table}','${privilege}'`),
+        );
+      }
+    }
+  });
+
+  test("denies runtime execution of both owner-side intake purge functions", () => {
+    assert.match(
+      runtimeSecuritySource,
+      /proof\.can_execute_purge_bid_autopsy_requests\s*\|\|/,
+    );
+    assert.match(
+      runtimeSecuritySource,
+      /proof\.can_execute_purge_bid_autopsy_rate_limits\s*\|\|/,
+    );
+  });
+
+  test("checks column-level grants across both intake tables", () => {
+    for (const [table, proof] of [
+      ["bid_autopsy_requests", "bid_autopsy_request"],
+      ["bid_autopsy_rate_limits", "bid_autopsy_rate_limit"],
+    ] as const) {
+      assert.match(
+        runtimeSecuritySource,
+        new RegExp(
+          `'valo_intake\\.${table}'::pg_catalog\\.regclass[\\s\\S]*?AS can_access_${proof}_columns`,
+        ),
+      );
+    }
+    for (const privilege of ["SELECT", "INSERT", "UPDATE", "REFERENCES"]) {
+      assert.match(
+        runtimeSecuritySource,
+        new RegExp(
+          `has_column_privilege\\([\\s\\S]*?intake_column\\.attnum,'${privilege}'`,
+        ),
+      );
+    }
+    assert.match(
+      runtimeSecuritySource,
+      /proof\.can_access_bid_autopsy_request_columns\s*\|\|/,
+    );
+    assert.match(
+      runtimeSecuritySource,
+      /proof\.can_access_bid_autopsy_rate_limit_columns\s*\|\|/,
     );
   });
 });

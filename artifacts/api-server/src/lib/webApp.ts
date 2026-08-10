@@ -7,20 +7,26 @@ import express, {
   type Response,
 } from "express";
 
-const PUBLIC_SITE_ORIGIN = "https://valo-mvp-builder.replit.app";
+export const PUBLIC_SITE_ORIGIN = "https://valo-mvp-builder.replit.app";
 
 interface PublicPageMetadata {
   title: string;
   description: string;
   heading: string;
+  summary?: readonly string[];
 }
 
-const PUBLIC_WEB_PAGES: Readonly<Record<string, PublicPageMetadata>> = {
+const PUBLIC_WEB_PAGES = {
   "/": {
-    title: "Valo | Evidence-led tender readiness",
+    title: "Bid Autopsy for Nigerian Tenders | Valo",
     description:
-      "Evidence-led tender controls for Nigerian public and regulated-market bids, with exact citations, deterministic checks and named human review.",
-    heading: "Build a tender submission your team can defend.",
+      "Find compliance gaps, evidence gaps, BOQ inconsistencies and responsiveness risks before submission with a human-verified Valo Bid Autopsy.",
+    heading: "Find the defects before submission.",
+    summary: [
+      "Valo helps Nigerian federal contractors, NipeX and NCDMB suppliers, donor-funded bidders, bid teams and consultancy partners test a tender package against the published requirements before it reaches the evaluator.",
+      "A scoped Bid Autopsy may include a source-cited requirement matrix, severity-classified defect register, compliance and evidence gaps, deterministic checks on client-supplied BOQ figures, a responsiveness review and a prioritised remediation plan verified by a named human reviewer.",
+      "Valo strengthens the review process. It does not guarantee an award or evaluator acceptance, set commercial pricing, influence evaluators or submit the bid.",
+    ],
   },
   "/product": {
     title: "Product | Valo",
@@ -55,8 +61,18 @@ const PUBLIC_WEB_PAGES: Readonly<Record<string, PublicPageMetadata>> = {
   "/contact": {
     title: "Contact | Valo",
     description:
-      "Request a Valo walkthrough without sending tender documents through a public form.",
-    heading: "Start with the workflow, not the tender file.",
+      "Request a Valo Bid Autopsy without sending tender documents or sensitive commercial information through the public form.",
+    heading: "Request a Bid Autopsy.",
+  },
+  "/request-bid-autopsy": {
+    title: "Request a Bid Autopsy | Valo",
+    description:
+      "Tell Valo about your bid context without uploading tender documents or sensitive commercial information. The first-contact request is reviewed before any approved document-sharing step.",
+    heading: "Request a Bid Autopsy.",
+    summary: [
+      "Use this first-contact request to share only the minimum information needed to discuss scope. Do not include tender documents, pricing, credentials or other sensitive bid content.",
+      "Submitting a request does not create an engagement or promise an award, evaluator acceptance, service scope or response time.",
+    ],
   },
   "/privacy": {
     title: "Privacy | Valo",
@@ -70,7 +86,36 @@ const PUBLIC_WEB_PAGES: Readonly<Record<string, PublicPageMetadata>> = {
       "Plain-language boundaries for using the Valo public site and controlled tender workspace.",
     heading: "Service terms notice",
   },
-};
+} as const satisfies Readonly<Record<string, PublicPageMetadata>>;
+
+type PublicWebPath = keyof typeof PUBLIC_WEB_PAGES;
+
+function resolvePublicWebPath(pathname: string): PublicWebPath | undefined {
+  switch (pathname) {
+    case "/":
+      return "/";
+    case "/product":
+      return "/product";
+    case "/solutions":
+      return "/solutions";
+    case "/how-it-works":
+      return "/how-it-works";
+    case "/security":
+      return "/security";
+    case "/about":
+      return "/about";
+    case "/contact":
+      return "/contact";
+    case "/request-bid-autopsy":
+      return "/request-bid-autopsy";
+    case "/privacy":
+      return "/privacy";
+    case "/terms":
+      return "/terms";
+    default:
+      return undefined;
+  }
+}
 
 const ACCESS_WEB_PATHS = new Set([
   "/sign-in",
@@ -121,7 +166,7 @@ function setWebAppHeaders(response: Response): void {
 }
 
 export function isIndexablePublicWebPath(pathname: string): boolean {
-  return PUBLIC_WEB_PAGES[pathname] !== undefined;
+  return resolvePublicWebPath(pathname) !== undefined;
 }
 
 export function isApplicationWebPath(pathname: string): boolean {
@@ -152,25 +197,55 @@ function replaceNamedMeta(
     `<meta\\s+${attribute}="${key}"\\s+content="[^"]*"\\s*\\/?>`,
     "i",
   );
-  return document.replace(
-    pattern,
-    `<meta ${attribute}="${key}" content="${escapeHtml(content)}" />`,
-  );
+  const replacement = `<meta ${attribute}="${key}" content="${escapeHtml(content)}" />`;
+  return pattern.test(document)
+    ? document.replace(pattern, replacement)
+    : document.replace("</head>", `${replacement}\n</head>`);
 }
 
-function renderIndexDocument(indexTemplate: string, pathname: string): string {
-  const page = PUBLIC_WEB_PAGES[pathname];
-  const indexable = page !== undefined;
+function replaceCanonical(document: string, canonicalUrl: string): string {
+  const pattern = /<link\s+rel="canonical"\s+href="[^"]*"\s*\/>/i;
+  const replacement = `<link rel="canonical" href="${escapeHtml(canonicalUrl)}" />`;
+  return pattern.test(document)
+    ? document.replace(pattern, replacement)
+    : document.replace("</head>", `${replacement}\n</head>`);
+}
+
+export function isCanonicalPublicRequest(request: Request): boolean {
+  const host = request.get("host");
+  if (!host) return false;
+  try {
+    return (
+      new URL(`${request.protocol}://${host}`).origin === PUBLIC_SITE_ORIGIN
+    );
+  } catch {
+    return false;
+  }
+}
+
+function renderIndexDocument(
+  indexTemplate: string,
+  publicPath: PublicWebPath | undefined,
+  applicationPath: boolean,
+  allowIndexing: boolean,
+): string {
+  const page: PublicPageMetadata | undefined =
+    publicPath === undefined ? undefined : PUBLIC_WEB_PAGES[publicPath];
+  const publicPage = page !== undefined;
+  const indexable = publicPage && allowIndexing;
   const metadata = page ?? {
-    title: isApplicationWebPath(pathname)
+    title: applicationPath
       ? "Secure workspace | Valo"
       : "Page not found | Valo",
-    description: isApplicationWebPath(pathname)
+    description: applicationPath
       ? "Authorised access to the Valo tender workspace."
       : "The requested Valo page could not be found.",
     heading: "",
   };
-  const canonicalUrl = `${PUBLIC_SITE_ORIGIN}${pathname === "/" ? "/" : pathname}`;
+  const canonicalUrl =
+    publicPath === undefined
+      ? undefined
+      : `${PUBLIC_SITE_ORIGIN}${publicPath === "/" ? "/" : publicPath}`;
 
   let document = indexTemplate.replace(
     /<title>[\s\S]*?<\/title>/i,
@@ -208,12 +283,16 @@ function renderIndexDocument(indexTemplate: string, pathname: string): string {
     metadata.description,
   );
 
-  if (indexable) {
-    document = document.replace(
-      /<link\s+rel="canonical"\s+href="[^"]*"\s*\/>/i,
-      `<link rel="canonical" href="${canonicalUrl}" />`,
-    );
+  if (indexable && canonicalUrl !== undefined) {
+    document = replaceCanonical(document, canonicalUrl);
     document = replaceNamedMeta(document, "property", "og:url", canonicalUrl);
+  } else {
+    document = document
+      .replace(/\s*<link\s+rel="canonical"\s+href="[^"]*"\s*\/>/i, "")
+      .replace(/\s*<meta\s+property="og:url"\s+content="[^"]*"\s*\/>/i, "");
+  }
+
+  if (publicPage) {
     const staticPublicContent = [
       '<div id="root">',
       '<main data-public-prerender="true">',
@@ -225,19 +304,20 @@ function renderIndexDocument(indexTemplate: string, pathname: string): string {
       '<a href="/security">Security</a> ',
       '<a href="/about">About</a> ',
       '<a href="/contact">Contact</a> ',
+      '<a href="/request-bid-autopsy">Request a Bid Autopsy</a> ',
       '<a href="/sign-in">Sign in</a>',
       "</nav>",
       `<h1>${escapeHtml(metadata.heading)}</h1>`,
       `<p>${escapeHtml(metadata.description)}</p>`,
-      "<p>Valo supports source-cited requirements, evidence-grounded actions, deterministic checks and named human review. It does not guarantee contract awards or invent credentials, claims or prices.</p>",
+      ...(
+        metadata.summary ?? [
+          "Valo supports source-cited requirements, evidence-grounded actions, deterministic checks and named human review. It does not guarantee contract awards or invent credentials, claims or prices.",
+        ]
+      ).map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`),
       "</main>",
       "</div>",
     ].join("");
     document = document.replace('<div id="root"></div>', staticPublicContent);
-  } else {
-    document = document
-      .replace(/\s*<link\s+rel="canonical"\s+href="[^"]*"\s*\/>/i, "")
-      .replace(/\s*<meta\s+property="og:url"\s+content="[^"]*"\s*\/>/i, "");
   }
 
   return document;
@@ -258,6 +338,13 @@ export function registerProductionWebApp(
     );
   }
   const indexTemplate = readFileSync(indexPath, "utf8");
+
+  app.use((request: Request, response: Response, next: NextFunction): void => {
+    if (!isCanonicalPublicRequest(request)) {
+      response.setHeader("X-Robots-Tag", "noindex, nofollow");
+    }
+    next();
+  });
 
   app.use(
     express.static(publicDirectory, {
@@ -289,7 +376,9 @@ export function registerProductionWebApp(
       return;
     }
 
-    const indexable = isIndexablePublicWebPath(request.path);
+    const publicPath = resolvePublicWebPath(request.path);
+    const publicPage = publicPath !== undefined;
+    const indexable = publicPage && isCanonicalPublicRequest(request);
     const applicationPath = isApplicationWebPath(request.path);
     if (!indexable) {
       response.setHeader("X-Robots-Tag", "noindex, nofollow");
@@ -297,8 +386,15 @@ export function registerProductionWebApp(
     setWebAppHeaders(response);
     response.setHeader("Cache-Control", "no-cache");
     response
-      .status(indexable || applicationPath ? 200 : 404)
+      .status(publicPage || applicationPath ? 200 : 404)
       .type("html")
-      .send(renderIndexDocument(indexTemplate, request.path));
+      .send(
+        renderIndexDocument(
+          indexTemplate,
+          publicPath,
+          applicationPath,
+          indexable,
+        ),
+      );
   });
 }

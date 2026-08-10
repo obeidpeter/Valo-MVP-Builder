@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "wouter";
 import {
-  ArrowRight,
   BadgeCheck,
   Building2,
   Check,
@@ -13,6 +12,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { PublicMeta } from "@/components/public/public-meta";
+import { BidAutopsyCta } from "@/components/public/public-primary-cta";
 import { PublicShell } from "@/components/public/public-shell";
 import { Button } from "@/components/ui/button";
 
@@ -47,25 +47,20 @@ function PageIntro({
   );
 }
 
-function WalkthroughCta() {
+function BidAutopsySectionCta() {
   return (
     <section className="border-t border-border bg-accent/45">
       <div className="content-shell flex flex-col gap-6 py-12 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-semibold tracking-[-0.025em]">
-            Review the workflow with your team.
+            Start with a review of the tender package.
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
             Public enquiry does not accept tender files. Sensitive material
             enters only after an authorised engagement and NDA are in place.
           </p>
         </div>
-        <Button asChild size="lg" className="shrink-0">
-          <Link href="/contact">
-            Request a walkthrough
-            <ArrowRight aria-hidden="true" />
-          </Link>
-        </Button>
+        <BidAutopsyCta className="shrink-0" />
       </div>
     </section>
   );
@@ -119,7 +114,7 @@ export function ProductPage() {
         title="A controlled workspace for evidence-heavy pursuits."
         description="Valo brings the operational record into one place while keeping AI suggestions, deterministic checks and human decisions visibly separate."
       >
-        <Button asChild>
+        <Button asChild variant="outline" className="min-h-11">
           <Link href="/how-it-works">See the workflow</Link>
         </Button>
       </PageIntro>
@@ -177,7 +172,7 @@ export function ProductPage() {
           </div>
         </div>
       </section>
-      <WalkthroughCta />
+      <BidAutopsySectionCta />
     </PublicShell>
   );
 }
@@ -253,7 +248,7 @@ export function SolutionsPage() {
           </article>
         ))}
       </section>
-      <WalkthroughCta />
+      <BidAutopsySectionCta />
     </PublicShell>
   );
 }
@@ -265,8 +260,8 @@ export function HowItWorksPage() {
       "An authorised team records the client context, NDA, conflict position, SLA class and named reviewer. Public lead capture never accepts tender files.",
     ],
     [
-      "Manifest and inspect",
-      "Documents are hashed, typed and inspected before records or extraction are allowed. A failed security dependency blocks intake.",
+      "Manifest and bound intake",
+      "Valo records the document manifest and enforces configured byte limits. Authoritative MIME detection, malware scanning, archive inspection and quarantine are not yet wired, so production document intake remains gated on approved controls.",
     ],
     [
       "Extract into review",
@@ -326,7 +321,7 @@ export function HowItWorksPage() {
           ))}
         </ol>
       </section>
-      <WalkthroughCta />
+      <BidAutopsySectionCta />
     </PublicShell>
   );
 }
@@ -342,16 +337,16 @@ export function SecurityPage() {
       "Role permissions distinguish contribution, review, quality, administration and audit. Partner access does not grant Valo quality authority.",
     ],
     [
-      "Hostile-input posture",
-      "Tender content is treated as data, never system instruction. Upload inspection, archive limits and malware scanning gate document intake.",
+      "Hostile-input boundary",
+      "Tender content is treated as data, never system instruction, and configured byte limits reduce exposure. Authoritative MIME detection, malware scanning, archive inspection and quarantine are not yet wired into intake.",
     ],
     [
       "Audit integrity",
       "Active audit events are hash-chained. Preserved legacy history is labelled honestly where its historical chain contains a known discontinuity.",
     ],
     [
-      "Provider readiness",
-      "Production adapters require explicit approval. Unavailable malware or model services disable the dependent action rather than falling back silently.",
+      "Provider readiness boundary",
+      "Model-assisted actions remain unavailable unless the relevant provider is explicitly approved. Malware inspection is not yet an authoritative intake gate and must not be inferred from provider configuration.",
     ],
     [
       "Release gates",
@@ -398,7 +393,7 @@ export function SecurityPage() {
           </p>
         </div>
       </section>
-      <WalkthroughCta />
+      <BidAutopsySectionCta />
     </PublicShell>
   );
 }
@@ -428,9 +423,10 @@ export function AboutPage() {
             process failures.
           </p>
           <p className="mt-4 text-base leading-7 text-muted-foreground">
-            The product combines model-assisted extraction and explanation with
-            deterministic software and named human review. The separation is
-            deliberate: useful assistance should never be confused with final
+            Valo is designed to combine model-assisted extraction and
+            explanation with deterministic software and named human review.
+            Model-assisted steps remain unavailable unless provider, privacy and
+            evaluation gates are approved; human review remains the final
             authority.
           </p>
         </div>
@@ -442,7 +438,7 @@ export function AboutPage() {
               "No invention of evidence, experience, pricing or approvals.",
               "No administrative override of open fatal blockers.",
               "No government-portal submission automation.",
-              "No silent use of client documents to train shared models.",
+              "Client data is not approved for shared-model training.",
             ].map((item) => (
               <li
                 key={item}
@@ -458,85 +454,34 @@ export function AboutPage() {
           </ul>
         </div>
       </section>
-      <WalkthroughCta />
+      <BidAutopsySectionCta />
     </PublicShell>
   );
 }
 
-function validHttpsUrl(value: unknown): string | null {
-  if (typeof value !== "string" || value.trim() === "") return null;
-  try {
-    const parsed = new URL(value);
-    return parsed.protocol === "https:" ? parsed.href : null;
-  } catch {
-    return null;
-  }
-}
-
-function validEmail(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed) ? trimmed : null;
-}
-
 export function ContactPage() {
-  const walkthroughUrl = validHttpsUrl(
-    import.meta.env.VITE_PUBLIC_WALKTHROUGH_URL,
-  );
-  const contactEmail = validEmail(import.meta.env.VITE_PUBLIC_CONTACT_EMAIL);
-  const contactHref =
-    walkthroughUrl ??
-    (contactEmail
-      ? `mailto:${contactEmail}?subject=${encodeURIComponent("Valo walkthrough request")}`
-      : null);
-
   return (
     <PublicShell>
       <PublicMeta
         title="Contact"
-        description="Request a Valo walkthrough without sending tender documents through a public form."
+        description="Start a Valo Bid Autopsy enquiry without sending tender documents or sensitive commercial information through a public form."
         path="/contact"
       />
       <PageIntro
         eyebrow="Contact"
-        title="Start with the workflow, not the tender file."
-        description="A public enquiry should contain only ordinary business contact information. Tender files are accepted only after an authorised engagement, NDA and secure intake path are in place."
+        title="Start with a Bid Autopsy request."
+        description="The canonical request journey collects only the ordinary business details Valo needs for first contact. Tender files are handled later, after the appropriate engagement and approved document-sharing gates."
       />
       <section className="content-shell grid gap-6 py-16 sm:py-20 lg:grid-cols-[1fr_0.75fr]">
         <div className="rounded-lg border border-border bg-card p-6 sm:p-8">
           <UsersRound aria-hidden="true" className="size-6 text-primary" />
-          <h2 className="mt-5 text-2xl font-semibold">Request a walkthrough</h2>
+          <h2 className="mt-5 text-2xl font-semibold">New bid enquiry</h2>
           <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-            Discuss your current review process, team roles, document volumes
-            and control needs. Do not include confidential bid content,
-            credentials, financial schedules or personal data.
+            Use one protected request route for live, draft or previously
+            submitted bids. Do not send confidential bid content, credentials or
+            financial schedules at this stage.
           </p>
-          {contactHref ? (
-            <Button asChild size="lg" className="mt-7">
-              <a
-                href={contactHref}
-                rel={walkthroughUrl ? "noreferrer" : undefined}
-              >
-                Open the configured contact channel
-                <ArrowRight aria-hidden="true" />
-              </a>
-            </Button>
-          ) : (
-            <div
-              className="mt-7 rounded-lg border border-warning/40 bg-warning/10 p-4"
-              role="status"
-            >
-              <p className="font-semibold text-warning-foreground">
-                Public enquiry channel is not configured
-              </p>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Valo has not published a verified contact address or booking URL
-                in this deployment. If you already have an invitation, sign in;
-                otherwise use the trusted Valo contact who referred you. No
-                message has been simulated or discarded.
-              </p>
-            </div>
-          )}
+          <BidAutopsyCta className="mt-7" />
         </div>
         <aside className="rounded-lg border border-border bg-muted/45 p-6">
           <CircleHelp aria-hidden="true" className="size-6 text-primary" />
@@ -545,8 +490,8 @@ export function ContactPage() {
             Use the same email or identity provider tied to your invitation.
             Organisation and role selection happen after authentication.
           </p>
-          <Button asChild variant="outline" className="mt-6 w-full">
-            <Link href="/sign-in">Sign in to Valo</Link>
+          <Button asChild variant="outline" className="mt-6 min-h-11 w-full">
+            <Link href="/sign-in">Sign In to Valo</Link>
           </Button>
         </aside>
       </section>
@@ -590,15 +535,31 @@ export function PrivacyPage() {
       description="How this Valo web experience handles public enquiries, account identity and tender-workspace information."
     >
       <p>
-        <strong>Effective 9 August 2026.</strong> This notice describes the
+        <strong>Effective 10 August 2026.</strong> This notice describes the
         current product design and is not a claim that every optional
         integration is active in every environment.
       </p>
       <h2>Public website</h2>
       <p>
-        The public site does not require a visitor to upload tender files. If a
-        configured contact channel is used, the destination service processes
-        the information you choose to send under its own controls.
+        The Bid Autopsy request form records ordinary business contact details,
+        a broad tender category and stage, an optional deadline, preferred
+        contact method and privacy acknowledgement. Valo uses this information
+        to assess and respond to the enquiry. The form does not accept tender
+        documents, sensitive commercial information or free-text bid details.
+      </p>
+      <p>
+        Form contents are stored in Valo's isolated public-intake database and
+        are not sent to analytics. Request metadata is used for shared
+        same-origin, abuse-prevention, rate-limit and idempotency controls. The
+        ordinary application log does not record form contents.
+      </p>
+      <h2>Public-enquiry retention</h2>
+      <p>
+        Retention and deletion of public enquiries follow the approved
+        public-lead policy. This notice does not publish a fixed period where no
+        duration has been operationally approved. Use a verified Valo contact
+        for access, correction or deletion requests relating to a public
+        enquiry.
       </p>
       <h2>Accounts and access</h2>
       <p>

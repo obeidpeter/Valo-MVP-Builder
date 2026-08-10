@@ -28,6 +28,65 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * Stores one bounded first-contact request in Valo's authorised intake
+ * database. The route requires an exact same-origin browser request, JSON,
+ * a stable idempotency key and privacy-respecting bot controls. It never
+ * accepts tender files, commercial schedules or unbounded tender details.
+ * Replaying the same key with the same payload returns the original request;
+ * reusing it for a different payload is rejected.
+ * @summary Request a Bid Autopsy
+ */
+export const SubmitBidAutopsyRequestHeader = zod.object({
+  "Idempotency-Key": zod.string().uuid().describe('Client-generated UUID retained unchanged across retries of one form\nsubmission. It is hashed before storage and is not an authentication\ncredential.\n')
+})
+
+export const submitBidAutopsyRequestBodyContactNameMin = 2;
+export const submitBidAutopsyRequestBodyContactNameMax = 120;
+
+export const submitBidAutopsyRequestBodyCompanyNameMin = 2;
+export const submitBidAutopsyRequestBodyCompanyNameMax = 160;
+
+export const submitBidAutopsyRequestBodyBusinessEmailMin = 5;
+export const submitBidAutopsyRequestBodyBusinessEmailMax = 254;
+
+export const submitBidAutopsyRequestBodyBusinessTelephoneMin = 7;
+export const submitBidAutopsyRequestBodyBusinessTelephoneMax = 32;
+
+
+export const submitBidAutopsyRequestBodyBusinessTelephoneRegExp = new RegExp('^(?=(?:\\D*\\d){7,})[+()0-9 .-]{7,32}$');
+export const submitBidAutopsyRequestBodyTenderDeadlineRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const submitBidAutopsyRequestBodyFormStartedAtMin = 20;
+export const submitBidAutopsyRequestBodyFormStartedAtMax = 35;
+
+export const submitBidAutopsyRequestBodyWebsiteDefault = ``;
+export const submitBidAutopsyRequestBodyWebsiteMax = 0;
+
+
+
+export const SubmitBidAutopsyRequestBody = zod.object({
+  "contactName": zod.string().min(submitBidAutopsyRequestBodyContactNameMin).max(submitBidAutopsyRequestBodyContactNameMax),
+  "companyName": zod.string().min(submitBidAutopsyRequestBodyCompanyNameMin).max(submitBidAutopsyRequestBodyCompanyNameMax),
+  "businessEmail": zod.string().email().min(submitBidAutopsyRequestBodyBusinessEmailMin).max(submitBidAutopsyRequestBodyBusinessEmailMax),
+  "businessTelephone": zod.string().min(submitBidAutopsyRequestBodyBusinessTelephoneMin).max(submitBidAutopsyRequestBodyBusinessTelephoneMax).regex(submitBidAutopsyRequestBodyBusinessTelephoneRegExp),
+  "tenderCategory": zod.enum(['federal_public', 'oil_and_gas', 'donor_funded', 'other']),
+  "bidStage": zod.enum(['live', 'draft', 'previously_submitted']),
+  "tenderDeadline": zod.string().regex(submitBidAutopsyRequestBodyTenderDeadlineRegExp).optional(),
+  "preferredContactMethod": zod.enum(['email', 'telephone']),
+  "privacyNoticeAcknowledged": zod.literal(true),
+  "formStartedAt": zod.string().min(submitBidAutopsyRequestBodyFormStartedAtMin).max(submitBidAutopsyRequestBodyFormStartedAtMax).describe('ISO-8601 time captured when the visitor first opens the form.'),
+  "website": zod.string().max(submitBidAutopsyRequestBodyWebsiteMax).default(submitBidAutopsyRequestBodyWebsiteDefault).describe('Bot-control honeypot. Human-facing clients keep this field empty.')
+}).strict()
+
+export const SubmitBidAutopsyRequestResponse = zod.object({
+  "requestId": zod.string().uuid(),
+  "status": zod.enum(['accepted']),
+  "replayed": zod.boolean(),
+  "acceptedAt": zod.coerce.date(),
+  "nextStep": zod.string().describe('Generic next-step guidance without an unverified response-time promise.')
+})
+
+
+/**
  * @summary Get the current authenticated user (JIT provisioned)
  */
 export const GetMeResponse = zod.object({

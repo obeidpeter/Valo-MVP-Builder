@@ -24,8 +24,18 @@ assert.match(
 );
 assert.match(
   replitConfiguration,
-  /^run = "CORS_ALLOWED_ORIGINS=https:\/\/valo-mvp-builder\.replit\.app TRUST_PROXY=1 NODE_ENV=production pnpm --filter @workspace\/api-server start"$/m,
+  /^run = "CORS_ALLOWED_ORIGINS=https:\/\/valo-mvp-builder\.replit\.app VALO_PUBLIC_LEAD_DESTINATION=database TRUST_PROXY=1 NODE_ENV=production pnpm --filter @workspace\/api-server start"$/m,
   "Replit publishing must start the combined production web/API service with the exact public origin and trusted proxy posture",
+);
+assert.doesNotMatch(
+  replitConfiguration,
+  /PUBLIC_LEAD_RATE_LIMIT_HMAC_SECRET\s*=/,
+  "The public-lead HMAC secret belongs in Replit Secrets, never source configuration",
+);
+assert.doesNotMatch(
+  replitConfiguration,
+  /VALO_PUBLIC_LEAD_RETENTION_DAYS\s*=/,
+  "Public-lead retention must stay unset until an approved duration is recorded",
 );
 
 assert.equal(

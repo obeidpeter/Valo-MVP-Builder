@@ -162,6 +162,11 @@ type TenantGuardFunctionProof = {
   function_source: string;
 };
 
+type IntakeFunctionProof = TenantGuardFunctionProof & {
+  owner_is_schema_owner: boolean;
+  public_can_execute: boolean;
+};
+
 type RuntimeTablePrivilegeProof = {
   table_name: string;
   rls_enabled: boolean;
@@ -499,6 +504,75 @@ const EXPECTED_TENANT_GUARD_FUNCTIONS = new Map<
   ],
 ]);
 
+const EXPECTED_INTAKE_FUNCTIONS = new Map<
+  string,
+  {
+    argumentCount: number;
+    argumentTypes: string;
+    returnType: string;
+    functionResult: string;
+    returnsSet: boolean;
+    runtimeCanExecute: boolean;
+    sourceSha256: string;
+  }
+>([
+  [
+    "consume_bid_autopsy_rate_limit",
+    {
+      argumentCount: 3,
+      argumentTypes: "text,integer,integer",
+      returnType: "record",
+      functionResult:
+        "TABLE(allowed boolean, remaining integer, reset_at timestamp with time zone)",
+      returnsSet: true,
+      runtimeCanExecute: true,
+      sourceSha256:
+        "2b7bc1eedfc4de96716cb1bcaa71b75516d21416103f87b5ba5f8f0a8a04fcff",
+    },
+  ],
+  [
+    "purge_expired_bid_autopsy_rate_limits",
+    {
+      argumentCount: 0,
+      argumentTypes: "",
+      returnType: "integer",
+      functionResult: "integer",
+      returnsSet: false,
+      runtimeCanExecute: false,
+      sourceSha256:
+        "4ece097c1958c669ef9891640d65b8c61fc40d26c845841d0fc2ca03f2515df2",
+    },
+  ],
+  [
+    "purge_expired_bid_autopsy_requests",
+    {
+      argumentCount: 0,
+      argumentTypes: "",
+      returnType: "integer",
+      functionResult: "integer",
+      returnsSet: false,
+      runtimeCanExecute: false,
+      sourceSha256:
+        "2d88ed14bbb8779f38b105983900eb47100c6771ce9e1fca29b9b4d93f58ff52",
+    },
+  ],
+  [
+    "store_bid_autopsy_request",
+    {
+      argumentCount: 12,
+      argumentTypes:
+        "text,text,text,text,text,text,text,text,date,text,text,integer",
+      returnType: "record",
+      functionResult:
+        "TABLE(request_id uuid, received_at timestamp with time zone, replayed boolean, payload_matches boolean)",
+      returnsSet: true,
+      runtimeCanExecute: true,
+      sourceSha256:
+        "d97eff1d25e172cec633476c0e28a04ead4004cf0e23e794a1c55e4afc7c0430",
+    },
+  ],
+]);
+
 function normalizedFunctionSourceSha256(source: string): string {
   return createHash("sha256")
     .update(source.replaceAll("\r\n", "\n").trim())
@@ -721,6 +795,49 @@ export function assertTenantGraphAttestation(input: {
   }
 }
 
+export function assertIntakeFunctionAttestation(
+  functionProofs: IntakeFunctionProof[],
+): void {
+  const actualFunctions = new Map(
+    functionProofs.map((proof) => [proof.function_name, proof]),
+  );
+  const malformedFunction = [...EXPECTED_INTAKE_FUNCTIONS].some(
+    ([functionName, expected]) => {
+      const actual = actualFunctions.get(functionName);
+      return (
+        !actual ||
+        actual.language_name !== "plpgsql" ||
+        actual.function_kind !== "f" ||
+        !actual.security_definer ||
+        actual.leakproof ||
+        actual.strict ||
+        actual.volatility !== "v" ||
+        actual.parallel_safety !== "u" ||
+        actual.function_config !== "search_path=pg_catalog" ||
+        actual.returns_trigger ||
+        actual.argument_count !== expected.argumentCount ||
+        actual.argument_types !== expected.argumentTypes ||
+        actual.return_type !== expected.returnType ||
+        actual.function_result !== expected.functionResult ||
+        actual.returns_set !== expected.returnsSet ||
+        actual.owner_name === "valo_app_runtime" ||
+        !actual.owner_is_schema_owner ||
+        actual.public_can_execute ||
+        actual.runtime_can_execute !== expected.runtimeCanExecute ||
+        normalizedFunctionSourceSha256(actual.function_source) !==
+          expected.sourceSha256
+      );
+    },
+  );
+  if (
+    functionProofs.length !== EXPECTED_INTAKE_FUNCTIONS.size ||
+    actualFunctions.size !== EXPECTED_INTAKE_FUNCTIONS.size ||
+    malformedFunction
+  ) {
+    throw new Error("production database intake function catalog is drifted");
+  }
+}
+
 export function isProductionRuntime(environment: RuntimeEnvironment): boolean {
   if (
     environment.REPLIT_DEPLOYMENT === "1" &&
@@ -864,12 +981,22 @@ export async function assertProductionRuntimeDatabaseSafety(
       server_version_number: number;
       can_create_database_objects: boolean;
       can_create_valo_security_objects: boolean;
+      can_create_valo_intake_objects: boolean;
       can_create_drizzle_objects: boolean;
       can_use_public_schema: boolean;
       can_use_valo_security_schema: boolean;
+      can_use_valo_intake_schema: boolean;
       can_use_drizzle_schema: boolean;
       can_execute_current_organisation: boolean;
       can_execute_set_current_organisation: boolean;
+      can_execute_store_bid_autopsy_request: boolean;
+      can_execute_consume_bid_autopsy_rate_limit: boolean;
+      can_execute_purge_bid_autopsy_requests: boolean;
+      can_execute_purge_bid_autopsy_rate_limits: boolean;
+      can_access_bid_autopsy_request_table: boolean;
+      can_access_bid_autopsy_rate_limit_table: boolean;
+      can_access_bid_autopsy_request_columns: boolean;
+      can_access_bid_autopsy_rate_limit_columns: boolean;
       owned_database: string;
       owned_security_schemas: string;
       owned_security_relations: string;
@@ -957,12 +1084,17 @@ export async function assertProductionRuntimeDatabaseSafety(
           current_user, 'valo_security', 'CREATE'
         ) AS can_create_valo_security_objects,
         pg_catalog.has_schema_privilege(
+          current_user, 'valo_intake', 'CREATE'
+        ) AS can_create_valo_intake_objects,
+        pg_catalog.has_schema_privilege(
           current_user, 'drizzle', 'CREATE'
         ) AS can_create_drizzle_objects,
         pg_catalog.has_schema_privilege(current_user,'public','USAGE')
           AS can_use_public_schema,
         pg_catalog.has_schema_privilege(current_user,'valo_security','USAGE')
           AS can_use_valo_security_schema,
+        pg_catalog.has_schema_privilege(current_user,'valo_intake','USAGE')
+          AS can_use_valo_intake_schema,
         pg_catalog.has_schema_privilege(current_user,'drizzle','USAGE')
           AS can_use_drizzle_schema,
         pg_catalog.has_function_privilege(
@@ -971,6 +1103,98 @@ export async function assertProductionRuntimeDatabaseSafety(
         pg_catalog.has_function_privilege(
           current_user,'valo_security.set_current_organisation_id(uuid)','EXECUTE'
         ) AS can_execute_set_current_organisation,
+        pg_catalog.has_function_privilege(
+          current_user,
+          'valo_intake.store_bid_autopsy_request(text,text,text,text,text,text,text,text,date,text,text,integer)',
+          'EXECUTE'
+        ) AS can_execute_store_bid_autopsy_request,
+        pg_catalog.has_function_privilege(
+          current_user,
+          'valo_intake.consume_bid_autopsy_rate_limit(text,integer,integer)',
+          'EXECUTE'
+        ) AS can_execute_consume_bid_autopsy_rate_limit,
+        pg_catalog.has_function_privilege(
+          current_user,
+          'valo_intake.purge_expired_bid_autopsy_requests()',
+          'EXECUTE'
+        ) AS can_execute_purge_bid_autopsy_requests,
+        pg_catalog.has_function_privilege(
+          current_user,
+          'valo_intake.purge_expired_bid_autopsy_rate_limits()',
+          'EXECUTE'
+        ) AS can_execute_purge_bid_autopsy_rate_limits,
+        (
+          pg_catalog.has_table_privilege(
+            current_user,'valo_intake.bid_autopsy_requests','SELECT'
+          ) OR pg_catalog.has_table_privilege(
+            current_user,'valo_intake.bid_autopsy_requests','INSERT'
+          ) OR pg_catalog.has_table_privilege(
+            current_user,'valo_intake.bid_autopsy_requests','UPDATE'
+          ) OR pg_catalog.has_table_privilege(
+            current_user,'valo_intake.bid_autopsy_requests','DELETE'
+          ) OR pg_catalog.has_table_privilege(
+            current_user,'valo_intake.bid_autopsy_requests','TRUNCATE'
+          ) OR pg_catalog.has_table_privilege(
+            current_user,'valo_intake.bid_autopsy_requests','REFERENCES'
+          ) OR pg_catalog.has_table_privilege(
+            current_user,'valo_intake.bid_autopsy_requests','TRIGGER'
+          )
+        ) AS can_access_bid_autopsy_request_table,
+        (
+          pg_catalog.has_table_privilege(
+            current_user,'valo_intake.bid_autopsy_rate_limits','SELECT'
+          ) OR pg_catalog.has_table_privilege(
+            current_user,'valo_intake.bid_autopsy_rate_limits','INSERT'
+          ) OR pg_catalog.has_table_privilege(
+            current_user,'valo_intake.bid_autopsy_rate_limits','UPDATE'
+          ) OR pg_catalog.has_table_privilege(
+            current_user,'valo_intake.bid_autopsy_rate_limits','DELETE'
+          ) OR pg_catalog.has_table_privilege(
+            current_user,'valo_intake.bid_autopsy_rate_limits','TRUNCATE'
+          ) OR pg_catalog.has_table_privilege(
+            current_user,'valo_intake.bid_autopsy_rate_limits','REFERENCES'
+          ) OR pg_catalog.has_table_privilege(
+            current_user,'valo_intake.bid_autopsy_rate_limits','TRIGGER'
+          )
+        ) AS can_access_bid_autopsy_rate_limit_table,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.pg_attribute AS intake_column
+          WHERE intake_column.attrelid =
+            'valo_intake.bid_autopsy_requests'::pg_catalog.regclass
+            AND intake_column.attnum > 0
+            AND NOT intake_column.attisdropped
+            AND (
+              pg_catalog.has_column_privilege(
+                current_user,intake_column.attrelid,intake_column.attnum,'SELECT'
+              ) OR pg_catalog.has_column_privilege(
+                current_user,intake_column.attrelid,intake_column.attnum,'INSERT'
+              ) OR pg_catalog.has_column_privilege(
+                current_user,intake_column.attrelid,intake_column.attnum,'UPDATE'
+              ) OR pg_catalog.has_column_privilege(
+                current_user,intake_column.attrelid,intake_column.attnum,'REFERENCES'
+              )
+            )
+        ) AS can_access_bid_autopsy_request_columns,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.pg_attribute AS intake_column
+          WHERE intake_column.attrelid =
+            'valo_intake.bid_autopsy_rate_limits'::pg_catalog.regclass
+            AND intake_column.attnum > 0
+            AND NOT intake_column.attisdropped
+            AND (
+              pg_catalog.has_column_privilege(
+                current_user,intake_column.attrelid,intake_column.attnum,'SELECT'
+              ) OR pg_catalog.has_column_privilege(
+                current_user,intake_column.attrelid,intake_column.attnum,'INSERT'
+              ) OR pg_catalog.has_column_privilege(
+                current_user,intake_column.attrelid,intake_column.attnum,'UPDATE'
+              ) OR pg_catalog.has_column_privilege(
+                current_user,intake_column.attrelid,intake_column.attnum,'REFERENCES'
+              )
+            )
+        ) AS can_access_bid_autopsy_rate_limit_columns,
         (SELECT count(*)::text
          FROM pg_catalog.pg_database AS database_record
          WHERE database_record.datname=pg_catalog.current_database()
@@ -1131,12 +1355,22 @@ export async function assertProductionRuntimeDatabaseSafety(
       proof.row_security !== "on" ||
       proof.can_create_database_objects ||
       proof.can_create_valo_security_objects ||
+      proof.can_create_valo_intake_objects ||
       proof.can_create_drizzle_objects ||
       !proof.can_use_public_schema ||
       !proof.can_use_valo_security_schema ||
+      !proof.can_use_valo_intake_schema ||
       proof.can_use_drizzle_schema ||
       !proof.can_execute_current_organisation ||
       !proof.can_execute_set_current_organisation ||
+      !proof.can_execute_store_bid_autopsy_request ||
+      !proof.can_execute_consume_bid_autopsy_rate_limit ||
+      proof.can_execute_purge_bid_autopsy_requests ||
+      proof.can_execute_purge_bid_autopsy_rate_limits ||
+      proof.can_access_bid_autopsy_request_table ||
+      proof.can_access_bid_autopsy_rate_limit_table ||
+      proof.can_access_bid_autopsy_request_columns ||
+      proof.can_access_bid_autopsy_rate_limit_columns ||
       Number(proof.owned_database) !== 0 ||
       Number(proof.owned_security_schemas) !== 0 ||
       Number(proof.owned_security_relations) !== 0 ||
@@ -1502,6 +1736,59 @@ export async function assertProductionRuntimeDatabaseSafety(
         )
       ORDER BY function_name
     `);
+    const intakeFunctionProofs = await client.query<IntakeFunctionProof>(`
+      SELECT intake_function.proname::text AS function_name,
+        language.lanname::text AS language_name,
+        intake_function.prokind::text AS function_kind,
+        intake_function.prosecdef AS security_definer,
+        intake_function.proleakproof AS leakproof,
+        intake_function.proisstrict AS strict,
+        intake_function.provolatile::text AS volatility,
+        intake_function.proparallel::text AS parallel_safety,
+        COALESCE(pg_catalog.array_to_string(intake_function.proconfig,','),'')
+          AS function_config,
+        intake_function.prorettype='pg_catalog.trigger'::pg_catalog.regtype
+          AS returns_trigger,
+        intake_function.pronargs::integer AS argument_count,
+        COALESCE((
+          SELECT pg_catalog.string_agg(
+            pg_catalog.format_type(argument_type.type_oid,NULL),
+            ',' ORDER BY argument_type.ordinality
+          )
+          FROM pg_catalog.unnest(intake_function.proargtypes::oid[])
+            WITH ORDINALITY AS argument_type(type_oid,ordinality)
+        ), '') AS argument_types,
+        pg_catalog.pg_get_function_identity_arguments(intake_function.oid)
+          AS identity_arguments,
+        pg_catalog.format_type(intake_function.prorettype,NULL) AS return_type,
+        pg_catalog.pg_get_function_result(intake_function.oid) AS function_result,
+        intake_function.proretset AS returns_set,
+        pg_catalog.pg_get_userbyid(intake_function.proowner) AS owner_name,
+        intake_function.proowner=intake_namespace.nspowner
+          AS owner_is_schema_owner,
+        pg_catalog.has_function_privilege(
+          current_user,intake_function.oid,'EXECUTE'
+        ) AS runtime_can_execute,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.aclexplode(
+            COALESCE(
+              intake_function.proacl,
+              pg_catalog.acldefault('f',intake_function.proowner)
+            )
+          ) AS function_acl
+          WHERE function_acl.grantee=0
+            AND function_acl.privilege_type='EXECUTE'
+        ) AS public_can_execute,
+        intake_function.prosrc AS function_source
+      FROM pg_catalog.pg_proc AS intake_function
+      JOIN pg_catalog.pg_namespace AS intake_namespace
+        ON intake_namespace.oid=intake_function.pronamespace
+      JOIN pg_catalog.pg_language AS language
+        ON language.oid=intake_function.prolang
+      WHERE intake_namespace.nspname='valo_intake'
+      ORDER BY function_name
+    `);
     const graph = graphSummary.rows[0];
     assertTenantGraphAttestation({
       directEdges: directEdges.rows,
@@ -1511,6 +1798,7 @@ export async function assertProductionRuntimeDatabaseSafety(
       immutableArchiveExceptions: graph?.immutable_archive_exceptions ?? -1,
       tenantParentTriggerCount: graph?.tenant_parent_trigger_count ?? -1,
     });
+    assertIntakeFunctionAttestation(intakeFunctionProofs.rows);
     if (
       graph?.public_security_trigger_count !== 116 ||
       graph.valo_security_function_count !== 9

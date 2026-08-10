@@ -209,11 +209,14 @@ runtime path to resolve exactly to `pg_catalog, public`, then deparses under a
 transaction-local `search_path=pg_catalog`. It pins all 96 public-table RLS
 flags, the exact 85 FORCE-RLS identities, all 104 policy definitions, all 116
 security triggers, all nine `valo_security` routine signatures and bodies, and
-the complete effective table/column/sequence privilege matrix. It also requires
-`row_security=on`, `session_replication_role=origin`, the fixed runtime identity,
-no inherited/owned or schema-creation escape, and only the two tenant-context
-routines to be runtime-executable. Any mismatch stops the listener/job before
-application queries.
+all four `valo_intake` routine signatures, bodies and execution boundaries, as
+well as the complete effective table/column/sequence privilege matrix. It also
+requires `row_security=on`, `session_replication_role=origin`, the fixed runtime
+identity, no inherited/owned or schema-creation escape, and runtime EXECUTE only
+on the two tenant-context routines plus the bounded Bid Autopsy store and shared
+limiter functions. Direct intake table/column privileges and both owner-side
+purge functions remain denied to the web runtime. Any mismatch stops the
+listener/job before application queries.
 
 `app.current_organisation_id` is a transaction-local database boundary, not an
 authentication credential: anyone holding the raw runtime database credential

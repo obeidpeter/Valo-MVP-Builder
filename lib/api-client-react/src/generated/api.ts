@@ -40,6 +40,8 @@ import type {
   AppConfigUpdate,
   AuditEvent,
   BadRequestResponse,
+  BidAutopsyRequestAccepted,
+  BidAutopsyRequestCreate,
   BoqCheck,
   BoqRunRequest,
   BoqRunResult,
@@ -241,6 +243,82 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
 
 
+
+export const getSubmitBidAutopsyRequestUrl = () => {
+
+
+
+
+  return `/api/public/bid-autopsy-requests`
+}
+
+/**
+ * Stores one bounded first-contact request in Valo's authorised intake
+ * database. The route requires an exact same-origin browser request, JSON,
+ * a stable idempotency key and privacy-respecting bot controls. It never
+ * accepts tender files, commercial schedules or unbounded tender details.
+ * Replaying the same key with the same payload returns the original request;
+ * reusing it for a different payload is rejected.
+ * @summary Request a Bid Autopsy
+ */
+export const submitBidAutopsyRequest = async (bidAutopsyRequestCreate: BidAutopsyRequestCreate, idempotencyKey: string, options?: RequestInit): Promise<BidAutopsyRequestAccepted> => {
+
+  return customFetch<BidAutopsyRequestAccepted>(getSubmitBidAutopsyRequestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey, ...options?.headers },
+    body: JSON.stringify(bidAutopsyRequestCreate)
+  }
+);}
+
+
+
+
+export const getSubmitBidAutopsyRequestMutationOptions = <TError = ErrorType<BadRequestResponse | ErrorEnvelope | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitBidAutopsyRequest>>, TError,{data: BodyType<BidAutopsyRequestCreate>; idempotencyKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitBidAutopsyRequest>>, TError,{data: BodyType<BidAutopsyRequestCreate>; idempotencyKey: string}, TContext> => {
+
+const mutationKey = ['submitBidAutopsyRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitBidAutopsyRequest>>, {data: BodyType<BidAutopsyRequestCreate>; idempotencyKey: string}> = (props) => {
+          const {data, idempotencyKey} = props ?? {};
+
+          return  submitBidAutopsyRequest(data,idempotencyKey,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitBidAutopsyRequestMutationResult = NonNullable<Awaited<ReturnType<typeof submitBidAutopsyRequest>>>
+    export type SubmitBidAutopsyRequestMutationBody = BodyType<BidAutopsyRequestCreate>
+    export type SubmitBidAutopsyRequestMutationError = ErrorType<BadRequestResponse | ErrorEnvelope | ConflictResponse>
+
+    /**
+ * @summary Request a Bid Autopsy
+ */
+export const useSubmitBidAutopsyRequest = <TError = ErrorType<BadRequestResponse | ErrorEnvelope | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitBidAutopsyRequest>>, TError,{data: BodyType<BidAutopsyRequestCreate>; idempotencyKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitBidAutopsyRequest>>,
+        TError,
+        {data: BodyType<BidAutopsyRequestCreate>; idempotencyKey: string},
+        TContext
+      > => {
+      return useMutation(getSubmitBidAutopsyRequestMutationOptions(options));
+    }
 
 export const getGetMeUrl = () => {
 

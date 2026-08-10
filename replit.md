@@ -7,7 +7,7 @@ Valo is an internal bid-compliance workbench for tender intake, reviewer-confirm
 - Supported runtime: Node.js 22 through 24 and pnpm 10.34.0. Replit selects Node.js 24 in `.replit`; CI validates Node.js 22.
 - Replit's **Project** workflow runs the API on port 5000 and the Vite workbench on port 3000, proxying `/api` to the API.
 - API liveness is `GET /api/healthz`. It proves only that the process can answer; it does not prove database, storage, identity-provider, model-provider, RLS, or migration readiness.
-- Production publishing runs the `.replit` build command with `PORT=3000 BASE_PATH=/ NODE_ENV=production pnpm run build`, then starts the compiled API with Replit's assigned `PORT`. The checked-in run command pins the current `https://valo-mvp-builder.replit.app` origin and one-hop Replit proxy posture; update the exact allowlist before activating any approved custom domain. In production the API serves `artifacts/valo-workbench/dist/public`, including SPA deep-link fallback; only the nine implemented public paths are indexable and every authentication, workspace, or unknown fallback response carries `X-Robots-Tag: noindex, nofollow`.
+- Production publishing runs the `.replit` build command with `PORT=3000 BASE_PATH=/ NODE_ENV=production pnpm run build`, then starts the compiled API with Replit's assigned `PORT`. The checked-in run command pins the current `https://valo-mvp-builder.replit.app` origin and one-hop Replit proxy posture; update the exact allowlist before activating any approved custom domain. In production the API serves `artifacts/valo-workbench/dist/public`, including SPA deep-link fallback; only the ten implemented public paths are indexable and every authentication, workspace, or unknown fallback response carries `X-Robots-Tag: noindex, nofollow`.
 
 Useful local/Replit checks:
 
@@ -40,7 +40,8 @@ deployment records, or build logs. At minimum, configure and verify:
   reuse an identity or credential. Remove `DATABASE_URL` from the long-running
   production service after migration wherever Replit permits it.
 - `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, and build-time `VITE_CLERK_PUBLISHABLE_KEY`. The production frontend always uses the same-origin `/api/__clerk` proxy so its CSP and credential boundary remain fixed. `VITE_CLERK_PROXY_URL` is development-only.
-- `CORS_ALLOWED_ORIGINS` as an exact comma-separated allowlist of deployed web origins; `*` is deliberately rejected. Set `TRUST_PROXY=1` only behind Replit's trusted proxy.
+- `CORS_ALLOWED_ORIGINS` as an exact comma-separated allowlist of deployed web origins; `*` is deliberately rejected. The autoscale deployment requires `TRUST_PROXY=1` behind Replit's single trusted proxy hop; public intake stays unavailable in production without that explicit setting.
+- `VALO_PUBLIC_LEAD_DESTINATION=database` selects the bounded public Bid Autopsy request destination after migrations `0003`-`0005` are applied. It does not activate intake by itself. Production also requires a server-only `PUBLIC_LEAD_RATE_LIMIT_HMAC_SECRET` of at least 32 bytes and an explicitly approved integer `VALO_PUBLIC_LEAD_RETENTION_DAYS` from 1 through 3650; there is deliberately no retention default. Keep the HMAC secret in Replit Secrets. Review `PUBLIC_LEAD_RATE_LIMIT_WINDOW_MS` and `PUBLIC_LEAD_RATE_LIMIT_MAX` for the target. Autoscale replicas consume one database-backed fixed-window bucket keyed only by an HMAC of the canonical client address; raw addresses and the secret are never stored.
 - `AI_INTEGRATIONS_OPENAI_API_KEY` and `AI_INTEGRATIONS_OPENAI_BASE_URL` where the model adapter is used. `OPENAI_ADAPTER_PRODUCTION_APPROVED=true` is an explicit approval attestation, not a substitute for provider-health and live proof evidence.
 - Production model workflows default off and require all of the following before any client content reaches a provider: `VALO_AI_GLOBAL_ENABLED=true`; the capability-specific `VALO_AI_*_ENABLED=true`; the matching tenant `ai_*` feature flag; an approved model/configuration/evaluation; an explicit NGN budget and rate-card envelope; approved processing region and retention policy; provider no-training, DPA and governance evidence; and a private, absolute `VALO_AI_RELEASE_EVIDENCE_PATH`. The release bundle is recomputed against the exact model, `ai-foundation-v1` prompt pack, schema-set hash, retrieval version and index version. `VALO_AI_KILL_SWITCH=true` overrides every other setting. See `docs/ai-overhaul/DEPLOYMENT_ACCEPTANCE.md`; do not infer approval values for the currently undecided provider, residency or budget decisions.
 - Replit Object Storage configuration, including `PRIVATE_OBJECT_DIR` and any intentional `PUBLIC_OBJECT_SEARCH_PATHS`. Tender and bid content belongs in private tenant-prefixed paths.
@@ -55,6 +56,7 @@ deployment records, or build logs. At minimum, configure and verify:
 - Tenant data access runs inside one database transaction. The application sets `app.current_organisation_id` transaction-locally, and `lib/db/migrations/0001_tenant_rls.sql` enables and forces RLS on tenant-resource tables.
 - The application database role must not be a PostgreSQL superuser or have `BYPASSRLS`. Use an approved migration identity for DDL and a least-privilege runtime identity for the application.
 - The RLS migration is fail-closed and can make unassigned legacy rows invisible. Reconcile and authoritatively backfill legacy organisation ownership before applying it. Never invent tenant ownership.
+- Pre-account Bid Autopsy requests are intentionally not tenant rows. Migrations `0003`-`0005` isolate them in `valo_intake`, add the shared pseudonymous abuse-control bucket and explicit per-record retention deadline, revoke direct runtime table access, and grant only the bounded insert and limiter functions. The owner-only `valo_intake.purge_expired_bid_autopsy_requests()` and `valo_intake.purge_expired_bid_autopsy_rate_limits()` functions return content-free deleted-row counts and remove only expired records. Do not grant the web runtime table access or purge execution. An authorised owner-side schedule and reconciliation procedure must be recorded before intake is activated.
 
 Replit invokes `scripts/post-merge.sh` after a Git merge. It performs a frozen
 install and validates the migration journal, but deliberately does **not** apply
@@ -161,11 +163,14 @@ read-only transaction. It requires the ambient path to be exactly
 `pg_catalog, public`, then uses transaction-local `search_path=pg_catalog` for
 deterministic catalog deparsing. It verifies the exact 96-table RLS flag set,
 85 FORCE-RLS table identities, 104 policy contracts, 116 security triggers,
-nine `valo_security` routine contracts, and every effective runtime
-table/column/sequence privilege. It also requires `row_security=on`,
-`session_replication_role=origin`, no ownership/schema-creation path, and
-EXECUTE only on the two tenant-context helpers. A same-count but semantically
-drifted database must not start.
+nine `valo_security` routine contracts, all four `valo_intake` routine
+contracts, and every effective runtime table/column/sequence privilege. It also
+requires `row_security=on`, `session_replication_role=origin`, no
+ownership/schema-creation path, and runtime EXECUTE only on the two
+tenant-context helpers plus the bounded Bid Autopsy store and shared limiter
+functions. The owner-side intake purge functions and direct intake table or
+column privileges remain denied. A same-count but semantically drifted database
+must not start.
 
 The transaction-local `app.current_organisation_id` GUC is a database boundary,
 not authentication. A holder of the raw runtime credential can call its setter,
@@ -225,11 +230,14 @@ Server-side commercial flags also default off when no tenant/global record exist
 4. Treat the current production target as the confirmed copied 19-table legacy
    database. Its bridge is mandatory and uses production-specific quiescence,
    backup/restore, inventory, audit export/head, and rehearsal evidence. Do not
-   let Replit publish apply a schema diff or the normal `0000` migration chain;
-   verify the bridged catalog and runtime role before starting the v2.5
-   application.
+   let Replit publish apply a schema diff or replay the adopted `0000`–`0002`
+   chain. While the application remains stopped, apply the remaining additive
+   `0003`-`0005` public-intake migrations with the migration owner, then verify
+   the `valo_app_runtime` role has schema usage and only bounded store/limiter
+   function execution, no purge execution, and no direct intake-table
+   privileges before starting the application.
 5. Run the checks above in Replit, plus live PostgreSQL isolation tests using a non-owner runtime role. Prove same-tenant success and cross-tenant denial for database and storage paths.
-6. Build and preview both artefacts. Verify sign-in, organisation selection, denied cross-tenant access, feature-off states, one synthetic intake/review/readiness/export journey, `/api/healthz`, logs, and rollback access.
+6. Build and preview both artefacts. Verify sign-in, organisation selection, denied cross-tenant access, feature-off states, one synthetic intake/review/readiness/export journey, one non-sensitive `example.test` Bid Autopsy request and idempotent retry, `/api/healthz`, PII-free logs, and rollback access. Remove the synthetic lead through the separately authorised owner-side process.
 7. Publish only after the target URL, exact CORS origin, Clerk configuration, private storage paths, runtime identity, backups, flags, and required provider approvals are recorded. Keep new commercial flags off during initial promotion.
 8. After publish, repeat non-destructive smoke tests against the published URL and observe errors, latency, database connections/locks, tenant denials, provider failures, and backup status. Record the result in `docs/implementation-v2.5/DEPLOYMENT_RECORD.md`.
 
@@ -237,7 +245,7 @@ Abort or roll back on cross-tenant exposure, data loss/corruption, migration rec
 
 ## Known release blockers
 
-This candidate is not production-accepted. In particular, live FORCE-RLS/migration rehearsal and full cross-tenant E2E evidence are pending; authoritative malware/MIME/archive inspection and quarantine are not wired into intake; production provider readiness is not enforced at startup; durable provider reconciliation and an external immutable audit anchor are incomplete; and accepted backup/restore, rollback, accessibility, load, security, and deployed-smoke evidence is absent. See `docs/implementation-v2.5/ACCEPTANCE_REPORT.md` for the source/evidence boundary.
+This candidate is not production-accepted. In particular, live FORCE-RLS/migration rehearsal and full cross-tenant E2E evidence are pending; authoritative malware/MIME/archive inspection and quarantine are not wired into document intake; production provider readiness is not enforced at startup; durable provider reconciliation and an external immutable audit anchor are incomplete; and accepted backup/restore, rollback, accessibility, load, security, and deployed-smoke evidence is absent. Public Bid Autopsy requests currently stop at the authorised database destination: an opaque receipt event exists, but no approved CRM/email delivery adapter, operational queue owner or narrowly authorised monitoring surface is configured. The route now fails closed until an approved `VALO_PUBLIC_LEAD_RETENTION_DAYS` value is supplied, and the owner-only lead and limiter-bucket purge primitives still need an authorised schedule and reconciliation procedure. Operational follow-up and lifecycle control must be established before production promotion. See `docs/implementation-v2.5/ACCEPTANCE_REPORT.md` for the source/evidence boundary.
 
 ## Architecture map
 
