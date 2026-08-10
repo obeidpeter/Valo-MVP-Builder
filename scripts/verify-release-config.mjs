@@ -15,7 +15,17 @@ async function loadText(relativePath) {
 
 const rulePack = await loadJson("config/rules/nigeria/v2026-08-08.json");
 const alerts = await loadJson("config/observability/alerts.v2.5.json");
+const dbPackage = await loadJson("lib/db/package.json");
 const replitConfiguration = await loadText(".replit");
+const replitMigrationLauncher = await loadText(
+  "lib/db/scripts/replit-intake-migrations.mjs",
+);
+
+assert.equal(
+  dbPackage.scripts?.["migration:replit:intake"],
+  "node ./scripts/replit-intake-migrations.mjs",
+  "The Replit deployment migration alias must execute the inspected bounded launcher",
+);
 
 assert.match(
   replitConfiguration,
@@ -24,8 +34,8 @@ assert.match(
 );
 assert.match(
   replitConfiguration,
-  /^run = "CORS_ALLOWED_ORIGINS=https:\/\/valo-mvp-builder\.replit\.app VALO_PUBLIC_LEAD_DESTINATION=database TRUST_PROXY=1 NODE_ENV=production pnpm --filter @workspace\/api-server start"$/m,
-  "Replit publishing must start the combined production web/API service with the exact public origin and trusted proxy posture",
+  /^run = "NODE_ENV=production pnpm --filter @workspace\/db migration:replit:intake && CORS_ALLOWED_ORIGINS=https:\/\/valo-mvp-builder\.replit\.app VALO_PUBLIC_LEAD_DESTINATION=database TRUST_PROXY=1 NODE_ENV=production pnpm --filter @workspace\/api-server start"$/m,
+  "Replit publishing must run the bounded intake migration gate before starting the combined production web/API service",
 );
 assert.doesNotMatch(
   replitConfiguration,
@@ -36,6 +46,41 @@ assert.doesNotMatch(
   replitConfiguration,
   /VALO_PUBLIC_LEAD_RETENTION_DAYS\s*=/,
   "Public-lead retention must stay unset until an approved duration is recorded",
+);
+assert.match(
+  replitMigrationLauncher,
+  /environment\.NODE_ENV !== "production"/,
+  "The deployment migration launcher must reject non-production execution",
+);
+assert.match(
+  replitMigrationLauncher,
+  /environment\.REPLIT_DEPLOYMENT !== "1"/,
+  "The deployment migration launcher must reject non-Replit execution",
+);
+assert.match(
+  replitMigrationLauncher,
+  /pg_advisory_lock/,
+  "The deployment migration launcher must wait on one session-affine autoscale lock",
+);
+assert.match(
+  replitMigrationLauncher,
+  /migrate\(drizzle\(lockClient\)/,
+  "The deployment migration must execute on the advisory-lock session",
+);
+assert.match(
+  replitMigrationLauncher,
+  /SET search_path = pg_catalog/,
+  "The deployment migration session must pin the PostgreSQL catalog search path",
+);
+assert.match(
+  replitMigrationLauncher,
+  /validateReplitMigrationJournal\(beforeRows\)/,
+  "The deployment migration launcher must verify the production journal before mutation",
+);
+assert.doesNotMatch(
+  replitMigrationLauncher,
+  /postgres(?:ql)?:\/\/[^\s"']+@/,
+  "The deployment migration launcher must not contain a database credential literal",
 );
 
 assert.equal(

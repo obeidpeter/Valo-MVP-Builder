@@ -54,14 +54,20 @@ name and order and initializes only those six absent fields to `NULL`. Any
 other missing, extra, or reordered column aborts; no compatible intersection is
 inferred.
 
-The current live Replit production database is confirmed to be a populated copy
-of the same 19-table legacy lineage, not a fresh or separate database. The
-legacy bridge is mandatory for that production target. Do not run `0000`,
-`migration:apply`, `drizzle-kit push`, or a Replit publish schema diff against
-it. A future independently provisioned target may use the normal checked-in
-migration chain only after evidence proves it empty and separate; that exception
-does not apply to the current production database. Source synchronisation and
-`postMerge` never authorise or run database promotion.
+The Replit production database originated as the same populated 19-table legacy
+lineage and has completed the reviewed bridge, adopting the exact
+`0000`-`0002` journal. Do not replay the bridge or baseline, run
+`drizzle-kit push`, or accept a publish schema diff. The only automated
+production DDL path is the source-controlled `migration:replit:intake` launcher:
+it is restricted to Replit production, pins all six migration files and the
+accepted journal states, validates separate same-target owner/runtime URLs,
+holds a fixed advisory lock across migration, and applies only pending
+`0003`-`0005` in one Drizzle transaction. It verifies the exact six-row journal
+and intake object catalog before allowing API startup. Source synchronisation
+and `postMerge` still never authorise or run database promotion. Supply a
+direct, session-affine owner endpoint, not a transaction-pooling URL: the
+launcher keeps its settings, advisory lock and migration on one PostgreSQL
+backend session.
 
 ### Required evidence and quiescence
 
@@ -295,10 +301,12 @@ the source backup and audit export as private evidence.
 1. Announce window and freeze conflicting changes/jobs as designed; do not interrupt deadline-critical work without owner plan.
 2. Verify latest backup, replica/queue health, anchor freshness, provider health and rollback artefacts.
 3. Record current deployment/config/schema/flags/rule packs.
-4. For the current Replit production database, execute only the approved legacy
-   bridge procedure above; do not substitute the normal migration chain or a
-   publish schema diff. A future already-v2 target may use its reviewed expand
-   migration. Halt on any bridge, reconciliation, or RLS error.
+4. For an unbridged legacy target, execute only the approved legacy bridge
+   procedure above. For the current already-bridged Replit target, require the
+   exact adopted `0000`-`0002` journal and let only the bounded
+   `migration:replit:intake` deployment launcher apply `0003`-`0005`. Never
+   substitute the unrestricted migration command or a publish schema diff.
+   Halt on any journal, source-hash, catalog, reconciliation, or RLS error.
 5. Deploy workers/API/web in compatible order; keep new commercial flags off.
 6. Observe readiness, error/latency, DB connections/locks, queue depth, provider failures, tenant denials and anchor status.
 7. Execute non-destructive production smoke with dedicated test tenant and marked synthetic files.

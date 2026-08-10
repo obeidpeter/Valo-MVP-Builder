@@ -67,14 +67,19 @@ supported in-place upgrade is the reviewed one-time legacy bridge described
 below. Never mark historical migrations as applied without proving that the
 live schema and constraints match them.
 
-The current live Replit production database is also a populated copy of this
-legacy 19-table lineage; it is not a fresh database. Its upgrade therefore
-requires the same bridge under a production change window. Do not run the normal
-`0000` migration chain, `migration:apply`, `drizzle-kit push`, or an automatic
-publish schema diff against it. Development and production are separate source
-instances: capture and approve each instance's own counts, audit export/head,
-backup, restore, and rehearsal evidence rather than reusing evidence between
-them.
+The Replit production database has completed the reviewed legacy bridge and has
+the exact adopted `0000`-`0002` journal. Never replay that bridge, the baseline,
+or a push/schema-diff operation. The deployment command may run only
+`migration:replit:intake`: it pins the six source migration hashes, requires the
+production journal to be exactly `0000`-`0002` or `0000`-`0005`, validates the
+separate same-target owner/runtime credentials, serializes Autoscale starts with
+a PostgreSQL advisory lock, and atomically applies only the pending
+`0003`-`0005` suffix before API startup. Any other journal, source, credential,
+schema, or postcondition stops the candidate before listen. Development and
+production remain separate source instances; never reuse one environment's
+evidence for the other. `DATABASE_URL` must use a direct, session-affine
+PostgreSQL endpoint rather than transaction pooling because the bounded launcher
+holds session settings and its advisory lock on one backend connection.
 
 ## One-time Replit legacy bridge
 
@@ -227,15 +232,13 @@ Server-side commercial flags also default off when no tenant/global record exist
    quiescence, verified backup and isolated restore, frozen source evidence, and
    an approved rehearsal. Stop on journal, schema, count, audit, ownership, or
    RLS differences.
-4. Treat the current production target as the confirmed copied 19-table legacy
-   database. Its bridge is mandatory and uses production-specific quiescence,
-   backup/restore, inventory, audit export/head, and rehearsal evidence. Do not
-   let Replit publish apply a schema diff or replay the adopted `0000`–`0002`
-   chain. While the application remains stopped, apply the remaining additive
-   `0003`-`0005` public-intake migrations with the migration owner, then verify
-   the `valo_app_runtime` role has schema usage and only bounded store/limiter
-   function execution, no purge execution, and no direct intake-table
-   privileges before starting the application.
+4. Confirm production is still the exact bridged `0000`-`0002` state and do not
+   replay the bridge or baseline. Replit deployment startup runs the bounded
+   `migration:replit:intake` owner-side gate before the API; it may apply only
+   `0003`-`0005` and then requires the exact six-entry journal and two-table,
+   four-function intake catalog. API startup separately proves
+   `valo_app_runtime` has only schema usage and bounded store/limiter execution,
+   with no purge execution or direct intake-table/column privileges.
 5. Run the checks above in Replit, plus live PostgreSQL isolation tests using a non-owner runtime role. Prove same-tenant success and cross-tenant denial for database and storage paths.
 6. Build and preview both artefacts. Verify sign-in, organisation selection, denied cross-tenant access, feature-off states, one synthetic intake/review/readiness/export journey, one non-sensitive `example.test` Bid Autopsy request and idempotent retry, `/api/healthz`, PII-free logs, and rollback access. Remove the synthetic lead through the separately authorised owner-side process.
 7. Publish only after the target URL, exact CORS origin, Clerk configuration, private storage paths, runtime identity, backups, flags, and required provider approvals are recorded. Keep new commercial flags off during initial promotion.
