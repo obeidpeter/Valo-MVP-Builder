@@ -16,7 +16,7 @@ interface PublicPageMetadata {
   summary?: readonly string[];
 }
 
-const PUBLIC_WEB_PAGES: Readonly<Record<string, PublicPageMetadata>> = {
+const PUBLIC_WEB_PAGES = {
   "/": {
     title: "Bid Autopsy for Nigerian Tenders | Valo",
     description:
@@ -86,7 +86,36 @@ const PUBLIC_WEB_PAGES: Readonly<Record<string, PublicPageMetadata>> = {
       "Plain-language boundaries for using the Valo public site and controlled tender workspace.",
     heading: "Service terms notice",
   },
-};
+} as const satisfies Readonly<Record<string, PublicPageMetadata>>;
+
+type PublicWebPath = keyof typeof PUBLIC_WEB_PAGES;
+
+function resolvePublicWebPath(pathname: string): PublicWebPath | undefined {
+  switch (pathname) {
+    case "/":
+      return "/";
+    case "/product":
+      return "/product";
+    case "/solutions":
+      return "/solutions";
+    case "/how-it-works":
+      return "/how-it-works";
+    case "/security":
+      return "/security";
+    case "/about":
+      return "/about";
+    case "/contact":
+      return "/contact";
+    case "/request-bid-autopsy":
+      return "/request-bid-autopsy";
+    case "/privacy":
+      return "/privacy";
+    case "/terms":
+      return "/terms";
+    default:
+      return undefined;
+  }
+}
 
 const ACCESS_WEB_PATHS = new Set([
   "/sign-in",
@@ -137,7 +166,7 @@ function setWebAppHeaders(response: Response): void {
 }
 
 export function isIndexablePublicWebPath(pathname: string): boolean {
-  return PUBLIC_WEB_PAGES[pathname] !== undefined;
+  return resolvePublicWebPath(pathname) !== undefined;
 }
 
 export function isApplicationWebPath(pathname: string): boolean {
@@ -196,22 +225,27 @@ export function isCanonicalPublicRequest(request: Request): boolean {
 
 function renderIndexDocument(
   indexTemplate: string,
-  pathname: string,
+  publicPath: PublicWebPath | undefined,
+  applicationPath: boolean,
   allowIndexing: boolean,
 ): string {
-  const page = PUBLIC_WEB_PAGES[pathname];
+  const page: PublicPageMetadata | undefined =
+    publicPath === undefined ? undefined : PUBLIC_WEB_PAGES[publicPath];
   const publicPage = page !== undefined;
   const indexable = publicPage && allowIndexing;
   const metadata = page ?? {
-    title: isApplicationWebPath(pathname)
+    title: applicationPath
       ? "Secure workspace | Valo"
       : "Page not found | Valo",
-    description: isApplicationWebPath(pathname)
+    description: applicationPath
       ? "Authorised access to the Valo tender workspace."
       : "The requested Valo page could not be found.",
     heading: "",
   };
-  const canonicalUrl = `${PUBLIC_SITE_ORIGIN}${pathname === "/" ? "/" : pathname}`;
+  const canonicalUrl =
+    publicPath === undefined
+      ? undefined
+      : `${PUBLIC_SITE_ORIGIN}${publicPath === "/" ? "/" : publicPath}`;
 
   let document = indexTemplate.replace(
     /<title>[\s\S]*?<\/title>/i,
@@ -249,7 +283,7 @@ function renderIndexDocument(
     metadata.description,
   );
 
-  if (indexable) {
+  if (indexable && canonicalUrl !== undefined) {
     document = replaceCanonical(document, canonicalUrl);
     document = replaceNamedMeta(document, "property", "og:url", canonicalUrl);
   } else {
@@ -342,8 +376,9 @@ export function registerProductionWebApp(
       return;
     }
 
-    const publicPath = isIndexablePublicWebPath(request.path);
-    const indexable = publicPath && isCanonicalPublicRequest(request);
+    const publicPath = resolvePublicWebPath(request.path);
+    const publicPage = publicPath !== undefined;
+    const indexable = publicPage && isCanonicalPublicRequest(request);
     const applicationPath = isApplicationWebPath(request.path);
     if (!indexable) {
       response.setHeader("X-Robots-Tag", "noindex, nofollow");
@@ -351,8 +386,15 @@ export function registerProductionWebApp(
     setWebAppHeaders(response);
     response.setHeader("Cache-Control", "no-cache");
     response
-      .status(publicPath || applicationPath ? 200 : 404)
+      .status(publicPage || applicationPath ? 200 : 404)
       .type("html")
-      .send(renderIndexDocument(indexTemplate, request.path, indexable));
+      .send(
+        renderIndexDocument(
+          indexTemplate,
+          publicPath,
+          applicationPath,
+          indexable,
+        ),
+      );
   });
 }

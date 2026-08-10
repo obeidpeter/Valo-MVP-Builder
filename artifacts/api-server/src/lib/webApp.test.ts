@@ -223,20 +223,22 @@ describe("production web route indexing", () => {
         assert.doesNotMatch(stagingHtml, /rel="canonical"/);
         assert.doesNotMatch(stagingHtml, /property="og:url"/);
 
-        for (const pathname of [
-          "/sign-in",
-          "/projects/example-sensitive-id",
-          "/intelligence?project=example-sensitive-id",
-          "/not-a-public-page",
-        ]) {
+        for (const [pathname, expectedStatus] of [
+          ["/sign-in", 200],
+          ["/projects/example-sensitive-id", 200],
+          ["/intelligence?project=example-sensitive-id", 200],
+          ["/not-a-public-page", 404],
+          ["/%3Cscript%3Ewindow.__valo_xss_probe%3D1%3C%2Fscript%3E", 404],
+          [
+            "/projects/%22%3E%3Cscript%3Ewindow.__valo_xss_probe%3D1%3C%2Fscript%3E",
+            200,
+          ],
+        ] as const) {
           const privateResponse = await fetchWithHostHeaders(
             `${origin}${pathname}`,
             canonicalHeaders,
           );
-          assert.equal(
-            privateResponse.status,
-            pathname === "/not-a-public-page" ? 404 : 200,
-          );
+          assert.equal(privateResponse.status, expectedStatus);
           assert.equal(
             privateResponse.headers.get("x-robots-tag"),
             "noindex, nofollow",
@@ -244,6 +246,7 @@ describe("production web route indexing", () => {
           const privateHtml = await privateResponse.text();
           assert.doesNotMatch(privateHtml, /rel="canonical"/);
           assert.doesNotMatch(privateHtml, /property="og:url"/);
+          assert.doesNotMatch(privateHtml, /__valo_xss_probe|%3Cscript/i);
         }
 
         const assetResponse = await fetch(`${origin}/assets/app-fixture.js`);
