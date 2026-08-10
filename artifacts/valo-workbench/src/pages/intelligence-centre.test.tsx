@@ -39,7 +39,7 @@ function readySnapshot(
 }
 
 describe("Intelligence Centre", () => {
-  it("defaults to an honest production-disabled catalogue of all ten capabilities", () => {
+  it("defaults to an honest production-disabled catalogue of all twenty-two capabilities", () => {
     const { container } = render(<IntelligenceCentre />);
 
     expect(
@@ -50,10 +50,15 @@ describe("Intelligence Centre", () => {
         name: "Production model execution is disabled",
       }),
     ).toBeInTheDocument();
-    expect(container.querySelectorAll("[data-capability-id]")).toHaveLength(10);
+    expect(container.querySelectorAll("[data-capability-id]")).toHaveLength(22);
     expect(
       screen.getAllByText(/Current Level 0 · Target ceiling Level [12]/),
-    ).toHaveLength(10);
+    ).toHaveLength(22);
+    expect(
+      screen.getByRole("heading", {
+        name: "Advanced decision-support engines",
+      }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Current runtime")).toBeInTheDocument();
     expect(screen.getByText("Level 0")).toBeInTheDocument();
     expect(screen.getByText(/No model previews/i)).toBeInTheDocument();
@@ -108,8 +113,8 @@ describe("Intelligence Centre", () => {
         name: "No intelligence evidence is available",
       }),
     ).toBeInTheDocument();
-    expect(container.querySelectorAll("[data-capability-id]")).toHaveLength(10);
-    expect(screen.getAllByText("No current evidence")).toHaveLength(10);
+    expect(container.querySelectorAll("[data-capability-id]")).toHaveLength(22);
+    expect(screen.getAllByText("No current evidence")).toHaveLength(22);
 
     rerender(
       <IntelligenceCentre
@@ -121,7 +126,7 @@ describe("Intelligence Centre", () => {
         name: "The intelligence snapshot is incomplete",
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/9 of 10 capability states/i)).toBeInTheDocument();
+    expect(screen.getByText(/21 of 22 capability states/i)).toBeInTheDocument();
     expect(screen.getByText("Invitation to Tender.pdf")).toBeInTheDocument();
     expect(screen.getByText("Page 14 · Clause 3.2")).toBeInTheDocument();
     expect(screen.getByText(/A named reviewer verifies/i)).toBeInTheDocument();

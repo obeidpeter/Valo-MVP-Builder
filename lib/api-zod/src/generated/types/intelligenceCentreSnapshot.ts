@@ -27,8 +27,8 @@ export interface IntelligenceCentreSnapshot {
   generatedAt: Date;
   project: IntelligenceProjectSummary;
   /**
-     * @minItems 10
-     * @maxItems 10
+     * @minItems 22
+     * @maxItems 22
      */
   capabilities: IntelligenceCapabilitySnapshot[];
 }

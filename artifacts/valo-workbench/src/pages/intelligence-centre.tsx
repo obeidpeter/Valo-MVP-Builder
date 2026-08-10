@@ -33,6 +33,19 @@ const DEFAULT_LOAD_STATE: IntelligenceCentreLoadState = {
   snapshot: createProductionDisabledIntelligenceSnapshot(),
 };
 
+const FOUNDATION_CAPABILITY_IDS = new Set([
+  "evidence_graph",
+  "addendum_radar",
+  "eligibility_passport",
+  "grounded_copilot",
+  "opportunity_radar",
+  "response_studio",
+  "submission_preflight",
+  "clarification_assistant",
+  "boq_sanity",
+  "award_handoff",
+]);
+
 function fallbackCapability(
   id: (typeof INTELLIGENCE_CAPABILITY_CATALOG)[number]["id"],
 ): IntelligenceCapabilitySnapshot {
@@ -123,6 +136,26 @@ function IntelligenceCentreReady({
     snapshot:
       capabilityById.get(definition.id) ?? fallbackCapability(definition.id),
   }));
+  const capabilityGroups = [
+    {
+      id: "foundation",
+      title: "Bid intelligence foundation",
+      description:
+        "The evidence, intake, drafting, readiness and handoff capabilities already represented in Valo's pursuit workflow.",
+      cards: capabilityCards.filter(({ definition }) =>
+        FOUNDATION_CAPABILITY_IDS.has(definition.id),
+      ),
+    },
+    {
+      id: "advanced",
+      title: "Advanced decision-support engines",
+      description:
+        "New deterministic engines for scoring, financial instruments, regulation, partners, submission operations, commercial exposure, delivery planning, integrity and governed learning.",
+      cards: capabilityCards.filter(
+        ({ definition }) => !FOUNDATION_CAPABILITY_IDS.has(definition.id),
+      ),
+    },
+  ];
   const suppliedIds = new Set(snapshot.capabilities.map(({ id }) => id));
   const missingCount = INTELLIGENCE_CAPABILITY_CATALOG.filter(
     ({ id }) => !suppliedIds.has(id),
@@ -256,13 +289,34 @@ function IntelligenceCentreReady({
             label={`${INTELLIGENCE_CAPABILITY_CATALOG.length} capabilities defined`}
           />
         </div>
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {capabilityCards.map(({ definition, snapshot: capability }) => (
-            <IntelligenceCapabilityCard
-              key={definition.id}
-              definition={definition}
-              snapshot={capability}
-            />
+        <div className="space-y-8">
+          {capabilityGroups.map((group) => (
+            <section
+              key={group.id}
+              aria-labelledby={`capability-group-${group.id}`}
+              className="space-y-4"
+            >
+              <div>
+                <h3
+                  id={`capability-group-${group.id}`}
+                  className="text-base font-semibold"
+                >
+                  {group.title}
+                </h3>
+                <p className="mt-1 max-w-4xl text-sm leading-6 text-muted-foreground">
+                  {group.description}
+                </p>
+              </div>
+              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                {group.cards.map(({ definition, snapshot: capability }) => (
+                  <IntelligenceCapabilityCard
+                    key={definition.id}
+                    definition={definition}
+                    snapshot={capability}
+                  />
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       </section>

@@ -2,7 +2,7 @@
 
 Status: **deterministic foundation implemented; production model execution remains disabled**.
 
-This handoff covers the ten Intelligence Centre capabilities added to the
+This handoff covers the twenty-two Intelligence Centre capabilities in the
 current working tree. The release is deliberately read-only: it projects
 tenant-scoped, human-review decision support from records Valo already holds.
 It does not call an AI provider and it does not create or change authoritative
@@ -30,10 +30,11 @@ migration.
 - `/intelligence` is a protected Intelligence Centre screen with pursuit
   selection, loading/error/empty/partial/restricted handling, source locators
   and the human-control boundary for every card.
-- The OpenAPI operation and generated client expose the same ten-item contract.
+- The OpenAPI operation and generated client expose the same twenty-two-item
+  contract.
   `productionAiEnabled` is intentionally `false` for this release.
 - Pure, deterministic domain functions provide fail-closed building blocks for
-  all ten capabilities. They validate source scope, versions, exact citations,
+  all twenty-two capabilities. They validate source scope, versions, exact citations,
   review state and bounded inputs where applicable; they do not persist their
   outputs or perform external actions.
 
@@ -52,18 +53,30 @@ catalogue, not an enabled runtime. Level 1 is a non-persistent preview; Level 2
 is a reversible proposal or draft that still requires named-human review. No
 Level 3 bounded action or Level 4 autonomous consequential action is authorised.
 
-| Capability                       | ID                        | Implemented deterministic behaviour                                                                                                                                        | Bounded product ceiling                                                  |
-| -------------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Evidence Graph                   | `evidence_graph`          | Builds provenance-checked requirement/evidence links and coverage; a link is unusable until its requirement, evidence and link reviews are accepted.                       | Level 2; reviewer accepts each citation and applicability decision.      |
-| Addendum & Deadline Radar        | `addendum_radar`          | Compares two structured, authoritative source versions, identifies exact added/changed/removed fields and lists dependent artifacts for review. It never applies a change. | Level 2; reviewer confirms the version diff and each downstream impact.  |
-| Tender Eligibility Passport      | `eligibility_passport`    | Evaluates only tender-cited criteria against source-backed company artifacts, validity dates and legal-entity rules. It does not invent a universal checklist.             | Level 1; owner verifies applicability, authority, dates and remediation. |
-| Grounded Tender Copilot          | `grounded_copilot`        | Produces an extractive claim plan from accepted, role-visible, in-scope facts, or abstains. It does not compose unsupported prose.                                         | Level 1; user inspects the exact source before reuse.                    |
-| Opportunity Radar                | `opportunity_radar`       | Screens recorded opportunities using explicit capability, region, deadline and capacity policy. It never estimates win probability or makes bid/no-bid decisions.          | Level 1; business-development lead makes the bid/no-bid decision.        |
-| Citation-first Response Studio   | `response_studio`         | Validates factual draft claims, exact-quote support, placeholders and citation scope; paraphrases remain subject to semantic review.                                       | Level 2; named authors/reviewers accept or reject each draft claim.      |
-| Submission Pack Preflight        | `submission_preflight`    | Checks source-backed obligations, addenda, filenames, hashes, final/approval state and deadlines and proposes remediation. A passing result is not release authority.      | Level 1; the named signatory makes the release and submission decision.  |
-| Clarification Question Assistant | `clarification_assistant` | Proposes source-linked questions for conflicting, ambiguous or missing values. Every proposal has `deliveryStatus: not_sent` and no recipient.                             | Level 2; authorised tender lead decides whether and how to send.         |
-| BOQ & Commercial Sanity Checker  | `boq_sanity`              | Projects source-backed arithmetic in configured minor units and flags decimal, extension and mixed-currency issues. It makes no rate, FX, tax or pricing recommendation.   | Level 1; commercial reviewer owns rates, assumptions and approval.       |
-| Award-to-Delivery Handoff        | `award_handoff`           | Converts accepted, cited award obligations into internal draft-task proposals and checks dates, owners and dependencies. It creates no task or external commitment.        | Level 2; contract/project manager accepts obligations, owners and dates. |
+| Capability                                          | ID                            | Implemented deterministic behaviour                                                                                                                                        | Bounded product ceiling                                                                      |
+| --------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Evidence Graph                                      | `evidence_graph`              | Builds provenance-checked requirement/evidence links and coverage; a link is unusable until its requirement, evidence and link reviews are accepted.                       | Level 2; reviewer accepts each citation and applicability decision.                          |
+| Addendum & Deadline Radar                           | `addendum_radar`              | Compares two structured, authoritative source versions, identifies exact added/changed/removed fields and lists dependent artifacts for review. It never applies a change. | Level 2; reviewer confirms the version diff and each downstream impact.                      |
+| Tender Eligibility Passport                         | `eligibility_passport`        | Evaluates only tender-cited criteria against source-backed company artifacts, validity dates and legal-entity rules. It does not invent a universal checklist.             | Level 1; owner verifies applicability, authority, dates and remediation.                     |
+| Grounded Tender Copilot                             | `grounded_copilot`            | Produces an extractive claim plan from accepted, role-visible, in-scope facts, or abstains. It does not compose unsupported prose.                                         | Level 1; user inspects the exact source before reuse.                                        |
+| Opportunity Radar                                   | `opportunity_radar`           | Screens recorded opportunities using explicit capability, region, deadline and capacity policy. It never estimates win probability or makes bid/no-bid decisions.          | Level 1; business-development lead makes the bid/no-bid decision.                            |
+| Citation-first Response Studio                      | `response_studio`             | Validates factual draft claims, exact-quote support, placeholders and citation scope; paraphrases remain subject to semantic review.                                       | Level 2; named authors/reviewers accept or reject each draft claim.                          |
+| Submission Pack Preflight                           | `submission_preflight`        | Checks source-backed obligations, addenda, filenames, hashes, final/approval state and deadlines and proposes remediation. A passing result is not release authority.      | Level 1; the named signatory makes the release and submission decision.                      |
+| Clarification Question Assistant                    | `clarification_assistant`     | Proposes source-linked questions for conflicting, ambiguous or missing values. Every proposal has `deliveryStatus: not_sent` and no recipient.                             | Level 2; authorised tender lead decides whether and how to send.                             |
+| BOQ & Commercial Sanity Checker                     | `boq_sanity`                  | Projects source-backed arithmetic in configured minor units and flags decimal, extension and mixed-currency issues. It makes no rate, FX, tax or pricing recommendation.   | Level 1; commercial reviewer owns rates, assumptions and approval.                           |
+| Award-to-Delivery Handoff                           | `award_handoff`               | Converts accepted, cited award obligations into internal draft-task proposals and checks dates, owners and dependencies. It creates no task or external commitment.        | Level 2; contract/project manager accepts obligations, owners and dates.                     |
+| Published-Evaluation Score Planner                  | `evaluation_score_planner`    | Maps accepted published criteria and cited allocations; never predicts award probability or hidden evaluator behaviour.                                                    | Level 1; reviewer confirms every criterion, allocation and evidence mapping.                 |
+| Bid Security & Guarantee Integrity Desk             | `bid_security_integrity`      | Compares exact security terms and verified instrument fields; never represents validity or instructs a bank.                                                               | Level 1; legal, commercial and treasury reviewers decide remediation.                        |
+| Regulatory Rule-Pack Watchtower                     | `regulatory_watchtower`       | Compares verified official rule versions and proposes pursuit/control impacts without activating an interpretation.                                                        | Level 1; compliance or legal owner approves authority, interpretation and activation.        |
+| JV / Consortium Responsibility Matrix               | `consortium_responsibility`   | Proposes entity-bound responsibility rows and blocks transferable-credential assumptions.                                                                                  | Level 2; authorised representatives accept each allocation; partner terms are never changed. |
+| Portal Submission Rehearsal & Form Mapper           | `portal_submission_rehearsal` | Checks frozen package fields, files, names, sizes and upload order against a reviewed portal profile.                                                                      | Level 1; an operator performs the real login, declarations and submission.                   |
+| Commercial Assumption & Cashflow Exposure Simulator | `commercial_exposure`         | Projects deterministic clause-bound cashflow scenarios without choosing rates, prices or financing.                                                                        | Level 1; finance reviewers approve assumptions and decisions.                                |
+| Nigerian-Content Evidence Composer                  | `nigerian_content_composer`   | Composes source-exact, availability-reviewed local-content plan lines from verified company facts.                                                                         | Level 2; evidence owners accept every quantity, percentage and commitment.                   |
+| Past-Performance & Key-Personnel Tailoring Studio   | `personnel_tailoring`         | Matches reviewed criteria to current verified people and projects while excluding unsupported or unavailable candidates.                                                   | Level 2; HR, project and bid owners attest currency, availability and selection.             |
+| Tender-to-Contract Deviation Desk                   | `contract_deviation`          | Compares reviewed clauses across solicitation, bid, clarification, award and draft contract without accepting terms.                                                       | Level 1; legal and commercial owners decide every issue and communication.                   |
+| Pursuit Critical-Path & Capacity Simulator          | `critical_path_simulator`     | Computes bounded dependency/resource scenarios from accepted milestones without mutating tasks, owners or dates.                                                           | Level 1; task owners accept any authoritative plan change.                                   |
+| Procurement-Integrity & Conflict Sentinel           | `integrity_sentinel`          | Emits restricted immutable-evidence control signals that are explicitly not allegations or external reports.                                                               | Level 1; authorised ethics/legal reviewers investigate and decide.                           |
+| Outcome Learning & Repeat-Defect Coach              | `outcome_learning`            | Proposes tenant-local lessons from client-confirmed outcomes and repeated cited defects; training and cross-tenant reuse default off.                                      | Level 2; governance owner approves lesson, scope and retention.                              |
 
 ## Deterministic API map
 
@@ -74,18 +87,30 @@ and the content-minimised projection by
 The internal deterministic function surface is exported from
 [`lib/intelligence/index.ts`](../../artifacts/api-server/src/lib/intelligence/index.ts):
 
-| Capability                       | Pure function                       |
-| -------------------------------- | ----------------------------------- |
-| Evidence Graph                   | `buildEvidenceGraph`                |
-| Addendum & Deadline Radar        | `detectAddendumChanges`             |
-| Tender Eligibility Passport      | `evaluateEligibilityPassport`       |
-| Grounded Tender Copilot          | `planGroundedCopilotAnswer`         |
-| Opportunity Radar                | `screenOpportunities`               |
-| Citation-first Response Studio   | `validateCitationFirstResponse`     |
-| Submission Pack Preflight        | `runExtendedSubmissionPreflight`    |
-| Clarification Question Assistant | `suggestSourceBackedClarifications` |
-| BOQ & Commercial Sanity Checker  | `projectSourceBackedBoqSanity`      |
-| Award-to-Delivery Handoff        | `proposeAwardToDeliveryHandoff`     |
+| Capability                                          | Pure function                          |
+| --------------------------------------------------- | -------------------------------------- |
+| Evidence Graph                                      | `buildEvidenceGraph`                   |
+| Addendum & Deadline Radar                           | `detectAddendumChanges`                |
+| Tender Eligibility Passport                         | `evaluateEligibilityPassport`          |
+| Grounded Tender Copilot                             | `planGroundedCopilotAnswer`            |
+| Opportunity Radar                                   | `screenOpportunities`                  |
+| Citation-first Response Studio                      | `validateCitationFirstResponse`        |
+| Submission Pack Preflight                           | `runExtendedSubmissionPreflight`       |
+| Clarification Question Assistant                    | `suggestSourceBackedClarifications`    |
+| BOQ & Commercial Sanity Checker                     | `projectSourceBackedBoqSanity`         |
+| Award-to-Delivery Handoff                           | `proposeAwardToDeliveryHandoff`        |
+| Published-Evaluation Score Planner                  | `buildEvaluationScorePlan`             |
+| Bid Security & Guarantee Integrity Desk             | `evaluateBidSecurityIntegrity`         |
+| Regulatory Rule-Pack Watchtower                     | `buildRegulatoryWatchtower`            |
+| JV / Consortium Responsibility Matrix               | `buildConsortiumResponsibilityMatrix`  |
+| Portal Submission Rehearsal & Form Mapper           | `buildPortalSubmissionRehearsal`       |
+| Commercial Assumption & Cashflow Exposure Simulator | `buildCommercialExposureProjection`    |
+| Nigerian-Content Evidence Composer                  | `composeNigerianContentPlan`           |
+| Past-Performance & Key-Personnel Tailoring Studio   | `tailorVerifiedPersonnelAndExperience` |
+| Tender-to-Contract Deviation Desk                   | `compareTenderToContract`              |
+| Pursuit Critical-Path & Capacity Simulator          | `simulatePursuitCriticalPath`          |
+| Procurement-Integrity & Conflict Sentinel           | `detectProcurementIntegritySignals`    |
+| Outcome Learning & Repeat-Defect Coach              | `proposeOutcomeLessons`                |
 
 The HTTP contract is in
 [`openapi.yaml`](../../lib/api-spec/openapi.yaml), and the protected screen is

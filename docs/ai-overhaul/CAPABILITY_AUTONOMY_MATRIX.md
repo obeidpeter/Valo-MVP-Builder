@@ -30,6 +30,33 @@ The monetary values above are hard defensive ceilings in code. They are not
 approved spend, are not a monthly/engagement budget and must not be interpreted
 as commercial authority. The approved budget decision is still missing.
 
+## Advanced deterministic Intelligence Centre engines
+
+The following engines are now implemented as provider-free Level-0 domain
+projections. Their catalogue ceiling describes a possible future reviewed
+preview/draft, not current runtime autonomy. None is registered as a model
+capability or production feature flag by this work.
+
+| Capability ID                 | Current level | Target ceiling | Authority that remains unavailable                                                   |
+| ----------------------------- | ------------: | -------------: | ------------------------------------------------------------------------------------ |
+| `evaluation_score_planner`    |             0 |              1 | Award prediction, hidden evaluator inference or automatic score acceptance           |
+| `bid_security_integrity`      |             0 |              1 | Validity representation, bank instruction or instrument correction                   |
+| `regulatory_watchtower`       |             0 |              1 | Legal interpretation activation or automatic control/template change                 |
+| `consortium_responsibility`   |             0 |              2 | Partner commitment, credential transfer or JV-term change                            |
+| `portal_submission_rehearsal` |             0 |              1 | Portal login, declaration acknowledgement, upload or submission                      |
+| `commercial_exposure`         |             0 |              1 | Price/rate selection, financing decision or external commitment                      |
+| `nigerian_content_composer`   |             0 |              2 | Availability assertion or local-content commitment without named owner review        |
+| `personnel_tailoring`         |             0 |              2 | Credential embellishment, availability assertion or employment decision              |
+| `contract_deviation`          |             0 |              1 | Term acceptance, legal conclusion or external redline communication                  |
+| `critical_path_simulator`     |             0 |              1 | Authoritative owner, task or date mutation                                           |
+| `integrity_sentinel`          |             0 |              1 | Misconduct determination, accusation or external report                              |
+| `outcome_learning`            |             0 |              2 | Model training, cross-tenant reuse or lesson publication without governance approval |
+
+All twelve require bounded inputs, deterministic identities and subject-bound
+named reviews. The connected project snapshot remains descriptive and never
+marks these advanced engines `review_ready` merely because loosely related
+records exist.
+
 ## Authority boundaries
 
 Every current capability has the following invariant policy:

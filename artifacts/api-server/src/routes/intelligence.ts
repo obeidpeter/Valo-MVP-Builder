@@ -239,7 +239,7 @@ router.get(
     const snapshot = buildIntelligenceCentreSnapshot({
       environment: publicEnvironment(),
       // The Intelligence Centre is deterministic in this release. This field
-      // must not imply that any of its ten future model-backed variants is
+      // must not imply that any of its twenty-two model-backed variants is
       // production-approved merely because older bounded AI routes exist.
       productionAiEnabled: false,
       generatedAt: new Date().toISOString(),

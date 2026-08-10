@@ -6421,7 +6421,7 @@ export const getGetProjectIntelligenceUrl = (id: string,) => {
 }
 
 /**
- * Returns content-minimised, tenant-scoped projections for the ten future intelligence capabilities. This operation never invokes a model, authorises submission, changes pricing or performs an external action. Because the response combines multiple governed source classes, the caller must hold client, project, document, requirement, evidence, defect, report, draft and package read authority in the active tenant.
+ * Returns content-minimised, tenant-scoped projections for twenty-two intelligence capabilities. This operation never invokes a model, authorises submission, changes pricing or performs an external action. Because the response combines multiple governed source classes, the caller must hold client, project, document, requirement, evidence, defect, report, draft and package read authority in the active tenant.
  * @summary Get the deterministic Intelligence Centre snapshot for a pursuit
  */
 export const getProjectIntelligence = async (id: string, options?: RequestInit): Promise<IntelligenceCentreSnapshot> => {

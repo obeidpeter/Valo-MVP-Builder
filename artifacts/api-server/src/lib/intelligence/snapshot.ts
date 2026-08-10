@@ -11,6 +11,18 @@ export const INTELLIGENCE_CAPABILITY_IDS = [
   "clarification_assistant",
   "boq_sanity",
   "award_handoff",
+  "evaluation_score_planner",
+  "bid_security_integrity",
+  "regulatory_watchtower",
+  "consortium_responsibility",
+  "portal_submission_rehearsal",
+  "commercial_exposure",
+  "nigerian_content_composer",
+  "personnel_tailoring",
+  "contract_deviation",
+  "critical_path_simulator",
+  "integrity_sentinel",
+  "outcome_learning",
 ] as const;
 
 export type IntelligenceCapabilityId =
@@ -967,6 +979,262 @@ export function buildIntelligenceCentreSnapshot(
     ),
   });
 
+  const acceptedRequirementCitationById = new Map(
+    acceptedCitations.map((citation) => [citation.requirementId, citation]),
+  );
+  const matchingAcceptedRequirements = (pattern: RegExp) =>
+    acceptedRequirements.filter((requirement) =>
+      pattern.test(`${requirement.category} ${requirement.text}`),
+    );
+  const citationsForRequirements = (
+    requirements: typeof acceptedRequirements,
+  ) =>
+    requirements.flatMap((requirement) => {
+      const citation = acceptedRequirementCitationById.get(requirement.id);
+      return citation ? [citation] : [];
+    });
+
+  const scoringRequirements = matchingAcceptedRequirements(
+    /\b(score|scoring|evaluation|mark|marks|point|points|weight|weighted)\b/iu,
+  );
+  const scoringCitations = citationsForRequirements(scoringRequirements);
+  const evaluationScorePlanner = capability({
+    id: "evaluation_score_planner",
+    state: scoringRequirements.length === 0 ? "empty" : "partial",
+    stateReason:
+      scoringRequirements.length === 0
+        ? "No accepted, cited published-evaluation criterion is connected to this pursuit."
+        : "Published-evaluation signals exist, but no reviewed structured scoring rule pack is connected; Valo does not predict evaluator behaviour or award probability.",
+    summary: `${scoringRequirements.length} accepted scoring-related requirement(s), ${scoringCitations.length} verified citation(s), and no authoritative score allocation ready for use.`,
+    reviewItemCount: scoringRequirements.length,
+    citationCount: scoringCitations.length,
+    citations: scoringCitations.slice(0, 20).map((item) => item.snapshot),
+    lastUpdatedAt: latestDate(
+      scoringRequirements.map((item) => item.updatedAt),
+    ),
+  });
+
+  const bidSecurityRequirements = matchingAcceptedRequirements(
+    /\b(bid security|bid bond|bank guarantee|performance guarantee|guarantee validity)\b/iu,
+  );
+  const bidSecurityCitations = citationsForRequirements(
+    bidSecurityRequirements,
+  );
+  const bidSecurityIntegrity = capability({
+    id: "bid_security_integrity",
+    state: bidSecurityRequirements.length === 0 ? "empty" : "partial",
+    stateReason:
+      bidSecurityRequirements.length === 0
+        ? "No accepted, cited bid-security or guarantee term is connected to this pursuit."
+        : "Cited security terms are available, but no verified issued instrument and prescribed-form comparison is connected; Valo cannot represent validity or instruct a bank.",
+    summary: `${bidSecurityRequirements.length} security-related requirement(s) need an instrument-bound human review.`,
+    reviewItemCount: bidSecurityRequirements.length,
+    citationCount: bidSecurityCitations.length,
+    citations: bidSecurityCitations.slice(0, 20).map((item) => item.snapshot),
+    lastUpdatedAt: latestDate(
+      bidSecurityRequirements.map((item) => item.updatedAt),
+    ),
+  });
+
+  const regulatoryDocuments = includedDocuments.filter((document) =>
+    /\b(regulation|regulatory|procurement act|guideline|circular|bpp)\b/iu.test(
+      document.filename,
+    ),
+  );
+  const safeRegulatoryDocuments = regulatoryDocuments.filter((document) =>
+    safeCurrentDocumentIds.has(document.id),
+  );
+  const regulatoryWatchtower = capability({
+    id: "regulatory_watchtower",
+    state: regulatoryDocuments.length === 0 ? "empty" : "partial",
+    stateReason:
+      regulatoryDocuments.length === 0
+        ? "No verified official regulatory rule-pack version is connected to this pursuit."
+        : "Potential rule documents are present, but source authority, activation decision and portfolio impact remain unproven.",
+    summary: `${regulatoryDocuments.length} possible regulatory document(s), ${safeRegulatoryDocuments.length} safe current version(s), and no activated interpretation.`,
+    reviewItemCount: regulatoryDocuments.length,
+    citationCount: 0,
+    citations: [],
+    lastUpdatedAt: latestDate(
+      regulatoryDocuments.map((item) => item.updatedAt),
+    ),
+  });
+
+  const consortiumSignals = input.capabilityItems.filter((item) =>
+    /\b(joint venture|jv|consortium|partner|subcontractor|oem)\b/iu.test(
+      item.claimType,
+    ),
+  );
+  const consortiumResponsibility = capability({
+    id: "consortium_responsibility",
+    state: consortiumSignals.length === 0 ? "empty" : "partial",
+    stateReason:
+      consortiumSignals.length === 0
+        ? "No verified consortium, JV, OEM or subcontractor responsibility record is connected to this pursuit."
+        : "Partner-related capability records exist, but no accepted entity-bound responsibility matrix proves who owns each obligation.",
+    summary: `${consortiumSignals.length} partner-related capability record(s) require entity-bound evidence and named acceptance.`,
+    reviewItemCount: consortiumSignals.length,
+    citationCount: 0,
+    citations: [],
+    lastUpdatedAt: latestDate(consortiumSignals.map((item) => item.updatedAt)),
+  });
+
+  const portalSubmissionRehearsal = capability({
+    id: "portal_submission_rehearsal",
+    state: input.packages.length === 0 ? "empty" : "partial",
+    stateReason:
+      input.packages.length === 0
+        ? "No current submission package is connected for a portal rehearsal."
+        : "A package exists, but no approved portal profile, field map, size-rule receipt or operator rehearsal is connected; Valo never logs in or submits.",
+    summary: `${input.packages.length} package record(s), ${currentPackageVersionByPackageId.size} provenance-complete current version(s), and no authorised portal submission action.`,
+    reviewItemCount: input.packages.length,
+    citationCount: 0,
+    citations: [],
+    lastUpdatedAt: latestDate([
+      ...input.packages.map((item) => item.updatedAt),
+      ...input.packageVersions.map((item) => item.createdAt),
+    ]),
+  });
+
+  const commercialRequirements = matchingAcceptedRequirements(
+    /\b(payment|retention|mobilisation|tax|currency|foreign exchange|fx|price adjustment|cashflow|cash flow)\b/iu,
+  );
+  const commercialCitations = citationsForRequirements(commercialRequirements);
+  const commercialExposure = capability({
+    id: "commercial_exposure",
+    state:
+      commercialRequirements.length === 0 && boqDocuments.length === 0
+        ? "empty"
+        : "partial",
+    stateReason:
+      commercialRequirements.length === 0 && boqDocuments.length === 0
+        ? "No accepted commercial clause or safe current BOQ is connected for deterministic exposure scenarios."
+        : "Commercial source signals exist, but no reviewed assumption set and cashflow scenario is connected; Valo cannot select prices or financing decisions.",
+    summary: `${commercialRequirements.length} commercial requirement(s), ${safeBoqDocuments.length} safe current BOQ(s), and no approved scenario assumptions.`,
+    reviewItemCount: commercialRequirements.length + boqDocuments.length,
+    citationCount: commercialCitations.length,
+    citations: commercialCitations.slice(0, 20).map((item) => item.snapshot),
+    lastUpdatedAt: latestDate([
+      ...commercialRequirements.map((item) => item.updatedAt),
+      ...boqDocuments.map((item) => item.updatedAt),
+    ]),
+  });
+
+  const localContentRequirements = matchingAcceptedRequirements(
+    /\b(nigerian content|local content|indigenous|local personnel|local training|local subcontract)\b/iu,
+  );
+  const localContentCitations = citationsForRequirements(
+    localContentRequirements,
+  );
+  const nigerianContentComposer = capability({
+    id: "nigerian_content_composer",
+    state:
+      localContentRequirements.length === 0 && verifiedCapabilities.length === 0
+        ? "empty"
+        : "partial",
+    stateReason:
+      localContentRequirements.length === 0 && verifiedCapabilities.length === 0
+        ? "No tender-specific local-content clause or verified company capability is connected."
+        : "Local-content evidence signals exist, but no source-exact, availability-reviewed plan line has been accepted; Valo cannot make a commitment.",
+    summary: `${localContentRequirements.length} local-content requirement(s) and ${verifiedCapabilities.length} named-review capability fact(s) await exact plan-line review.`,
+    reviewItemCount:
+      localContentRequirements.length + verifiedCapabilities.length,
+    citationCount: localContentCitations.length,
+    citations: localContentCitations.slice(0, 20).map((item) => item.snapshot),
+    lastUpdatedAt: latestDate([
+      ...localContentRequirements.map((item) => item.updatedAt),
+      ...verifiedCapabilities.map((item) => item.updatedAt),
+    ]),
+  });
+
+  const personnelEvidence = input.vaultItems.filter((item) =>
+    /\b(cv|curriculum|personnel|staff|past performance|project reference|experience)\b/iu.test(
+      item.artefactType,
+    ),
+  );
+  const personnelTailoring = capability({
+    id: "personnel_tailoring",
+    state: personnelEvidence.length === 0 ? "empty" : "partial",
+    stateReason:
+      personnelEvidence.length === 0
+        ? "No active CV, personnel or past-performance evidence is connected for criterion tailoring."
+        : "Potential personnel or experience evidence exists, but criterion matching, availability and owner attestation remain unaccepted.",
+    summary: `${personnelEvidence.length} potential personnel or past-performance item(s) require current, criterion-bound verification.`,
+    reviewItemCount: personnelEvidence.length,
+    citationCount: 0,
+    citations: [],
+    lastUpdatedAt: latestDate(personnelEvidence.map((item) => item.updatedAt)),
+  });
+
+  const contractDocuments = includedDocuments.filter((document) =>
+    /\b(contract|award|clarification|letter of acceptance)\b/iu.test(
+      document.filename,
+    ),
+  );
+  const contractDeviation = capability({
+    id: "contract_deviation",
+    state: contractDocuments.length === 0 ? "empty" : "partial",
+    stateReason:
+      contractDocuments.length === 0
+        ? "No contract, award or clarification source is connected for a tender-to-contract comparison."
+        : "Potential comparison sources exist, but no accepted topic-by-topic source lineage is connected; Valo cannot accept or communicate terms.",
+    summary: `${contractDocuments.length} potential contract-stage document(s) need exact clause extraction and legal/commercial review.`,
+    reviewItemCount: contractDocuments.length,
+    citationCount: 0,
+    citations: [],
+    lastUpdatedAt: latestDate(contractDocuments.map((item) => item.updatedAt)),
+  });
+
+  const criticalPathSimulator = capability({
+    id: "critical_path_simulator",
+    state:
+      input.workTasks.length === 0 && input.project.deadline == null
+        ? "empty"
+        : "partial",
+    stateReason:
+      input.workTasks.length === 0 && input.project.deadline == null
+        ? "No deadline or accepted milestone dependency record is connected for a pursuit schedule scenario."
+        : "Deadline or task signals exist, but generic tasks are not source-bound milestones and no reviewed dependency scenario is connected.",
+    summary: `${input.workTasks.length} generic task(s) are visible but excluded from source-proven critical-path readiness. No owner or date is changed.`,
+    reviewItemCount: input.workTasks.length,
+    citationCount: 0,
+    citations: [],
+    lastUpdatedAt: latestDate(
+      input.workTasks.map((item) => item.updatedAt ?? item.dueAt),
+    ),
+  });
+
+  const integritySentinel = capability({
+    id: "integrity_sentinel",
+    state: "empty",
+    stateReason:
+      "No restricted immutable audit-event projection is exposed through this project read model. The deterministic engine never treats a control signal as a misconduct finding.",
+    summary:
+      "Integrity signals require a separately authorised ethics/legal evidence boundary and named review; no external report is authorised.",
+    reviewItemCount: 0,
+    citationCount: 0,
+    citations: [],
+    lastUpdatedAt: null,
+  });
+
+  const outcomeLearning = capability({
+    id: "outcome_learning",
+    state: input.project.outcomeClientConfirmed === true ? "partial" : "empty",
+    stateReason:
+      input.project.outcomeClientConfirmed === true
+        ? "A client-confirmed outcome exists, but no cited debrief recurrence and governance-approved tenant-local lesson is connected. Content is not authorised for model training."
+        : "No client-confirmed outcome is recorded, so Valo does not infer or publish lessons.",
+    summary:
+      input.project.outcomeClientConfirmed === true
+        ? `${input.defects.length} recorded defect(s) remain outside learning until debrief provenance and named governance review are supplied.`
+        : "Outcome learning remains empty and cross-tenant reuse is disabled.",
+    reviewItemCount:
+      input.project.outcomeClientConfirmed === true ? input.defects.length : 0,
+    citationCount: 0,
+    citations: [],
+    lastUpdatedAt: latestDate(input.defects.map((item) => item.updatedAt)),
+  });
+
   return {
     environment: input.environment,
     productionAiEnabled: input.productionAiEnabled,
@@ -989,6 +1257,18 @@ export function buildIntelligenceCentreSnapshot(
       clarificationAssistant,
       boqSanity,
       awardHandoff,
+      evaluationScorePlanner,
+      bidSecurityIntegrity,
+      regulatoryWatchtower,
+      consortiumResponsibility,
+      portalSubmissionRehearsal,
+      commercialExposure,
+      nigerianContentComposer,
+      personnelTailoring,
+      contractDeviation,
+      criticalPathSimulator,
+      integritySentinel,
+      outcomeLearning,
     ],
   };
 }
