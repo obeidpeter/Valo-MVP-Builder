@@ -242,37 +242,35 @@
     text-wrap: balance;
   }
 
-  .public-display {
-    font-family: var(--app-font-serif);
+  .public-site-shell .public-display {
+    font-family: var(--app-font-sans);
+    font-kerning: normal;
+    font-feature-settings: "ss01", "cv11";
   }
 
   .public-document-grid {
     background-image:
-      linear-gradient(hsl(var(--primary) / 0.045) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--primary) / 0.045) 1px, transparent 1px);
-    background-size: 3rem 3rem;
-  }
-
-  .public-light-glow {
-    background:
-      radial-gradient(
-        circle at 82% 18%,
-        hsl(var(--accent) / 0.9),
-        transparent 34%
-      ),
-      radial-gradient(
-        circle at 8% 88%,
-        hsl(var(--secondary) / 0.8),
-        transparent 30%
+      linear-gradient(hsl(var(--sidebar-primary) / 0.055) 1px, transparent 1px),
+      linear-gradient(
+        90deg,
+        hsl(var(--sidebar-primary) / 0.055) 1px,
+        transparent 1px
       );
+    background-size: 4rem 4rem;
   }
 
   .public-dark-glow {
-    background: radial-gradient(
-      circle at 75% 20%,
-      hsl(var(--sidebar-primary) / 0.2),
-      transparent 38%
-    );
+    background:
+      radial-gradient(
+        ellipse 62% 52% at 75% 18%,
+        hsl(var(--sidebar-primary) / 0.22),
+        transparent 70%
+      ),
+      radial-gradient(
+        ellipse 42% 38% at 16% 82%,
+        hsl(var(--info) / 0.1),
+        transparent 72%
+      );
   }
 
   input[type="search"]::-webkit-search-cancel-button {
