@@ -16,6 +16,33 @@ export interface AdapterDescriptor {
   mode: "development" | "production";
   productionApproved: boolean;
   capabilities: string[];
+  /**
+   * Contract evidence used by the AI gateway before any client content leaves
+   * Valo. Absence is intentionally treated as unverified, never as a permissive
+   * provider default.
+   */
+  dataGovernance?: ProviderDataGovernance;
+}
+
+export type ProviderRetentionMode =
+  | "zero"
+  | "bounded"
+  | "provider_default"
+  | "unknown";
+
+export interface ProviderDataGovernance {
+  externallyHosted: boolean;
+  noTrainingVerified: boolean;
+  retentionMode: ProviderRetentionMode;
+  /** Required when retentionMode is bounded; null for zero/unknown modes. */
+  maxRetentionDays: number | null;
+  /** Approved processing-region identifiers, normalised to lower case. */
+  regions: string[];
+  dpaApproved: boolean;
+  /** External providers must be false unless Restricted Mode approval exists. */
+  restrictedModeEligible: boolean;
+  /** Immutable reference to the reviewed contract/configuration evidence. */
+  evidenceVersion: string | null;
 }
 
 export interface AdapterHealth {
@@ -35,6 +62,13 @@ export interface JsonModelRequest {
   maxOutputTokens: number;
   timeoutMs: number;
   idempotencyKey: string;
+  signal?: AbortSignal;
+  /** Exact, hashed registry schema. Gateway calls always provide this. */
+  outputSchema?: {
+    name: string;
+    strict: true;
+    schema: Readonly<Record<string, unknown>>;
+  };
 }
 
 export interface JsonModelResponse {
@@ -112,8 +146,46 @@ export interface AuditAnchorAdapter extends ManagedAdapter {
 
 export interface AdapterReadinessIssue {
   kind: AdapterKind;
-  code: "missing" | "development_only" | "not_approved";
+  code: "missing" | "development_only" | "not_approved" | "privacy_unverified";
   message: string;
+}
+
+/** Static minimum. Tenant-specific region/retention checks happen in aiGateway. */
+export function hasVerifiedModelDataGovernance(
+  descriptor: AdapterDescriptor,
+): boolean {
+  const governance = descriptor.dataGovernance;
+  if (!governance) return false;
+  if (
+    governance.noTrainingVerified !== true ||
+    governance.dpaApproved !== true ||
+    typeof governance.externallyHosted !== "boolean" ||
+    typeof governance.restrictedModeEligible !== "boolean"
+  ) {
+    return false;
+  }
+  if (!governance.evidenceVersion?.trim()) return false;
+  if (
+    !Array.isArray(governance.regions) ||
+    governance.regions.length === 0 ||
+    !governance.regions.every(
+      (region) => typeof region === "string" && region.trim().length > 0,
+    )
+  ) {
+    return false;
+  }
+  if (
+    governance.retentionMode === "unknown" ||
+    governance.retentionMode === "provider_default"
+  ) {
+    return false;
+  }
+  return (
+    governance.retentionMode === "zero" ||
+    (governance.maxRetentionDays != null &&
+      Number.isInteger(governance.maxRetentionDays) &&
+      governance.maxRetentionDays >= 0)
+  );
 }
 
 /** Production startup must fail if a required capability is fake or absent. */
@@ -143,13 +215,30 @@ export function evaluateProductionAdapters(
     if (
       !candidates.some(
         (adapter) =>
-          adapter.mode === "production" && adapter.productionApproved,
+          adapter.mode === "production" && adapter.productionApproved === true,
       )
     ) {
       issues.push({
         kind,
         code: "not_approved",
         message: `${kind} has no production-approved configuration.`,
+      });
+      continue;
+    }
+    if (
+      kind === "model" &&
+      !candidates.some(
+        (adapter) =>
+          adapter.mode === "production" &&
+          adapter.productionApproved === true &&
+          hasVerifiedModelDataGovernance(adapter),
+      )
+    ) {
+      issues.push({
+        kind,
+        code: "privacy_unverified",
+        message:
+          "model has no production-approved privacy, retention, region and DPA evidence.",
       });
     }
   }

@@ -20,6 +20,8 @@ import sbdRouter from "./sbd";
 import operationsRouter from "./operations";
 import analyticsRouter from "./analytics";
 import configRouter from "./config";
+import aiOperationsRouter from "./aiOperations";
+import intelligenceRouter from "./intelligence";
 import organisationsRouter from "./organisations";
 import partnerRelationshipsRouter from "./partnerRelationships";
 import breakGlassRouter from "./breakGlass";
@@ -72,6 +74,8 @@ router.use(capabilityRouter);
 router.use(sbdRouter);
 router.use(operationsRouter);
 router.use(analyticsRouter);
+router.use(aiOperationsRouter);
+router.use(intelligenceRouter);
 router.use(configRouter);
 router.use(storageRouter);
 

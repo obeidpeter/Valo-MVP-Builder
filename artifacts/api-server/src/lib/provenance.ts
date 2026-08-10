@@ -4,13 +4,14 @@
  * stamped with all three so a signed deliverable can always be traced back to
  * the exact configuration that produced it.
  *
- * Bump PROMPT_PACK_VERSION whenever any system prompt in `lib/llm.ts`
+ * Bump PROMPT_PACK_VERSION whenever a governed definition in
+ * `lib/aiPromptRegistry.ts`
  * changes; bump ENGINE_VERSION on releases of the deterministic core or
  * report assembly; bump TAXONOMY_VERSION through the governed change process
  * in docs/DEFECT_TAXONOMY.md whenever a defect type or severity is added,
  * removed, or redefined (FR-ANL-01).
  */
-export const ENGINE_VERSION = "valo-autopsy-engine/gate0-v1";
-export const PROMPT_PACK_VERSION = "gate0-v1";
+export const ENGINE_VERSION = "valo-autopsy-engine/ai-foundation-v1";
+export const PROMPT_PACK_VERSION = "ai-foundation-v1";
 export const MODEL_ID = "gpt-5.4";
 export const TAXONOMY_VERSION = "ng-defects-v1.0.0";

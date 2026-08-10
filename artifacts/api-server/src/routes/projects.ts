@@ -33,6 +33,8 @@ import {
   type PaymentStatus,
   type ProjectStatus,
 } from "../lib/deterministic";
+import { holdTenantDatabaseUntilComplete } from "../middlewares/databaseTenancy";
+import { sendAiGatewayError } from "../lib/aiHttp";
 
 const objectStorage = new ObjectStorageService();
 const PAYMENT_CONFIRMATION_ROLE_BINDING_ENABLED = false;
@@ -358,6 +360,14 @@ router.patch(
       res.status(400).json({ error: "No fields to update" });
       return;
     }
+    const editsResponsiveness = parsed.data.responsivenessReview !== undefined;
+    if (editsResponsiveness && !hasRequestPermission(req, "report:sign_off")) {
+      res.status(403).json({
+        error:
+          "Editing or approving the responsiveness review requires report:sign_off.",
+      });
+      return;
+    }
     if (
       parsed.data.paymentStatus !== undefined ||
       parsed.data.conflictStatus !== undefined ||
@@ -486,6 +496,7 @@ router.patch(
           .update(projects)
           .set({
             ...parsed.data,
+            ...(editsResponsiveness ? { responsivenessSuggested: false } : {}),
             ...conflictPatch,
             version: sql`${projects.version} + 1`,
             updatedAt: new Date(),
@@ -537,12 +548,16 @@ router.patch(
           user,
           organisationId,
           projectId: project.id,
-          eventType: parsed.data.status
-            ? "project.transitioned"
-            : "project.updated",
+          eventType: editsResponsiveness
+            ? "project.responsiveness_approved"
+            : parsed.data.status
+              ? "project.transitioned"
+              : "project.updated",
           objectType: "project",
           objectId: project.id,
-          details: JSON.stringify(parsed.data),
+          details: editsResponsiveness
+            ? "Named report approver edited and approved the responsiveness review."
+            : JSON.stringify(parsed.data),
         });
         return project;
       },
@@ -774,70 +789,111 @@ router.post(
   "/projects/:id/responsiveness-review",
   requirePermissionOrLegacy("report:generate"),
   async (req: Request, res: Response) => {
-    const organisationId = getOrganisationId(req);
-    const [project] = await db
-      .select()
-      .from(projects)
-      .where(
-        and(
-          eq(projects.id, String(req.params.id)),
-          organisationId
-            ? eq(projects.organisationId, organisationId)
-            : undefined,
-        ),
-      );
-    if (!project) {
-      res.status(404).json({ error: "Not found" });
-      return;
-    }
-    const reqs = await db
-      .select({
-        text: requirements.text,
-        isMandatory: requirements.isMandatory,
-      })
-      .from(requirements)
-      .where(eq(requirements.projectId, project.id));
-    const defs = await db
-      .select({
-        type: defects.type,
-        severity: defects.severity,
-        description: defects.description,
-      })
-      .from(defects)
-      .where(eq(defects.projectId, project.id));
-
+    const releaseTenantWork = holdTenantDatabaseUntilComplete(req);
+    const disconnectController = new AbortController();
+    const abortOnDisconnect = () => disconnectController.abort();
+    res.once("close", abortOnDisconnect);
+    let workflowError: unknown;
     try {
-      const { review, model } = await responsivenessReview(project.id, {
-        tenderTitle: project.tenderTitle,
-        requirements: reqs,
-        defects: defs,
-      });
-      await db.transaction(
-        async (tx) => {
-          await tx
-            .update(projects)
-            .set({
-              responsivenessReview: review,
-              responsivenessSuggested: true,
-              version: sql`${projects.version} + 1`,
-              updatedAt: new Date(),
-            })
-            .where(eq(projects.id, project.id));
-          await writeAuditTx(tx, {
-            user: getLocalUser(req),
-            organisationId,
-            projectId: project.id,
-            eventType: "project.responsiveness_suggested",
-            objectType: "project",
-            objectId: project.id,
-          });
-        },
-        { isolationLevel: "read committed" },
-      );
-      res.json({ review, model });
+      const organisationId = getOrganisationId(req);
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(
+          and(
+            eq(projects.id, String(req.params.id)),
+            organisationId
+              ? eq(projects.organisationId, organisationId)
+              : undefined,
+          ),
+        );
+      if (!project) {
+        res.status(404).json({ error: "Not found" });
+        return;
+      }
+      const reviewedRequirements = await db
+        .select({
+          text: requirements.text,
+          isMandatory: requirements.isMandatory,
+        })
+        .from(requirements)
+        .where(
+          and(
+            eq(requirements.projectId, project.id),
+            inArray(requirements.reviewStatus, ["confirmed", "edited"]),
+          ),
+        );
+      const reviewedDefects = await db
+        .select({
+          type: defects.type,
+          severity: defects.severity,
+          description: defects.description,
+        })
+        .from(defects)
+        .where(
+          and(
+            eq(defects.projectId, project.id),
+            ne(defects.status, "suggested"),
+          ),
+        );
+      if (reviewedRequirements.length === 0) {
+        res.status(400).json({
+          error: "No reviewed requirements available for responsiveness review",
+        });
+        return;
+      }
+
+      try {
+        const { review, model } = await responsivenessReview(
+          project.id,
+          {
+            tenderTitle: project.tenderTitle,
+            requirements: reviewedRequirements,
+            defects: reviewedDefects,
+          },
+          { signal: disconnectController.signal },
+        );
+        await db.transaction(
+          async (tx) => {
+            await tx
+              .update(projects)
+              .set({
+                responsivenessReview: review,
+                responsivenessSuggested: true,
+                version: sql`${projects.version} + 1`,
+                updatedAt: new Date(),
+              })
+              .where(eq(projects.id, project.id));
+            await writeAuditTx(tx, {
+              user: getLocalUser(req),
+              organisationId,
+              projectId: project.id,
+              eventType: "project.responsiveness_suggested",
+              objectType: "project",
+              objectId: project.id,
+              details: `${reviewedRequirements.length} reviewed requirement(s); ${reviewedDefects.length} reviewed defect(s)`,
+            });
+          },
+          { isolationLevel: "read committed" },
+        );
+        res.json({ review, model });
+      } catch (error) {
+        workflowError = error;
+        req.log.error({ err: error }, "responsiveness review failed");
+        if (
+          !disconnectController.signal.aborted &&
+          !res.headersSent &&
+          !sendAiGatewayError(res, error)
+        ) {
+          res.status(502).json({ error: "AI responsiveness review failed" });
+        }
+      }
     } catch (error) {
-      req.log.error({ err: error }, "responsiveness review failed");
-      res.status(502).json({ error: "LLM responsiveness review failed" });
+      workflowError = error;
+      throw error;
+    } finally {
+      res.off("close", abortOnDisconnect);
+      releaseTenantWork(workflowError);
     }
   },
 );

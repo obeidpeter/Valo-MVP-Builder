@@ -1,37 +1,20 @@
 /**
- * Eval harness v0 runner (FR-EXT-05 / FR-EXT-04 / NFR-QLT-02).
+ * Manifest-backed evaluation runner.
  *
- * Measures the extraction ENGINE against the fixed, hand-labelled corpus in
- * scripts/eval-corpus/corpus.ts using the pure matcher in
- * src/lib/evalHarness.ts (AND-of-ORs specs, unit-tested). Unlike the
- * production scorecard — which measures the engine against live reviews —
- * this is a regression suite: it fails loudly when a prompt or model change
- * silently drops requirements.
- *
- * Run modes:
- *   (default, LIVE)   Self-check PLUS a live pass over every tender (needs
- *                     the model key; run in the deploy environment, not CI).
- *                     Records the run — the engine's extracted texts and the
- *                     scored report — to eval-corpus/runs/latest.json, then
- *                     enforces the gates.
- *   --offline         (CI mode) Self-check: corpus well-formed, matcher
- *                     consistent (synthetic faithful extraction recalls
- *                     100%), no false matches. Then, if a recorded live run
- *                     exists, independently RECOMPUTES its figures from the
- *                     stored extracted texts (FR-EXT-04 reproducibility) and
- *                     enforces the recall + baseline-drift gates on them.
- *   --promote-baseline  Copies runs/latest.json to runs/baseline.json — do
- *                     this deliberately, in a reviewed commit.
- *
- * Gates:
- *   - cumulative MANDATORY recall >= target (default 0.85, the Gate 0 bar;
- *     override with EVAL_RECALL_TARGET, e.g. 0.95 for the v1.0 bar);
- *   - mandatory recall must not drop more than 2 points below the recorded
- *     baseline (NFR-QLT-02).
- *
- * Corpus rule: labels are never edited to make a run pass.
+ * Default profile: gate0_non_production. Production must be requested
+ * explicitly and fails before any provider call unless the authorised corpus
+ * contract is complete. This historical runner is now offline-only and never
+ * presents matcher self-checks as live model-quality evidence. Production
+ * evidence belongs to the controlled shadow/evaluation runner still to be
+ * implemented.
  */
-import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync } from "node:fs";
+import {
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  mkdirSync,
+  copyFileSync,
+} from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -39,226 +22,351 @@ import {
   computeTenderRecall,
   normalizeText,
   requirementMatched,
-  validateCorpus,
-  EVAL_RECALL_TARGET_V0,
+  validateCorpusManifest,
+  evaluateReportAgainstProfile,
+  GATE0_NON_PRODUCTION_PROFILE,
+  PRODUCTION_EVAL_PROFILE,
+  type EvalGateProfile,
+  type EvalModelOutput,
   type EvalReport,
   type EvalTender,
   type TenderRecall,
 } from "../src/lib/evalHarness";
 import { CORPUS } from "./eval-corpus/corpus";
+import { CURRENT_CORPUS_MANIFEST } from "./eval-corpus/manifest";
 
-const RUNS_DIR = join(dirname(fileURLToPath(import.meta.url)), "eval-corpus", "runs");
+const RUNS_DIR = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "eval-corpus",
+  "runs",
+);
 const LATEST_PATH = join(RUNS_DIR, "latest.json");
 const BASELINE_PATH = join(RUNS_DIR, "baseline.json");
 const MAX_BASELINE_DROP = 0.02;
 
 interface RecordedRun {
   recordedAt: string;
+  live: boolean;
+  profileName: EvalGateProfile["name"];
+  corpusManifestVersion: string;
   model: string;
   promptVersion: string;
+  schemaVersion: string;
+  retrievalVersion: string;
+  indexVersion: string;
   target: number;
-  /** The engine's raw extracted requirement texts, per tender id. */
-  extractedTexts: Record<string, string[]>;
+  outputs?: Record<string, EvalModelOutput>;
+  /** Backward-compatible read only; new runs use structured outputs. */
+  extractedTexts?: Record<string, string[]>;
   report: EvalReport;
 }
 
 let passes = 0;
 let failures = 0;
+
 function check(label: string, ok: boolean, detail?: string): boolean {
   if (ok) {
-    passes++;
+    passes += 1;
     console.log(`  ✓ ${label}`);
   } else {
-    failures++;
+    failures += 1;
     console.log(`  ✗ ${label}${detail ? ` — ${detail}` : ""}`);
   }
   return ok;
 }
 
-function resolveTarget(): number {
-  const raw = process.env.EVAL_RECALL_TARGET;
-  if (!raw) return EVAL_RECALL_TARGET_V0;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 1) {
-    console.warn(`(ignoring invalid EVAL_RECALL_TARGET=${raw}; using ${EVAL_RECALL_TARGET_V0})`);
-    return EVAL_RECALL_TARGET_V0;
+const pct = (value: number | null): string =>
+  value === null ? "not measured" : `${(value * 100).toFixed(1)}%`;
+
+function resolveProfile(): EvalGateProfile {
+  const profileArgument = process.argv.find((argument) =>
+    argument.startsWith("--profile="),
+  );
+  const requested =
+    profileArgument?.slice("--profile=".length) ?? process.env.EVAL_PROFILE;
+  if (
+    !requested ||
+    requested === "gate0" ||
+    requested === "gate0_non_production"
+  ) {
+    const rawTarget = process.env.EVAL_RECALL_TARGET;
+    if (!rawTarget) return GATE0_NON_PRODUCTION_PROFILE;
+    const parsed = Number(rawTarget);
+    if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 1) {
+      throw new Error(`Invalid Gate-0 EVAL_RECALL_TARGET=${rawTarget}`);
+    }
+    return {
+      ...GATE0_NON_PRODUCTION_PROFILE,
+      minimumOverallRecall: parsed,
+      minimumMandatoryRecall: parsed,
+    };
   }
-  return parsed;
+  if (requested === "production") {
+    if (process.env.EVAL_RECALL_TARGET) {
+      throw new Error(
+        "Production thresholds are pinned and cannot be overridden by EVAL_RECALL_TARGET",
+      );
+    }
+    return PRODUCTION_EVAL_PROFILE;
+  }
+  throw new Error(`Unknown evaluation profile: ${requested}`);
 }
 
-const pct = (n: number): string => `${(n * 100).toFixed(1)}%`;
-
-/**
- * A faithful engine, at minimum, echoes the label plus the first alternative
- * of every match group. Feeding that through the matcher must recall 100% — if
- * it doesn't, the corpus and matcher disagree (a labelling bug), which the
- * offline self-check catches before any model call is wasted.
- */
 function syntheticExtraction(tender: EvalTender): string[] {
   return tender.groundTruth.map(
-    (g) => `${g.label} ${g.match.map((group) => group[0]).join(" ")}`,
+    (requirement) =>
+      `${requirement.label} ${requirement.match
+        .map((group) => group[0])
+        .join(" ")}`,
   );
 }
 
-function selfCheck(): void {
-  console.log(`=== OFFLINE self-check: ${CORPUS.length} hand-labelled tenders ===`);
-  const problems = validateCorpus(CORPUS);
+function selfCheck(profile: EvalGateProfile): void {
+  console.log(
+    `=== OFFLINE corpus/matcher check: ${CORPUS.length} repository fixtures ===`,
+  );
+  const nonProductionManifest = validateCorpusManifest(
+    CORPUS,
+    CURRENT_CORPUS_MANIFEST,
+    GATE0_NON_PRODUCTION_PROFILE,
+  );
   check(
-    `corpus is well-formed (>= 10 tenders, verified ground truth)`,
-    problems.length === 0,
-    problems.join("; "),
+    "synthetic manifest is internally consistent for non-production self-check",
+    nonProductionManifest.passed,
+    nonProductionManifest.problems.join("; "),
   );
 
   for (const tender of CORPUS) {
     const perfect = computeTenderRecall(tender, syntheticExtraction(tender));
     check(
-      `${tender.id}: synthetic faithful extraction recalls 100% (matcher consistent)`,
+      `${tender.id}: matcher recalls a label-derived synthetic extraction`,
       perfect.recall === 1,
-      perfect.recall === 1 ? undefined : `missed ${perfect.missed.map((m) => m.id).join(", ")}`,
+      `missed ${perfect.missed.map((missed) => missed.id).join(", ")}`,
     );
   }
-  // Negative control: unrelated text must recall nothing.
   const noise = ["The quick brown fox jumps over the lazy dog."];
-  const spurious = CORPUS[0].groundTruth.filter((g) =>
-    requirementMatched(g, noise.map(normalizeText)),
+  const spurious = CORPUS[0]?.groundTruth.filter((requirement) =>
+    requirementMatched(requirement, noise.map(normalizeText)),
   );
-  check("unrelated text recalls no requirement (no false matches)", spurious.length === 0);
+  check("unrelated text recalls no requirement", (spurious?.length ?? 0) === 0);
+
+  if (profile.production) {
+    const productionManifest = validateCorpusManifest(
+      CORPUS,
+      CURRENT_CORPUS_MANIFEST,
+      profile,
+    );
+    check(
+      "production corpus manifest is authorised, representative and holdout-only",
+      productionManifest.passed,
+      productionManifest.problems.join("; "),
+    );
+  } else {
+    console.log(
+      "  (Gate-0 profile is non-production; these checks do not measure model quality.)",
+    );
+  }
 }
 
 function logTender(result: TenderRecall): void {
-  const line =
-    `${result.tenderId}: recall ${pct(result.recall)} (${result.matched}/${result.total}), ` +
-    `mandatory ${pct(result.mandatoryRecall)} (${result.mandatoryMatched}/${result.mandatoryTotal})`;
-  if (result.missed.length > 0) {
-    console.log(`  ✗ ${line}`);
-    for (const m of result.missed) {
-      console.log(`      MISSED [${m.mandatory ? "mandatory" : "desirable"}] ${m.label}`);
-    }
-  } else {
-    console.log(`  ✓ ${line}`);
+  console.log(
+    `  ${result.tenderId}: recall ${pct(result.recall)}, mandatory ${pct(
+      result.mandatoryRecall,
+    )}, precision ${pct(result.precision)}, citations ${result.citationCorrect}/${
+      result.citationEvaluated
+    }`,
+  );
+  for (const missed of result.missed) {
+    console.log(
+      `      MISSED [${missed.severity ?? (missed.mandatory ? "mandatory" : "desirable")}] ${missed.label}`,
+    );
   }
+}
+
+function outputFor(run: RecordedRun, tenderId: string): EvalModelOutput | null {
+  const structured = run.outputs?.[tenderId];
+  if (structured) return structured;
+  const legacy = run.extractedTexts?.[tenderId];
+  return legacy
+    ? {
+        disposition: "completed",
+        requirements: legacy.map((text) => ({ text })),
+      }
+    : null;
 }
 
 function recomputeFromStored(run: RecordedRun): EvalReport {
-  const perTender = CORPUS.filter((t) => run.extractedTexts[t.id]).map((t) =>
-    computeTenderRecall(t, run.extractedTexts[t.id]),
-  );
+  const perTender = CORPUS.flatMap((tender) => {
+    const output = outputFor(run, tender.id);
+    return output ? [computeTenderRecall(tender, output)] : [];
+  });
   return aggregateReport(perTender, run.target);
 }
 
-function enforceGates(run: RecordedRun, recomputed: EvalReport): void {
-  console.log("\n=== Gates ===");
+function enforceGates(
+  run: RecordedRun,
+  recomputed: EvalReport,
+  profile: EvalGateProfile,
+): void {
+  console.log("\n=== Evaluation gates ===");
   check(
-    "recorded figures reproducible from stored extracted texts (FR-EXT-04)",
-    Math.abs(recomputed.mandatoryRecall - run.report.mandatoryRecall) < 1e-9 &&
-      recomputed.totalMatched === run.report.totalMatched,
-    `recorded ${pct(run.report.mandatoryRecall)} vs recomputed ${pct(recomputed.mandatoryRecall)}`,
+    "recorded report is reproducible from stored structured outputs",
+    Math.abs(recomputed.overallRecall - run.report.overallRecall) < 1e-9 &&
+      recomputed.totalMatched === run.report.totalMatched &&
+      recomputed.fatalMisses === run.report.fatalMisses,
   );
   check(
-    `cumulative MANDATORY recall >= ${pct(run.target)} (FR-EXT-05)`,
-    recomputed.mandatoryPassed,
-    pct(recomputed.mandatoryRecall),
+    `recorded run profile matches ${profile.name}`,
+    run.profileName === profile.name,
+    `recorded ${run.profileName}`,
   );
-  console.log(
-    `  (overall recall ${pct(recomputed.overallRecall)} — ` +
-      `${recomputed.totalMatched}/${recomputed.totalGroundTruth} incl. desirable rows)`,
+  check(
+    "recorded run uses the current corpus manifest",
+    run.corpusManifestVersion === CURRENT_CORPUS_MANIFEST.corpusVersion,
+    `recorded ${run.corpusManifestVersion}`,
   );
+  if (profile.production) {
+    check("production evidence is a live model run", run.live === true);
+  }
+
+  const gate = evaluateReportAgainstProfile(recomputed, profile);
+  for (const failure of gate.failures) {
+    console.log(
+      `      ${failure.metric}: ${failure.actual ?? "not measured"}; required ${failure.expected}`,
+    );
+  }
+  check(
+    `${profile.name} metric thresholds pass`,
+    gate.passed,
+    `${gate.failures.length} failed metric(s)`,
+  );
+
   if (existsSync(BASELINE_PATH)) {
-    const baseline = JSON.parse(readFileSync(BASELINE_PATH, "utf-8")) as RecordedRun;
+    const baseline = JSON.parse(
+      readFileSync(BASELINE_PATH, "utf-8"),
+    ) as RecordedRun;
     const drop = baseline.report.mandatoryRecall - recomputed.mandatoryRecall;
     check(
-      `mandatory-recall drop vs baseline <= ${pct(MAX_BASELINE_DROP)} (NFR-QLT-02)`,
+      `mandatory-recall drop versus baseline <= ${pct(MAX_BASELINE_DROP)}`,
       drop <= MAX_BASELINE_DROP,
-      `baseline ${pct(baseline.report.mandatoryRecall)} -> ${pct(recomputed.mandatoryRecall)}`,
+      `${pct(baseline.report.mandatoryRecall)} -> ${pct(recomputed.mandatoryRecall)}`,
     );
-  } else {
-    console.log("  (no baseline.json yet — record one with eval:promote-baseline after a good live run)");
   }
 }
 
-async function livePass(target: number): Promise<void> {
-  console.log(`\n=== LIVE recall pass (real engine over ${CORPUS.length} tenders) ===`);
-  console.log(`Target mandatory recall: ${pct(target)}\n`);
+async function livePass(profile: EvalGateProfile): Promise<void> {
+  const manifest = validateCorpusManifest(
+    CORPUS,
+    CURRENT_CORPUS_MANIFEST,
+    profile,
+  );
+  if (!manifest.passed) {
+    throw new Error(
+      `Corpus is ineligible for ${profile.name}: ${manifest.problems.join("; ")}`,
+    );
+  }
+
+  console.log(`\n=== LIVE model pass (${profile.name}) ===`);
   const { extractRequirements } = await import("../src/lib/llm");
   const projectId = "00000000-0000-0000-0000-000000000000";
-
-  const extractedTexts: Record<string, string[]> = {};
+  const outputs: Record<string, EvalModelOutput> = {};
   const perTender: TenderRecall[] = [];
+
   for (const tender of CORPUS) {
     const { requirements } = await extractRequirements(projectId, [
-      { id: `${tender.id}-doc`, filename: `${tender.id}.txt`, type: "tender", contentText: tender.documentText },
+      {
+        id: `${tender.id}-doc`,
+        filename: `${tender.id}.txt`,
+        type: "tender",
+        contentText: tender.documentText,
+      },
     ]);
-    extractedTexts[tender.id] = requirements.map((r) => r.text);
-    const result = computeTenderRecall(tender, extractedTexts[tender.id]);
+    const output: EvalModelOutput = {
+      disposition: "completed",
+      requirements: requirements.map((requirement) => ({
+        text: requirement.text,
+        // A model-supplied locator is not independent citation verification.
+        citationVerdict: "unverified",
+      })),
+    };
+    outputs[tender.id] = output;
+    const result = computeTenderRecall(tender, output);
     perTender.push(result);
     logTender(result);
   }
 
-  const report = aggregateReport(perTender, target);
-  const { PROMPT_PACK_VERSION, MODEL_ID } = await import("../src/lib/provenance");
+  const report = aggregateReport(perTender, profile.minimumOverallRecall);
+  const { PROMPT_PACK_VERSION, MODEL_ID } =
+    await import("../src/lib/provenance");
   const run: RecordedRun = {
     recordedAt: new Date().toISOString(),
+    live: true,
+    profileName: profile.name,
+    corpusManifestVersion: CURRENT_CORPUS_MANIFEST.corpusVersion,
     model: MODEL_ID,
     promptVersion: PROMPT_PACK_VERSION,
-    target,
-    extractedTexts,
+    schemaVersion: "legacy-sanitizer-v1",
+    retrievalVersion: "not_implemented",
+    indexVersion: "not_implemented",
+    target: profile.minimumOverallRecall,
+    outputs,
     report,
   };
   mkdirSync(RUNS_DIR, { recursive: true });
-  writeFileSync(LATEST_PATH, JSON.stringify(run, null, 2) + "\n");
+  writeFileSync(LATEST_PATH, `${JSON.stringify(run, null, 2)}\n`);
   console.log(`\nRecorded run -> ${LATEST_PATH}`);
-  console.log(
-    `Mandatory recall: ${pct(report.mandatoryRecall)} (${report.mandatoryMatched}/${report.mandatoryGroundTruth}); ` +
-      `overall ${pct(report.overallRecall)}`,
-  );
-  enforceGates(run, recomputeFromStored(run));
+  enforceGates(run, recomputeFromStored(run), profile);
 }
 
 async function main(): Promise<void> {
   const offline = process.argv.includes("--offline");
   const promote = process.argv.includes("--promote-baseline");
-  const target = resolveTarget();
+  const profile = resolveProfile();
 
-  if (promote) {
-    if (!existsSync(LATEST_PATH)) {
-      console.error("No recorded run to promote — run the live harness first.");
-      process.exit(1);
-    }
-    copyFileSync(LATEST_PATH, BASELINE_PATH);
-    console.log(`Promoted ${LATEST_PATH} -> ${BASELINE_PATH}`);
-    return;
+  if (!offline || promote) {
+    throw new Error(
+      "The legacy live/baseline path is retired. Use --offline for compatibility checks; production evidence requires the controlled shadow/evaluation runner described in docs/ai-overhaul.",
+    );
   }
 
   console.log(
-    offline
-      ? "Running OFFLINE eval-harness checks (self-check + recorded-run gates).\n"
-      : "Running FULL eval harness (self-check + live engine recall).\n",
+    `${offline ? "OFFLINE" : "LIVE"} evaluation mode; profile=${profile.name}.\n`,
   );
+  selfCheck(profile);
 
-  selfCheck();
-  if (offline) {
+  if (promote) {
+    if (!existsSync(LATEST_PATH)) {
+      check("a recorded live run exists for baseline promotion", false);
+    } else {
+      const run = JSON.parse(readFileSync(LATEST_PATH, "utf-8")) as RecordedRun;
+      const report = recomputeFromStored(run);
+      enforceGates(run, report, profile);
+      if (failures === 0) {
+        copyFileSync(LATEST_PATH, BASELINE_PATH);
+        console.log(`Promoted ${LATEST_PATH} -> ${BASELINE_PATH}`);
+      }
+    }
+  } else if (offline) {
     if (existsSync(LATEST_PATH)) {
       const run = JSON.parse(readFileSync(LATEST_PATH, "utf-8")) as RecordedRun;
-      console.log(`\nRecorded live run found (${run.recordedAt}, model ${run.model}, prompts ${run.promptVersion}).`);
-      enforceGates(run, recomputeFromStored(run));
+      enforceGates(run, recomputeFromStored(run), profile);
+    } else if (profile.production) {
+      check("a live production-profile evaluation run exists", false);
     } else {
       console.log(
-        "\n(no recorded live run yet — run `pnpm --filter @workspace/api-server eval:harness` in the deploy " +
-          "environment and commit eval-corpus/runs/latest.json to activate the recall gates)",
+        "\n(no live run recorded; Gate-0 self-check passes are not production evidence)",
       );
     }
   } else {
-    await livePass(target);
+    await livePass(profile);
   }
 
-  console.log(`\n---------------------------------------------`);
+  console.log("\n---------------------------------------------");
   console.log(`RESULT: ${passes} passed, ${failures} failed`);
-  if (failures > 0) process.exit(1);
+  if (failures > 0) process.exitCode = 1;
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((err) => {
-    console.error("\nEVAL HARNESS ERROR:", err);
-    process.exit(1);
-  });
+main().catch((error: unknown) => {
+  console.error("\nEVAL HARNESS ERROR:", error);
+  process.exitCode = 1;
+});

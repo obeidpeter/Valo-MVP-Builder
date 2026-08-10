@@ -17,7 +17,7 @@ Ada Obi
 Named reviewer
 Ada Obi
 Engine / prompt pack / model
-valo-autopsy-engine/gate0-v1 · gate0-v1 · gpt-5.4
+valo-autopsy-engine/ai-foundation-v1 · ai-foundation-v1 · gpt-5.4
 Defect taxonomy
 ng-defects-v1.0.0
 Classification
@@ -213,4 +213,4 @@ Attestation: ________________________________
 Date: _______________________________________
 Process Warranty
 Valo does not warrant contract award, evaluator behaviour, or acceptance of the package. Valo warrants the reviewed process applied to the materials provided: requirement extraction, deterministic verification, and named human review.
-Engine: valo-autopsy-engine/gate0-v1 · Prompt pack: gate0-v1 · Model: gpt-5.4 · Taxonomy: ng-defects-v1.0.0
+Engine: valo-autopsy-engine/ai-foundation-v1 · Prompt pack: ai-foundation-v1 · Model: gpt-5.4 · Taxonomy: ng-defects-v1.0.0

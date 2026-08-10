@@ -41,6 +41,7 @@ describe("public SEO and privacy boundary", () => {
     for (const path of [
       "/app",
       "/projects",
+      "/intelligence",
       "/reports",
       "/organisation-settings",
       "/account",

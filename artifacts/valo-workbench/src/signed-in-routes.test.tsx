@@ -9,6 +9,10 @@ let currentRole = "reviewer";
 
 const TEST_PERMISSIONS = [
   "analytics:read",
+  "document:read",
+  "defect:read",
+  "draft:read",
+  "package:read",
   "project:read",
   "client:read",
   "requirement:read",
@@ -50,6 +54,12 @@ vi.mock("@workspace/api-client-react", async (importOriginal) => {
       isLoading: false,
       isError: false,
       isSuccess: true,
+      refetch: vi.fn(),
+    }),
+    useGetProjectIntelligence: () => ({
+      data: undefined,
+      isLoading: false,
+      isError: false,
       refetch: vi.fn(),
     }),
     useGetVaultExpiring: () => ({
@@ -334,6 +344,24 @@ describe("signed-in routing", () => {
     expect(
       screen.queryByRole("heading", { name: /access denied/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("opens the Intelligence Centre without implying model execution", async () => {
+    currentRole = "client_reviewer_approver";
+    renderAt("/intelligence");
+
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: "Intelligence Centre" },
+        ROUTE_LOAD_WAIT,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: "No intelligence evidence is available",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("allows a read-only auditor to open the tenant-filtered security review", async () => {

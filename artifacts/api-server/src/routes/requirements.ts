@@ -25,6 +25,11 @@ import { writeAuditTx } from "../lib/audit";
 import { extractRequirements } from "../lib/llm";
 import { computeScorecard } from "../lib/scorecard";
 import { holdTenantDatabaseUntilComplete } from "../middlewares/databaseTenancy";
+import { sendAiGatewayError } from "../lib/aiHttp";
+import {
+  isQuoteGroundedInSourceMap,
+  ModelInputTooLargeError,
+} from "../lib/sourceGrounding";
 
 const router: IRouter = Router();
 
@@ -48,7 +53,11 @@ router.post(
       }
       const organisationId = getOrganisationId(req);
       const parsed = ExtractRequirementsBody.safeParse(req.body ?? {});
-      const docIds = parsed.success ? parsed.data?.documentIds : undefined;
+      if (!parsed.success) {
+        res.status(400).json({ error: "Invalid extraction scope" });
+        return;
+      }
+      const docIds = parsed.data?.documentIds;
 
       let docs = await db
         .select()
@@ -57,9 +66,19 @@ router.post(
       if (docIds && docIds.length > 0) {
         docs = docs.filter((d) => docIds.includes(d.id));
       } else {
-        // Default to tender-type documents for requirement extraction.
+        // An omitted selector is intentionally narrow: only documents already
+        // classified as tender material may cross the model boundary. Never
+        // broaden an incomplete classification to certificates, evidence or
+        // other project documents.
         const tenderDocs = docs.filter((d) => d.type === "tender");
-        if (tenderDocs.length > 0) docs = tenderDocs;
+        if (tenderDocs.length === 0) {
+          res.status(400).json({
+            error:
+              "No tender documents are classified for requirement extraction",
+          });
+          return;
+        }
+        docs = tenderDocs;
       }
       docs = docs.filter(
         (d) => d.contentText && d.redactionStatus !== "excluded",
@@ -84,13 +103,36 @@ router.post(
           { signal: disconnectController.signal },
         );
         const validDocIds = new Set(docs.map((d) => d.id));
+        const sourceTextByDocId = new Map(
+          docs.map((document) => [document.id, document.contentText ?? ""]),
+        );
+        const sourceNameByDocId = new Map(
+          docs.map((document) => [document.id, document.filename]),
+        );
+        // An untrusted model may propose a plausible citation. Persist only
+        // candidates whose exact normalized quote occurs in the specifically
+        // named, in-scope source document; every other candidate is abstained.
+        const grounded = extracted.filter(
+          (
+            candidate,
+          ): candidate is typeof candidate & {
+            sourceDocId: string;
+            sourceQuote: string;
+          } =>
+            isQuoteGroundedInSourceMap(
+              sourceTextByDocId,
+              candidate.sourceDocId,
+              candidate.sourceQuote,
+            ),
+        );
+        const abstained = extracted.length - grounded.length;
         const inserted = await db.transaction(
           async (tx) => {
-            const created = extracted.length
+            const created = grounded.length
               ? await tx
                   .insert(requirements)
                   .values(
-                    extracted.map((r) => ({
+                    grounded.map((r) => ({
                       organisationId,
                       projectId: project.id,
                       sourceDocId:
@@ -109,21 +151,24 @@ router.post(
                       // proposal frozen so later human edits stay diffable.
                       origin: "engine",
                       engineText: r.text,
+                      // No migration is needed for the grounding proof: the
+                      // existing citation JSON already preserves source text
+                      // through requirement merges and is serialized to clients.
+                      mergedCitations: JSON.stringify([
+                        {
+                          sourceDocId: r.sourceDocId,
+                          sourceDocName: r.sourceDocId
+                            ? (sourceNameByDocId.get(r.sourceDocId) ?? null)
+                            : null,
+                          pageRef: r.pageRef ?? null,
+                          clauseRef: r.clauseRef ?? null,
+                          text: r.sourceQuote,
+                        },
+                      ]),
                     })),
                   )
                   .returning()
               : [];
-
-            if (project.status === "intake") {
-              await tx
-                .update(projects)
-                .set({
-                  status: "extraction",
-                  version: sql`${projects.version} + 1`,
-                  updatedAt: new Date(),
-                })
-                .where(eq(projects.id, project.id));
-            }
             await writeAuditTx(tx, {
               user: getLocalUser(req),
               organisationId,
@@ -131,7 +176,7 @@ router.post(
               eventType: "requirements.extracted",
               objectType: "project",
               objectId: project.id,
-              details: `${created.length} suggested`,
+              details: `${created.length} grounded suggestion(s); ${abstained} ungrounded candidate(s) abstained`,
             });
             return created;
           },
@@ -143,10 +188,25 @@ router.post(
           requirements: inserted.map((r) => serializeRequirement(r)),
         });
       } catch (error) {
+        if (error instanceof ModelInputTooLargeError) {
+          if (!disconnectController.signal.aborted && !res.headersSent) {
+            res.status(422).json({
+              error: error.message,
+              code: error.code,
+              actualChars: error.actualChars,
+              maxChars: error.maxChars,
+            });
+          }
+          return;
+        }
         workflowError = error;
         req.log.error({ err: error }, "requirement extraction failed");
-        if (!disconnectController.signal.aborted && !res.headersSent)
-          res.status(502).json({ error: "LLM requirement extraction failed" });
+        if (
+          !disconnectController.signal.aborted &&
+          !res.headersSent &&
+          !sendAiGatewayError(res, error)
+        )
+          res.status(502).json({ error: "AI requirement extraction failed" });
       }
     } catch (error) {
       workflowError = error;

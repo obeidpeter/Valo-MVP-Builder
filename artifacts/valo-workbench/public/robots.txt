@@ -4,6 +4,7 @@ Disallow: /app
 Disallow: /dashboard
 Disallow: /clients
 Disallow: /projects
+Disallow: /intelligence
 Disallow: /sbd
 Disallow: /operations
 Disallow: /portal

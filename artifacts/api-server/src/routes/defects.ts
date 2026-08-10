@@ -20,6 +20,9 @@ import { writeAuditTx } from "../lib/audit";
 import { suggestDefects } from "../lib/llm";
 import { isDirectDefectMutationAllowed } from "../lib/defectGovernance";
 import type { Severity } from "../lib/deterministic";
+import { isApprovedEvidence } from "../lib/reviewIntegrityPolicy";
+import { holdTenantDatabaseUntilComplete } from "../middlewares/databaseTenancy";
+import { sendAiGatewayError } from "../lib/aiHttp";
 
 const router: IRouter = Router();
 
@@ -41,96 +44,121 @@ router.post(
   "/projects/:id/suggest-defects",
   requirePermissionOrLegacy("defect:write"),
   async (req: Request, res: Response) => {
-    const [project] = await db
-      .select()
-      .from(projects)
-      .where(eq(projects.id, String(req.params.id)));
-    if (!project) {
-      res.status(404).json({ error: "Not found" });
-      return;
-    }
-    const organisationId = getOrganisationId(req);
-    const reqs = await db
-      .select()
-      .from(requirements)
-      .where(eq(requirements.projectId, project.id));
-    const ev = await db
-      .select()
-      .from(evidenceItems)
-      .where(eq(evidenceItems.projectId, project.id));
-    if (reqs.length === 0) {
-      res.status(400).json({ error: "No requirements available to analyse" });
-      return;
-    }
+    const releaseTenantWork = holdTenantDatabaseUntilComplete(req);
+    const disconnectController = new AbortController();
+    const abortOnDisconnect = () => disconnectController.abort();
+    res.once("close", abortOnDisconnect);
+    let workflowError: unknown;
     try {
-      const { defects: suggested, model } = await suggestDefects(
-        project.id,
-        reqs.map((r) => ({
-          id: r.id,
-          text: r.text,
-          isMandatory: r.isMandatory,
-        })),
-        ev.map((e) => ({
-          requirementId: e.requirementId,
-          evidenceStatus: e.evidenceStatus,
-          notes: e.notes,
-        })),
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(eq(projects.id, String(req.params.id)));
+      if (!project) {
+        res.status(404).json({ error: "Not found" });
+        return;
+      }
+      const organisationId = getOrganisationId(req);
+      const allRequirements = await db
+        .select()
+        .from(requirements)
+        .where(eq(requirements.projectId, project.id));
+      const reviewedRequirements = allRequirements.filter((requirement) =>
+        ["confirmed", "edited"].includes(requirement.reviewStatus),
       );
-      const validReqIds = new Set(reqs.map((r) => r.id));
-      const inserted = await db.transaction(
-        async (tx) => {
-          const created = suggested.length
-            ? await tx
-                .insert(defects)
-                .values(
-                  suggested.map((d) => ({
-                    organisationId,
-                    projectId: project.id,
-                    requirementId:
-                      d.requirementId && validReqIds.has(d.requirementId)
-                        ? d.requirementId
-                        : null,
-                    type: d.type,
-                    severity: d.severity,
-                    description: d.description,
-                    remediation: d.remediation ?? null,
-                    status: "suggested",
-                    suggested: true,
-                  })),
-                )
-                .returning()
-            : [];
-          if (project.status === "review") {
-            await tx
-              .update(projects)
-              .set({
-                status: "defects",
-                version: sql`${projects.version} + 1`,
-                updatedAt: new Date(),
-              })
-              .where(eq(projects.id, project.id));
-          }
-          await writeAuditTx(tx, {
-            user: getLocalUser(req),
-            organisationId,
-            projectId: project.id,
-            eventType: "defects.suggested",
-            objectType: "project",
-            objectId: project.id,
-            details: `${created.length} suggested`,
-          });
-          return created;
-        },
-        { isolationLevel: "read committed" },
+      const reviewedRequirementIds = new Set(
+        reviewedRequirements.map((requirement) => requirement.id),
       );
-      res.json({
-        created: inserted.length,
-        model,
-        defects: inserted.map((d) => serializeDefect(d)),
-      });
+      const confirmedEvidence = (
+        await db
+          .select()
+          .from(evidenceItems)
+          .where(eq(evidenceItems.projectId, project.id))
+      ).filter(
+        (evidence) =>
+          reviewedRequirementIds.has(evidence.requirementId) &&
+          isApprovedEvidence(evidence),
+      );
+      if (reviewedRequirements.length === 0) {
+        res
+          .status(400)
+          .json({ error: "No reviewed requirements available to analyse" });
+        return;
+      }
+      try {
+        const { defects: suggested, model } = await suggestDefects(
+          project.id,
+          reviewedRequirements.map((requirement) => ({
+            id: requirement.id,
+            text: requirement.text,
+            isMandatory: requirement.isMandatory,
+          })),
+          confirmedEvidence.map((evidence) => ({
+            requirementId: evidence.requirementId,
+            evidenceStatus: evidence.evidenceStatus,
+            notes: evidence.notes,
+          })),
+          { signal: disconnectController.signal },
+        );
+        const inserted = await db.transaction(
+          async (tx) => {
+            const created = suggested.length
+              ? await tx
+                  .insert(defects)
+                  .values(
+                    suggested.map((defect) => ({
+                      organisationId,
+                      projectId: project.id,
+                      requirementId:
+                        defect.requirementId &&
+                        reviewedRequirementIds.has(defect.requirementId)
+                          ? defect.requirementId
+                          : null,
+                      type: defect.type,
+                      severity: defect.severity,
+                      description: defect.description,
+                      remediation: defect.remediation ?? null,
+                      status: "suggested",
+                      suggested: true,
+                    })),
+                  )
+                  .returning()
+              : [];
+            await writeAuditTx(tx, {
+              user: getLocalUser(req),
+              organisationId,
+              projectId: project.id,
+              eventType: "defects.suggested",
+              objectType: "project",
+              objectId: project.id,
+              details: `${created.length} suggested from ${reviewedRequirements.length} reviewed requirement(s) and ${confirmedEvidence.length} confirmed evidence item(s)`,
+            });
+            return created;
+          },
+          { isolationLevel: "read committed" },
+        );
+        res.json({
+          created: inserted.length,
+          model,
+          defects: inserted.map((defect) => serializeDefect(defect)),
+        });
+      } catch (error) {
+        workflowError = error;
+        req.log.error({ err: error }, "defect suggestion failed");
+        if (
+          !disconnectController.signal.aborted &&
+          !res.headersSent &&
+          !sendAiGatewayError(res, error)
+        ) {
+          res.status(502).json({ error: "AI defect suggestion failed" });
+        }
+      }
     } catch (error) {
-      req.log.error({ err: error }, "defect suggestion failed");
-      res.status(502).json({ error: "LLM defect suggestion failed" });
+      workflowError = error;
+      throw error;
+    } finally {
+      res.off("close", abortOnDisconnect);
+      releaseTenantWork(workflowError);
     }
   },
 );

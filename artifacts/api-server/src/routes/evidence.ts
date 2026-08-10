@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, desc, sql } from "drizzle-orm";
+import { and, eq, desc, ne, sql } from "drizzle-orm";
 import {
   db,
   evidenceItems,
@@ -22,6 +22,11 @@ import {
   isApprovedEvidence,
 } from "../lib/reviewIntegrityPolicy";
 import { holdTenantDatabaseUntilComplete } from "../middlewares/databaseTenancy";
+import { sendAiGatewayError } from "../lib/aiHttp";
+import {
+  groundedEvidenceStatus,
+  ModelInputTooLargeError,
+} from "../lib/sourceGrounding";
 
 const router: IRouter = Router();
 
@@ -113,13 +118,31 @@ router.post(
           { signal: disconnectController.signal },
         );
         const validDocIds = new Set(bidDocs.map((d) => d.id));
+        const sourceTextByDocId = new Map(
+          bidDocs.map((document) => [document.id, document.contentText ?? ""]),
+        );
+        const groundedItems = items.map((item) => ({
+          ...item,
+          evidenceStatus: groundedEvidenceStatus(
+            item.evidenceStatus,
+            sourceTextByDocId,
+            item.documentId,
+            item.excerpt,
+          ),
+        }));
+        const downgraded = items.filter(
+          (item, index) =>
+            (item.evidenceStatus === "present" ||
+              item.evidenceStatus === "expired") &&
+            groundedItems[index]?.evidenceStatus === "unclear",
+        ).length;
         const inserted = await db.transaction(
           async (tx) => {
-            const created = items.length
+            const created = groundedItems.length
               ? await tx
                   .insert(evidenceItems)
                   .values(
-                    items.map((i) => ({
+                    groundedItems.map((i) => ({
                       organisationId,
                       projectId: project.id,
                       requirementId: i.requirementId,
@@ -135,16 +158,6 @@ router.post(
                   )
                   .returning()
               : [];
-            if (project.status === "extraction") {
-              await tx
-                .update(projects)
-                .set({
-                  status: "review",
-                  version: sql`${projects.version} + 1`,
-                  updatedAt: new Date(),
-                })
-                .where(eq(projects.id, project.id));
-            }
             await writeAuditTx(tx, {
               user: getLocalUser(req),
               organisationId,
@@ -152,7 +165,7 @@ router.post(
               eventType: "evidence.mapped",
               objectType: "project",
               objectId: project.id,
-              details: `${created.length} suggested`,
+              details: `${created.length} suggested; ${downgraded} unsupported positive assertion(s) downgraded to unclear`,
             });
             return created;
           },
@@ -164,10 +177,25 @@ router.post(
           items: inserted.map((e) => serializeEvidence(e)),
         });
       } catch (error) {
+        if (error instanceof ModelInputTooLargeError) {
+          if (!disconnectController.signal.aborted && !res.headersSent) {
+            res.status(422).json({
+              error: error.message,
+              code: error.code,
+              actualChars: error.actualChars,
+              maxChars: error.maxChars,
+            });
+          }
+          return;
+        }
         workflowError = error;
         req.log.error({ err: error }, "evidence mapping failed");
-        if (!disconnectController.signal.aborted && !res.headersSent)
-          res.status(502).json({ error: "LLM evidence mapping failed" });
+        if (
+          !disconnectController.signal.aborted &&
+          !res.headersSent &&
+          !sendAiGatewayError(res, error)
+        )
+          res.status(502).json({ error: "AI evidence mapping failed" });
       }
     } catch (error) {
       workflowError = error;
@@ -188,7 +216,32 @@ router.post(
       res.status(400).json({ error: "Invalid request" });
       return;
     }
-    const isApproval = parsed.data.evidenceStatus !== "pending";
+    const selectedSources = parsed.data.documentId
+      ? await db
+          .select({ id: documents.id, contentText: documents.contentText })
+          .from(documents)
+          .where(
+            and(
+              eq(documents.id, parsed.data.documentId),
+              eq(documents.projectId, parsed.data.projectId),
+              ne(documents.redactionStatus, "excluded"),
+            ),
+          )
+      : [];
+    const sourceTextByDocId = new Map(
+      selectedSources.map((document) => [
+        document.id,
+        document.contentText ?? "",
+      ]),
+    );
+    const groundedStatus = groundedEvidenceStatus(
+      parsed.data.evidenceStatus,
+      sourceTextByDocId,
+      parsed.data.documentId,
+      parsed.data.excerpt,
+    );
+    const groundingDowngraded = groundedStatus !== parsed.data.evidenceStatus;
+    const isApproval = groundedStatus !== "pending";
     if (isApproval && !hasRequestPermission(req, "evidence:approve")) {
       res.status(403).json({ error: "Evidence approval permission required" });
       return;
@@ -201,6 +254,7 @@ router.post(
           .insert(evidenceItems)
           .values({
             ...parsed.data,
+            evidenceStatus: groundedStatus,
             organisationId,
             suggested: false,
             confirmedBy: isApproval ? (user?.id ?? null) : null,
@@ -213,6 +267,9 @@ router.post(
           eventType: "evidence.created",
           objectType: "evidence",
           objectId: evidence.id,
+          details: groundingDowngraded
+            ? "Unsupported positive evidence assertion downgraded to unclear."
+            : undefined,
         });
         return evidence;
       },
@@ -246,13 +303,51 @@ router.patch(
           parsed.data,
         );
         if (requiresApproval && !canApprove) return { kind: "denied" } as const;
+        // Preserve omission, but honour an explicit null. Using `??` here
+        // would validate against the old source and then persist a null source,
+        // allowing an apparently approved positive status to lose grounding.
+        const nextDocumentId =
+          parsed.data.documentId !== undefined
+            ? parsed.data.documentId
+            : existing.documentId;
+        const nextExcerpt =
+          parsed.data.excerpt !== undefined
+            ? parsed.data.excerpt
+            : existing.excerpt;
+        const nextStatus =
+          parsed.data.evidenceStatus ?? existing.evidenceStatus;
+        const selectedSources = nextDocumentId
+          ? await tx
+              .select({ id: documents.id, contentText: documents.contentText })
+              .from(documents)
+              .where(
+                and(
+                  eq(documents.id, nextDocumentId),
+                  eq(documents.projectId, existing.projectId),
+                  ne(documents.redactionStatus, "excluded"),
+                ),
+              )
+          : [];
+        const sourceTextByDocId = new Map(
+          selectedSources.map((document) => [
+            document.id,
+            document.contentText ?? "",
+          ]),
+        );
+        const groundedStatus = groundedEvidenceStatus(
+          nextStatus,
+          sourceTextByDocId,
+          nextDocumentId,
+          nextExcerpt,
+        );
+        const groundingDowngraded = groundedStatus !== nextStatus;
         const establishesApproval =
           !isApprovedEvidence(existing) &&
           ((parsed.data.evidenceStatus !== undefined &&
-            parsed.data.evidenceStatus !== "pending") ||
+            groundedStatus !== "pending") ||
             parsed.data.suggested === false);
         const confirmationPatch =
-          parsed.data.evidenceStatus === "pending"
+          groundedStatus === "pending"
             ? { confirmedBy: null }
             : establishesApproval
               ? { confirmedBy: user?.id ?? null }
@@ -262,6 +357,7 @@ router.patch(
           .update(evidenceItems)
           .set({
             ...parsed.data,
+            evidenceStatus: groundedStatus,
             ...confirmationPatch,
             version: sql`${evidenceItems.version} + 1`,
             updatedAt: new Date(),
@@ -275,6 +371,9 @@ router.patch(
           eventType: "evidence.updated",
           objectType: "evidence",
           objectId: evidence.id,
+          details: groundingDowngraded
+            ? "Unsupported positive evidence assertion downgraded to unclear."
+            : undefined,
         });
         return { kind: "updated", evidence } as const;
       },

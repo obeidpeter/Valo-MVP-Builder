@@ -50,6 +50,7 @@ describe("v2.5 platform access", () => {
     const items = navigationForRole("client_organisation_owner", disabledFlags);
     expect(items.map((item) => item.href)).toEqual([
       "/projects",
+      "/intelligence",
       "/portal",
       "/sbd",
       "/evidence-readiness",
@@ -103,6 +104,7 @@ describe("v2.5 platform access", () => {
     expect(hrefs).toContain("/notifications");
     expect(hrefs).not.toContain("/billing");
     expect(hrefs).toContain("/projects");
+    expect(hrefs).toContain("/intelligence");
     expect(hrefs).not.toContain("/settings");
     expect(
       getPlatformAccessDecision(
@@ -118,6 +120,7 @@ describe("v2.5 platform access", () => {
       (item) => item.href,
     );
     expect(hrefs).toContain("/projects");
+    expect(hrefs).toContain("/intelligence");
     expect(hrefs).toContain("/reports");
     expect(hrefs).toContain("/app/security");
     expect(hrefs).not.toContain("/organisation-settings");
@@ -151,6 +154,30 @@ describe("v2.5 platform access", () => {
         permissions,
       ),
     ).toBe("/projects");
+  });
+
+  it("shows the combined intelligence view only with its complete source-read set", () => {
+    const basePermissions = [
+      "client:read",
+      "project:read",
+      "document:read",
+      "requirement:read",
+      "evidence:read",
+      "defect:read",
+      "report:read",
+      "draft:read",
+    ];
+    expect(
+      navigationForRole("client_reviewer", enabledFlags, basePermissions).map(
+        (item) => item.href,
+      ),
+    ).not.toContain("/intelligence");
+    expect(
+      navigationForRole("client_reviewer", enabledFlags, [
+        ...basePermissions,
+        "package:read",
+      ]).map((item) => item.href),
+    ).toContain("/intelligence");
   });
 
   it("preserves legacy reviewer access while hiding administration", () => {
@@ -213,6 +240,7 @@ describe("v2.5 platform access", () => {
       ),
     ).toEqual([
       "/projects",
+      "/intelligence",
       "/sbd",
       "/evidence-readiness",
       "/reports",

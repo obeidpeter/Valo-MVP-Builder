@@ -23,6 +23,15 @@ export interface ErrorEnvelope {
   error: string;
 }
 
+export interface AiWorkflowErrorEnvelope {
+  error: string;
+  code?: string;
+  /** @minimum 0 */
+  actualChars?: number;
+  /** @minimum 1 */
+  maxChars?: number;
+}
+
 export type OrganisationType = typeof OrganisationType[keyof typeof OrganisationType];
 
 
@@ -633,6 +642,290 @@ export interface WorkflowAlerts {
   slaBreaches: WorkflowAlertsSlaBreachesItem[];
   redTeamDue: WorkflowAlertsRedTeamDueItem[];
   vaultExpiring: WorkflowAlertsVaultExpiringItem[];
+}
+
+export type AiOperationsSnapshotEnvironment = typeof AiOperationsSnapshotEnvironment[keyof typeof AiOperationsSnapshotEnvironment];
+
+
+export const AiOperationsSnapshotEnvironment = {
+  development: 'development',
+  test: 'test',
+  production: 'production',
+} as const;
+
+export type AiOperationsSnapshotBlockersItem = typeof AiOperationsSnapshotBlockersItem[keyof typeof AiOperationsSnapshotBlockersItem];
+
+
+export const AiOperationsSnapshotBlockersItem = {
+  AI_GLOBAL_DISABLED: 'AI_GLOBAL_DISABLED',
+  AI_RELEASE_GATE_DENIED: 'AI_RELEASE_GATE_DENIED',
+  AI_MODEL_CONFIGURATION_UNAVAILABLE: 'AI_MODEL_CONFIGURATION_UNAVAILABLE',
+  AI_BUDGET_UNAVAILABLE: 'AI_BUDGET_UNAVAILABLE',
+  AI_BUDGET_CURRENCY_MISMATCH: 'AI_BUDGET_CURRENCY_MISMATCH',
+  AI_BUDGET_EXCEEDED: 'AI_BUDGET_EXCEEDED',
+  AI_PROVIDER_PRIVACY_UNVERIFIED: 'AI_PROVIDER_PRIVACY_UNVERIFIED',
+  AI_PROVIDER_UNAVAILABLE: 'AI_PROVIDER_UNAVAILABLE',
+  AI_CAPABILITY_DISABLED: 'AI_CAPABILITY_DISABLED',
+} as const;
+
+export type AiModelConfigurationStatusStatus = typeof AiModelConfigurationStatusStatus[keyof typeof AiModelConfigurationStatusStatus];
+
+
+export const AiModelConfigurationStatusStatus = {
+  draft: 'draft',
+  promoted: 'promoted',
+} as const;
+
+export interface AiModelConfigurationStatus {
+  model: string;
+  /** @nullable */
+  configurationVersion: string | null;
+  status: AiModelConfigurationStatusStatus;
+  evaluationApproved: boolean;
+}
+
+export interface AiBudgetStatus {
+  currency: string;
+  /** @minimum 0 */
+  remainingMinor: number;
+  rateCardVersion: string;
+}
+
+export interface AiProviderPolicyStatus {
+  requiredRegion: string;
+  requireZeroRetention: boolean;
+  /** @minimum -1 */
+  maxRetentionDays: number;
+  /** True only when at least one currently configured model adapter is eligible for Restricted Mode and satisfies the reported provider privacy policy. False does not block non-Restricted Mode projects. */
+  restrictedModeSupported: boolean;
+}
+
+export interface AiExpectedVersions {
+  model: string;
+  modelConfiguration: string;
+  prompt: string;
+  promptRegistry: string;
+  schema: string;
+  retrieval: string;
+  index: string;
+}
+
+export interface AiReleaseGateStatus {
+  /** Whether production release evidence was evaluated in this environment. */
+  applicable: boolean;
+  allowed: boolean;
+  blockerCodes: string[];
+  expectedVersions: AiExpectedVersions;
+}
+
+export type AiCapabilityStatusId = typeof AiCapabilityStatusId[keyof typeof AiCapabilityStatusId];
+
+
+export const AiCapabilityStatusId = {
+  extract_pdf_multimodal: 'extract_pdf_multimodal',
+  extract_requirements: 'extract_requirements',
+  map_evidence: 'map_evidence',
+  suggest_defects: 'suggest_defects',
+  responsiveness_review: 'responsiveness_review',
+} as const;
+
+export type AiCapabilityStatusOutputState = typeof AiCapabilityStatusOutputState[keyof typeof AiCapabilityStatusOutputState];
+
+
+export const AiCapabilityStatusOutputState = {
+  non_authoritative_draft: 'non_authoritative_draft',
+} as const;
+
+export type AiCapabilityLimitsCostCurrency = typeof AiCapabilityLimitsCostCurrency[keyof typeof AiCapabilityLimitsCostCurrency];
+
+
+export const AiCapabilityLimitsCostCurrency = {
+  NGN: 'NGN',
+} as const;
+
+export interface AiCapabilityLimits {
+  /** @minimum 1 */
+  maxInputBytes: number;
+  /** @minimum 1 */
+  maxOutputTokens: number;
+  /** @minimum 1 */
+  timeoutMs: number;
+  /** @minimum 0 */
+  maxRetriesPerProvider: number;
+  /** @minimum 0 */
+  maxFallbackProviders: number;
+  /** @minimum 0 */
+  maxCostMinor: number;
+  costCurrency: AiCapabilityLimitsCostCurrency;
+}
+
+export interface AiCapabilityStatus {
+  id: AiCapabilityStatusId;
+  /**
+     * @minimum 1
+     * @maximum 4
+     */
+  autonomyLevel: number;
+  outputState: AiCapabilityStatusOutputState;
+  approvalAuthority: string;
+  environmentApproved: boolean;
+  tenantEnabled: boolean;
+  effectiveEnabled: boolean;
+  promptVersion: string;
+  promptHash: string;
+  schemaVersion: string;
+  schemaHash: string;
+  limits: AiCapabilityLimits;
+}
+
+export type AiRecentRunStatus = typeof AiRecentRunStatus[keyof typeof AiRecentRunStatus];
+
+
+export const AiRecentRunStatus = {
+  succeeded: 'succeeded',
+  failed: 'failed',
+} as const;
+
+export interface AiRecentRun {
+  id: string;
+  /** @nullable */
+  projectId: string | null;
+  task: string;
+  /** @nullable */
+  model: string | null;
+  /** @nullable */
+  promptVersion: string | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  promptTokens: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  completionTokens: number | null;
+  status: AiRecentRunStatus;
+  /** @nullable */
+  errorCode: string | null;
+  createdAt: string;
+}
+
+export interface AiEvaluationRun {
+  id: string;
+  task: string;
+  corpusVersion: string;
+  status: string;
+  /** @minimum 0 */
+  sampleSize: number;
+  releaseDecision: string;
+  startedAt: string;
+  /** @nullable */
+  completedAt: string | null;
+}
+
+export interface AiOperationsSnapshot {
+  generatedAt: string;
+  environment: AiOperationsSnapshotEnvironment;
+  productionAiEnabled: boolean;
+  globalKillSwitchEngaged: boolean;
+  modelConfiguration: AiModelConfigurationStatus;
+  budget: AiBudgetStatus | null;
+  providerPolicy: AiProviderPolicyStatus;
+  releaseGate: AiReleaseGateStatus;
+  blockers: AiOperationsSnapshotBlockersItem[];
+  capabilities: AiCapabilityStatus[];
+  /** @maxItems 20 */
+  recentRuns: AiRecentRun[];
+  /** @maxItems 10 */
+  evaluations: AiEvaluationRun[];
+}
+
+export type IntelligenceCentreSnapshotEnvironment = typeof IntelligenceCentreSnapshotEnvironment[keyof typeof IntelligenceCentreSnapshotEnvironment];
+
+
+export const IntelligenceCentreSnapshotEnvironment = {
+  production: 'production',
+  staging: 'staging',
+  development: 'development',
+} as const;
+
+export interface IntelligenceProjectSummary {
+  id: string;
+  title: string;
+  status: string;
+  /** @nullable */
+  deadline: string | null;
+}
+
+export type IntelligenceCapabilitySnapshotId = typeof IntelligenceCapabilitySnapshotId[keyof typeof IntelligenceCapabilitySnapshotId];
+
+
+export const IntelligenceCapabilitySnapshotId = {
+  evidence_graph: 'evidence_graph',
+  addendum_radar: 'addendum_radar',
+  eligibility_passport: 'eligibility_passport',
+  grounded_copilot: 'grounded_copilot',
+  opportunity_radar: 'opportunity_radar',
+  response_studio: 'response_studio',
+  submission_preflight: 'submission_preflight',
+  clarification_assistant: 'clarification_assistant',
+  boq_sanity: 'boq_sanity',
+  award_handoff: 'award_handoff',
+} as const;
+
+export type IntelligenceCapabilitySnapshotState = typeof IntelligenceCapabilitySnapshotState[keyof typeof IntelligenceCapabilitySnapshotState];
+
+
+export const IntelligenceCapabilitySnapshotState = {
+  review_ready: 'review_ready',
+  partial: 'partial',
+  empty: 'empty',
+  restricted: 'restricted',
+  production_disabled: 'production_disabled',
+} as const;
+
+export interface IntelligenceCitation {
+  id: string;
+  sourceName: string;
+  locator: string;
+  /** @maxLength 280 */
+  excerpt?: string;
+}
+
+export interface IntelligenceCapabilitySnapshot {
+  id: IntelligenceCapabilitySnapshotId;
+  state: IntelligenceCapabilitySnapshotState;
+  stateReason: string;
+  summary?: string;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  reviewItemCount: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  citationCount: number | null;
+  /** @maxItems 20 */
+  citations: IntelligenceCitation[];
+  /** @nullable */
+  lastUpdatedAt: string | null;
+}
+
+export interface IntelligenceCentreSnapshot {
+  environment: IntelligenceCentreSnapshotEnvironment;
+  /** False for this deterministic release; it must not be interpreted as the status of older separately governed AI workflows. */
+  productionAiEnabled: boolean;
+  restrictedMode: boolean;
+  generatedAt: string;
+  project: IntelligenceProjectSummary;
+  /**
+     * @minItems 10
+     * @maxItems 10
+     */
+  capabilities: IntelligenceCapabilitySnapshot[];
 }
 
 export type NotificationEventChannel = typeof NotificationEventChannel[keyof typeof NotificationEventChannel];
@@ -2478,6 +2771,26 @@ export type PreconditionRequiredResponse = ErrorEnvelope;
  * Authentication or tenant-context resolution failed unexpectedly
  */
 export type InternalServerErrorResponse = ErrorEnvelope;
+
+/**
+ * AI input was invalid or exceeded the bounded source limit
+ */
+export type AiInputRejectedResponse = AiWorkflowErrorEnvelope;
+
+/**
+ * The approved AI budget cannot cover this request
+ */
+export type AiBudgetExceededResponse = AiWorkflowErrorEnvelope;
+
+/**
+ * The provider result or usage telemetry failed validation
+ */
+export type AiInvalidProviderResultResponse = AiWorkflowErrorEnvelope;
+
+/**
+ * AI is disabled or a required release, model, privacy, region, retention, provider, or capability gate is unavailable
+ */
+export type AiUnavailableResponse = AiWorkflowErrorEnvelope;
 
 /**
  * Selects the organisation access context. It is required when the caller

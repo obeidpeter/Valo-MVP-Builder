@@ -3,7 +3,9 @@ import test from "node:test";
 import {
   evaluateProductionAdapters,
   executeJsonWithFallback,
+  hasVerifiedModelDataGovernance,
   ProviderChainError,
+  type AdapterDescriptor,
   type JsonModelAdapter,
 } from "./providerContracts";
 
@@ -109,4 +111,63 @@ test("complete outage reports bounded provider failures", async () => {
     (error: unknown) =>
       error instanceof ProviderChainError && error.failures.length === 1,
   );
+});
+
+const governedModel = (): AdapterDescriptor => ({
+  kind: "model",
+  provider: "reviewed-model-provider",
+  mode: "production",
+  productionApproved: true,
+  capabilities: ["structured_json"],
+  dataGovernance: {
+    externallyHosted: true,
+    noTrainingVerified: true,
+    retentionMode: "zero",
+    maxRetentionDays: null,
+    regions: ["ng"],
+    dpaApproved: true,
+    restrictedModeEligible: false,
+    evidenceVersion: "legal-review-v1",
+  },
+});
+
+test("production model readiness separately requires verified governance", () => {
+  const withoutGovernance = governedModel();
+  delete withoutGovernance.dataGovernance;
+  assert.deepEqual(evaluateProductionAdapters(["model"], [withoutGovernance]), [
+    {
+      kind: "model",
+      code: "privacy_unverified",
+      message:
+        "model has no production-approved privacy, retention, region and DPA evidence.",
+    },
+  ]);
+  assert.deepEqual(
+    evaluateProductionAdapters(["model"], [governedModel()]),
+    [],
+  );
+});
+
+test("verified governance rejects implicit retention, missing evidence and invalid bounds", () => {
+  assert.equal(hasVerifiedModelDataGovernance(governedModel()), true);
+  for (const dataGovernance of [
+    { ...governedModel().dataGovernance!, noTrainingVerified: false },
+    { ...governedModel().dataGovernance!, dpaApproved: false },
+    { ...governedModel().dataGovernance!, evidenceVersion: null },
+    { ...governedModel().dataGovernance!, regions: [] },
+    {
+      ...governedModel().dataGovernance!,
+      retentionMode: "provider_default" as const,
+    },
+    {
+      ...governedModel().dataGovernance!,
+      retentionMode: "bounded" as const,
+      maxRetentionDays: -1,
+    },
+  ]) {
+    assert.equal(
+      hasVerifiedModelDataGovernance({ ...governedModel(), dataGovernance }),
+      false,
+    );
+  }
 });

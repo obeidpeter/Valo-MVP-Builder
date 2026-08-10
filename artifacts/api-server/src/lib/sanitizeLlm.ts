@@ -18,7 +18,11 @@
  *    or they are nulled/dropped, so a hostile document cannot point findings
  *    at entities outside the engagement.
  */
-import type { ExtractedRequirement, MappedEvidence, SuggestedDefect } from "./llm";
+import type {
+  ExtractedRequirement,
+  MappedEvidence,
+  SuggestedDefect,
+} from "./llm";
 
 const MAX_ITEMS = 500;
 const MAX_TEXT = 4000;
@@ -50,7 +54,12 @@ const DEFECT_TYPES = new Set([
   "unsupported_claim",
   "validity",
 ]);
-const DEFECT_SEVERITIES = new Set(["fatal", "likely_fatal", "scoring_risk", "cosmetic"]);
+const DEFECT_SEVERITIES = new Set([
+  "fatal",
+  "likely_fatal",
+  "scoring_risk",
+  "cosmetic",
+]);
 
 function asText(value: unknown, cap: number): string | null {
   if (typeof value !== "string") return null;
@@ -92,7 +101,9 @@ export function sanitizeExtractedRequirements(
         : "unclear") as ExtractedRequirement["confidence"],
       pageRef: asText(item.pageRef, 100),
       clauseRef: asText(item.clauseRef, 100),
-      sourceDocId: sourceDocId && validDocIds.has(sourceDocId) ? sourceDocId : null,
+      sourceDocId:
+        sourceDocId && validDocIds.has(sourceDocId) ? sourceDocId : null,
+      sourceQuote: asText(item.sourceQuote, MAX_TEXT),
     });
   }
   return out;
@@ -112,14 +123,29 @@ export function sanitizeMappedEvidence(
     if (!requirementId || !validReqIds.has(requirementId)) continue;
 
     const documentId = asText(item.documentId, 100);
-    const evidenceStatus = asText(item.evidenceStatus, 30);
+    const safeDocumentId =
+      documentId && validDocIds.has(documentId) ? documentId : null;
+    const excerpt = asText(item.excerpt, MAX_TEXT);
+    const proposedStatus = asText(item.evidenceStatus, 30);
+    let evidenceStatus = (
+      proposedStatus && EVIDENCE_STATUSES.has(proposedStatus)
+        ? proposedStatus
+        : "unclear"
+    ) as MappedEvidence["evidenceStatus"];
+    // A positive evidence assertion is never allowed to survive without both
+    // an in-scope source and a quote. Exact quote grounding is then enforced
+    // against source text by the route before persistence.
+    if (
+      (evidenceStatus === "present" || evidenceStatus === "expired") &&
+      (!safeDocumentId || !excerpt)
+    ) {
+      evidenceStatus = "unclear";
+    }
     out.push({
       requirementId,
-      documentId: documentId && validDocIds.has(documentId) ? documentId : null,
-      evidenceStatus: (evidenceStatus && EVIDENCE_STATUSES.has(evidenceStatus)
-        ? evidenceStatus
-        : "unclear") as MappedEvidence["evidenceStatus"],
-      excerpt: asText(item.excerpt, MAX_TEXT),
+      documentId: safeDocumentId,
+      evidenceStatus,
+      excerpt,
       notes: asText(item.notes, MAX_NOTE),
     });
   }
@@ -144,7 +170,8 @@ export function sanitizeSuggestedDefects(
 
     const requirementId = asText(item.requirementId, 100);
     out.push({
-      requirementId: requirementId && validReqIds.has(requirementId) ? requirementId : null,
+      requirementId:
+        requirementId && validReqIds.has(requirementId) ? requirementId : null,
       type: type as SuggestedDefect["type"],
       severity: severity as SuggestedDefect["severity"],
       description,

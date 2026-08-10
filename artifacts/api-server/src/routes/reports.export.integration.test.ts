@@ -243,6 +243,11 @@ before(async () => {
       sha256: "a".repeat(64),
       redactionStatus: "included",
       extractionStatus: "extracted",
+      contentText: [
+        'Quote with, comma and "quotes"',
+        "B-BBEE certificate is not applicable for this procurement.",
+        "Bid bond evidence is attached.",
+      ].join("\n"),
     })
     .returning();
 
@@ -311,6 +316,7 @@ before(async () => {
         requirementId: reqRows[0].id,
         evidenceStatus: "present",
         excerpt: 'Quote with, comma and "quotes"',
+        documentId: doc.id,
         suggested: false,
       },
       {
@@ -318,6 +324,8 @@ before(async () => {
         projectId: project.id,
         requirementId: reqRows[1].id,
         evidenceStatus: "not_applicable",
+        excerpt: "B-BBEE certificate is not applicable for this procurement.",
+        documentId: doc.id,
         suggested: false,
       },
       {
@@ -325,6 +333,8 @@ before(async () => {
         projectId: project.id,
         requirementId: reqRows[2].id,
         evidenceStatus: "present",
+        excerpt: "Bid bond evidence is attached.",
+        documentId: doc.id,
         suggested: false,
       },
     ])

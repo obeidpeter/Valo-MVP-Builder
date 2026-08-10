@@ -12,6 +12,7 @@ describe("route privacy classification", () => {
     ["/app", "protected"],
     ["/app/security", "protected"],
     ["/projects/project-id?tab=requirements", "protected"],
+    ["/intelligence?project=project-id", "protected"],
     ["/organisation-settings", "protected"],
   ] as const)("classifies %s as %s", (path, expected) => {
     expect(classifyRoute(path)).toBe(expected);
