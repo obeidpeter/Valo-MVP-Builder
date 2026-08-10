@@ -63,7 +63,11 @@ it is restricted to Replit production, pins all six migration files and the
 accepted journal states, validates separate same-target owner/runtime URLs,
 holds a fixed advisory lock across migration, and applies only pending
 `0003`-`0005` in one Drizzle transaction. It verifies the exact six-row journal
-and intake object catalog before allowing API startup. Source synchronisation
+and intake object catalog before allowing API startup. The effective API
+artifact and legacy `.replit` run path both invoke
+`scripts/start-replit-production.mjs`; this same-process wrapper awaits that
+launcher before dynamically importing the compiled API, so a migration failure
+cannot open the service port. Source synchronisation
 and `postMerge` still never authorise or run database promotion. Supply a
 direct, session-affine owner endpoint, not a transaction-pooling URL: the
 launcher keeps its settings, advisory lock and migration on one PostgreSQL
@@ -303,8 +307,9 @@ the source backup and audit export as private evidence.
 3. Record current deployment/config/schema/flags/rule packs.
 4. For an unbridged legacy target, execute only the approved legacy bridge
    procedure above. For the current already-bridged Replit target, require the
-   exact adopted `0000`-`0002` journal and let only the bounded
-   `migration:replit:intake` deployment launcher apply `0003`-`0005`. Never
+   exact adopted `0000`-`0002` journal, verify both checked-in production run
+   paths name `scripts/start-replit-production.mjs`, and let its bounded
+   `migration:replit:intake` implementation apply `0003`-`0005`. Never
    substitute the unrestricted migration command or a publish schema diff.
    Halt on any journal, source-hash, catalog, reconciliation, or RLS error.
 5. Deploy workers/API/web in compatible order; keep new commercial flags off.
