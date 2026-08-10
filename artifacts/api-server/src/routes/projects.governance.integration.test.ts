@@ -211,6 +211,22 @@ async function conflictRecordCount(projectId: string): Promise<number> {
   return rows.length;
 }
 
+async function waitForConflictRecordCount(
+  projectId: string,
+  expectedCount: number,
+): Promise<void> {
+  const deadline = Date.now() + 2_000;
+
+  while (Date.now() < deadline) {
+    if ((await conflictRecordCount(projectId)) === expectedCount) return;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+
+  assert.fail(
+    `Expected ${expectedCount} conflict record(s) for ${projectId} to be committed within 2 seconds`,
+  );
+}
+
 describe("payment confirmation is fail-closed until authority is bound", () => {
   let projectId: string;
 
@@ -285,7 +301,7 @@ describe("conflict decisions require a dedicated authorised workflow", () => {
     blockedId = blocked.id;
     blockedVersion = blocked.version;
     assert.equal(blocked.conflictStatus, "blocked");
-    assert.equal(await conflictRecordCount(blockedId), 1);
+    await waitForConflictRecordCount(blockedId, 1);
   });
 
   test("generic PATCH cannot stamp a consent decision", async () => {
@@ -320,7 +336,7 @@ describe("conflict decisions require a dedicated authorised workflow", () => {
     const body = await json(res);
     blockedVersion = body.version;
     assert.equal(body.conflictStatus, "blocked");
-    assert.equal(await conflictRecordCount(blockedId), 1);
+    await waitForConflictRecordCount(blockedId, 1);
   });
 
   test("moving the project onto a different conflict creates a fresh blocked record", async () => {
@@ -340,6 +356,6 @@ describe("conflict decisions require a dedicated authorised workflow", () => {
     assert.equal(res.status, 200);
     const body = await json(res);
     assert.equal(body.conflictStatus, "blocked");
-    assert.equal(await conflictRecordCount(blockedId), 2);
+    await waitForConflictRecordCount(blockedId, 2);
   });
 });
