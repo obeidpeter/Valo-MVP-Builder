@@ -19,6 +19,7 @@ import {
 } from "./middlewares/security";
 import { registerProductionWebApp } from "./lib/webApp";
 import { createPublicBidAutopsyRouter } from "./routes/public";
+import healthRouter from "./routes/health";
 
 const app: Express = express();
 app.disable("x-powered-by");
@@ -87,6 +88,13 @@ const rejectDisallowedCorsOrigin: ErrorRequestHandler = (
   next(error);
 };
 app.use(rejectDisallowedCorsOrigin);
+
+// Liveness must remain independent of Clerk and request throttling so the
+// deployment sidecar can probe the process through its internal Host header.
+// Mounting the route itself here keeps the bypass exact: only the route's GET
+// handler (and Express' implicit HEAD handling) can skip the global middleware.
+app.use("/api", healthRouter);
+
 app.use(
   createRateLimiter({
     windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000),

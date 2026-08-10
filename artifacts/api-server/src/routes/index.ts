@@ -1,5 +1,4 @@
 import { Router, type IRouter } from "express";
-import healthRouter from "./health";
 import storageRouter from "./storage";
 import meRouter from "./me";
 import usersRouter from "./users";
@@ -35,9 +34,6 @@ import {
 import { attachTenantDatabase } from "../middlewares/databaseTenancy";
 
 const router: IRouter = Router();
-
-// Public: health check.
-router.use(healthRouter);
 
 // Everything below requires an authenticated, provisioned user.
 router.use(attachUser);
