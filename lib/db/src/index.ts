@@ -8,6 +8,7 @@ import {
   isProductionRuntime,
   selectDatabaseConnectionString,
 } from "./runtimeSecurity";
+import { assertIndependentTenantContext } from "./tenantContext";
 
 const { Pool } = pg;
 
@@ -81,6 +82,39 @@ export async function withTenantDatabase<T>(
   );
 }
 
+/**
+ * Runs a short tenant-scoped transaction on a separate pooled connection even
+ * when the caller already has a request transaction. This is intentionally
+ * narrow: use it only for content-free attempt/control evidence that must
+ * survive rollback of the authoritative workflow. Never use it to split a
+ * business mutation or its audit event across transactions.
+ */
+export async function withIndependentTenantDatabase<T>(
+  organisationId: string,
+  callback: () => Promise<T>,
+): Promise<T> {
+  if (!ORGANISATION_ID.test(organisationId)) {
+    throw new Error("Invalid organisation database context");
+  }
+  const active = tenantDatabaseContext.getStore();
+  assertIndependentTenantContext(active?.organisationId, organisationId);
+  return rootDb.transaction(
+    async (transaction) => {
+      await transaction.execute(
+        sql`SELECT valo_security.set_current_organisation_id(${organisationId}::uuid)`,
+      );
+      return tenantDatabaseContext.run(
+        {
+          organisationId,
+          database: transaction as unknown as WorkspaceDatabase,
+        },
+        callback,
+      );
+    },
+    { isolationLevel: "read committed" },
+  );
+}
+
 export function currentTenantDatabaseOrganisation(): string | undefined {
   return tenantDatabaseContext.getStore()?.organisationId;
 }
@@ -89,6 +123,7 @@ export async function assertRuntimeDatabaseSecurity(): Promise<void> {
   await assertProductionRuntimeDatabaseSafety(pool, process.env);
 }
 
+export { assertIndependentTenantContext };
 export {
   isProductionRuntime,
   selectDatabaseConnectionString,

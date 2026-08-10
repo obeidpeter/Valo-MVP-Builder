@@ -484,6 +484,7 @@ router.post(
         paymentConfirmedByAdvisor: governance.project.paymentConfirmedByAdvisor,
         paymentFounderConfirmedBy: governance.project.paymentFounderConfirmedBy,
         paymentAdvisorConfirmedBy: governance.project.paymentAdvisorConfirmedBy,
+        responsivenessSuggested: governance.project.responsivenessSuggested,
       },
       report: {
         generatedBy: report.generatedBy,
@@ -822,6 +823,7 @@ router.get(
         paymentConfirmedByAdvisor: project.paymentConfirmedByAdvisor,
         paymentFounderConfirmedBy: project.paymentFounderConfirmedBy,
         paymentAdvisorConfirmedBy: project.paymentAdvisorConfirmedBy,
+        responsivenessSuggested: project.responsivenessSuggested,
       },
       report: {
         generatedBy: latestReport!.generatedBy,

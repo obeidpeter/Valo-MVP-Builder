@@ -15,6 +15,9 @@ const SbdDetails = lazy(() => import("@/pages/sbd-details"));
 const Settings = lazy(() => import("@/pages/settings"));
 const ClientPortal = lazy(() => import("@/pages/client-portal"));
 const OperationsConsole = lazy(() => import("@/pages/operations-console"));
+const IntelligenceCentre = lazy(
+  () => import("@/pages/intelligence-centre-route"),
+);
 const PartnerWorkspace = lazy(() => import("@/pages/partner-workspace"));
 const BillingEntitlements = lazy(() => import("@/pages/billing-entitlements"));
 const NotificationsConsole = lazy(
@@ -73,6 +76,11 @@ export default function ProtectedRoutes() {
         <Route path="/operations">
           <RequireArea area="operations">
             <OperationsConsole />
+          </RequireArea>
+        </Route>
+        <Route path="/intelligence">
+          <RequireArea area="pursuit_workbench">
+            <IntelligenceCentre />
           </RequireArea>
         </Route>
         <Route path="/portal">

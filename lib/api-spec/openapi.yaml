@@ -46,6 +46,10 @@ tags:
     description: Audit trail
   - name: Operations
     description: Internal workflow controls, notifications, retention and alerts
+  - name: AI Operations
+    description: Sanitised tenant-scoped AI readiness, capability and evaluation telemetry
+  - name: Intelligence
+    description: Deterministic, source-backed decision-support projections for human review
   - name: Storage
     description: Object storage upload and serving endpoints.
   - name: Organisations
@@ -786,6 +790,33 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/WorkflowAlerts"
+  /ai/operations:
+    get:
+      operationId: getAiOperations
+      tags: [AI Operations]
+      summary: Read tenant-scoped AI control-plane status
+      description: >-
+        Returns sanitised AI kill-switch, release-gate, capability, recent-run
+        and evaluation state only for a direct Valo internal operations
+        membership. Client, partner, auditor, restricted-platform-admin and
+        break-glass contexts are denied. Prompt content, document content,
+        provider request identifiers, raw errors and secrets are never
+        returned.
+      responses:
+        "200":
+          description: Current AI operations snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiOperationsSnapshot"
+        "400":
+          $ref: "#/components/responses/TenantSelectionRequired"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
   /projects/{id}/notifications:
     get:
       operationId: listProjectNotifications
@@ -1450,6 +1481,24 @@ paths:
                 $ref: "#/components/schemas/ExtractResult"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/AiInputRejected"
+        "429":
+          $ref: "#/components/responses/AiBudgetExceeded"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "502":
+          $ref: "#/components/responses/AiInvalidProviderResult"
+        "503":
+          $ref: "#/components/responses/AiUnavailable"
   /projects/{id}/scorecard:
     get:
       operationId: getProjectScorecard
@@ -1575,6 +1624,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EvidenceMapResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/AiInputRejected"
+        "429":
+          $ref: "#/components/responses/AiBudgetExceeded"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "502":
+          $ref: "#/components/responses/AiInvalidProviderResult"
+        "503":
+          $ref: "#/components/responses/AiUnavailable"
   /evidence:
     post:
       operationId: createEvidence
@@ -1649,6 +1718,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DefectSuggestResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/AiInputRejected"
+        "429":
+          $ref: "#/components/responses/AiBudgetExceeded"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "502":
+          $ref: "#/components/responses/AiInvalidProviderResult"
+        "503":
+          $ref: "#/components/responses/AiUnavailable"
   /defects:
     post:
       operationId: createDefect
@@ -1789,6 +1878,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResponsivenessResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/AiInputRejected"
+        "429":
+          $ref: "#/components/responses/AiBudgetExceeded"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "502":
+          $ref: "#/components/responses/AiInvalidProviderResult"
+        "503":
+          $ref: "#/components/responses/AiUnavailable"
   /projects/{id}/risk:
     get:
       operationId: getRisk
@@ -1802,6 +1911,35 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RiskAssessment"
+  /projects/{id}/intelligence:
+    get:
+      operationId: getProjectIntelligence
+      tags: [Intelligence]
+      summary: Get the deterministic Intelligence Centre snapshot for a pursuit
+      description: >-
+        Returns content-minimised, tenant-scoped projections for the ten future
+        intelligence capabilities. This operation never invokes a model,
+        authorises submission, changes pricing or performs an external action.
+        Because the response combines multiple governed source classes, the
+        caller must hold client, project, document, requirement, evidence,
+        defect, report, draft and package read authority in the active tenant.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Human-review decision-support snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntelligenceCentreSnapshot"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
   /projects/{id}/risk/override:
     post:
       operationId: overrideRisk
@@ -2275,6 +2413,30 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorEnvelope"
+    AiInputRejected:
+      description: AI input was invalid or exceeded the bounded source limit
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AiWorkflowErrorEnvelope"
+    AiBudgetExceeded:
+      description: The approved AI budget cannot cover this request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AiWorkflowErrorEnvelope"
+    AiInvalidProviderResult:
+      description: The provider result or usage telemetry failed validation
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AiWorkflowErrorEnvelope"
+    AiUnavailable:
+      description: AI is disabled or a required release, model, privacy, region, retention, provider, or capability gate is unavailable
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AiWorkflowErrorEnvelope"
   schemas:
     HealthStatus:
       type: object
@@ -2289,6 +2451,15 @@ components:
       properties:
         error:
           type: string
+    AiWorkflowErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error: { type: string }
+        code: { type: string }
+        actualChars: { type: integer, minimum: 0 }
+        maxChars: { type: integer, minimum: 1 }
     OrganisationType:
       type: string
       enum: [client, valo, consultancy_partner]
@@ -3077,6 +3248,337 @@ components:
                     type: string
                     enum: [expired, critical, warning, upcoming, ok, unknown]
                   daysToExpiry: { type: integer, nullable: true }
+    AiOperationsSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+        - generatedAt
+        - environment
+        - productionAiEnabled
+        - globalKillSwitchEngaged
+        - modelConfiguration
+        - budget
+        - providerPolicy
+        - releaseGate
+        - blockers
+        - capabilities
+        - recentRuns
+        - evaluations
+      properties:
+        generatedAt: { type: string, format: date-time }
+        environment:
+          type: string
+          enum: [development, test, production]
+        productionAiEnabled: { type: boolean }
+        globalKillSwitchEngaged: { type: boolean }
+        modelConfiguration:
+          $ref: "#/components/schemas/AiModelConfigurationStatus"
+        budget:
+          oneOf:
+            - $ref: "#/components/schemas/AiBudgetStatus"
+            - type: "null"
+        providerPolicy:
+          $ref: "#/components/schemas/AiProviderPolicyStatus"
+        releaseGate:
+          $ref: "#/components/schemas/AiReleaseGateStatus"
+        blockers:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+              - AI_GLOBAL_DISABLED
+              - AI_RELEASE_GATE_DENIED
+              - AI_MODEL_CONFIGURATION_UNAVAILABLE
+              - AI_BUDGET_UNAVAILABLE
+              - AI_BUDGET_CURRENCY_MISMATCH
+              - AI_BUDGET_EXCEEDED
+              - AI_PROVIDER_PRIVACY_UNVERIFIED
+              - AI_PROVIDER_UNAVAILABLE
+              - AI_CAPABILITY_DISABLED
+        capabilities:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiCapabilityStatus"
+        recentRuns:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/AiRecentRun"
+        evaluations:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/AiEvaluationRun"
+    IntelligenceCentreSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+        - environment
+        - productionAiEnabled
+        - restrictedMode
+        - generatedAt
+        - project
+        - capabilities
+      properties:
+        environment:
+          type: string
+          enum: [production, staging, development]
+        productionAiEnabled:
+          type: boolean
+          description: >-
+            False for this deterministic release; it must not be interpreted as
+            the status of older separately governed AI workflows.
+        restrictedMode: { type: boolean }
+        generatedAt: { type: string, format: date-time }
+        project:
+          $ref: "#/components/schemas/IntelligenceProjectSummary"
+        capabilities:
+          type: array
+          minItems: 10
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/IntelligenceCapabilitySnapshot"
+    IntelligenceProjectSummary:
+      type: object
+      additionalProperties: false
+      required: [id, title, status, deadline]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        status: { type: string }
+        deadline: { type: [string, "null"] }
+    IntelligenceCapabilitySnapshot:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - state
+        - stateReason
+        - reviewItemCount
+        - citationCount
+        - citations
+        - lastUpdatedAt
+      properties:
+        id:
+          type: string
+          enum:
+            - evidence_graph
+            - addendum_radar
+            - eligibility_passport
+            - grounded_copilot
+            - opportunity_radar
+            - response_studio
+            - submission_preflight
+            - clarification_assistant
+            - boq_sanity
+            - award_handoff
+        state:
+          type: string
+          enum:
+            - review_ready
+            - partial
+            - empty
+            - restricted
+            - production_disabled
+        stateReason: { type: string }
+        summary: { type: string }
+        reviewItemCount: { type: [integer, "null"], minimum: 0 }
+        citationCount: { type: [integer, "null"], minimum: 0 }
+        citations:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/IntelligenceCitation"
+        lastUpdatedAt: { type: [string, "null"], format: date-time }
+    IntelligenceCitation:
+      type: object
+      additionalProperties: false
+      required: [id, sourceName, locator]
+      properties:
+        id: { type: string }
+        sourceName: { type: string }
+        locator: { type: string }
+        excerpt: { type: string, maxLength: 280 }
+    AiModelConfigurationStatus:
+      type: object
+      additionalProperties: false
+      required: [model, configurationVersion, status, evaluationApproved]
+      properties:
+        model: { type: string }
+        configurationVersion: { type: [string, "null"] }
+        status:
+          type: string
+          enum: [draft, promoted]
+        evaluationApproved: { type: boolean }
+    AiBudgetStatus:
+      type: object
+      additionalProperties: false
+      required: [currency, remainingMinor, rateCardVersion]
+      properties:
+        currency: { type: string }
+        remainingMinor: { type: integer, minimum: 0 }
+        rateCardVersion: { type: string }
+    AiProviderPolicyStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - requiredRegion
+        - requireZeroRetention
+        - maxRetentionDays
+        - restrictedModeSupported
+      properties:
+        requiredRegion: { type: string }
+        requireZeroRetention: { type: boolean }
+        maxRetentionDays: { type: integer, minimum: -1 }
+        restrictedModeSupported:
+          type: boolean
+          description: >-
+            True only when at least one currently configured model adapter is
+            eligible for Restricted Mode and satisfies the reported provider
+            privacy policy. False does not block non-Restricted Mode projects.
+    AiReleaseGateStatus:
+      type: object
+      additionalProperties: false
+      required: [applicable, allowed, blockerCodes, expectedVersions]
+      properties:
+        applicable:
+          type: boolean
+          description: Whether production release evidence was evaluated in this environment.
+        allowed: { type: boolean }
+        blockerCodes:
+          type: array
+          uniqueItems: true
+          items: { type: string }
+        expectedVersions:
+          $ref: "#/components/schemas/AiExpectedVersions"
+    AiExpectedVersions:
+      type: object
+      additionalProperties: false
+      required:
+        - model
+        - modelConfiguration
+        - prompt
+        - promptRegistry
+        - schema
+        - retrieval
+        - index
+      properties:
+        model: { type: string }
+        modelConfiguration: { type: string }
+        prompt: { type: string }
+        promptRegistry: { type: string }
+        schema: { type: string }
+        retrieval: { type: string }
+        index: { type: string }
+    AiCapabilityStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - autonomyLevel
+        - outputState
+        - approvalAuthority
+        - environmentApproved
+        - tenantEnabled
+        - effectiveEnabled
+        - promptVersion
+        - promptHash
+        - schemaVersion
+        - schemaHash
+        - limits
+      properties:
+        id:
+          type: string
+          enum:
+            - extract_pdf_multimodal
+            - extract_requirements
+            - map_evidence
+            - suggest_defects
+            - responsiveness_review
+        autonomyLevel: { type: integer, minimum: 1, maximum: 4 }
+        outputState:
+          type: string
+          enum: [non_authoritative_draft]
+        approvalAuthority: { type: string }
+        environmentApproved: { type: boolean }
+        tenantEnabled: { type: boolean }
+        effectiveEnabled: { type: boolean }
+        promptVersion: { type: string }
+        promptHash: { type: string }
+        schemaVersion: { type: string }
+        schemaHash: { type: string }
+        limits:
+          $ref: "#/components/schemas/AiCapabilityLimits"
+    AiCapabilityLimits:
+      type: object
+      additionalProperties: false
+      required:
+        - maxInputBytes
+        - maxOutputTokens
+        - timeoutMs
+        - maxRetriesPerProvider
+        - maxFallbackProviders
+        - maxCostMinor
+        - costCurrency
+      properties:
+        maxInputBytes: { type: integer, minimum: 1 }
+        maxOutputTokens: { type: integer, minimum: 1 }
+        timeoutMs: { type: integer, minimum: 1 }
+        maxRetriesPerProvider: { type: integer, minimum: 0 }
+        maxFallbackProviders: { type: integer, minimum: 0 }
+        maxCostMinor: { type: integer, minimum: 0 }
+        costCurrency:
+          type: string
+          enum: [NGN]
+    AiRecentRun:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - projectId
+        - task
+        - model
+        - promptVersion
+        - promptTokens
+        - completionTokens
+        - status
+        - errorCode
+        - createdAt
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: [string, "null"], format: uuid }
+        task: { type: string }
+        model: { type: [string, "null"] }
+        promptVersion: { type: [string, "null"] }
+        promptTokens: { type: [integer, "null"], minimum: 0 }
+        completionTokens: { type: [integer, "null"], minimum: 0 }
+        status:
+          type: string
+          enum: [succeeded, failed]
+        errorCode: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+    AiEvaluationRun:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - task
+        - corpusVersion
+        - status
+        - sampleSize
+        - releaseDecision
+        - startedAt
+        - completedAt
+      properties:
+        id: { type: string, format: uuid }
+        task: { type: string }
+        corpusVersion: { type: string }
+        status: { type: string }
+        sampleSize: { type: integer, minimum: 0 }
+        releaseDecision: { type: string }
+        startedAt: { type: string, format: date-time }
+        completedAt: { type: [string, "null"], format: date-time }
     NotificationEvent:
       type: object
       required: [id, channel, template, status, createdAt]

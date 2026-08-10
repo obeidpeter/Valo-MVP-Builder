@@ -31,6 +31,11 @@ import type {
 
 import type {
   AccessReview,
+  AiBudgetExceededResponse,
+  AiInputRejectedResponse,
+  AiInvalidProviderResultResponse,
+  AiOperationsSnapshot,
+  AiUnavailableResponse,
   AppConfig,
   AppConfigUpdate,
   AuditEvent,
@@ -72,6 +77,7 @@ import type {
   GetAccessReviewParams,
   GetMonthlyCostReportParams,
   HealthStatus,
+  IntelligenceCentreSnapshot,
   InternalServerErrorResponse,
   LegacyAuditIntegrityAssessment,
   ListProjectsParams,
@@ -229,6 +235,13 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+
+
+
+
+
+
 export const getGetMeUrl = () => {
 
 
@@ -2317,6 +2330,84 @@ export function useGetWorkflowAlerts<TData = Awaited<ReturnType<typeof getWorkfl
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetWorkflowAlertsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAiOperationsUrl = () => {
+
+
+
+
+  return `/api/ai/operations`
+}
+
+/**
+ * Returns sanitised AI kill-switch, release-gate, capability, recent-run and evaluation state only for a direct Valo internal operations membership. Client, partner, auditor, restricted-platform-admin and break-glass contexts are denied. Prompt content, document content, provider request identifiers, raw errors and secrets are never returned.
+ * @summary Read tenant-scoped AI control-plane status
+ */
+export const getAiOperations = async ( options?: RequestInit): Promise<AiOperationsSnapshot> => {
+
+  return customFetch<AiOperationsSnapshot>(getGetAiOperationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAiOperationsQueryKey = () => {
+    return [
+    `/api/ai/operations`
+    ] as const;
+    }
+
+
+export const getGetAiOperationsQueryOptions = <TData = Awaited<ReturnType<typeof getAiOperations>>, TError = ErrorType<TenantSelectionRequiredResponse | UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiOperations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAiOperationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAiOperations>>> = ({ signal }) => getAiOperations({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAiOperations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAiOperationsQueryResult = NonNullable<Awaited<ReturnType<typeof getAiOperations>>>
+export type GetAiOperationsQueryError = ErrorType<TenantSelectionRequiredResponse | UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse>
+
+
+/**
+ * @summary Read tenant-scoped AI control-plane status
+ */
+
+export function useGetAiOperations<TData = Awaited<ReturnType<typeof getAiOperations>>, TError = ErrorType<TenantSelectionRequiredResponse | UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiOperations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAiOperationsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -4675,7 +4766,7 @@ export const extractRequirements = async (id: string,
 
 
 
-export const getExtractRequirementsMutationOptions = <TError = ErrorType<BadRequestResponse>,
+export const getExtractRequirementsMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | AiInputRejectedResponse | AiBudgetExceededResponse | InternalServerErrorResponse | AiInvalidProviderResultResponse | AiUnavailableResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof extractRequirements>>, TError,{id: string;data?: BodyType<ExtractRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof extractRequirements>>, TError,{id: string;data?: BodyType<ExtractRequest>}, TContext> => {
 
@@ -4704,12 +4795,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ExtractRequirementsMutationResult = NonNullable<Awaited<ReturnType<typeof extractRequirements>>>
     export type ExtractRequirementsMutationBody = BodyType<ExtractRequest> | undefined
-    export type ExtractRequirementsMutationError = ErrorType<BadRequestResponse>
+    export type ExtractRequirementsMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | AiInputRejectedResponse | AiBudgetExceededResponse | InternalServerErrorResponse | AiInvalidProviderResultResponse | AiUnavailableResponse>
 
     /**
  * @summary Run LLM extraction of candidate requirements from tender documents
  */
-export const useExtractRequirements = <TError = ErrorType<BadRequestResponse>,
+export const useExtractRequirements = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | AiInputRejectedResponse | AiBudgetExceededResponse | InternalServerErrorResponse | AiInvalidProviderResultResponse | AiUnavailableResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof extractRequirements>>, TError,{id: string;data?: BodyType<ExtractRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof extractRequirements>>,
@@ -5241,7 +5332,7 @@ export const mapEvidence = async (id: string, options?: RequestInit): Promise<Ev
 
 
 
-export const getMapEvidenceMutationOptions = <TError = ErrorType<unknown>,
+export const getMapEvidenceMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | AiInputRejectedResponse | AiBudgetExceededResponse | InternalServerErrorResponse | AiInvalidProviderResultResponse | AiUnavailableResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mapEvidence>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof mapEvidence>>, TError,{id: string}, TContext> => {
 
@@ -5270,12 +5361,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type MapEvidenceMutationResult = NonNullable<Awaited<ReturnType<typeof mapEvidence>>>
 
-    export type MapEvidenceMutationError = ErrorType<unknown>
+    export type MapEvidenceMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | AiInputRejectedResponse | AiBudgetExceededResponse | InternalServerErrorResponse | AiInvalidProviderResultResponse | AiUnavailableResponse>
 
     /**
  * @summary Run LLM evidence mapping against confirmed requirements
  */
-export const useMapEvidence = <TError = ErrorType<unknown>,
+export const useMapEvidence = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | AiInputRejectedResponse | AiBudgetExceededResponse | InternalServerErrorResponse | AiInvalidProviderResultResponse | AiUnavailableResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mapEvidence>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof mapEvidence>>,
@@ -5581,7 +5672,7 @@ export const suggestDefects = async (id: string, options?: RequestInit): Promise
 
 
 
-export const getSuggestDefectsMutationOptions = <TError = ErrorType<unknown>,
+export const getSuggestDefectsMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | AiInputRejectedResponse | AiBudgetExceededResponse | InternalServerErrorResponse | AiInvalidProviderResultResponse | AiUnavailableResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestDefects>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof suggestDefects>>, TError,{id: string}, TContext> => {
 
@@ -5610,12 +5701,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type SuggestDefectsMutationResult = NonNullable<Awaited<ReturnType<typeof suggestDefects>>>
 
-    export type SuggestDefectsMutationError = ErrorType<unknown>
+    export type SuggestDefectsMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | AiInputRejectedResponse | AiBudgetExceededResponse | InternalServerErrorResponse | AiInvalidProviderResultResponse | AiUnavailableResponse>
 
     /**
  * @summary Run LLM defect suggestions from requirement matrix + evidence
  */
-export const useSuggestDefects = <TError = ErrorType<unknown>,
+export const useSuggestDefects = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | AiInputRejectedResponse | AiBudgetExceededResponse | InternalServerErrorResponse | AiInvalidProviderResultResponse | AiUnavailableResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestDefects>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof suggestDefects>>,
@@ -6127,7 +6218,7 @@ export const runResponsivenessReview = async (id: string, options?: RequestInit)
 
 
 
-export const getRunResponsivenessReviewMutationOptions = <TError = ErrorType<unknown>,
+export const getRunResponsivenessReviewMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | AiInputRejectedResponse | AiBudgetExceededResponse | InternalServerErrorResponse | AiInvalidProviderResultResponse | AiUnavailableResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runResponsivenessReview>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof runResponsivenessReview>>, TError,{id: string}, TContext> => {
 
@@ -6156,12 +6247,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type RunResponsivenessReviewMutationResult = NonNullable<Awaited<ReturnType<typeof runResponsivenessReview>>>
 
-    export type RunResponsivenessReviewMutationError = ErrorType<unknown>
+    export type RunResponsivenessReviewMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | AiInputRejectedResponse | AiBudgetExceededResponse | InternalServerErrorResponse | AiInvalidProviderResultResponse | AiUnavailableResponse>
 
     /**
  * @summary Run LLM responsiveness review (suggested narrative)
  */
-export const useRunResponsivenessReview = <TError = ErrorType<unknown>,
+export const useRunResponsivenessReview = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | AiInputRejectedResponse | AiBudgetExceededResponse | InternalServerErrorResponse | AiInvalidProviderResultResponse | AiUnavailableResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runResponsivenessReview>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof runResponsivenessReview>>,
@@ -6231,6 +6322,84 @@ export function useGetRisk<TData = Awaited<ReturnType<typeof getRisk>>, TError =
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetRiskQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetProjectIntelligenceUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/intelligence`
+}
+
+/**
+ * Returns content-minimised, tenant-scoped projections for the ten future intelligence capabilities. This operation never invokes a model, authorises submission, changes pricing or performs an external action. Because the response combines multiple governed source classes, the caller must hold client, project, document, requirement, evidence, defect, report, draft and package read authority in the active tenant.
+ * @summary Get the deterministic Intelligence Centre snapshot for a pursuit
+ */
+export const getProjectIntelligence = async (id: string, options?: RequestInit): Promise<IntelligenceCentreSnapshot> => {
+
+  return customFetch<IntelligenceCentreSnapshot>(getGetProjectIntelligenceUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProjectIntelligenceQueryKey = (id: string,) => {
+    return [
+    `/api/projects/${id}/intelligence`
+    ] as const;
+    }
+
+
+export const getGetProjectIntelligenceQueryOptions = <TData = Awaited<ReturnType<typeof getProjectIntelligence>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectIntelligence>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProjectIntelligenceQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProjectIntelligence>>> = ({ signal }) => getProjectIntelligence(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProjectIntelligence>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProjectIntelligenceQueryResult = NonNullable<Awaited<ReturnType<typeof getProjectIntelligence>>>
+export type GetProjectIntelligenceQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse>
+
+
+/**
+ * @summary Get the deterministic Intelligence Centre snapshot for a pursuit
+ */
+
+export function useGetProjectIntelligence<TData = Awaited<ReturnType<typeof getProjectIntelligence>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectIntelligence>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProjectIntelligenceQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -7432,8 +7601,6 @@ export function useGetStorageObject<TData = Awaited<ReturnType<typeof getStorage
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
 
 
 

@@ -48,3 +48,38 @@ test("a missing globally declared adapter is a startup issue", () => {
   assert.equal(snapshot.strictIssues[0]?.kind, "audit_anchor");
   assert.equal(snapshot.strictIssues[0]?.code, "missing");
 });
+
+test("model workflows stay gated until privacy governance is verified", () => {
+  const base = {
+    kind: "model" as const,
+    provider: "model-provider",
+    mode: "production" as const,
+    productionApproved: true,
+    capabilities: ["structured_json"],
+  };
+  const unverified = buildProductionReadinessSnapshot([], [base]);
+  assert.deepEqual(
+    unverified.featureIssues.model_workflows.map((issue) => issue.code),
+    ["privacy_unverified"],
+  );
+
+  const verified = buildProductionReadinessSnapshot(
+    [],
+    [
+      {
+        ...base,
+        dataGovernance: {
+          externallyHosted: true,
+          noTrainingVerified: true,
+          retentionMode: "zero",
+          maxRetentionDays: null,
+          regions: ["ng"],
+          dpaApproved: true,
+          restrictedModeEligible: false,
+          evidenceVersion: "privacy-review-v1",
+        },
+      },
+    ],
+  );
+  assert.deepEqual(verified.featureIssues.model_workflows, []);
+});

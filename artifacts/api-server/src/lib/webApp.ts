@@ -83,6 +83,7 @@ const PROTECTED_WEB_PREFIXES = [
   "/dashboard",
   "/clients",
   "/projects",
+  "/intelligence",
   "/sbd",
   "/operations",
   "/portal",

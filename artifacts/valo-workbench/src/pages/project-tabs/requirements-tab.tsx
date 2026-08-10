@@ -498,6 +498,54 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
                           .join(", ")}
                       </p>
                     )}
+                    {(req.mergedCitations?.length ?? 0) > 0 && (
+                      <details className="mt-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
+                        <summary className="cursor-pointer font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                          {req.origin === "engine" &&
+                          req.mergedCitations?.length === 1
+                            ? "Show grounded source quote"
+                            : `Show ${req.mergedCitations?.length ?? 0} recorded citation ${
+                                req.mergedCitations?.length === 1
+                                  ? "record"
+                                  : "records"
+                              }`}
+                        </summary>
+                        <ul className="mt-2 space-y-2">
+                          {(req.mergedCitations ?? []).map(
+                            (citation, index) => (
+                              <li
+                                key={`${citation.sourceDocId ?? "source"}-${index}`}
+                                className="border-l-2 border-primary/40 pl-2"
+                              >
+                                {citation.text ? (
+                                  <blockquote className="leading-relaxed text-foreground">
+                                    “{citation.text}”
+                                  </blockquote>
+                                ) : (
+                                  <p className="text-muted-foreground">
+                                    No source excerpt is recorded.
+                                  </p>
+                                )}
+                                <p className="mt-1 text-muted-foreground">
+                                  {citation.sourceDocName ??
+                                    "Source document name unavailable"}
+                                  {[citation.pageRef, citation.clauseRef].some(
+                                    Boolean,
+                                  )
+                                    ? ` · ${[
+                                        citation.pageRef,
+                                        citation.clauseRef,
+                                      ]
+                                        .filter(Boolean)
+                                        .join(", ")}`
+                                    : ""}
+                                </p>
+                              </li>
+                            ),
+                          )}
+                        </ul>
+                      </details>
+                    )}
                     {req.reviewStatus === "edited" &&
                       req.engineText &&
                       req.engineText !== req.text && (

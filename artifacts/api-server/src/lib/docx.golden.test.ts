@@ -17,7 +17,11 @@ import { buildReportDocx, type ReportData } from "./docx";
  * and review the golden diff in the PR like any other code change.
  */
 
-const GOLDEN_PATH = join(import.meta.dirname, "__goldens__", "report-reference.txt");
+const GOLDEN_PATH = join(
+  import.meta.dirname,
+  "__goldens__",
+  "report-reference.txt",
+);
 
 const REFERENCE: ReportData = {
   project: {
@@ -32,7 +36,8 @@ const REFERENCE: ReportData = {
     limitations: "BOQ addendum 2 was not provided by the client.",
     redactionScope: "Financial pages 41-58 excluded at client request",
     restrictedMode: false,
-    responsivenessReview: "The bid is broadly responsive.\n\nSection 4 omits the after-sales plan the ITB requires.",
+    responsivenessReview:
+      "The bid is broadly responsive.\n\nSection 4 omits the after-sales plan the ITB requires.",
     responsivenessSuggested: true,
   },
   client: { name: "Acme Integrated Services Ltd", ndaStatus: "signed" },
@@ -109,7 +114,8 @@ const REFERENCE: ReportData = {
     {
       lineRef: "3.04",
       checkType: "extension",
-      finding: "Extension mismatch: 40 × ₦125,000.00 = ₦5,000,000.00 but sheet shows ₦4,999,999.50",
+      finding:
+        "Extension mismatch: 40 × ₦125,000.00 = ₦5,000,000.00 but sheet shows ₦4,999,999.50",
       severity: "scoring_risk",
       status: "flagged",
     },
@@ -117,7 +123,8 @@ const REFERENCE: ReportData = {
   risk: {
     score: 45,
     band: "high",
-    explanation: "1 open fatal defect (40) and 1 mandatory requirement without resolved evidence (5).",
+    explanation:
+      "1 open fatal defect (40) and 1 mandatory requirement without resolved evidence (5).",
     overrideBand: null,
     overrideNote: null,
     overrideBy: null,
@@ -153,7 +160,9 @@ describe("report golden file (FR-ASM-01)", () => {
       return;
     }
 
-    const golden = readFileSync(GOLDEN_PATH, "utf-8").trim();
+    const golden = readFileSync(GOLDEN_PATH, "utf-8")
+      .replace(/\r\n?/g, "\n")
+      .trim();
     assert.equal(
       text,
       golden,
@@ -162,7 +171,10 @@ describe("report golden file (FR-ASM-01)", () => {
   });
 
   test("two renders of the same inputs are identical (determinism)", async () => {
-    const [a, b] = await Promise.all([buildReportDocx(REFERENCE), buildReportDocx(REFERENCE)]);
+    const [a, b] = await Promise.all([
+      buildReportDocx(REFERENCE),
+      buildReportDocx(REFERENCE),
+    ]);
     assert.equal(await renderedText(a), await renderedText(b));
   });
 });

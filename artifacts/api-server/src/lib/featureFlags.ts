@@ -36,3 +36,41 @@ export async function isTenantFeatureEnabled(
     ? lookup()
     : withTenantDatabase(organisationId, lookup);
 }
+
+export function explicitTenantFlagValue(
+  rows: ReadonlyArray<{ organisationId: string | null; enabled: boolean }>,
+  organisationId: string,
+): boolean {
+  return (
+    rows.find((row) => row.organisationId === organisationId)?.enabled === true
+  );
+}
+
+/**
+ * Sensitive production controls must never inherit a global default. Missing,
+ * duplicate or global-only configuration is disabled for this tenant.
+ */
+export async function isExplicitTenantFeatureEnabled(
+  organisationId: string,
+  key: string,
+): Promise<boolean> {
+  const lookup = async (): Promise<boolean> => {
+    const rows = await db
+      .select({
+        organisationId: featureFlags.organisationId,
+        enabled: featureFlags.enabled,
+      })
+      .from(featureFlags)
+      .where(
+        and(
+          eq(featureFlags.key, key),
+          eq(featureFlags.organisationId, organisationId),
+        ),
+      );
+    return rows.length === 1 && explicitTenantFlagValue(rows, organisationId);
+  };
+
+  return currentTenantDatabaseOrganisation() === organisationId
+    ? lookup()
+    : withTenantDatabase(organisationId, lookup);
+}

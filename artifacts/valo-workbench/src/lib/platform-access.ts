@@ -70,7 +70,20 @@ export interface PlatformNavItem {
   group: "Workspace" | "Delivery" | "Oversight" | "Administration";
   feature?: CommercialFeature;
   requiredPermission?: string;
+  requiredPermissions?: readonly string[];
 }
+
+export const INTELLIGENCE_READ_PERMISSIONS = [
+  "client:read",
+  "project:read",
+  "document:read",
+  "requirement:read",
+  "evidence:read",
+  "defect:read",
+  "report:read",
+  "draft:read",
+  "package:read",
+] as const;
 
 const CLIENT_ROLES = new Set<PlatformRole>([
   "client_owner",
@@ -226,6 +239,13 @@ const NAV_ITEMS: PlatformNavItem[] = [
     area: "pursuit_workbench",
     group: "Workspace",
     requiredPermission: "project:read",
+  },
+  {
+    href: "/intelligence",
+    label: "Intelligence Centre",
+    area: "pursuit_workbench",
+    group: "Workspace",
+    requiredPermissions: INTELLIGENCE_READ_PERMISSIONS,
   },
   {
     href: "/portal",
@@ -469,11 +489,17 @@ export function navigationForRole(
       flags,
       effectivePermissions,
     );
-    const itemPermissionAllowed =
+    const singlePermissionAllowed =
       !item.requiredPermission ||
       effectivePermissions === undefined ||
       effectivePermissions.includes(item.requiredPermission);
-    return decision.allowed && itemPermissionAllowed
+    const permissionSetAllowed =
+      !item.requiredPermissions ||
+      effectivePermissions === undefined ||
+      item.requiredPermissions.every((permission) =>
+        effectivePermissions.includes(permission),
+      );
+    return decision.allowed && singlePermissionAllowed && permissionSetAllowed
       ? [{ ...item, state: decision.state }]
       : [];
   });

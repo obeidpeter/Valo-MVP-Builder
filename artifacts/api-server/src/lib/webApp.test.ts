@@ -34,6 +34,7 @@ describe("production web route indexing", () => {
       "/accept-invitation",
       "/app",
       "/projects/example-sensitive-id",
+      "/intelligence?project=example-sensitive-id",
       "/organisation-settings",
       "/not-an-implemented-public-page",
     ]) {
@@ -41,6 +42,7 @@ describe("production web route indexing", () => {
     }
     assert.equal(isApplicationWebPath("/sign-in"), true);
     assert.equal(isApplicationWebPath("/projects/example-sensitive-id"), true);
+    assert.equal(isApplicationWebPath("/intelligence"), true);
     assert.equal(
       isApplicationWebPath("/not-an-implemented-public-page"),
       false,
@@ -125,6 +127,7 @@ describe("production web route indexing", () => {
         for (const pathname of [
           "/sign-in",
           "/projects/example-sensitive-id",
+          "/intelligence?project=example-sensitive-id",
           "/not-a-public-page",
         ]) {
           const privateResponse = await fetch(`${origin}${pathname}`);

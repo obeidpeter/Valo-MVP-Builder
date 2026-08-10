@@ -1,10 +1,10 @@
 /**
- * Hand-labelled tender corpus for the eval harness v0 (FR-EXT-05, BP §9).
+ * Synthetic-style inline tender corpus for the Gate-0 self-check.
  *
- * Each entry is a realistic public-procurement tender (SADC/West-African
- * flavour, matching the domain the workbench serves) paired with a VERIFIED
- * ground-truth list of the discrete submission requirements a competent
- * reviewer would expect the engine to surface. The harness runs the real
+ * Each entry is a public-procurement scenario paired with a repository label
+ * list. No retained source document, authorisation record, annotator identity,
+ * independent adjudication or holdout evidence accompanies these fixtures.
+ * They are not production evaluation evidence. The harness can run the real
  * extraction engine over `documentText` and measures recall against
  * `groundTruth` (see scripts/run-eval-harness.ts and lib/evalHarness.ts).
  *
@@ -17,8 +17,8 @@
  *  - `mandatory` mirrors what the clause says (MUST/shall/mandatory vs
  *    should/desirable), independent of whether the engine agrees.
  *
- * This is v0 (>= 10 tenders). The v1.0 bar (>= 25 tenders, >= 95% recall) is
- * out of scope here.
+ * Production promotion requires the separate manifest contract, at least 25
+ * authorised holdout cases, required cohorts and the production metric gates.
  */
 import type { EvalTender } from "../../src/lib/evalHarness";
 
@@ -47,13 +47,19 @@ Clause 7.1  Bidders MUST submit a valid Company Registration certificate (CIPC r
         id: "tax-clearance",
         label: "Valid Tax Clearance Certificate / SARS Tax Compliance PIN",
         mandatory: true,
-        match: [["tax clearance", "tax compliance", "sars"], ["certificate", "pin", "status"]],
+        match: [
+          ["tax clearance", "tax compliance", "sars"],
+          ["certificate", "pin", "status"],
+        ],
       },
       {
         id: "bbee",
         label: "B-BBEE Status Level Verification Certificate",
         mandatory: true,
-        match: [["b-bbee", "bbee", "b bbee"], ["certificate", "verification", "status level"]],
+        match: [
+          ["b-bbee", "bbee", "b bbee"],
+          ["certificate", "verification", "status level"],
+        ],
       },
       {
         id: "bid-security",
@@ -71,7 +77,10 @@ Clause 7.1  Bidders MUST submit a valid Company Registration certificate (CIPC r
         id: "company-registration",
         label: "Company Registration (CIPC) certificate",
         mandatory: true,
-        match: [["company registration", "cipc", "registration"], ["certificate", "document", "registration"]],
+        match: [
+          ["company registration", "cipc", "registration"],
+          ["certificate", "document", "registration"],
+        ],
       },
     ],
   },
@@ -97,7 +106,10 @@ Section 5: Technical
         id: "cac",
         label: "Valid CAC certificate of incorporation",
         mandatory: true,
-        match: [["cac", "corporate affairs"], ["certificate", "incorporation"]],
+        match: [
+          ["cac", "corporate affairs"],
+          ["certificate", "incorporation"],
+        ],
       },
       {
         id: "pencom",
@@ -109,31 +121,50 @@ Section 5: Technical
         id: "tax-clearance-3y",
         label: "Tax Clearance Certificate for last three years",
         mandatory: true,
-        match: [["tax clearance"], ["certificate", "three", "3 years", "years"]],
+        match: [
+          ["tax clearance"],
+          ["certificate", "three", "3 years", "years"],
+        ],
       },
       {
         id: "itf",
         label: "ITF compliance certificate",
         mandatory: true,
-        match: [["itf", "industrial training fund"], ["compliance", "certificate"]],
+        match: [
+          ["itf", "industrial training fund"],
+          ["compliance", "certificate"],
+        ],
       },
       {
         id: "audited-financials",
         label: "Audited financial statements (3 years)",
         mandatory: true,
-        match: [["audited"], ["financial statements", "financial", "accounts", "statements"]],
+        match: [
+          ["audited"],
+          ["financial statements", "financial", "accounts", "statements"],
+        ],
       },
       {
         id: "bid-security-2pct",
         label: "Bid security equal to 2% of bid price",
         mandatory: true,
-        match: [["bid security", "bid bond"], ["2%", "2 %", "2 percent", "2 per cent"]],
+        match: [
+          ["bid security", "bid bond"],
+          ["2%", "2 %", "2 percent", "2 per cent"],
+        ],
       },
       {
         id: "org-chart",
         label: "Organisational chart and CVs of key personnel (desirable)",
         mandatory: false,
-        match: [["organisational chart", "organizational chart", "cvs", "key personnel"]],
+        match: [
+          [
+            "organisational chart",
+            "organizational chart",
+            "cvs",
+            "key personnel",
+          ],
+        ],
       },
     ],
   },
@@ -153,19 +184,28 @@ Section 5: Technical
         id: "csd",
         label: "Central Supplier Database (CSD) registration report",
         mandatory: true,
-        match: [["csd", "central supplier database"], ["registration", "summary", "report"]],
+        match: [
+          ["csd", "central supplier database"],
+          ["registration", "summary", "report"],
+        ],
       },
       {
         id: "tax-pin",
         label: "Valid Tax Compliance Status PIN",
         mandatory: true,
-        match: [["tax compliance", "tax clearance"], ["pin", "status"]],
+        match: [
+          ["tax compliance", "tax clearance"],
+          ["pin", "status"],
+        ],
       },
       {
         id: "sabs-iso",
         label: "SABS/ISO certification / certificate of conformance for PPE",
         mandatory: true,
-        match: [["sabs", "iso", "conformance"], ["certification", "certificate", "conformance"]],
+        match: [
+          ["sabs", "iso", "conformance"],
+          ["certification", "certificate", "conformance"],
+        ],
       },
       {
         id: "sbd4",
@@ -177,7 +217,10 @@ Section 5: Technical
         id: "delivery-leadtime",
         label: "Delivery within 21 days / confirm lead time",
         mandatory: true,
-        match: [["delivery", "lead time"], ["21", "days", "written", "writing"]],
+        match: [
+          ["delivery", "lead time"],
+          ["21", "days", "written", "writing"],
+        ],
       },
       {
         id: "samples",
@@ -215,25 +258,37 @@ C1.6  Bidders shall submit a construction programme (Gantt chart) indicating a c
         id: "bid-guarantee-5pct",
         label: "Bid guarantee of 5% valid 120 days",
         mandatory: true,
-        match: [["bid guarantee", "bid security", "guarantee"], ["5%", "5 %", "5 percent", "120"]],
+        match: [
+          ["bid guarantee", "bid security", "guarantee"],
+          ["5%", "5 %", "5 percent", "120"],
+        ],
       },
       {
         id: "priced-boq",
         label: "Fully priced Bill of Quantities",
         mandatory: true,
-        match: [["bill of quantities", "boq"], ["priced", "pricing", "unpriced", "responsive"]],
+        match: [
+          ["bill of quantities", "boq"],
+          ["priced", "pricing", "unpriced", "responsive"],
+        ],
       },
       {
         id: "hs-plan",
         label: "Health and Safety plan (Construction Regulations)",
         mandatory: true,
-        match: [["health and safety", "safety plan"], ["plan", "construction regulations"]],
+        match: [
+          ["health and safety", "safety plan"],
+          ["plan", "construction regulations"],
+        ],
       },
       {
         id: "programme",
         label: "Construction programme / Gantt within 9 months",
         mandatory: true,
-        match: [["programme", "program", "gantt"], ["9 months", "completion", "months"]],
+        match: [
+          ["programme", "program", "gantt"],
+          ["9 months", "completion", "months"],
+        ],
       },
     ],
   },
@@ -253,19 +308,28 @@ C1.6  Bidders shall submit a construction programme (Gantt chart) indicating a c
         id: "maf",
         label: "Manufacturer's authorisation letter (MAF) within 3 months",
         mandatory: true,
-        match: [["manufacturer", "oem", "maf", "authorisation", "authorization"], ["authorisation", "authorization", "letter", "reseller"]],
+        match: [
+          ["manufacturer", "oem", "maf", "authorisation", "authorization"],
+          ["authorisation", "authorization", "letter", "reseller"],
+        ],
       },
       {
         id: "warranty",
         label: "Minimum 3-year manufacturer warranty, brand-new equipment",
         mandatory: true,
-        match: [["warranty", "brand-new", "brand new", "original"], ["3-year", "3 year", "warranty", "years"]],
+        match: [
+          ["warranty", "brand-new", "brand new", "original"],
+          ["3-year", "3 year", "warranty", "years"],
+        ],
       },
       {
         id: "tax-clearance",
         label: "Valid Tax Clearance Certificate",
         mandatory: true,
-        match: [["tax clearance", "tax compliance"], ["certificate", "status", "pin"]],
+        match: [
+          ["tax clearance", "tax compliance"],
+          ["certificate", "status", "pin"],
+        ],
       },
       {
         id: "reference-sites",
@@ -277,7 +341,10 @@ C1.6  Bidders shall submit a construction programme (Gantt chart) indicating a c
         id: "director-ids",
         label: "Certified copies of directors' ID documents",
         mandatory: true,
-        match: [["director", "directors"], ["identity", "id document", "id documents", "certified"]],
+        match: [
+          ["director", "directors"],
+          ["identity", "id document", "id documents", "certified"],
+        ],
       },
       {
         id: "training",
@@ -303,19 +370,28 @@ F. Bidders should provide evidence of ISO 9001 quality management certification.
         id: "tax-csd",
         label: "Tax Compliance PIN and CSD summary report",
         mandatory: true,
-        match: [["tax compliance", "tax clearance"], ["pin", "csd", "status"]],
+        match: [
+          ["tax compliance", "tax clearance"],
+          ["pin", "csd", "status"],
+        ],
       },
       {
         id: "public-liability",
         label: "Public liability insurance >= ZAR 5 million",
         mandatory: true,
-        match: [["public liability", "liability insurance", "insurance"], ["5 million", "insurance", "certificate"]],
+        match: [
+          ["public liability", "liability insurance", "insurance"],
+          ["5 million", "insurance", "certificate"],
+        ],
       },
       {
         id: "workshop-radius",
         label: "Workshop within 30 km / proof of premises",
         mandatory: true,
-        match: [["workshop", "premises"], ["30 km", "radius", "lease", "title deed", "premises"]],
+        match: [
+          ["workshop", "premises"],
+          ["30 km", "radius", "lease", "title deed", "premises"],
+        ],
       },
       {
         id: "sbd-forms",
@@ -327,7 +403,10 @@ F. Bidders should provide evidence of ISO 9001 quality management certification.
         id: "sla-turnaround",
         label: "Service-level commitment, 48-hour turnaround",
         mandatory: true,
-        match: [["service level", "service-level", "turnaround"], ["48", "hours", "turnaround"]],
+        match: [
+          ["service level", "service-level", "turnaround"],
+          ["48", "hours", "turnaround"],
+        ],
       },
       {
         id: "iso9001",
@@ -354,37 +433,62 @@ R7  Bidders should provide a maintenance plan for the first two years.`,
         id: "greencard",
         label: "PV GreenCard installer certificate",
         mandatory: true,
-        match: [["greencard", "green card", "pv green"], ["installer", "certificate"]],
+        match: [
+          ["greencard", "green card", "pv green"],
+          ["installer", "certificate"],
+        ],
       },
       {
         id: "electrical-registration",
         label: "Electrical Contractor registration / wireman's licence",
         mandatory: true,
-        match: [["electrical contractor", "wireman", "department of labour"], ["registration", "licence", "license"]],
+        match: [
+          ["electrical contractor", "wireman", "department of labour"],
+          ["registration", "licence", "license"],
+        ],
       },
       {
         id: "bid-security",
         label: "Bid security ZAR 200,000 valid 90 days",
         mandatory: true,
-        match: [["bid security", "bid bond"], ["200", "90 days", "valid"]],
+        match: [
+          ["bid security", "bid bond"],
+          ["200", "90 days", "valid"],
+        ],
       },
       {
         id: "iec-approved",
         label: "IEC-certified modules/inverters on approved list",
         mandatory: true,
-        match: [["iec", "approved-products", "approved products"], ["certification", "certified", "approved", "list"]],
+        match: [
+          ["iec", "approved-products", "approved products"],
+          ["certification", "certified", "approved", "list"],
+        ],
       },
       {
         id: "priced-boq-diagram",
         label: "Priced BOQ and single-line diagram",
         mandatory: true,
-        match: [["bill of quantities", "boq", "single-line", "single line"], ["priced", "diagram", "pricing"]],
+        match: [
+          ["bill of quantities", "boq", "single-line", "single line"],
+          ["priced", "diagram", "pricing"],
+        ],
       },
       {
         id: "warranty",
         label: "5-year workmanship warranty, 10-year performance guarantee",
         mandatory: true,
-        match: [["warranty", "guarantee"], ["5-year", "5 year", "10-year", "10 year", "workmanship", "performance"]],
+        match: [
+          ["warranty", "guarantee"],
+          [
+            "5-year",
+            "5 year",
+            "10-year",
+            "10 year",
+            "workmanship",
+            "performance",
+          ],
+        ],
       },
       {
         id: "maintenance-plan",
@@ -410,37 +514,55 @@ vi.   Bidders shall provide two trade references from previous catering contract
         id: "acceptability",
         label: "Certificate of Acceptability for food premises",
         mandatory: true,
-        match: [["acceptability", "food premises", "health act"], ["certificate", "acceptability"]],
+        match: [
+          ["acceptability", "food premises", "health act"],
+          ["certificate", "acceptability"],
+        ],
       },
       {
         id: "tax-csd",
         label: "Tax Clearance Certificate and CSD registration",
         mandatory: true,
-        match: [["tax clearance", "tax compliance"], ["certificate", "csd", "status"]],
+        match: [
+          ["tax clearance", "tax compliance"],
+          ["certificate", "csd", "status"],
+        ],
       },
       {
         id: "haccp",
         label: "Food-handling / HACCP certification",
         mandatory: true,
-        match: [["haccp", "food-handling", "food handling"], ["certification", "certificate"]],
+        match: [
+          ["haccp", "food-handling", "food handling"],
+          ["certification", "certificate"],
+        ],
       },
       {
         id: "capacity",
         label: "Capacity for 5,000 meals/day + distribution plan",
         mandatory: true,
-        match: [["meals", "distribution", "capacity"], ["5000", "5,000", "distribution", "plan", "per day"]],
+        match: [
+          ["meals", "distribution", "capacity"],
+          ["5000", "5,000", "distribution", "plan", "per day"],
+        ],
       },
       {
         id: "bbee",
         label: "B-BBEE certificate (PPPFA preference)",
         mandatory: true,
-        match: [["b-bbee", "bbee", "b bbee"], ["certificate", "preference", "pppfa"]],
+        match: [
+          ["b-bbee", "bbee", "b bbee"],
+          ["certificate", "preference", "pppfa"],
+        ],
       },
       {
         id: "trade-refs",
         label: "Two trade references (desirable)",
         mandatory: false,
-        match: [["reference", "references"], ["two", "trade"]],
+        match: [
+          ["reference", "references"],
+          ["two", "trade"],
+        ],
       },
     ],
   },
@@ -467,7 +589,10 @@ vi.   Bidders shall provide two trade references from previous catering contract
         id: "graded-officers",
         label: "PSIRA Grade C+ officers schedule",
         mandatory: true,
-        match: [["grade c", "graded", "psira-graded"], ["officers", "grade", "schedule"]],
+        match: [
+          ["grade c", "graded", "psira-graded"],
+          ["officers", "grade", "schedule"],
+        ],
       },
       {
         id: "coida",
@@ -479,25 +604,37 @@ vi.   Bidders shall provide two trade references from previous catering contract
         id: "minimum-wage",
         label: "Proof of Sectoral Determination minimum-wage compliance",
         mandatory: true,
-        match: [["minimum wage", "sectoral determination"], ["compliance", "minimum wage", "determination"]],
+        match: [
+          ["minimum wage", "sectoral determination"],
+          ["compliance", "minimum wage", "determination"],
+        ],
       },
       {
         id: "public-liability",
         label: "Public liability insurance >= ZAR 10 million",
         mandatory: true,
-        match: [["public liability", "liability insurance"], ["10 million", "insurance"]],
+        match: [
+          ["public liability", "liability insurance"],
+          ["10 million", "insurance"],
+        ],
       },
       {
         id: "tax-pin",
         label: "Valid Tax Compliance Status PIN",
         mandatory: true,
-        match: [["tax compliance", "tax clearance"], ["pin", "status"]],
+        match: [
+          ["tax compliance", "tax clearance"],
+          ["pin", "status"],
+        ],
       },
       {
         id: "control-room",
         label: "Control-room / incident-reporting capability (desirable)",
         mandatory: false,
-        match: [["control-room", "control room", "incident"], ["control room", "incident", "reporting"]],
+        match: [
+          ["control-room", "control room", "incident"],
+          ["control room", "incident", "reporting"],
+        ],
       },
     ],
   },
@@ -518,25 +655,37 @@ Q7  Bidders should indicate local content percentage in accordance with SABS loc
         id: "reg-tax",
         label: "Company registration + Tax Clearance Certificate",
         mandatory: true,
-        match: [["company registration", "registration", "tax clearance"], ["tax clearance", "certificate", "registration"]],
+        match: [
+          ["company registration", "registration", "tax clearance"],
+          ["tax clearance", "certificate", "registration"],
+        ],
       },
       {
         id: "water-licence",
         label: "Water-use authorisation / licence (National Water Act)",
         mandatory: true,
-        match: [["water-use", "water use", "national water act"], ["authorisation", "authorization", "licence", "license"]],
+        match: [
+          ["water-use", "water use", "national water act"],
+          ["authorisation", "authorization", "licence", "license"],
+        ],
       },
       {
         id: "bid-security",
         label: "Bid security ZAR 75,000 valid 90 days",
         mandatory: true,
-        match: [["bid security", "bid bond"], ["75", "90 days", "valid"]],
+        match: [
+          ["bid security", "bid bond"],
+          ["75", "90 days", "valid"],
+        ],
       },
       {
         id: "technical-proposal",
         label: "Technical proposal with pump sizing and hydraulic design",
         mandatory: true,
-        match: [["technical proposal", "pump sizing", "hydraulic"], ["proposal", "calculations", "design", "sizing"]],
+        match: [
+          ["technical proposal", "pump sizing", "hydraulic"],
+          ["proposal", "calculations", "design", "sizing"],
+        ],
       },
       {
         id: "warranty",
@@ -548,7 +697,10 @@ Q7  Bidders should indicate local content percentage in accordance with SABS loc
         id: "similar-installs",
         label: "Three similar centre-pivot installations",
         mandatory: true,
-        match: [["installations", "installation", "similar"], ["three", "centre-pivot", "centre pivot"]],
+        match: [
+          ["installations", "installation", "similar"],
+          ["three", "centre-pivot", "centre pivot"],
+        ],
       },
       {
         id: "local-content",
@@ -575,25 +727,37 @@ L7  Bidders should submit a B-BBEE verification certificate.`,
         id: "tax-csd",
         label: "Tax Compliance PIN and CSD summary",
         mandatory: true,
-        match: [["tax compliance", "tax clearance"], ["pin", "csd", "status"]],
+        match: [
+          ["tax compliance", "tax clearance"],
+          ["pin", "csd", "status"],
+        ],
       },
       {
         id: "acceptability",
         label: "Certificate of Acceptability for laundry premises",
         mandatory: true,
-        match: [["acceptability", "premises"], ["certificate", "acceptability", "premises"]],
+        match: [
+          ["acceptability", "premises"],
+          ["certificate", "acceptability", "premises"],
+        ],
       },
       {
         id: "infection-control",
         label: "Infection-control protocol (SANS 10146)",
         mandatory: true,
-        match: [["infection", "sans 10146", "sans"], ["control", "protocol", "10146"]],
+        match: [
+          ["infection", "sans 10146", "sans"],
+          ["control", "protocol", "10146"],
+        ],
       },
       {
         id: "public-liability",
         label: "Public liability insurance >= ZAR 5 million",
         mandatory: true,
-        match: [["public liability", "liability insurance"], ["5 million", "insurance"]],
+        match: [
+          ["public liability", "liability insurance"],
+          ["5 million", "insurance"],
+        ],
       },
       {
         id: "sbd4",
@@ -605,13 +769,19 @@ L7  Bidders should submit a B-BBEE verification certificate.`,
         id: "schedule",
         label: "Collection/delivery schedule, 24-hour turnaround",
         mandatory: true,
-        match: [["collection", "delivery", "schedule", "turnaround"], ["24", "hour", "schedule", "turnaround"]],
+        match: [
+          ["collection", "delivery", "schedule", "turnaround"],
+          ["24", "hour", "schedule", "turnaround"],
+        ],
       },
       {
         id: "bbee",
         label: "B-BBEE verification certificate (desirable)",
         mandatory: false,
-        match: [["b-bbee", "bbee", "b bbee"], ["certificate", "verification"]],
+        match: [
+          ["b-bbee", "bbee", "b bbee"],
+          ["certificate", "verification"],
+        ],
       },
     ],
   },
@@ -636,49 +806,76 @@ Instructions to Bidders (ITB):
         id: "cac-cert",
         label: "Valid CAC certificate of incorporation",
         mandatory: true,
-        match: [["cac", "certificate of incorporation", "corporate affairs commission"]],
+        match: [
+          [
+            "cac",
+            "certificate of incorporation",
+            "corporate affairs commission",
+          ],
+        ],
       },
       {
         id: "tax-clearance",
         label: "Tax clearance for the last three years",
         mandatory: true,
-        match: [["tax clearance", "tax compliance"], ["three", "3"]],
+        match: [
+          ["tax clearance", "tax compliance"],
+          ["three", "3"],
+        ],
       },
       {
         id: "pencom",
         label: "Current PENCOM compliance certificate",
         mandatory: true,
-        match: [["pencom", "pension"], ["compliance", "certificate"]],
+        match: [
+          ["pencom", "pension"],
+          ["compliance", "certificate"],
+        ],
       },
       {
         id: "itf",
         label: "Current ITF compliance certificate",
         mandatory: true,
-        match: [["itf", "industrial training fund"], ["compliance", "certificate"]],
+        match: [
+          ["itf", "industrial training fund"],
+          ["compliance", "certificate"],
+        ],
       },
       {
         id: "nsitf",
         label: "Current NSITF compliance certificate",
         mandatory: true,
-        match: [["nsitf", "social insurance"], ["compliance", "certificate"]],
+        match: [
+          ["nsitf", "social insurance"],
+          ["compliance", "certificate"],
+        ],
       },
       {
         id: "bpp-database",
         label: "Registration on the BPP National Database of Contractors",
         mandatory: true,
-        match: [["bpp", "national database"], ["registration", "contractors"]],
+        match: [
+          ["bpp", "national database"],
+          ["registration", "contractors"],
+        ],
       },
       {
         id: "bid-security",
         label: "Bid security of 2% of the bid price from a reputable bank",
         mandatory: true,
-        match: [["bid security", "bid bond"], ["2", "two percent"]],
+        match: [
+          ["bid security", "bid bond"],
+          ["2", "two percent"],
+        ],
       },
       {
         id: "bid-validity",
         label: "Bid valid for ninety days from bid opening",
         mandatory: true,
-        match: [["valid", "validity"], ["90", "ninety"]],
+        match: [
+          ["valid", "validity"],
+          ["90", "ninety"],
+        ],
       },
       {
         id: "copies",
@@ -717,13 +914,15 @@ Commercial bids will be opened only for bidders that pass the technical evaluati
       },
       {
         id: "ncec",
-        label: "NCDMB Nigerian Content Equipment Certificate or application evidence",
+        label:
+          "NCDMB Nigerian Content Equipment Certificate or application evidence",
         mandatory: true,
         match: [["ncdmb", "ncec", "nigerian content equipment"]],
       },
       {
         id: "nc-plan",
-        label: "Nigerian Content Plan demonstrating minimum 70% Nigerian content",
+        label:
+          "Nigerian Content Plan demonstrating minimum 70% Nigerian content",
         mandatory: true,
         match: [["nigerian content plan"], ["70"]],
       },
@@ -731,17 +930,25 @@ Commercial bids will be opened only for bidders that pass the technical evaluati
         id: "dpr-nuprc",
         label: "Certificate of registration with DPR / NUPRC",
         mandatory: true,
-        match: [["dpr", "nuprc", "department of petroleum"], ["registration", "certificate"]],
+        match: [
+          ["dpr", "nuprc", "department of petroleum"],
+          ["registration", "certificate"],
+        ],
       },
       {
         id: "vessels",
-        label: "Ownership or bareboat charter of two DP2 platform supply vessels",
+        label:
+          "Ownership or bareboat charter of two DP2 platform supply vessels",
         mandatory: true,
-        match: [["dp2", "platform supply vessel"], ["two", "2"]],
+        match: [
+          ["dp2", "platform supply vessel"],
+          ["two", "2"],
+        ],
       },
       {
         id: "ism",
-        label: "ISM Code Document of Compliance and Safety Management Certificate per vessel",
+        label:
+          "ISM Code Document of Compliance and Safety Management Certificate per vessel",
         mandatory: true,
         match: [["ism"], ["document of compliance", "safety management"]],
       },
@@ -784,19 +991,31 @@ Note: Site visit is recommended before bid submission.`,
         id: "audited-accounts",
         label: "Audited accounts for the last three years",
         mandatory: true,
-        match: [["audited accounts", "audited financial"], ["three", "3"]],
+        match: [
+          ["audited accounts", "audited financial"],
+          ["three", "3"],
+        ],
       },
       {
         id: "credit-line",
-        label: "Bank reference letter and credit line of not less than N200,000,000",
+        label:
+          "Bank reference letter and credit line of not less than N200,000,000",
         mandatory: true,
-        match: [["bank reference", "credit line", "financial capability"], ["200 000 000", "two hundred million"]],
+        match: [
+          ["bank reference", "credit line", "financial capability"],
+          ["200 000 000", "two hundred million"],
+        ],
       },
       {
         id: "similar-projects",
-        label: "Three similar road projects in the last five years with award letters and completion certificates",
+        label:
+          "Three similar road projects in the last five years with award letters and completion certificates",
         mandatory: true,
-        match: [["similar", "road projects"], ["three", "3"], ["five", "5"]],
+        match: [
+          ["similar", "road projects"],
+          ["three", "3"],
+          ["five", "5"],
+        ],
       },
       {
         id: "equipment-list",

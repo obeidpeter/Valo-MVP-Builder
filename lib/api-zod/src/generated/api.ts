@@ -1044,6 +1044,121 @@ export const GetWorkflowAlertsResponse = zod.object({
 })
 
 
+/**
+ * Returns sanitised AI kill-switch, release-gate, capability, recent-run and evaluation state only for a direct Valo internal operations membership. Client, partner, auditor, restricted-platform-admin and break-glass contexts are denied. Prompt content, document content, provider request identifiers, raw errors and secrets are never returned.
+ * @summary Read tenant-scoped AI control-plane status
+ */
+export const getAiOperationsResponseBudgetOneRemainingMinorMin = 0;
+
+export const getAiOperationsResponseProviderPolicyMaxRetentionDaysMin = -1;
+
+export const getAiOperationsResponseCapabilitiesItemAutonomyLevelMax = 4;
+
+
+
+
+export const getAiOperationsResponseCapabilitiesItemLimitsMaxRetriesPerProviderMin = 0;
+
+export const getAiOperationsResponseCapabilitiesItemLimitsMaxFallbackProvidersMin = 0;
+
+export const getAiOperationsResponseCapabilitiesItemLimitsMaxCostMinorMin = 0;
+
+export const getAiOperationsResponseRecentRunsItemPromptTokensMin = 0;
+
+export const getAiOperationsResponseRecentRunsItemCompletionTokensMin = 0;
+
+export const getAiOperationsResponseRecentRunsMax = 20;
+
+export const getAiOperationsResponseEvaluationsItemSampleSizeMin = 0;
+
+export const getAiOperationsResponseEvaluationsMax = 10;
+
+
+
+export const GetAiOperationsResponse = zod.object({
+  "generatedAt": zod.coerce.date(),
+  "environment": zod.enum(['development', 'test', 'production']),
+  "productionAiEnabled": zod.boolean(),
+  "globalKillSwitchEngaged": zod.boolean(),
+  "modelConfiguration": zod.object({
+  "model": zod.string(),
+  "configurationVersion": zod.string().nullable(),
+  "status": zod.enum(['draft', 'promoted']),
+  "evaluationApproved": zod.boolean()
+}),
+  "budget": zod.union([zod.object({
+  "currency": zod.string(),
+  "remainingMinor": zod.number().min(getAiOperationsResponseBudgetOneRemainingMinorMin),
+  "rateCardVersion": zod.string()
+}),zod.null()]),
+  "providerPolicy": zod.object({
+  "requiredRegion": zod.string(),
+  "requireZeroRetention": zod.boolean(),
+  "maxRetentionDays": zod.number().min(getAiOperationsResponseProviderPolicyMaxRetentionDaysMin),
+  "restrictedModeSupported": zod.boolean().describe('True only when at least one currently configured model adapter is eligible for Restricted Mode and satisfies the reported provider privacy policy. False does not block non-Restricted Mode projects.')
+}),
+  "releaseGate": zod.object({
+  "applicable": zod.boolean().describe('Whether production release evidence was evaluated in this environment.'),
+  "allowed": zod.boolean(),
+  "blockerCodes": zod.array(zod.string()),
+  "expectedVersions": zod.object({
+  "model": zod.string(),
+  "modelConfiguration": zod.string(),
+  "prompt": zod.string(),
+  "promptRegistry": zod.string(),
+  "schema": zod.string(),
+  "retrieval": zod.string(),
+  "index": zod.string()
+})
+}),
+  "blockers": zod.array(zod.enum(['AI_GLOBAL_DISABLED', 'AI_RELEASE_GATE_DENIED', 'AI_MODEL_CONFIGURATION_UNAVAILABLE', 'AI_BUDGET_UNAVAILABLE', 'AI_BUDGET_CURRENCY_MISMATCH', 'AI_BUDGET_EXCEEDED', 'AI_PROVIDER_PRIVACY_UNVERIFIED', 'AI_PROVIDER_UNAVAILABLE', 'AI_CAPABILITY_DISABLED'])),
+  "capabilities": zod.array(zod.object({
+  "id": zod.enum(['extract_pdf_multimodal', 'extract_requirements', 'map_evidence', 'suggest_defects', 'responsiveness_review']),
+  "autonomyLevel": zod.number().min(1).max(getAiOperationsResponseCapabilitiesItemAutonomyLevelMax),
+  "outputState": zod.enum(['non_authoritative_draft']),
+  "approvalAuthority": zod.string(),
+  "environmentApproved": zod.boolean(),
+  "tenantEnabled": zod.boolean(),
+  "effectiveEnabled": zod.boolean(),
+  "promptVersion": zod.string(),
+  "promptHash": zod.string(),
+  "schemaVersion": zod.string(),
+  "schemaHash": zod.string(),
+  "limits": zod.object({
+  "maxInputBytes": zod.number().min(1),
+  "maxOutputTokens": zod.number().min(1),
+  "timeoutMs": zod.number().min(1),
+  "maxRetriesPerProvider": zod.number().min(getAiOperationsResponseCapabilitiesItemLimitsMaxRetriesPerProviderMin),
+  "maxFallbackProviders": zod.number().min(getAiOperationsResponseCapabilitiesItemLimitsMaxFallbackProvidersMin),
+  "maxCostMinor": zod.number().min(getAiOperationsResponseCapabilitiesItemLimitsMaxCostMinorMin),
+  "costCurrency": zod.enum(['NGN'])
+})
+})),
+  "recentRuns": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "projectId": zod.string().uuid().nullable(),
+  "task": zod.string(),
+  "model": zod.string().nullable(),
+  "promptVersion": zod.string().nullable(),
+  "promptTokens": zod.number().min(getAiOperationsResponseRecentRunsItemPromptTokensMin).nullable(),
+  "completionTokens": zod.number().min(getAiOperationsResponseRecentRunsItemCompletionTokensMin).nullable(),
+  "status": zod.enum(['succeeded', 'failed']),
+  "errorCode": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})).max(getAiOperationsResponseRecentRunsMax),
+  "evaluations": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "task": zod.string(),
+  "corpusVersion": zod.string(),
+  "status": zod.string(),
+  "sampleSize": zod.number().min(getAiOperationsResponseEvaluationsItemSampleSizeMin),
+  "releaseDecision": zod.string(),
+  "startedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable()
+})).max(getAiOperationsResponseEvaluationsMax)
+})
+
+
 export const ListProjectNotificationsParams = zod.object({
   "id": zod.coerce.string().uuid()
 })
@@ -2651,6 +2766,56 @@ export const GetRiskResponse = zod.object({
   "key": zod.string(),
   "count": zod.number()
 }))
+})
+
+
+/**
+ * Returns content-minimised, tenant-scoped projections for the ten future intelligence capabilities. This operation never invokes a model, authorises submission, changes pricing or performs an external action. Because the response combines multiple governed source classes, the caller must hold client, project, document, requirement, evidence, defect, report, draft and package read authority in the active tenant.
+ * @summary Get the deterministic Intelligence Centre snapshot for a pursuit
+ */
+export const GetProjectIntelligenceParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const getProjectIntelligenceResponseCapabilitiesItemReviewItemCountMin = 0;
+
+export const getProjectIntelligenceResponseCapabilitiesItemCitationCountMin = 0;
+
+export const getProjectIntelligenceResponseCapabilitiesItemCitationsItemExcerptMax = 280;
+
+export const getProjectIntelligenceResponseCapabilitiesItemCitationsMax = 20;
+
+export const getProjectIntelligenceResponseCapabilitiesMin = 10;
+export const getProjectIntelligenceResponseCapabilitiesMax = 10;
+
+
+
+export const GetProjectIntelligenceResponse = zod.object({
+  "environment": zod.enum(['production', 'staging', 'development']),
+  "productionAiEnabled": zod.boolean().describe('False for this deterministic release; it must not be interpreted as the status of older separately governed AI workflows.'),
+  "restrictedMode": zod.boolean(),
+  "generatedAt": zod.coerce.date(),
+  "project": zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "status": zod.string(),
+  "deadline": zod.string().nullable()
+}),
+  "capabilities": zod.array(zod.object({
+  "id": zod.enum(['evidence_graph', 'addendum_radar', 'eligibility_passport', 'grounded_copilot', 'opportunity_radar', 'response_studio', 'submission_preflight', 'clarification_assistant', 'boq_sanity', 'award_handoff']),
+  "state": zod.enum(['review_ready', 'partial', 'empty', 'restricted', 'production_disabled']),
+  "stateReason": zod.string(),
+  "summary": zod.string().optional(),
+  "reviewItemCount": zod.number().min(getProjectIntelligenceResponseCapabilitiesItemReviewItemCountMin).nullable(),
+  "citationCount": zod.number().min(getProjectIntelligenceResponseCapabilitiesItemCitationCountMin).nullable(),
+  "citations": zod.array(zod.object({
+  "id": zod.string(),
+  "sourceName": zod.string(),
+  "locator": zod.string(),
+  "excerpt": zod.string().max(getProjectIntelligenceResponseCapabilitiesItemCitationsItemExcerptMax).optional()
+})).max(getProjectIntelligenceResponseCapabilitiesItemCitationsMax),
+  "lastUpdatedAt": zod.coerce.date().nullable()
+})).min(getProjectIntelligenceResponseCapabilitiesMin).max(getProjectIntelligenceResponseCapabilitiesMax)
 })
 
 

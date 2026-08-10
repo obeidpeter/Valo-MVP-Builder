@@ -128,7 +128,7 @@ test("disconnect keeps tenant/project locks until parser or model work settles",
   assert.match(extractTextSource, /signal\?\.throwIfAborted\(\)/);
   assert.match(
     llmSource,
-    /signal\?\.throwIfAborted\(\)[\s\S]*executeJsonWithFallback/,
+    /signal\?\.throwIfAborted\(\)[\s\S]*executeProjectAi/,
   );
 });
 

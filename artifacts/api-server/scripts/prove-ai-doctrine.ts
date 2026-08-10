@@ -11,14 +11,10 @@
  *   3. Suggested items require explicit reviewer confirmation before counting
  *      toward the disqualification risk score.
  *
- * Run modes:
- *   --offline   Only the deterministic risk-gating proof (no DB, no OpenAI).
- *   (default)   Offline proof + a live end-to-end run against real OpenAI,
- *               seeding a throwaway project/tender/bid and cleaning it up.
- *
- * This is a manual/on-demand proof (the live run consumes OpenAI tokens and is
- * non-deterministic). The --offline mode is fast, side-effect free, and safe
- * for CI to guard the risk-gating fix against regressions.
+ * The supported mode is --offline: a deterministic risk-gating proof with no
+ * DB or provider call. The historical throwaway-project live path is retired;
+ * production-quality evidence requires the controlled shadow/evaluation
+ * runner. Offline mode is fast, side-effect free and safe for CI.
  */
 import { computeRisk } from "../src/lib/deterministic";
 
@@ -475,6 +471,11 @@ async function proveLive(): Promise<void> {
 
 async function main(): Promise<void> {
   const offline = process.argv.includes("--offline");
+  if (!offline) {
+    throw new Error(
+      "The legacy live doctrine path is retired. Use --offline; provider-backed production evidence requires the controlled shadow/evaluation runner.",
+    );
+  }
   console.log(
     offline
       ? "Running OFFLINE doctrine proof only.\n"

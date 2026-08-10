@@ -3,6 +3,7 @@ import {
   type ConflictStatus,
   type PaymentStatus,
 } from "./deterministic";
+import { isQuoteGroundedInSourceMap } from "./sourceGrounding";
 
 export type SubmissionBlockerCode =
   | "nda_missing"
@@ -17,6 +18,7 @@ export type SubmissionBlockerCode =
   | "requirements_missing"
   | "requirements_unreviewed"
   | "citation_unresolvable"
+  | "evidence_citation_unresolvable"
   | "mandatory_evidence_missing"
   | "defects_unreviewed"
   | "fatal_defect_open"
@@ -24,6 +26,7 @@ export type SubmissionBlockerCode =
   | "boq_exception_open"
   | "unsupported_claim"
   | "red_team_incomplete"
+  | "responsiveness_review_unapproved"
   | "report_provenance_missing";
 
 export interface SubmissionBlocker {
@@ -42,6 +45,7 @@ export interface SubmissionReadinessInput {
     paymentConfirmedByAdvisor?: boolean | null;
     paymentFounderConfirmedBy?: string | null;
     paymentAdvisorConfirmedBy?: string | null;
+    responsivenessSuggested?: boolean | null;
   };
   report: {
     generatedBy?: string | null;
@@ -57,6 +61,7 @@ export interface SubmissionReadinessInput {
     redactionStatus: string;
     sha256?: string | null;
     extractionStatus?: string | null;
+    contentText?: string | null;
   }>;
   requirements: Array<{
     id: string;
@@ -65,12 +70,16 @@ export interface SubmissionReadinessInput {
     sourceDocId?: string | null;
     pageRef?: string | null;
     clauseRef?: string | null;
+    origin?: string | null;
+    mergedCitations?: unknown;
   }>;
   evidence: Array<{
     id?: string;
     requirementId: string;
     evidenceStatus: string;
     suggested?: boolean | null;
+    documentId?: string | null;
+    excerpt?: string | null;
   }>;
   defects: Array<{
     id: string;
@@ -99,8 +108,43 @@ const REVIEWED_REQUIREMENT_STATES = new Set([
   "rejected",
 ]);
 const RESOLVED_EVIDENCE_STATES = new Set(["present", "not_applicable"]);
+const EVIDENCE_STATES_REQUIRING_SOURCE = new Set([
+  "present",
+  "expired",
+  "not_applicable",
+]);
 const BLOCKING_DEFECT_SEVERITIES = new Set(["fatal", "likely_fatal"]);
 const INCLUDED_REDACTION_STATES = new Set(["included", "redacted"]);
+
+interface StoredRequirementCitation {
+  sourceDocId: string | null;
+  text: string | null;
+}
+
+function storedRequirementCitations(raw: unknown): StoredRequirementCitation[] {
+  let value = raw;
+  if (typeof raw === "string") {
+    try {
+      value = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+    const citation = item as Record<string, unknown>;
+    return [
+      {
+        sourceDocId:
+          typeof citation.sourceDocId === "string"
+            ? citation.sourceDocId
+            : null,
+        text: typeof citation.text === "string" ? citation.text : null,
+      },
+    ];
+  });
+}
 
 /**
  * The complete server-side package-release gate. This is deliberately pure so
@@ -194,6 +238,15 @@ export function evaluateSubmissionReadiness(
         document.type === "boq") &&
       INCLUDED_REDACTION_STATES.has(document.redactionStatus),
   );
+  const sourceTextByDocumentId = new Map(
+    input.documents
+      .filter(
+        (document) =>
+          INCLUDED_REDACTION_STATES.has(document.redactionStatus) &&
+          typeof document.contentText === "string",
+      )
+      .map((document) => [document.id, document.contentText ?? ""]),
+  );
   const hashless = relevantDocs.filter((document) => !document.sha256);
   if (hashless.length > 0) {
     add({
@@ -234,11 +287,29 @@ export function evaluateSubmissionReadiness(
   const acceptedRequirements = input.requirements.filter((requirement) =>
     CONFIRMED_REQUIREMENT_STATES.has(requirement.reviewStatus),
   );
-  const unresolvedCitations = acceptedRequirements.filter(
-    (requirement) =>
-      !requirement.sourceDocId ||
-      (!requirement.pageRef?.trim() && !requirement.clauseRef?.trim()),
-  );
+  const unresolvedCitations = acceptedRequirements.filter((requirement) => {
+    if (!requirement.sourceDocId) return true;
+    const hasGroundedStoredQuote = storedRequirementCitations(
+      requirement.mergedCitations,
+    ).some(
+      (citation) =>
+        citation.sourceDocId === requirement.sourceDocId &&
+        isQuoteGroundedInSourceMap(
+          sourceTextByDocumentId,
+          citation.sourceDocId,
+          citation.text,
+        ),
+    );
+    // Engine proposals must retain the exact quote that was verified before
+    // insertion. Legacy/manual rows may still use their human-authored page
+    // or clause reference until their citations are backfilled.
+    if (requirement.origin === "engine") return !hasGroundedStoredQuote;
+    return (
+      !hasGroundedStoredQuote &&
+      !requirement.pageRef?.trim() &&
+      !requirement.clauseRef?.trim()
+    );
+  });
   if (unresolvedCitations.length > 0) {
     add({
       code: "citation_unresolvable",
@@ -247,13 +318,41 @@ export function evaluateSubmissionReadiness(
     });
   }
 
+  const approvedReleaseEvidence = input.evidence.filter(
+    (item) =>
+      item.suggested !== true &&
+      RESOLVED_EVIDENCE_STATES.has(item.evidenceStatus),
+  );
+  const evidenceWithoutGroundedCitation = input.evidence.filter(
+    (item) =>
+      item.suggested !== true &&
+      EVIDENCE_STATES_REQUIRING_SOURCE.has(item.evidenceStatus) &&
+      !isQuoteGroundedInSourceMap(
+        sourceTextByDocumentId,
+        item.documentId,
+        item.excerpt,
+      ),
+  );
+  if (evidenceWithoutGroundedCitation.length > 0) {
+    add({
+      code: "evidence_citation_unresolvable",
+      message: `${evidenceWithoutGroundedCitation.length} reviewed evidence item(s) lack an in-scope document and exact grounded excerpt.`,
+      objectIds: evidenceWithoutGroundedCitation.flatMap((item) =>
+        item.id ? [item.id] : [],
+      ),
+    });
+  }
+
   const unresolvedMandatory = acceptedRequirements.filter((requirement) => {
     if (!requirement.isMandatory) return false;
-    return !input.evidence.some(
+    return !approvedReleaseEvidence.some(
       (item) =>
         item.requirementId === requirement.id &&
-        item.suggested !== true &&
-        RESOLVED_EVIDENCE_STATES.has(item.evidenceStatus),
+        isQuoteGroundedInSourceMap(
+          sourceTextByDocumentId,
+          item.documentId,
+          item.excerpt,
+        ),
     );
   });
   if (unresolvedMandatory.length > 0) {
@@ -316,6 +415,13 @@ export function evaluateSubmissionReadiness(
     add({
       code: "red_team_incomplete",
       message: "The required independent red-team review is incomplete.",
+    });
+  }
+  if (input.project.responsivenessSuggested === true) {
+    add({
+      code: "responsiveness_review_unapproved",
+      message:
+        "The AI-suggested responsiveness review requires a named report approver edit before release.",
     });
   }
 
