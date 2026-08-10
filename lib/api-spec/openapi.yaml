@@ -1993,7 +1993,7 @@ paths:
       tags: [Intelligence]
       summary: Get the deterministic Intelligence Centre snapshot for a pursuit
       description: >-
-        Returns content-minimised, tenant-scoped projections for the ten future
+        Returns content-minimised, tenant-scoped projections for twenty-two
         intelligence capabilities. This operation never invokes a model,
         authorises submission, changes pricing or performs an external action.
         Because the response combines multiple governed source classes, the
@@ -3487,8 +3487,8 @@ components:
           $ref: "#/components/schemas/IntelligenceProjectSummary"
         capabilities:
           type: array
-          minItems: 10
-          maxItems: 10
+          minItems: 22
+          maxItems: 22
           items:
             $ref: "#/components/schemas/IntelligenceCapabilitySnapshot"
     IntelligenceProjectSummary:
@@ -3525,6 +3525,18 @@ components:
             - clarification_assistant
             - boq_sanity
             - award_handoff
+            - evaluation_score_planner
+            - bid_security_integrity
+            - regulatory_watchtower
+            - consortium_responsibility
+            - portal_submission_rehearsal
+            - commercial_exposure
+            - nigerian_content_composer
+            - personnel_tailoring
+            - contract_deviation
+            - critical_path_simulator
+            - integrity_sentinel
+            - outcome_learning
         state:
           type: string
           enum:

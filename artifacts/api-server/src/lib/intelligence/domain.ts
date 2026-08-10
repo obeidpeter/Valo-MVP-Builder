@@ -80,6 +80,8 @@ export const UNREVIEWED: HumanReview = Object.freeze({
 
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
+const MAX_CITATION_QUOTE_CHARS = 20_000;
+const MAX_CITATION_SECTION_CHARS = 2_000;
 const ISO_INSTANT_PATTERN =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
 const SOURCE_AUTHORITIES: readonly SourceAuthority[] = [
@@ -127,11 +129,15 @@ export function deterministicId(prefix: string, payload: unknown): string {
 }
 
 export function isValidId(value: string): boolean {
-  return ID_PATTERN.test(value);
+  return typeof value === "string" && ID_PATTERN.test(value);
 }
 
 export function isIsoInstant(value: string): boolean {
-  if (!ISO_INSTANT_PATTERN.test(value) || !Number.isFinite(Date.parse(value))) {
+  if (
+    typeof value !== "string" ||
+    !ISO_INSTANT_PATTERN.test(value) ||
+    !Number.isFinite(Date.parse(value))
+  ) {
     return false;
   }
   const canonical = new Date(value).toISOString();
@@ -139,7 +145,9 @@ export function isIsoInstant(value: string): boolean {
 }
 
 export function isIsoDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
   const parsed = new Date(`${value}T00:00:00.000Z`);
   return (
     Number.isFinite(parsed.getTime()) &&
@@ -152,6 +160,17 @@ export function validateHumanReview(
   path: string,
 ): DomainIssue[] {
   const issues: DomainIssue[] = [];
+  if (
+    review.note != null &&
+    (typeof review.note !== "string" || review.note.length > 5_000)
+  ) {
+    issues.push({
+      code: "human_review_note_too_long",
+      severity: "blocker",
+      path: `${path}.note`,
+      message: "Human review notes are limited to 5,000 characters.",
+    });
+  }
   if (!REVIEW_STATES.includes(review.state)) {
     issues.push({
       code: "invalid_human_review_state",
@@ -277,16 +296,18 @@ export function validateSources(
         message: "Source capture time must be a valid UTC instant.",
       });
     }
-    const key = sourceKey(source.sourceId, source.versionId);
-    if (byKey.has(key)) {
-      issues.push({
-        code: "duplicate_source_version",
-        severity: "blocker",
-        path,
-        message: "A source/version pair may occur only once.",
-      });
-    } else {
-      byKey.set(key, source);
+    if (isValidId(source.sourceId) && isValidId(source.versionId)) {
+      const key = sourceKey(source.sourceId, source.versionId);
+      if (byKey.has(key)) {
+        issues.push({
+          code: "duplicate_source_version",
+          severity: "blocker",
+          path,
+          message: "A source/version pair may occur only once.",
+        });
+      } else {
+        byKey.set(key, source);
+      }
     }
   });
   return { byKey, issues: sortIssues(issues) };
@@ -303,10 +324,56 @@ export function validateCitation(
   path: string,
 ): CitationValidation {
   const issues: DomainIssue[] = [];
-  const source = sources.get(
-    sourceKey(citation.sourceId, citation.sourceVersionId),
-  );
-  if (!source) {
+  const identityValid =
+    isValidId(citation.sourceId) && isValidId(citation.sourceVersionId);
+  const hashValid =
+    typeof citation.contentSha256 === "string" &&
+    SHA256_PATTERN.test(citation.contentSha256);
+  const quoteValid =
+    typeof citation.quote === "string" &&
+    citation.quote.length > 0 &&
+    citation.quote.length <= MAX_CITATION_QUOTE_CHARS;
+  const sectionValid =
+    citation.section == null ||
+    (typeof citation.section === "string" &&
+      citation.section.length <= MAX_CITATION_SECTION_CHARS);
+  if (!identityValid) {
+    issues.push({
+      code: "citation_identity_invalid",
+      severity: "blocker",
+      path,
+      message: "Citation source and version IDs must be bounded domain IDs.",
+    });
+  }
+  if (!hashValid) {
+    issues.push({
+      code: "citation_hash_invalid",
+      severity: "blocker",
+      path,
+      message: "Citation content hash must be a lower-case SHA-256 digest.",
+    });
+  }
+  if (!quoteValid) {
+    issues.push({
+      code: "citation_quote_invalid",
+      severity: "blocker",
+      path,
+      message:
+        "Citation quote must be non-empty and no longer than 20,000 characters.",
+    });
+  }
+  if (!sectionValid) {
+    issues.push({
+      code: "citation_section_invalid",
+      severity: "blocker",
+      path,
+      message: "Citation section is limited to 2,000 characters.",
+    });
+  }
+  const source = identityValid
+    ? sources.get(sourceKey(citation.sourceId, citation.sourceVersionId))
+    : undefined;
+  if (identityValid && !source) {
     issues.push({
       code: "citation_source_missing",
       severity: "blocker",
@@ -314,8 +381,9 @@ export function validateCitation(
       message:
         "Citation source/version is not present in the supplied source set.",
     });
-  } else {
-    if (citation.contentSha256 !== source.contentSha256) {
+  }
+  if (source) {
+    if (hashValid && citation.contentSha256 !== source.contentSha256) {
       issues.push({
         code: "citation_hash_mismatch",
         severity: "blocker",
@@ -337,7 +405,7 @@ export function validateCitation(
         message: "Citation offsets are outside the cited source text.",
       });
     } else if (
-      !citation.quote.trim() ||
+      quoteValid &&
       source.content.slice(citation.startOffset, citation.endOffset) !==
         citation.quote
     ) {

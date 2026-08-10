@@ -135,14 +135,14 @@ function addGroundedRequirement(
   });
 }
 
-test("emits all ten capabilities without treating missing evidence as approval", () => {
+test("emits all twenty-two capabilities without treating missing evidence as approval", () => {
   const snapshot = buildIntelligenceCentreSnapshot(input());
 
   assert.deepEqual(
     snapshot.capabilities.map((capability) => capability.id),
     INTELLIGENCE_CAPABILITY_IDS,
   );
-  assert.equal(snapshot.capabilities.length, 10);
+  assert.equal(snapshot.capabilities.length, 22);
   assert.equal(
     snapshot.capabilities.find(({ id }) => id === "evidence_graph")?.state,
     "empty",
@@ -154,6 +154,51 @@ test("emits all ten capabilities without treating missing evidence as approval",
   assert.equal(
     snapshot.capabilities.find(({ id }) => id === "award_handoff")?.state,
     "empty",
+  );
+  assert.equal(
+    snapshot.capabilities.find(({ id }) => id === "integrity_sentinel")?.state,
+    "empty",
+  );
+  assert.equal(
+    snapshot.capabilities.find(({ id }) => id === "outcome_learning")?.state,
+    "empty",
+  );
+});
+
+test("advanced capability cards surface source signals but never infer a completed engine run", () => {
+  const value = input();
+  addGroundedRequirement(value);
+  value.requirements[0]!.category = "published evaluation scoring";
+  value.requirements[0]!.text =
+    "The published evaluation allocates 20 points to verified experience and requires a bid security guarantee.";
+  value.capabilityItems.push({
+    id: "partner-capability-1",
+    claimType: "consortium partner experience",
+    approvedStatus: "approved",
+    evidenceDocId: "doc-1",
+    verifierId: "reviewer-1",
+    verifierName: "Amina Reviewer",
+    verifiedAt: "2026-08-10T10:00:00.000Z",
+    updatedAt: "2026-08-10T10:00:00.000Z",
+  });
+
+  const snapshot = buildIntelligenceCentreSnapshot(value);
+  for (const id of [
+    "evaluation_score_planner",
+    "bid_security_integrity",
+    "consortium_responsibility",
+    "nigerian_content_composer",
+  ] as const) {
+    assert.equal(
+      snapshot.capabilities.find((capability) => capability.id === id)?.state,
+      "partial",
+    );
+  }
+  assert.equal(
+    snapshot.capabilities
+      .slice(10)
+      .some((capability) => capability.state === "review_ready"),
+    false,
   );
 });
 

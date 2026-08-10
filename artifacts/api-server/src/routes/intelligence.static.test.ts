@@ -140,7 +140,7 @@ test("Intelligence Centre is registered only after tenant middleware", () => {
 test("Intelligence Centre OpenAPI, generated clients and protected UI stay connected", () => {
   assert.match(openApi, /^  \/projects\/\{id\}\/intelligence:/m);
   assert.match(openApi, /operationId: getProjectIntelligence/);
-  assert.match(openApi, /minItems: 10[\s\S]*maxItems: 10/);
+  assert.match(openApi, /minItems: 22[\s\S]*maxItems: 22/);
   assert.match(reactClient, /export function useGetProjectIntelligence/);
   assert.match(zodClient, /export const GetProjectIntelligenceResponse/);
   assert.match(protectedRoutes, /path="\/intelligence"/);

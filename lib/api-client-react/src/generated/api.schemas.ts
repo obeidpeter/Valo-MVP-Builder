@@ -956,6 +956,18 @@ export const IntelligenceCapabilitySnapshotId = {
   clarification_assistant: 'clarification_assistant',
   boq_sanity: 'boq_sanity',
   award_handoff: 'award_handoff',
+  evaluation_score_planner: 'evaluation_score_planner',
+  bid_security_integrity: 'bid_security_integrity',
+  regulatory_watchtower: 'regulatory_watchtower',
+  consortium_responsibility: 'consortium_responsibility',
+  portal_submission_rehearsal: 'portal_submission_rehearsal',
+  commercial_exposure: 'commercial_exposure',
+  nigerian_content_composer: 'nigerian_content_composer',
+  personnel_tailoring: 'personnel_tailoring',
+  contract_deviation: 'contract_deviation',
+  critical_path_simulator: 'critical_path_simulator',
+  integrity_sentinel: 'integrity_sentinel',
+  outcome_learning: 'outcome_learning',
 } as const;
 
 export type IntelligenceCapabilitySnapshotState = typeof IntelligenceCapabilitySnapshotState[keyof typeof IntelligenceCapabilitySnapshotState];
@@ -1006,8 +1018,8 @@ export interface IntelligenceCentreSnapshot {
   generatedAt: string;
   project: IntelligenceProjectSummary;
   /**
-     * @minItems 10
-     * @maxItems 10
+     * @minItems 22
+     * @maxItems 22
      */
   capabilities: IntelligenceCapabilitySnapshot[];
 }

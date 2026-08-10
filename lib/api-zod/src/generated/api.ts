@@ -2829,7 +2829,7 @@ export const GetRiskResponse = zod.object({
 
 
 /**
- * Returns content-minimised, tenant-scoped projections for the ten future intelligence capabilities. This operation never invokes a model, authorises submission, changes pricing or performs an external action. Because the response combines multiple governed source classes, the caller must hold client, project, document, requirement, evidence, defect, report, draft and package read authority in the active tenant.
+ * Returns content-minimised, tenant-scoped projections for twenty-two intelligence capabilities. This operation never invokes a model, authorises submission, changes pricing or performs an external action. Because the response combines multiple governed source classes, the caller must hold client, project, document, requirement, evidence, defect, report, draft and package read authority in the active tenant.
  * @summary Get the deterministic Intelligence Centre snapshot for a pursuit
  */
 export const GetProjectIntelligenceParams = zod.object({
@@ -2844,8 +2844,8 @@ export const getProjectIntelligenceResponseCapabilitiesItemCitationsItemExcerptM
 
 export const getProjectIntelligenceResponseCapabilitiesItemCitationsMax = 20;
 
-export const getProjectIntelligenceResponseCapabilitiesMin = 10;
-export const getProjectIntelligenceResponseCapabilitiesMax = 10;
+export const getProjectIntelligenceResponseCapabilitiesMin = 22;
+export const getProjectIntelligenceResponseCapabilitiesMax = 22;
 
 
 
@@ -2861,7 +2861,7 @@ export const GetProjectIntelligenceResponse = zod.object({
   "deadline": zod.string().nullable()
 }),
   "capabilities": zod.array(zod.object({
-  "id": zod.enum(['evidence_graph', 'addendum_radar', 'eligibility_passport', 'grounded_copilot', 'opportunity_radar', 'response_studio', 'submission_preflight', 'clarification_assistant', 'boq_sanity', 'award_handoff']),
+  "id": zod.enum(['evidence_graph', 'addendum_radar', 'eligibility_passport', 'grounded_copilot', 'opportunity_radar', 'response_studio', 'submission_preflight', 'clarification_assistant', 'boq_sanity', 'award_handoff', 'evaluation_score_planner', 'bid_security_integrity', 'regulatory_watchtower', 'consortium_responsibility', 'portal_submission_rehearsal', 'commercial_exposure', 'nigerian_content_composer', 'personnel_tailoring', 'contract_deviation', 'critical_path_simulator', 'integrity_sentinel', 'outcome_learning']),
   "state": zod.enum(['review_ready', 'partial', 'empty', 'restricted', 'production_disabled']),
   "stateReason": zod.string(),
   "summary": zod.string().optional(),

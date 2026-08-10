@@ -42,6 +42,50 @@ test("citations use exact UTF-16 offsets and immutable source hashes", () => {
   assert.equal(result.citation?.quote, quote);
 });
 
+test("citation identifiers and optional sections are bounded before grounding", () => {
+  const sourceSet = validateSources([source]);
+  const oversizedSection = validateCitation(
+    {
+      sourceId: source.sourceId,
+      sourceVersionId: source.versionId,
+      contentSha256: source.contentSha256,
+      startOffset: 0,
+      endOffset: content.length,
+      quote: content,
+      section: "s".repeat(2_001),
+    },
+    sourceSet.byKey,
+    "citation",
+  );
+  assert.equal(oversizedSection.citation, undefined);
+  assert.equal(
+    oversizedSection.issues.some(
+      (issue) => issue.code === "citation_section_invalid",
+    ),
+    true,
+  );
+
+  const oversizedIdentity = validateCitation(
+    {
+      sourceId: "s".repeat(20_001),
+      sourceVersionId: source.versionId,
+      contentSha256: source.contentSha256,
+      startOffset: 0,
+      endOffset: content.length,
+      quote: content,
+    },
+    sourceSet.byKey,
+    "citation",
+  );
+  assert.equal(oversizedIdentity.citation, undefined);
+  assert.equal(
+    oversizedIdentity.issues.some(
+      (issue) => issue.code === "citation_identity_invalid",
+    ),
+    true,
+  );
+});
+
 test("source content changes fail closed against a declared old hash", () => {
   const result = validateSources([
     { ...source, content: `${source.content} changed` },
@@ -91,6 +135,20 @@ test("human decisions require valid state, identity, time, and exact subject", (
   );
   assert.equal(
     mismatch.issues.some((issue) => issue.code === "review_subject_mismatch"),
+    true,
+  );
+
+  const oversizedNote = validateHumanReview(
+    {
+      state: "accepted",
+      reviewerId: "reviewer-1",
+      reviewedAt: "2026-08-10T09:00:00.000Z",
+      note: "x".repeat(5_001),
+    },
+    "review",
+  );
+  assert.equal(
+    oversizedNote.some((issue) => issue.code === "human_review_note_too_long"),
     true,
   );
 });
