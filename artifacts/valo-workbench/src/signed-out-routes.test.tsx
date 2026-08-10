@@ -9,6 +9,14 @@ import {
   loadBidAutopsyOperationState,
 } from "./lib/public-bid-autopsy";
 
+const INVALID_STORED_OPERATION_ID = [
+  "00000000",
+  "0000",
+  "4000",
+  "8000",
+  "000000000001",
+].join("-");
+
 function renderAt(path: string) {
   const { hook } = memoryLocation({ path, record: true });
   return render(
@@ -522,7 +530,7 @@ describe("Bid Autopsy request", () => {
       BID_AUTOPSY_OPERATION_STORAGE_KEY,
       JSON.stringify({
         version: 1,
-        idempotencyKey: "5180ab46-ee3c-49a4-94ca-bc8e229c075a",
+        idempotencyKey: INVALID_STORED_OPERATION_ID,
         formStartedAt: "2026-08-10T12:00:00.000Z",
         payloadDigest: null,
         businessEmail: "do-not-retain@example.test",
@@ -557,7 +565,7 @@ describe("Bid Autopsy request", () => {
         BID_AUTOPSY_OPERATION_STORAGE_KEY,
         JSON.stringify({
           version: 1,
-          idempotencyKey: "5180ab46-ee3c-49a4-94ca-bc8e229c075a",
+          idempotencyKey: INVALID_STORED_OPERATION_ID,
           formStartedAt,
           payloadDigest: null,
         }),
