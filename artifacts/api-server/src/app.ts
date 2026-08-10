@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type ErrorRequestHandler, type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import { clerkMiddleware } from "@clerk/express";
@@ -18,6 +18,7 @@ import {
   securityHeaders,
 } from "./middlewares/security";
 import { registerProductionWebApp } from "./lib/webApp";
+import { createPublicBidAutopsyRouter } from "./routes/public";
 
 const app: Express = express();
 app.disable("x-powered-by");
@@ -58,6 +59,7 @@ app.use(
     allowedHeaders: [
       "Authorization",
       "Content-Type",
+      "Idempotency-Key",
       "If-Match",
       "X-Valo-Organisation-Id",
       "X-Valo-Break-Glass-Session",
@@ -72,10 +74,30 @@ app.use(
     },
   }),
 );
+const rejectDisallowedCorsOrigin: ErrorRequestHandler = (
+  error,
+  _req,
+  res,
+  next,
+) => {
+  if (error instanceof Error && error.message === "Origin not allowed") {
+    res.status(403).json({ error: "Request could not be accepted" });
+    return;
+  }
+  next(error);
+};
+app.use(rejectDisallowedCorsOrigin);
 app.use(
   createRateLimiter({
     windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000),
     max: Number(process.env.RATE_LIMIT_MAX_REQUESTS || 300),
+  }),
+);
+app.use(
+  "/api/public",
+  createPublicBidAutopsyRouter({
+    allowedOrigins,
+    trustedProxyConfigured: process.env.TRUST_PROXY === "1",
   }),
 );
 app.use(express.json({ limit: "10mb" }));

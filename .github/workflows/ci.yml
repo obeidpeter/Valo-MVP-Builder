@@ -132,6 +132,9 @@ jobs:
           BASE_PATH: "/"
         run: pnpm --filter @workspace/valo-workbench build
 
+      - name: Enforce public route performance budget
+        run: pnpm --filter @workspace/valo-workbench budget:public
+
       - name: Generate software bill of materials
         uses: anchore/sbom-action@v0
         with:

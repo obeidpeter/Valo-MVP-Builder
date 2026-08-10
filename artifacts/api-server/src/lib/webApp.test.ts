@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { request as httpRequest } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
@@ -7,9 +8,50 @@ import express from "express";
 import {
   isApplicationWebPath,
   isIndexablePublicWebPath,
+  PUBLIC_SITE_ORIGIN,
   registerProductionWebApp,
   WEB_APP_CONTENT_SECURITY_POLICY,
 } from "./webApp";
+
+function fetchWithHostHeaders(
+  target: string,
+  headers: Readonly<Record<string, string>>,
+): Promise<Response> {
+  const url = new URL(target);
+  return new Promise((resolve, reject) => {
+    const request = httpRequest(
+      {
+        hostname: url.hostname,
+        port: url.port,
+        path: `${url.pathname}${url.search}`,
+        method: "GET",
+        headers,
+      },
+      (incoming) => {
+        const chunks: Buffer[] = [];
+        incoming.on("data", (chunk: Buffer) => chunks.push(chunk));
+        incoming.on("end", () => {
+          const responseHeaders = new Headers();
+          for (const [name, value] of Object.entries(incoming.headers)) {
+            if (Array.isArray(value)) {
+              value.forEach((item) => responseHeaders.append(name, item));
+            } else if (value !== undefined) {
+              responseHeaders.set(name, value);
+            }
+          }
+          resolve(
+            new Response(Buffer.concat(chunks), {
+              status: incoming.statusCode ?? 500,
+              headers: responseHeaders,
+            }),
+          );
+        });
+      },
+    );
+    request.on("error", reject);
+    request.end();
+  });
+}
 
 describe("production web route indexing", () => {
   it("allows only the implemented public routes to be indexed", () => {
@@ -21,6 +63,7 @@ describe("production web route indexing", () => {
       "/security",
       "/about",
       "/contact",
+      "/request-bid-autopsy",
       "/privacy",
       "/terms",
     ]) {
@@ -64,7 +107,7 @@ describe("production web route indexing", () => {
     assert.doesNotMatch(WEB_APP_CONTENT_SECURITY_POLICY, /unsafe-eval/);
   });
 
-  it("serves public deep links and noindexes every non-public fallback", async () => {
+  it("indexes public deep links only on the approved production origin", async () => {
     const fixtureDirectory = await mkdtemp(
       path.join(tmpdir(), "valo-web-app-"),
     );
@@ -90,6 +133,7 @@ describe("production web route indexing", () => {
       );
 
       const app = express();
+      app.set("trust proxy", 1);
       app.get("/api/healthz", (_request, response) => {
         response.json({ status: "ok" });
       });
@@ -107,22 +151,77 @@ describe("production web route indexing", () => {
 
         const publicResponse = await fetch(`${origin}/product`);
         assert.equal(publicResponse.status, 200);
-        assert.equal(publicResponse.headers.get("x-robots-tag"), null);
+        assert.equal(
+          publicResponse.headers.get("x-robots-tag"),
+          "noindex, nofollow",
+        );
         assert.equal(
           publicResponse.headers.get("content-security-policy"),
           WEB_APP_CONTENT_SECURITY_POLICY,
         );
         const publicHtml = await publicResponse.text();
         assert.match(publicHtml, /<title>Product \| Valo<\/title>/);
-        assert.match(
-          publicHtml,
-          /rel="canonical" href="https:\/\/valo-mvp-builder\.replit\.app\/product"/,
-        );
+        assert.match(publicHtml, /name="robots" content="noindex, nofollow"/);
+        assert.doesNotMatch(publicHtml, /rel="canonical"/);
+        assert.doesNotMatch(publicHtml, /property="og:url"/);
         assert.match(
           publicHtml,
           /<h1>A controlled workspace for evidence-heavy pursuits\.<\/h1>/,
         );
         assert.match(publicHtml, /data-public-prerender="true"/);
+
+        const canonicalHeaders = {
+          Host: new URL(PUBLIC_SITE_ORIGIN).host,
+          "X-Forwarded-Proto": "https",
+        };
+        const canonicalResponse = await fetchWithHostHeaders(
+          `${origin}/product`,
+          canonicalHeaders,
+        );
+        assert.equal(canonicalResponse.status, 200);
+        assert.equal(canonicalResponse.headers.get("x-robots-tag"), null);
+        const canonicalHtml = await canonicalResponse.text();
+        assert.match(canonicalHtml, /name="robots" content="index, follow"/);
+        assert.match(
+          canonicalHtml,
+          /rel="canonical" href="https:\/\/valo-mvp-builder\.replit\.app\/product"/,
+        );
+        assert.match(
+          canonicalHtml,
+          /property="og:url" content="https:\/\/valo-mvp-builder\.replit\.app\/product"/,
+        );
+
+        const autopsyResponse = await fetchWithHostHeaders(
+          `${origin}/request-bid-autopsy`,
+          canonicalHeaders,
+        );
+        assert.equal(autopsyResponse.status, 200);
+        const autopsyHtml = await autopsyResponse.text();
+        assert.match(
+          autopsyHtml,
+          /<title>Request a Bid Autopsy \| Valo<\/title>/,
+        );
+        assert.match(
+          autopsyHtml,
+          /rel="canonical" href="https:\/\/valo-mvp-builder\.replit\.app\/request-bid-autopsy"/,
+        );
+        assert.match(autopsyHtml, /Do not include tender documents/);
+
+        const stagingResponse = await fetchWithHostHeaders(
+          `${origin}/product`,
+          {
+            Host: "preview.valo-mvp-builder.replit.app",
+            "X-Forwarded-Proto": "https",
+          },
+        );
+        assert.equal(stagingResponse.status, 200);
+        assert.equal(
+          stagingResponse.headers.get("x-robots-tag"),
+          "noindex, nofollow",
+        );
+        const stagingHtml = await stagingResponse.text();
+        assert.doesNotMatch(stagingHtml, /rel="canonical"/);
+        assert.doesNotMatch(stagingHtml, /property="og:url"/);
 
         for (const pathname of [
           "/sign-in",
@@ -130,7 +229,10 @@ describe("production web route indexing", () => {
           "/intelligence?project=example-sensitive-id",
           "/not-a-public-page",
         ]) {
-          const privateResponse = await fetch(`${origin}${pathname}`);
+          const privateResponse = await fetchWithHostHeaders(
+            `${origin}${pathname}`,
+            canonicalHeaders,
+          );
           assert.equal(
             privateResponse.status,
             pathname === "/not-a-public-page" ? 404 : 200,

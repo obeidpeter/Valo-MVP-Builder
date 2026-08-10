@@ -19,6 +19,90 @@ export interface HealthStatus {
   status: string;
 }
 
+export type BidAutopsyRequestCreateTenderCategory = typeof BidAutopsyRequestCreateTenderCategory[keyof typeof BidAutopsyRequestCreateTenderCategory];
+
+
+export const BidAutopsyRequestCreateTenderCategory = {
+  federal_public: 'federal_public',
+  oil_and_gas: 'oil_and_gas',
+  donor_funded: 'donor_funded',
+  other: 'other',
+} as const;
+
+export type BidAutopsyRequestCreateBidStage = typeof BidAutopsyRequestCreateBidStage[keyof typeof BidAutopsyRequestCreateBidStage];
+
+
+export const BidAutopsyRequestCreateBidStage = {
+  live: 'live',
+  draft: 'draft',
+  previously_submitted: 'previously_submitted',
+} as const;
+
+export type BidAutopsyRequestCreatePreferredContactMethod = typeof BidAutopsyRequestCreatePreferredContactMethod[keyof typeof BidAutopsyRequestCreatePreferredContactMethod];
+
+
+export const BidAutopsyRequestCreatePreferredContactMethod = {
+  email: 'email',
+  telephone: 'telephone',
+} as const;
+
+export interface BidAutopsyRequestCreate {
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  contactName: string;
+  /**
+     * @minLength 2
+     * @maxLength 160
+     */
+  companyName: string;
+  /**
+     * @minLength 5
+     * @maxLength 254
+     */
+  businessEmail: string;
+  /**
+     * @minLength 7
+     * @maxLength 32
+     * @pattern ^(?=(?:\D*\d){7,})[+()0-9 .-]{7,32}$
+     */
+  businessTelephone: string;
+  tenderCategory: BidAutopsyRequestCreateTenderCategory;
+  bidStage: BidAutopsyRequestCreateBidStage;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  tenderDeadline?: string;
+  preferredContactMethod: BidAutopsyRequestCreatePreferredContactMethod;
+  privacyNoticeAcknowledged: true;
+  /**
+     * ISO-8601 time captured when the visitor first opens the form.
+     * @minLength 20
+     * @maxLength 35
+     */
+  formStartedAt: string;
+  /**
+     * Bot-control honeypot. Human-facing clients keep this field empty.
+     * @maxLength 0
+     */
+  website?: string;
+}
+
+export type BidAutopsyRequestAcceptedStatus = typeof BidAutopsyRequestAcceptedStatus[keyof typeof BidAutopsyRequestAcceptedStatus];
+
+
+export const BidAutopsyRequestAcceptedStatus = {
+  accepted: 'accepted',
+} as const;
+
+export interface BidAutopsyRequestAccepted {
+  requestId: string;
+  status: BidAutopsyRequestAcceptedStatus;
+  replayed: boolean;
+  acceptedAt: string;
+  /** Generic next-step guidance without an unverified response-time promise. */
+  nextStep: string;
+}
+
 export interface ErrorEnvelope {
   error: string;
 }

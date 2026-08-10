@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 
+export const APPROVED_PUBLIC_ORIGIN = "https://valo-mvp-builder.replit.app";
+
 function setMeta(name: string, content: string, property = false) {
   const selector = property
     ? `meta[property="${name}"]`
@@ -11,6 +13,21 @@ function setMeta(name: string, content: string, property = false) {
     document.head.appendChild(node);
   }
   node.content = content;
+}
+
+function removeMeta(name: string, property = false) {
+  const selector = property
+    ? `meta[property="${name}"]`
+    : `meta[name="${name}"]`;
+  document.head.querySelector(selector)?.remove();
+}
+
+export function isApprovedPublicOrigin(origin: string): boolean {
+  try {
+    return new URL(origin).origin === APPROVED_PUBLIC_ORIGIN;
+  } catch {
+    return false;
+  }
 }
 
 export function PublicMeta({
@@ -32,19 +49,25 @@ export function PublicMeta({
     setMeta("og:description", description, true);
     setMeta("twitter:title", fullTitle);
     setMeta("twitter:description", description);
-    setMeta("robots", index ? "index, follow" : "noindex, nofollow");
+    const canIndex = index && isApprovedPublicOrigin(window.location.origin);
+    setMeta("robots", canIndex ? "index, follow" : "noindex, nofollow");
 
-    const canonicalUrl = new URL(path, window.location.origin).href;
-    setMeta("og:url", canonicalUrl, true);
-    let canonical = document.head.querySelector<HTMLLinkElement>(
-      'link[rel="canonical"]',
-    );
-    if (!canonical) {
-      canonical = document.createElement("link");
-      canonical.rel = "canonical";
-      document.head.appendChild(canonical);
+    if (canIndex) {
+      const canonicalUrl = new URL(path, APPROVED_PUBLIC_ORIGIN).href;
+      setMeta("og:url", canonicalUrl, true);
+      let canonical = document.head.querySelector<HTMLLinkElement>(
+        'link[rel="canonical"]',
+      );
+      if (!canonical) {
+        canonical = document.createElement("link");
+        canonical.rel = "canonical";
+        document.head.appendChild(canonical);
+      }
+      canonical.href = canonicalUrl;
+    } else {
+      removeMeta("og:url", true);
+      document.head.querySelector('link[rel="canonical"]')?.remove();
     }
-    canonical.href = canonicalUrl;
   }, [description, index, path, title]);
 
   return null;

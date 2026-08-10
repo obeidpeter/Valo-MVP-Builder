@@ -22,6 +22,27 @@
       "when": 1786251600000,
       "tag": "0002_audit_integrity_boundary",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786338364994,
+      "tag": "0003_zippy_skrulls",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786339089360,
+      "tag": "0004_dizzy_virginia_dare",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786339224638,
+      "tag": "0005_tranquil_jack_power",
+      "breakpoints": true
     }
   ]
 }

@@ -147,14 +147,12 @@
   }
 
   html {
-    min-width: 20rem;
     scroll-behavior: smooth;
     text-rendering: optimizeLegibility;
   }
 
   body {
     @apply bg-background font-sans text-foreground antialiased;
-    min-width: 20rem;
     min-height: 100vh;
   }
 
@@ -188,6 +186,38 @@
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
+  }
+}
+
+@media (max-height: 480px) and (min-width: 480px) and (max-width: 767px) {
+  .landing-hero-grid {
+    gap: 1rem;
+    padding-block: 1.25rem;
+  }
+
+  .landing-hero-copy h1 {
+    margin-top: 0.5rem;
+    font-size: 2rem;
+    line-height: 1.05;
+  }
+
+  .landing-hero-summary {
+    margin-top: 0.75rem;
+    max-width: 38rem;
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+
+  .landing-hero-actions {
+    margin-top: 1rem;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .landing-hero-secondary,
+  .landing-hero-trust,
+  .landing-hero-preview {
+    display: none;
   }
 }
 

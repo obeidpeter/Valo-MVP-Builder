@@ -1,11 +1,13 @@
 import {
   pgTable,
+  pgSchema,
   text,
   integer,
   bigint as pgBigint,
   bigserial,
   boolean,
   doublePrecision,
+  date,
   timestamp,
   uuid,
   foreignKey,
@@ -22,6 +24,67 @@ const updatedAt = () =>
   timestamp("updated_at", { withTimezone: true }).defaultNow().notNull();
 
 const optimisticVersion = () => integer("version").notNull().default(1);
+
+/**
+ * Public first-contact records are deliberately kept outside the tenant data
+ * schema. They exist before an organisation or authenticated identity does and
+ * are reachable only through the bounded public-intake route.
+ */
+export const valoIntake = pgSchema("valo_intake");
+
+export const bidAutopsyRequests = valoIntake.table(
+  "bid_autopsy_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    idempotencyKeyHash: text("idempotency_key_hash").notNull(),
+    payloadFingerprint: text("payload_fingerprint").notNull(),
+    contactName: text("contact_name").notNull(),
+    companyName: text("company_name").notNull(),
+    businessEmail: text("business_email").notNull(),
+    businessTelephone: text("business_telephone").notNull(),
+    tenderCategory: text("tender_category").notNull(),
+    bidStage: text("bid_stage").notNull(),
+    tenderDeadline: date("tender_deadline"),
+    preferredContactMethod: text("preferred_contact_method").notNull(),
+    privacyNoticeVersion: text("privacy_notice_version").notNull(),
+    destination: text("destination").notNull().default("database"),
+    deliveryStatus: text("delivery_status").notNull().default("stored"),
+    receivedAt: timestamp("received_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    retentionUntil: timestamp("retention_until", {
+      withTimezone: true,
+    }).notNull(),
+  },
+  (t) => [
+    uniqueIndex("bid_autopsy_requests_idempotency_unique").on(
+      t.idempotencyKeyHash,
+    ),
+    index("bid_autopsy_requests_delivery_received_idx").on(
+      t.deliveryStatus,
+      t.receivedAt,
+    ),
+  ],
+);
+
+/**
+ * Shared, privacy-minimised fixed-window abuse control for public intake.
+ * `clientKeyHash` is an application-side HMAC; raw client addresses never
+ * enter the database. Expired buckets are removed by the bounded consume
+ * function and the application runtime receives no direct table privileges.
+ */
+export const bidAutopsyRateLimits = valoIntake.table(
+  "bid_autopsy_rate_limits",
+  {
+    clientKeyHash: text("client_key_hash").primaryKey(),
+    requestCount: integer("request_count").notNull(),
+    windowStartedAt: timestamp("window_started_at", {
+      withTimezone: true,
+    }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [index("bid_autopsy_rate_limits_expires_idx").on(t.expiresAt)],
+);
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
