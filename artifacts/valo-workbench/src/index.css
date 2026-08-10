@@ -100,6 +100,8 @@
   --sidebar-ring: 178 52% 50%;
   --app-font-sans:
     Inter, Aptos, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --app-font-serif:
+    Charter, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
   --app-font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --radius: 0.5rem;
   --shadow-2xs: 0 1px 1px rgb(15 23 42 / 0.03);
@@ -238,6 +240,39 @@
 
   .text-balance {
     text-wrap: balance;
+  }
+
+  .public-display {
+    font-family: var(--app-font-serif);
+  }
+
+  .public-document-grid {
+    background-image:
+      linear-gradient(hsl(var(--primary) / 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--primary) / 0.045) 1px, transparent 1px);
+    background-size: 3rem 3rem;
+  }
+
+  .public-light-glow {
+    background:
+      radial-gradient(
+        circle at 82% 18%,
+        hsl(var(--accent) / 0.9),
+        transparent 34%
+      ),
+      radial-gradient(
+        circle at 8% 88%,
+        hsl(var(--secondary) / 0.8),
+        transparent 30%
+      );
+  }
+
+  .public-dark-glow {
+    background: radial-gradient(
+      circle at 75% 20%,
+      hsl(var(--sidebar-primary) / 0.2),
+      transparent 38%
+    );
   }
 
   input[type="search"]::-webkit-search-cancel-button {

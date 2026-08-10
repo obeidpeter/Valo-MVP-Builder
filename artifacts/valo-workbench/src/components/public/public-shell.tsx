@@ -36,7 +36,7 @@ function PublicNavigation({
               ref={index === 0 ? firstLinkRef : undefined}
               href={item.href}
               onClick={onNavigate}
-              className="flex min-h-11 items-center rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex min-h-11 items-center rounded-full px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/65 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {item.label}
             </a>
@@ -82,14 +82,14 @@ export function PublicShell({ children }: { children: ReactNode }) {
         Skip to main content
       </a>
       <header
-        className="sticky top-0 z-40 border-b border-border bg-background/95"
+        className="sticky top-0 z-40 border-b border-border/80 bg-background/85 shadow-xs backdrop-blur-xl"
         onKeyDown={handleMenuKeyDown}
       >
         <div className="content-shell flex min-h-16 items-center justify-between gap-4">
           <Link
             href="/"
             aria-label="Valo home"
-            className="inline-flex min-h-11 min-w-11 items-center rounded-md text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex min-h-11 min-w-11 items-center rounded-lg text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ValoMark />
           </Link>
@@ -99,13 +99,13 @@ export function PublicShell({ children }: { children: ReactNode }) {
               <Button asChild variant="ghost" className="min-h-11">
                 <Link href="/sign-in">Sign In</Link>
               </Button>
-              <BidAutopsyCta />
+              <BidAutopsyCta className="rounded-lg shadow-sm" />
             </div>
           </div>
           <button
             ref={menuButtonRef}
             type="button"
-            className="inline-flex size-11 items-center justify-center rounded-md border border-border bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
+            className="inline-flex size-11 items-center justify-center rounded-lg border border-border bg-card shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
             aria-expanded={mobileOpen}
             aria-controls="public-mobile-navigation"
             aria-label={mobileOpen ? "Close menu" : "Open menu"}
@@ -124,7 +124,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
         {mobileOpen ? (
           <div
             id="public-mobile-navigation"
-            className="border-t border-border bg-card lg:hidden"
+            className="border-t border-border bg-background/95 shadow-md backdrop-blur-xl lg:hidden"
           >
             <div className="content-shell space-y-4 py-4">
               <PublicNavigation
@@ -144,29 +144,31 @@ export function PublicShell({ children }: { children: ReactNode }) {
 
       <main id="public-main">{children}</main>
 
-      <footer className="border-t border-border bg-card">
+      <footer className="border-t border-sidebar-border bg-sidebar text-sidebar-foreground">
         <div className="content-shell grid gap-10 py-12 md:grid-cols-[1.35fr_1fr_1fr]">
           <div className="max-w-md space-y-4">
-            <ValoMark className="text-primary" />
-            <p className="text-sm leading-6 text-muted-foreground">
+            <ValoMark className="text-sidebar-primary" />
+            <p className="text-sm leading-6 text-sidebar-foreground/70">
               Designed for AI-assisted, human-verified bid readiness and
               disqualification defence for Nigerian public, oil-and-gas and
               donor-funded tenders. Model-assisted steps operate only where
               provider, privacy and evaluation gates are approved; human review
               remains authoritative.
             </p>
-            <p className="text-xs leading-5 text-muted-foreground">
+            <p className="text-xs leading-5 text-sidebar-foreground/60">
               Valo strengthens review and remediation. It does not guarantee an
               award, evaluator acceptance or the absence of all bid risk.
             </p>
           </div>
           <div>
-            <h2 className="text-sm font-semibold">Explore</h2>
-            <ul className="mt-2 text-sm text-muted-foreground">
+            <h2 className="text-sm font-semibold text-sidebar-foreground">
+              Explore
+            </h2>
+            <ul className="mt-2 text-sm text-sidebar-foreground/65">
               {NAVIGATION.map((item) => (
                 <li key={item.href}>
                   <a
-                    className="flex min-h-11 items-center hover:text-foreground"
+                    className="flex min-h-11 items-center hover:text-sidebar-foreground"
                     href={item.href}
                   >
                     {item.label}
@@ -176,11 +178,13 @@ export function PublicShell({ children }: { children: ReactNode }) {
             </ul>
           </div>
           <div>
-            <h2 className="text-sm font-semibold">Valo</h2>
-            <ul className="mt-2 text-sm text-muted-foreground">
+            <h2 className="text-sm font-semibold text-sidebar-foreground">
+              Valo
+            </h2>
+            <ul className="mt-2 text-sm text-sidebar-foreground/65">
               <li>
                 <Link
-                  className="flex min-h-11 items-center hover:text-foreground"
+                  className="flex min-h-11 items-center hover:text-sidebar-foreground"
                   href="/request-bid-autopsy"
                 >
                   Bid enquiries
@@ -188,7 +192,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
               </li>
               <li>
                 <Link
-                  className="flex min-h-11 items-center hover:text-foreground"
+                  className="flex min-h-11 items-center hover:text-sidebar-foreground"
                   href="/sign-in"
                 >
                   Sign In
@@ -196,7 +200,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
               </li>
               <li>
                 <Link
-                  className="flex min-h-11 items-center hover:text-foreground"
+                  className="flex min-h-11 items-center hover:text-sidebar-foreground"
                   href="/security"
                 >
                   Security and trust
@@ -204,7 +208,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
               </li>
               <li>
                 <Link
-                  className="flex min-h-11 items-center hover:text-foreground"
+                  className="flex min-h-11 items-center hover:text-sidebar-foreground"
                   href="/privacy"
                 >
                   Privacy
@@ -212,7 +216,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
               </li>
               <li>
                 <Link
-                  className="flex min-h-11 items-center hover:text-foreground"
+                  className="flex min-h-11 items-center hover:text-sidebar-foreground"
                   href="/terms"
                 >
                   Terms
@@ -221,8 +225,8 @@ export function PublicShell({ children }: { children: ReactNode }) {
             </ul>
           </div>
         </div>
-        <div className="border-t border-border">
-          <div className="content-shell flex flex-col gap-2 py-5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+        <div className="border-t border-sidebar-border">
+          <div className="content-shell flex flex-col gap-2 py-5 text-xs text-sidebar-foreground/55 sm:flex-row sm:items-center sm:justify-between">
             <p>&copy; {new Date().getFullYear()} Valo. All rights reserved.</p>
             <p>Nigeria-focused. Human-reviewed. Audit-conscious.</p>
           </div>
