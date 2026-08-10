@@ -527,7 +527,7 @@ const EXPECTED_INTAKE_FUNCTIONS = new Map<
       returnsSet: true,
       runtimeCanExecute: true,
       sourceSha256:
-        "3b022ea44135ebcd1416aff19e9c1fa8a8ab916c2a945be81bc26c098e1bb50d",
+        "2b7bc1eedfc4de96716cb1bcaa71b75516d21416103f87b5ba5f8f0a8a04fcff",
     },
   ],
   [

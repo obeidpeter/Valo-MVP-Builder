@@ -78,7 +78,7 @@ BEGIN
   ON CONFLICT (client_key_hash) DO UPDATE
   SET request_count = CASE
         WHEN bucket.expires_at <= observed_at THEN 1
-        ELSE pg_catalog.least(bucket.request_count + 1, p_max_requests + 1)
+        ELSE LEAST(bucket.request_count + 1, p_max_requests + 1)
       END,
       window_started_at = CASE
         WHEN bucket.expires_at <= observed_at THEN observed_at
@@ -93,7 +93,7 @@ BEGIN
   INTO bucket_count, reset_at;
 
   allowed := bucket_count <= p_max_requests;
-  remaining := pg_catalog.greatest(0, p_max_requests - bucket_count);
+  remaining := GREATEST(0, p_max_requests - bucket_count);
   RETURN NEXT;
 END;
 $function$;

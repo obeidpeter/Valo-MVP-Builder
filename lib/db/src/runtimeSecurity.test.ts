@@ -632,6 +632,15 @@ describe("production RLS policy attestation", () => {
 });
 
 describe("production public-intake least privilege attestation", () => {
+  test("uses PostgreSQL bound expressions without invalid catalog qualification", () => {
+    assert.doesNotMatch(
+      intakeLimiterMigration,
+      /pg_catalog\.(?:least|greatest)\s*\(/i,
+    );
+    assert.match(intakeLimiterMigration, /\bLEAST\s*\(/);
+    assert.match(intakeLimiterMigration, /\bGREATEST\s*\(/);
+  });
+
   test("pins the complete privileged intake routine catalog", () => {
     const proofs = migrationIntakeFunctions();
     assert.doesNotThrow(() => assertIntakeFunctionAttestation(proofs));
