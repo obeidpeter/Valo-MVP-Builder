@@ -18,6 +18,7 @@ const TEST_PERMISSIONS = [
   "requirement:read",
   "evidence:read",
   "report:read",
+  "evaluation:read",
   "partner_relationship:read",
   "entitlement:read",
   "audit:read",

@@ -308,6 +308,23 @@ describe("IntelligenceReviewInbox", () => {
     for (const control of controls) expect(control).toHaveClass("min-h-11");
   });
 
+  it("uses valid definition-list groups without a nested complementary landmark", () => {
+    const view = renderInbox();
+    const definitionList = view.container.querySelector("dl");
+
+    expect(definitionList).not.toBeNull();
+    for (const group of Array.from(definitionList!.children)) {
+      expect(Array.from(group.children).map(({ tagName }) => tagName)).toEqual([
+        "DT",
+        "DD",
+      ]);
+    }
+    expect(
+      screen.getByRole("note", { name: "Review authority boundary" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+  });
+
   it("has no detectable accessibility violations", async () => {
     const view = renderInbox({ onClaim: vi.fn(), onDecision: vi.fn() });
     const results = await axe.run(view.container, {

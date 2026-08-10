@@ -245,16 +245,18 @@ function ReviewItem({
 
         <CardContent className="space-y-4 pt-0">
           <dl className="grid gap-3 text-sm sm:grid-cols-3">
-            <div className="flex min-w-0 items-start gap-2">
-              <UserRoundCheck
-                aria-hidden="true"
-                className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-              />
-              <div className="min-w-0">
-                <dt className="text-xs text-muted-foreground">Reviewer</dt>
-                <dd className="mt-0.5 truncate font-medium">
+            <div className="min-w-0">
+              <dt className="flex items-start gap-2 text-xs text-muted-foreground">
+                <UserRoundCheck
+                  aria-hidden="true"
+                  className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                />
+                <span>Reviewer</span>
+              </dt>
+              <dd className="ml-6 mt-0.5 min-w-0">
+                <span className="block truncate font-medium">
                   {item.reviewerName ?? "Unassigned"}
-                </dd>
+                </span>
                 {item.reviewerName === null ? (
                   <p className="mt-0.5 text-xs text-amber-800">
                     Named reviewer required
@@ -267,50 +269,52 @@ function ReviewItem({
                     Assigned to another reviewer
                   </p>
                 ) : null}
-              </div>
+              </dd>
             </div>
-            <div className="flex min-w-0 items-start gap-2">
-              <CalendarClock
-                aria-hidden="true"
-                className={cn(
-                  "mt-0.5 size-4 shrink-0 text-muted-foreground",
-                  due.overdue && "text-red-700",
-                )}
-              />
-              <div className="min-w-0">
-                <dt className="text-xs text-muted-foreground">Due</dt>
-                <dd
+            <div className="min-w-0">
+              <dt className="flex items-start gap-2 text-xs text-muted-foreground">
+                <CalendarClock
+                  aria-hidden="true"
                   className={cn(
-                    "mt-0.5 font-medium",
+                    "mt-0.5 size-4 shrink-0 text-muted-foreground",
                     due.overdue && "text-red-700",
                   )}
-                >
-                  {due.dateTime ? (
-                    <time dateTime={due.dateTime}>{due.label}</time>
-                  ) : (
-                    due.label
-                  )}
-                  {due.overdue ? " · Overdue" : ""}
-                </dd>
-              </div>
+                />
+                <span>Due</span>
+              </dt>
+              <dd
+                className={cn(
+                  "ml-6 mt-0.5 font-medium",
+                  due.overdue && "text-red-700",
+                )}
+              >
+                {due.dateTime ? (
+                  <time dateTime={due.dateTime}>{due.label}</time>
+                ) : (
+                  due.label
+                )}
+                {due.overdue ? " · Overdue" : ""}
+              </dd>
             </div>
-            <div className="flex min-w-0 items-start gap-2">
-              {item.staleSource ? (
-                <TriangleAlert
-                  aria-hidden="true"
-                  className="mt-0.5 size-4 shrink-0 text-amber-700"
-                />
-              ) : (
-                <BookOpenCheck
-                  aria-hidden="true"
-                  className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-                />
-              )}
-              <div className="min-w-0">
-                <dt className="text-xs text-muted-foreground">Evidence</dt>
-                <dd className="mt-0.5 font-medium">
+            <div className="min-w-0">
+              <dt className="flex items-start gap-2 text-xs text-muted-foreground">
+                {item.staleSource ? (
+                  <TriangleAlert
+                    aria-hidden="true"
+                    className="mt-0.5 size-4 shrink-0 text-amber-700"
+                  />
+                ) : (
+                  <BookOpenCheck
+                    aria-hidden="true"
+                    className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                  />
+                )}
+                <span>Evidence</span>
+              </dt>
+              <dd className="ml-6 mt-0.5 min-w-0">
+                <span className="block font-medium">
                   {formatSourceCount(item.sourceCount)}
-                </dd>
+                </span>
                 <p
                   className={cn(
                     "mt-0.5 text-xs text-muted-foreground",
@@ -323,7 +327,7 @@ function ReviewItem({
                       ? "No source is flagged stale"
                       : "No source is attached"}
                 </p>
-              </div>
+              </dd>
             </div>
           </dl>
 
@@ -607,7 +611,11 @@ export function IntelligenceReviewInbox({
             </ol>
           )}
 
-          <aside className="flex gap-3 rounded-md border border-primary/20 bg-primary/[0.035] p-4 text-sm leading-6">
+          <div
+            role="note"
+            aria-label="Review authority boundary"
+            className="flex gap-3 rounded-md border border-primary/20 bg-primary/[0.035] p-4 text-sm leading-6"
+          >
             <UserRoundCheck
               aria-hidden="true"
               className="mt-1 size-4 shrink-0 text-primary"
@@ -627,7 +635,7 @@ export function IntelligenceReviewInbox({
                 </p>
               ) : null}
             </div>
-          </aside>
+          </div>
         </>
       )}
     </section>
