@@ -11,13 +11,14 @@
     "migration:generate": "drizzle-kit generate --config ./drizzle.config.ts",
     "migration:check": "drizzle-kit check --config ./drizzle.config.ts",
     "migration:apply": "drizzle-kit migrate --config ./drizzle.config.ts",
+    "migration:replit:intake": "node ./scripts/replit-intake-migrations.mjs",
     "migration:bridge:legacy:check": "node ./scripts/run-legacy-bridge.mjs --check",
     "migration:bridge:legacy:catalog-evidence": "node ./scripts/run-legacy-bridge.mjs --catalog-evidence",
     "migration:bridge:legacy:evidence:capture": "node ./scripts/capture-legacy-evidence.mjs --capture-authoritative-evidence",
     "migration:bridge:legacy:evidence:test": "node --test ./scripts/capture-legacy-evidence.test.mjs",
     "migration:bridge:legacy": "node ./scripts/run-legacy-bridge.mjs --execute",
     "migration:bridge:legacy:rehearse": "node ./scripts/legacy-bridge-ci-rehearsal.mjs",
-    "test": "tsx --test src/runtimeSecurity.test.ts"
+    "test": "tsx --test src/runtimeSecurity.test.ts && node --test ./scripts/replit-intake-migrations.test.mjs"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",

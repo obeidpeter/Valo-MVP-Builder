@@ -65,12 +65,13 @@ Activation also requires a named authorised queue/reconciliation owner, an appro
 - `0003_zippy_skrulls.sql`: isolated public Bid Autopsy request store and bounded insert function.
 - `0004_dizzy_virginia_dare.sql`: shared HMAC-keyed rate-limit buckets and consume function.
 - `0005_tranquil_jack_power.sql`: explicit lead retention deadline plus owner-only lead and expired-bucket purge functions.
+- `migration:replit:intake`: Replit-production-only launcher that pins the accepted journal and source hashes, validates separated same-target credentials, serializes Autoscale starts, applies only the pending three-migration suffix, and verifies the final intake catalog before API startup.
 
-Apply the migrations with owner authority, then start the application with the dedicated least-privilege runtime database role. The branch has not yet proved these migrations through live PostgreSQL CI.
+The launcher applies migrations with owner authority and then starts the application with the dedicated least-privilege runtime database role. CI proves the migration chain on its isolated PostgreSQL target; the live production journal and runtime attestation remain deployment evidence gates.
 
 ## Validation snapshot
 
-The frozen local tree passed source and test typechecks; security lint; release configuration; migration/bridge checks; 18 of 18 focused public API/web tests; the 2-test generated-client contract; 18 of 18 database runtime-security tests; the focused public journey, Axe and SEO selection of 34 tests across 3 files; and the full workbench suite of 29 files and 188 tests in 16.27 seconds. Both production builds passed; the workbench transformed 1,971 modules.
+The frozen local tree passed source and test typechecks; security lint; release configuration; migration/bridge checks; 18 of 18 focused public API/web tests; the 2-test generated-client contract; 19 of 19 database runtime-security tests; 5 of 5 source-only Replit migration tests, with the sixth disposable PostgreSQL 16 rehearsal conditional on CI; the focused public journey, Axe and SEO selection of 34 tests across 3 files; and the full workbench suite of 29 files and 188 tests in 16.27 seconds. Both production builds passed; the workbench transformed 1,971 modules.
 
 The landing and initial request page pass focused Axe checks with zero reported violations. Colour contrast is disabled in jsdom and remains a rendered browser/manual check. The frozen public budget passed at main JavaScript 84,269/102,400 gzip bytes; CSS 23,240/25,600; request chunk 6,474/8,192; public-pages chunk 6,712/10,240; images 40,977/819,200; fonts 0/102,400. Live PostgreSQL CI, production evidence and adversarial sign-off remain separate gates.
 
