@@ -64,7 +64,9 @@ describe("ProductionAcceptanceConsole", () => {
     expect(
       screen.getByText("Evidence is complete for a named human go decision"),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Automatic authority:/u)).toHaveTextContent("none");
+    expect(
+      screen.getByText(/Automatic authority:/u).closest("p"),
+    ).toHaveTextContent("Automatic authority: none");
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     expect(screen.getAllByText("Passed")).toHaveLength(7);
   });

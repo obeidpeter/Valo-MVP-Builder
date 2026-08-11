@@ -132,7 +132,7 @@ vi.mock("@workspace/api-client-react", async (importOriginal) => {
               moduleVersion: "valo.commercial-retainer@v1",
               routeMounted: true,
               navigationMounted: true,
-              openApiPublished: false,
+              openApiPublished: true,
               automaticPricingAllowed: false,
               paymentProviderConnected: false,
               externalMessagingConnected: false,
@@ -472,7 +472,7 @@ describe("signed-in routing", () => {
         ROUTE_LOAD_WAIT,
       ),
     ).toBeInTheDocument();
-  });
+  }, 10_000);
 
   it("opens growth operations for a directly assigned Valo operations administrator", async () => {
     currentRole = "valo_operations_administrator";

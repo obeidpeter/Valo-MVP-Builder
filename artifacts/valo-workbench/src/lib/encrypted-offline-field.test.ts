@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   ENCRYPTED_FIELD_COMPANION_STATUS,
@@ -28,7 +29,7 @@ const draft = {
   authoritative: false,
 } as const;
 const source = readFileSync(
-  new URL("./encrypted-offline-field.ts", import.meta.url),
+  resolve(import.meta.dirname, "encrypted-offline-field.ts"),
   "utf8",
 );
 

@@ -890,6 +890,7 @@ describe("PursuitOperationsSuiteRoute", () => {
         name: "Pursuit operations suite",
       }),
     ).toBeInTheDocument();
+    await screen.findByRole("heading", { name: "Record bounded operations" });
     expect(screen.getByLabelText("Pursuit")).toHaveValue("project-1");
     expect(apiState.customFetch).toHaveBeenCalledWith(
       "/api/projects/project-1/operations-suite",
@@ -944,6 +945,7 @@ describe("PursuitOperationsSuiteRoute", () => {
     const user = userEvent.setup();
     const { location } = renderRoute();
     await screen.findByRole("heading", { name: "Pursuit operations suite" });
+    await screen.findByRole("heading", { name: "Record bounded operations" });
     await user.click(screen.getByText("1. Opportunity intake"));
     await user.type(
       screen.getByLabelText("Opportunity title"),
@@ -1055,6 +1057,7 @@ describe("PursuitOperationsSuiteRoute", () => {
     apiState.permissions = ["project:read", "project:update"];
     const { container } = renderRoute();
     await screen.findByRole("heading", { name: "Pursuit operations suite" });
+    await screen.findByRole("heading", { name: "Record bounded operations" });
 
     expect(container.querySelector("#opportunity-intake")).not.toBeNull();
     expect(container.querySelector("#pursuit-board")).not.toBeNull();
@@ -1099,6 +1102,7 @@ describe("PursuitOperationsSuiteRoute", () => {
     expect(
       await screen.findByRole("heading", { name: "Read-only operations view" }),
     ).toBeInTheDocument();
+    await screen.findByRole("heading", { name: "Record bounded operations" });
     expect(
       screen.getByRole("button", { name: "Confirm source and deadline" }),
     ).toBeDisabled();

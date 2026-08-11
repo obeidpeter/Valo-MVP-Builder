@@ -139,7 +139,7 @@ describe("ProductionAcceptancePage", () => {
       screen.getByRole("heading", { name: "Record retained evidence" }),
     ).toBeInTheDocument();
     expect(
-      await screen.findByRole("option", { name: "Migration Owner" }),
+      await screen.findByRole("option", { name: /^Migration Owner/u }),
     ).toBeInTheDocument();
   });
 

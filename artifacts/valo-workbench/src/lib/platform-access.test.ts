@@ -59,6 +59,7 @@ describe("v2.5 platform access", () => {
       "/clients",
       "/billing",
       "/notifications",
+      "/communications",
       "/organisation-settings",
     ]);
     expect(items.find((item) => item.href === "/portal")?.state).toBe(
@@ -194,6 +195,7 @@ describe("v2.5 platform access", () => {
       "/reports",
       "/clients",
       "/notifications",
+      "/communications",
     ]);
     expect(
       platformHomeForRole(

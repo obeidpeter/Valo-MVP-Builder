@@ -36,7 +36,7 @@ export function adaptCommercialRetainerSnapshot(
     !isRecord(snapshot.manifest) ||
     snapshot.manifest.routeMounted !== true ||
     snapshot.manifest.navigationMounted !== true ||
-    snapshot.manifest.openApiPublished !== false ||
+    snapshot.manifest.openApiPublished !== true ||
     snapshot.manifest.automaticPricingAllowed !== false ||
     snapshot.manifest.paymentProviderConnected !== false ||
     snapshot.manifest.externalMessagingConnected !== false ||

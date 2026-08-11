@@ -133,7 +133,9 @@ export function PrivacyWorkflowPanel({
   return (
     <Card className="shadow-none">
       <CardHeader>
-        <CardTitle>Record a named-human workflow</CardTitle>
+        <CardTitle role="heading" aria-level={2}>
+          Record a named-human workflow
+        </CardTitle>
         <p className="text-sm leading-6 text-muted-foreground">
           Record identifiers, controlled decisions and evidence digests only. Do
           not enter names, contact details, request narratives or provider

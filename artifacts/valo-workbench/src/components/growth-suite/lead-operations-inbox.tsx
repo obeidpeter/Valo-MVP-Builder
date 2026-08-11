@@ -389,16 +389,12 @@ export function LeadOperationsInbox({
                         maxLength={1000}
                         required
                         value={statusDecision.reason}
-                        onChange={(event) =>
+                        onChange={(event) => {
+                          const reason = event.currentTarget.value;
                           setStatusDecision((current) =>
-                            current
-                              ? {
-                                  ...current,
-                                  reason: event.currentTarget.value,
-                                }
-                              : current,
-                          )
-                        }
+                            current ? { ...current, reason } : current,
+                          );
+                        }}
                       />
                       {statusDecision.status === "converted" ? (
                         <>
@@ -410,17 +406,15 @@ export function LeadOperationsInbox({
                             maxLength={160}
                             required
                             value={statusDecision.externalTargetReference}
-                            onChange={(event) =>
+                            onChange={(event) => {
+                              const externalTargetReference =
+                                event.currentTarget.value;
                               setStatusDecision((current) =>
                                 current
-                                  ? {
-                                      ...current,
-                                      externalTargetReference:
-                                        event.currentTarget.value,
-                                    }
+                                  ? { ...current, externalTargetReference }
                                   : current,
-                              )
-                            }
+                              );
+                            }}
                           />
                           <Label htmlFor={`lead-conversion-receipt-${item.id}`}>
                             Human-recorded receipt SHA-256
@@ -433,17 +427,15 @@ export function LeadOperationsInbox({
                             required
                             className="font-mono"
                             value={statusDecision.receiptSha256}
-                            onChange={(event) =>
+                            onChange={(event) => {
+                              const receiptSha256 =
+                                event.currentTarget.value.toLowerCase();
                               setStatusDecision((current) =>
                                 current
-                                  ? {
-                                      ...current,
-                                      receiptSha256:
-                                        event.currentTarget.value.toLowerCase(),
-                                    }
+                                  ? { ...current, receiptSha256 }
                                   : current,
-                              )
-                            }
+                              );
+                            }}
                           />
                           <p className="text-xs leading-5 text-muted-foreground">
                             This records a manual conversion receipt. It does
@@ -496,17 +488,13 @@ export function LeadOperationsInbox({
                         id={`lead-contact-purpose-${item.id}`}
                         className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-sm"
                         value={contactRequest.purpose}
-                        onChange={(event) =>
+                        onChange={(event) => {
+                          const purpose = event.currentTarget
+                            .value as LeadContactHandoffPurpose;
                           setContactRequest((current) =>
-                            current
-                              ? {
-                                  ...current,
-                                  purpose: event.currentTarget
-                                    .value as LeadContactHandoffPurpose,
-                                }
-                              : current,
-                          )
-                        }
+                            current ? { ...current, purpose } : current,
+                          );
+                        }}
                       >
                         <option value="initial_follow_up">
                           Initial follow-up

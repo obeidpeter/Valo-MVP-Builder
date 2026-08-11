@@ -1,16 +1,17 @@
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const clientActionSource = readFileSync(
-  new URL("./client-action-portal-route.tsx", import.meta.url),
+  resolve(import.meta.dirname, "client-action-portal-route.tsx"),
   "utf8",
 );
 const consortiumSource = readFileSync(
-  new URL("./partner-consortium-room-route.tsx", import.meta.url),
+  resolve(import.meta.dirname, "partner-consortium-room-route.tsx"),
   "utf8",
 );
 const operationsSource = readFileSync(
-  new URL("./pursuit-operations-suite-route.tsx", import.meta.url),
+  resolve(import.meta.dirname, "pursuit-operations-suite-route.tsx"),
   "utf8",
 );
 

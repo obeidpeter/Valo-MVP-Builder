@@ -107,7 +107,9 @@ export function ClaimsDeskCreatePanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Register human workflow evidence</CardTitle>
+        <CardTitle role="heading" aria-level={2}>
+          Register human workflow evidence
+        </CardTitle>
         <CardDescription>
           References and amounts are records, not legal entitlement, certified
           valuation or pricing.
@@ -306,7 +308,9 @@ export function ClaimsDeskTransitionPanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Controlled transition</CardTitle>
+        <CardTitle role="heading" aria-level={2}>
+          Controlled transition
+        </CardTitle>
         <CardDescription>
           CAS protects each version. Assessment and closure approvals require a
           different named human from the proposer.
@@ -336,21 +340,20 @@ export function ClaimsDeskTransitionPanel({
             </div>
             <div className="space-y-2">
               <Label htmlFor="claims-action">Action</Label>
-              <Select
+              <select
+                id="claims-action"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={action}
-                onValueChange={(value) => setAction(value as ClaimsDeskAction)}
+                onChange={(event) =>
+                  setAction(event.currentTarget.value as ClaimsDeskAction)
+                }
               >
-                <SelectTrigger id="claims-action">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {actions.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {label(value)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                {actions.map((value) => (
+                  <option key={value} value={value}>
+                    {label(value)}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="claims-reason">Controlled reason</Label>
