@@ -31,6 +31,8 @@ const CAPABILITIES = new Set<string>(AI_CAPABILITY_IDS);
 const COHORTS = new Set<string>(REQUIRED_CONTINUOUS_EVAL_COHORTS);
 const DISPOSITIONS = new Set(["completed", "abstained", "safe_failure"]);
 const REVIEWER_NOTE_CODES = new Set<string>(AI_SHADOW_REVIEWER_NOTE_CODES);
+const PLAN_VALIDATION_DEDUPLICATION_MARKER = "persisted-plan-validation-v1";
+const OBSERVATION_VALIDATION_DEDUPLICATION_MARKER = "persisted-observation-v1";
 const VERSION_KEYS: Array<keyof AiShadowVersionManifest> = [
   "applicationReleaseSha256",
   "modelSnapshotSha256",
@@ -471,7 +473,7 @@ export function isAiShadowPlan(value: unknown): value is AiShadowPlan {
     cohorts: value.cohorts,
     expectedCaseCount: value.expectedCaseCount,
     expiresAt: value.expiresAt,
-    idempotencyKey: "persisted-plan-validation-v1",
+    idempotencyKey: PLAN_VALIDATION_DEDUPLICATION_MARKER,
     purpose: value.purpose,
     title: value.title,
     versions: value.versions,
@@ -509,7 +511,7 @@ export function isAiShadowObservation(
     disposition: value.disposition,
     expectedDisposition: value.expectedDisposition,
     fatalMissCount: value.fatalMissCount,
-    idempotencyKey: "persisted-observation-v1",
+    idempotencyKey: OBSERVATION_VALIDATION_DEDUPLICATION_MARKER,
     injectionContained: value.injectionContained,
     latencyMs: value.latencyMs,
     observedAt: value.observedAt,

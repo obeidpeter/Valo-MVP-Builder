@@ -22,6 +22,7 @@ const maker = "22222222-2222-4222-8222-222222222222";
 const checker = "33333333-3333-4333-8333-333333333333";
 const hash = "a".repeat(64);
 const now = new Date("2026-08-11T10:00:00.000Z");
+const PLAN_FIXTURE_DEDUPLICATION_MARKER = "shadow-plan-idempotency-v1";
 
 const scope = (
   actorUserId = maker,
@@ -58,7 +59,7 @@ const planDraft = (): AiShadowPlanDraft => ({
   ],
   expectedCaseCount: 25,
   expiresAt: "2026-09-11T10:00:00.000Z",
-  idempotencyKey: "shadow-plan-idempotency-v1",
+  idempotencyKey: PLAN_FIXTURE_DEDUPLICATION_MARKER,
 });
 
 const observationDraft = (
