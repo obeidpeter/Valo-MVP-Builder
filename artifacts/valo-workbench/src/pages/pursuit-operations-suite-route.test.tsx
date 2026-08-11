@@ -962,7 +962,7 @@ describe("PursuitOperationsSuiteRoute", () => {
     });
 
     await waitFor(() =>
-      expect(location.hook()[0]).toContain("project=project-2"),
+      expect(location.history.at(-1)).toContain("project=project-2"),
     );
     await waitFor(() =>
       expect(apiState.customFetch).toHaveBeenCalledWith(
