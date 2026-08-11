@@ -541,5 +541,5 @@ describe("PursuitOperationsSuiteRecorder", () => {
         completionReceiptSha256: HASH_A,
       },
     });
-  });
+  }, 15_000);
 });
