@@ -38,9 +38,9 @@ export function ClaimsDeskDashboard({
 
   return (
     <section aria-labelledby="claims-desk-title" className="space-y-6">
-      <div className="overflow-hidden rounded-3xl border border-sky-200/70 bg-gradient-to-br from-slate-950 via-sky-950 to-cyan-900 p-6 text-white shadow-xl sm:p-8">
+      <div className="overflow-hidden rounded-3xl border border-sidebar-border bg-sidebar p-6 text-sidebar-foreground sm:p-8">
         <div className="max-w-3xl space-y-3">
-          <Badge className="bg-white/15 text-white hover:bg-white/15">
+          <Badge className="bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent">
             Project ledger · {label(snapshot.projectStatus)}
           </Badge>
           <h1
@@ -49,7 +49,7 @@ export function ClaimsDeskDashboard({
           >
             Commercial &amp; Claims Desk
           </h1>
-          <p className="text-sm leading-6 text-sky-100 sm:text-base">
+          <p className="text-sm leading-6 text-sidebar-foreground/80 sm:text-base">
             {snapshot.authorityNote}
           </p>
         </div>
@@ -68,7 +68,7 @@ export function ClaimsDeskDashboard({
                   {value}
                 </p>
               </div>
-              <Icon aria-hidden="true" className="size-5 text-sky-600" />
+              <Icon aria-hidden="true" className="size-5 text-primary" />
             </CardContent>
           </Card>
         ))}

@@ -37,13 +37,14 @@ const STATUS_LABELS: Readonly<Record<CommunicationEvent["status"], string>> = {
 };
 
 const STATUS_STYLES: Readonly<Record<CommunicationEvent["status"], string>> = {
-  queued: "border-sky-200 bg-sky-50 text-sky-800",
-  prepared: "border-amber-200 bg-amber-50 text-amber-900",
-  accepted_pending_receipt: "border-violet-200 bg-violet-50 text-violet-900",
-  retry_wait: "border-orange-200 bg-orange-50 text-orange-900",
-  reconciliation_required: "border-red-200 bg-red-50 text-red-900",
-  delivered: "border-emerald-200 bg-emerald-50 text-emerald-900",
-  dead_letter: "border-slate-200 bg-slate-100 text-slate-700",
+  queued: "border-info bg-info/10 text-foreground",
+  prepared: "border-warning bg-warning/10 text-foreground",
+  accepted_pending_receipt: "border-info bg-info/10 text-foreground",
+  retry_wait: "border-warning bg-warning/10 text-foreground",
+  reconciliation_required:
+    "border-destructive bg-destructive/10 text-foreground",
+  delivered: "border-border bg-muted text-success",
+  dead_letter: "border-border bg-muted text-muted-foreground",
 };
 
 function newIntentKey(): string {
@@ -297,14 +298,14 @@ function EventCard(props: {
       ) : null}
 
       {props.event.status === "accepted_pending_receipt" ? (
-        <p className="mt-4 flex items-start gap-2 rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900">
+        <p className="mt-4 flex items-start gap-2 rounded-lg border border-info bg-info/10 p-3 text-sm text-foreground">
           <Clock3 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           Provider acceptance is not delivery. A trusted receipt must be
           reconciled before Valo will show this as delivered.
         </p>
       ) : null}
       {props.event.status === "reconciliation_required" ? (
-        <p className="mt-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+        <p className="mt-4 flex items-start gap-2 rounded-lg border border-destructive bg-destructive/10 p-3 text-sm text-foreground">
           <AlertTriangle
             className="mt-0.5 size-4 shrink-0"
             aria-hidden="true"
@@ -314,7 +315,7 @@ function EventCard(props: {
         </p>
       ) : null}
       {props.event.status === "delivered" ? (
-        <p className="mt-4 flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+        <p className="mt-4 flex items-start gap-2 rounded-lg border border-border bg-muted p-3 text-sm text-success">
           <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           Delivery is backed by an independently verified provider receipt.
         </p>

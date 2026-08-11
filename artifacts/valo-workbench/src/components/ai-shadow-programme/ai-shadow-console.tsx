@@ -119,7 +119,7 @@ function PlanCard({
           </div>
         </dl>
         {item.blockers.length ? (
-          <div className="rounded-lg border border-amber-300/50 bg-amber-50 p-3 text-sm text-amber-950 dark:bg-amber-950/20 dark:text-amber-100">
+          <div className="rounded-lg border border-warning bg-warning/10 p-3 text-sm text-foreground">
             <p className="font-medium">Current blockers</p>
             <ul className="mt-2 list-disc space-y-1 pl-5">
               {item.blockers.map((blocker) => (
@@ -276,11 +276,11 @@ export function AiShadowProgrammeConsole({
             </p>
           </div>
         </div>
-        <div className="mt-5 flex items-center gap-2 rounded-lg border border-emerald-300/50 bg-emerald-50 p-3 text-sm text-emerald-950 dark:bg-emerald-950/20 dark:text-emerald-100">
+        <div className="mt-5 flex items-center gap-2 rounded-lg border border-border bg-muted p-3 text-sm text-success">
           <BotOff aria-hidden="true" className="size-5 shrink-0" />
           Provider disclosure and production activation remain hard-disabled.
         </div>
-        <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-950 dark:bg-amber-950/20 dark:text-amber-100">
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-warning bg-warning/10 p-3 text-sm text-foreground">
           <AlertTriangle
             aria-hidden="true"
             className="mt-0.5 size-5 shrink-0"
