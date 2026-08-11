@@ -263,7 +263,7 @@ function migrationIntakeFunctions() {
       argument_types: "uuid,text,text",
       identity_arguments:
         "p_request_id uuid, p_expected_status text, p_next_status text",
-      return_type: "record",
+      return_type: "uuid",
       function_result: "TABLE(request_id uuid)",
       returns_set: true,
       runtime_can_execute: true,
@@ -718,6 +718,32 @@ describe("production public-intake least privilege attestation", () => {
 
     assert.throws(
       () => assertIntakeFunctionAttestation(proofs.slice(1)),
+      /intake function catalog is drifted/,
+    );
+  });
+
+  test("pins PostgreSQL's one-column RETURNS TABLE catalog semantics", () => {
+    const proofs = migrationIntakeFunctions();
+    const transition = proofs.find(
+      (proof) => proof.function_name === "transition_bid_autopsy_work_queue",
+    );
+    assert.ok(transition);
+
+    // PostgreSQL exposes the lone OUT column type through prorettype while
+    // retaining the declared TABLE shape through pg_get_function_result().
+    assert.equal(transition.return_type, "uuid");
+    assert.equal(transition.function_result, "TABLE(request_id uuid)");
+    assert.equal(transition.returns_set, true);
+    assert.doesNotThrow(() => assertIntakeFunctionAttestation(proofs));
+
+    const drifted = structuredClone(proofs);
+    const driftedTransition = drifted.find(
+      (proof) => proof.function_name === "transition_bid_autopsy_work_queue",
+    );
+    assert.ok(driftedTransition);
+    driftedTransition.return_type = "record";
+    assert.throws(
+      () => assertIntakeFunctionAttestation(drifted),
       /intake function catalog is drifted/,
     );
   });

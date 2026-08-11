@@ -604,7 +604,7 @@ const EXPECTED_INTAKE_FUNCTIONS = new Map<
     {
       argumentCount: 3,
       argumentTypes: "uuid,text,text",
-      returnType: "record",
+      returnType: "uuid",
       functionResult: "TABLE(request_id uuid)",
       returnsSet: true,
       runtimeCanExecute: true,
