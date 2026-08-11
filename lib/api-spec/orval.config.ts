@@ -5,10 +5,143 @@ const root = path.resolve(__dirname, "..", "..");
 const apiClientReactSrc = path.resolve(root, "lib", "api-client-react", "src");
 const apiZodSrc = path.resolve(root, "lib", "api-zod", "src");
 
+const strictRoadmapOperationIds = [
+  "getProductionAcceptanceSnapshot",
+  "listProductionAcceptanceAuthorities",
+  "recordProductionAcceptanceEvidence",
+  "getClientActionSnapshot",
+  "listClientActionAuthorities",
+  "createClientEvidenceRequest",
+  "acknowledgeClientEvidenceRequest",
+  "createClientUploadIntent",
+  "attachClientEvidenceDocument",
+  "reviewClientEvidenceSlot",
+  "acknowledgeClientEvidenceCorrection",
+  "createClientPackageDelivery",
+  "acknowledgeClientPackageDelivery",
+  "listOpportunitySourceCandidates",
+  "getOpportunitySourceCandidate",
+  "recordManualOpportunitySource",
+  "decideOpportunitySourceCandidate",
+  "getReconciledCommunications",
+  "listProjectCommunicationReferences",
+  "queueCommunicationIntent",
+  "recordCommunicationAttempt",
+  "reconcileCommunicationReceipt",
+  "getCommercialRetainerManifest",
+  "getCommercialRetainerSnapshot",
+  "createCommercialQuote",
+  "approveCommercialQuote",
+  "createCommercialInvoice",
+  "recordCommercialPayment",
+  "verifyCommercialPayment",
+  "createRetainerRequest",
+  "mutateRetainerRequest",
+  "getPartnerConsortiumRoom",
+  "listConsortiumRoomParticipants",
+  "initializePartnerConsortiumRoom",
+  "addConsortiumResponsibility",
+  "reviseConsortiumResponsibility",
+  "decideConsortiumResponsibility",
+  "prepareConsortiumQaItem",
+  "decideConsortiumQaItem",
+  "getAiShadowProgramme",
+  "createAiShadowPlan",
+  "recordAiShadowObservation",
+  "closeAiShadowPlan",
+  "getPrivacyOperations",
+  "listPrivacyOperationsAssignees",
+  "triagePrivacyDataSubjectRequest",
+  "recordPrivacyConsentWithdrawal",
+  "recordPrivacyLegalHoldReview",
+  "getClaimsDesk",
+  "createClaimsDeskRecord",
+  "transitionClaimsDeskRecord",
+] as const;
+
+const strictRoadmapOperations = Object.fromEntries(
+  strictRoadmapOperationIds.map((operationId) => [
+    operationId,
+    { zod: { strict: { body: true, response: true } } },
+  ]),
+);
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function resolveLocalReference(
+  rootDocument: Record<string, unknown>,
+  reference: string,
+): unknown {
+  if (!reference.startsWith("#/")) return undefined;
+  return reference
+    .slice(2)
+    .split("/")
+    .map((part) => part.replaceAll("~1", "/").replaceAll("~0", "~"))
+    .reduce<unknown>(
+      (current, part) => asRecord(current)?.[part],
+      rootDocument,
+    );
+}
+
+/**
+ * Orval 8.18 emits Zod literals for string constants but widens boolean and
+ * numeric `const` values. A one-value enum is JSON-Schema-equivalent and is
+ * emitted as an exact Zod literal. Limit this normalization to schemas
+ * reachable from the frozen roadmap operations so legacy generated contracts
+ * and their deterministic post-patches remain byte-stable.
+ */
+function preserveRoadmapScalarLiterals(config: Record<string, unknown>): void {
+  const visited = new Set<unknown>();
+  const visit = (value: unknown): void => {
+    if (value === null || typeof value !== "object" || visited.has(value)) {
+      return;
+    }
+    visited.add(value);
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    const record = value as Record<string, unknown>;
+    if (typeof record.$ref === "string") {
+      visit(resolveLocalReference(config, record.$ref));
+    }
+    if (
+      Object.hasOwn(record, "const") &&
+      (typeof record.const === "boolean" || typeof record.const === "number")
+    ) {
+      record.enum = [record.const];
+      delete record.const;
+    }
+    Object.values(record).forEach(visit);
+  };
+
+  const paths = asRecord(config.paths) ?? {};
+  const roadmapIds = new Set<string>(strictRoadmapOperationIds);
+  for (const pathItem of Object.values(paths)) {
+    const item = asRecord(pathItem);
+    if (!item) continue;
+    for (const operation of Object.values(item)) {
+      const candidate = asRecord(operation);
+      if (
+        candidate &&
+        typeof candidate.operationId === "string" &&
+        roadmapIds.has(candidate.operationId)
+      ) {
+        visit(candidate);
+      }
+    }
+  }
+}
+
 // Our exports make assumptions about the title of the API being "Api" (i.e. generated output is `api.ts`).
 const titleTransformer: InputTransformerFn = (config) => {
   config.info ??= {};
   config.info.title = "Api";
+  preserveRoadmapScalarLiterals(config as unknown as Record<string, unknown>);
 
   return config;
 };
@@ -58,12 +191,13 @@ export default defineConfig({
       override: {
         zod: {
           coerce: {
-            query: ['boolean', 'number', 'string'],
-            param: ['boolean', 'number', 'string'],
-            body: ['bigint', 'date'],
-            response: ['bigint', 'date'],
+            query: ["boolean", "number", "string"],
+            param: ["boolean", "number", "string"],
+            body: ["bigint", "date"],
+            response: ["bigint", "date"],
           },
         },
+        operations: strictRoadmapOperations,
         useDates: true,
         useBigInt: true,
       },

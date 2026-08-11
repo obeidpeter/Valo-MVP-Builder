@@ -267,6 +267,7 @@ export function serializeVaultItem(
     objectPath: v.objectPath ?? null,
     sha256: v.sha256 ?? null,
     sourceDocumentId: v.sourceDocumentId ?? null,
+    version: v.version,
     expiryBand: telemetry.band,
     daysToExpiry: telemetry.daysToExpiry,
     createdAt: iso(v.createdAt) ?? new Date(0).toISOString(),

@@ -3,6 +3,7 @@ import { Switch, Route } from "wouter";
 import RequireAdmin from "@/components/require-admin";
 import RequireArea from "@/components/require-area";
 import { LoadingPanel } from "@/components/platform-states";
+import { platformFeatureFlags } from "@/lib/platform-access";
 
 const RoleHome = lazy(() => import("@/components/role-home"));
 const NotFound = lazy(() => import("@/pages/not-found"));
@@ -15,11 +16,37 @@ const SbdDetails = lazy(() => import("@/pages/sbd-details"));
 const Settings = lazy(() => import("@/pages/settings"));
 const ClientPortal = lazy(() => import("@/pages/client-portal"));
 const OperationsConsole = lazy(() => import("@/pages/operations-console"));
+const PursuitOperationsSuite = lazy(
+  () => import("@/pages/pursuit-operations-suite-route"),
+);
+const GrowthOperations = lazy(() => import("@/pages/growth-operations"));
+const OpportunitySourceNetwork = lazy(
+  () => import("@/pages/opportunity-source-network"),
+);
+const ClientActionPortal = lazy(
+  () => import("@/pages/client-action-portal-route"),
+);
+const ProductionAcceptance = lazy(
+  () => import("@/pages/production-acceptance"),
+);
+const AiShadowProgramme = lazy(() => import("@/pages/ai-shadow-programme"));
+const EncryptedFieldCompanion = lazy(
+  () => import("@/pages/encrypted-field-companion"),
+);
+const ReconciledCommunications = lazy(
+  () => import("@/pages/reconciled-communications-route"),
+);
+const PrivacyOperations = lazy(() => import("@/pages/privacy-operations"));
 const IntelligenceCentre = lazy(
   () => import("@/pages/intelligence-centre-route"),
 );
 const PartnerWorkspace = lazy(() => import("@/pages/partner-workspace"));
+const PartnerConsortiumRoom = lazy(
+  () => import("@/pages/partner-consortium-room-route"),
+);
 const BillingEntitlements = lazy(() => import("@/pages/billing-entitlements"));
+const CommercialRetainer = lazy(() => import("@/pages/commercial-retainer"));
+const ClaimsDesk = lazy(() => import("@/pages/claims-desk"));
 const NotificationsConsole = lazy(
   () => import("@/pages/notifications-console"),
 );
@@ -32,6 +59,7 @@ const OrganisationSettings = lazy(
 );
 
 export default function ProtectedRoutes() {
+  const partnerWorkspaceEnabled = platformFeatureFlags().partnerWorkspace;
   return (
     <Suspense
       fallback={
@@ -78,6 +106,26 @@ export default function ProtectedRoutes() {
             <OperationsConsole />
           </RequireArea>
         </Route>
+        <Route path="/pursuit-operations">
+          <RequireArea area="pursuit_operations">
+            <PursuitOperationsSuite />
+          </RequireArea>
+        </Route>
+        <Route path="/field-companion">
+          <RequireArea area="field_companion">
+            <EncryptedFieldCompanion />
+          </RequireArea>
+        </Route>
+        <Route path="/growth-operations">
+          <RequireArea area="growth_operations">
+            <GrowthOperations />
+          </RequireArea>
+        </Route>
+        <Route path="/opportunity-sources">
+          <RequireArea area="opportunity_sources">
+            <OpportunitySourceNetwork />
+          </RequireArea>
+        </Route>
         <Route path="/intelligence">
           <RequireArea area="pursuit_workbench">
             <IntelligenceCentre />
@@ -88,9 +136,23 @@ export default function ProtectedRoutes() {
             <ClientPortal />
           </RequireArea>
         </Route>
+        <Route path="/client-actions">
+          <RequireArea area="client_actions">
+            <ClientActionPortal />
+          </RequireArea>
+        </Route>
         <Route path="/partner">
           <RequireArea area="partner_workspace">
             <PartnerWorkspace />
+          </RequireArea>
+        </Route>
+        <Route path="/consortium-room">
+          <RequireArea area="partner_workspace">
+            {partnerWorkspaceEnabled ? (
+              <PartnerConsortiumRoom />
+            ) : (
+              <PartnerWorkspace />
+            )}
           </RequireArea>
         </Route>
         <Route path="/evidence-readiness">
@@ -108,14 +170,44 @@ export default function ProtectedRoutes() {
             <BillingEntitlements />
           </RequireArea>
         </Route>
+        <Route path="/commercial-retainer">
+          <RequireArea area="commercial_retainer">
+            <CommercialRetainer />
+          </RequireArea>
+        </Route>
+        <Route path="/claims-desk">
+          <RequireArea area="claims_desk">
+            <ClaimsDesk />
+          </RequireArea>
+        </Route>
         <Route path="/notifications">
           <RequireArea area="notifications">
             <NotificationsConsole />
           </RequireArea>
         </Route>
+        <Route path="/communications">
+          <RequireArea area="notifications">
+            <ReconciledCommunications />
+          </RequireArea>
+        </Route>
         <Route path="/app/security">
           <RequireArea area="security_audit">
             <SecurityAudit />
+          </RequireArea>
+        </Route>
+        <Route path="/privacy-operations">
+          <RequireArea area="privacy_operations">
+            <PrivacyOperations />
+          </RequireArea>
+        </Route>
+        <Route path="/production-acceptance">
+          <RequireArea area="production_acceptance">
+            <ProductionAcceptance />
+          </RequireArea>
+        </Route>
+        <Route path="/ai-shadow">
+          <RequireArea area="ai_shadow">
+            <AiShadowProgramme />
           </RequireArea>
         </Route>
         <Route path="/organisation-settings">

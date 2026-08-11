@@ -20,13 +20,22 @@ import {
   defects,
   boqChecks,
   llmRuns,
+  notificationAttempts,
+  notificationEvents,
   reports,
   retentionRequests,
   vaultItems,
   auditEvents,
   organisations,
   organisationMemberships,
+  packageManifestItems,
+  packageVersions,
+  packages,
+  priceBookEntries,
+  priceBooks,
+  orders,
   roleGrants,
+  workTasks,
   withTenantDatabase,
 } from "@workspace/db";
 import operationsRouter from "./operations";
@@ -37,6 +46,7 @@ import {
   enforceTenantResourceBoundary,
 } from "../middlewares/tenancy";
 import { attachTenantDatabase } from "../middlewares/databaseTenancy";
+import { RETAINER_TASK_PREFIX } from "../lib/commercialRetainer/contracts";
 
 /**
  * End-to-end proof of the retention "deletion certificate" invariant:
@@ -58,6 +68,9 @@ let clientId: string;
 let projectId: string;
 let vaultBlobPath: string;
 let engagementBlobPath: string;
+let reportBlobPath: string;
+let packagePdfBlobPath: string;
+let packageZipBlobPath: string;
 const deletedBlobs: string[] = [];
 
 before(async () => {
@@ -120,6 +133,9 @@ before(async () => {
 
     engagementBlobPath = `retention-it/${stamp}/tender.txt`;
     vaultBlobPath = `retention-it/${stamp}/cac-cert.pdf`;
+    reportBlobPath = `retention-it/${stamp}/report-v1.docx`;
+    packagePdfBlobPath = `retention-it/${stamp}/project-package.pdf`;
+    packageZipBlobPath = `retention-it/${stamp}/project-package.zip`;
     const [tenderDoc] = await db
       .insert(documents)
       .values([
@@ -195,7 +211,119 @@ before(async () => {
       projectId,
       version: 1,
       status: "draft",
-      docxPath: `retention-it/${stamp}/report-v1.docx`,
+      docxPath: reportBlobPath,
+    });
+    const [notificationEvent] = await db
+      .insert(notificationEvents)
+      .values({
+        organisationId,
+        projectId,
+        channel: "email",
+        template: "[RECONCILED-COMMS:v1]evidence_request_ready_v1",
+        recipient: `user:${adminId}`,
+        payload: JSON.stringify({
+          requestId: randomUUID(),
+          dueAt: new Date(Date.now() + 86_400_000).toISOString(),
+        }),
+        status: "prepared",
+        createdBy: adminId,
+      })
+      .returning();
+    await db.insert(notificationAttempts).values({
+      organisationId,
+      notificationEventId: notificationEvent.id,
+      attemptNumber: 1,
+      provider: "disconnected:test",
+      idempotencyKey: `retention-${randomUUID()}`,
+      status: "provider_disconnected",
+      responseSummary: JSON.stringify({ receiptVerified: false }),
+    });
+    await db.insert(workTasks).values([
+      {
+        organisationId,
+        projectId,
+        title: "[OPS:evidence_request] Confidential evidence request",
+        description: JSON.stringify({
+          schema: "valo.operations-suite/v1",
+          confidentialRequestMessage: "Provide the unpublished tax record",
+        }),
+      },
+      {
+        organisationId,
+        projectId,
+        title: `[CLIENT-ACTION:evidence_request] ${randomUUID()}`,
+        description: JSON.stringify({
+          schema: "valo.client-action-portal/v1",
+          confidentialRequestMessage:
+            "Provide the unpublished client evidence record",
+        }),
+      },
+      {
+        organisationId,
+        projectId,
+        title: `${RETAINER_TASK_PREFIX}${randomUUID()}] Confidential retainer request`,
+        description: JSON.stringify({
+          schemaVersion: "valo.retainer-service-request@v1",
+          confidentialRequestMessage: "Review the unpublished tax record",
+        }),
+      },
+      {
+        organisationId,
+        projectId,
+        title: `[CONSORTIUM-ROOM:v1:${randomUUID()}]`,
+        description: JSON.stringify({
+          schema: "valo.partner-consortium-room/v1",
+          confidentialResponsibility: "Prepare the unpublished pricing file",
+        }),
+      },
+      {
+        organisationId,
+        projectId,
+        title: `[CLAIMS-DESK:record_created] ${randomUUID()}`,
+        description: JSON.stringify({
+          schema: "valo.claims-desk-ledger/v1",
+          receiptSha256: "a".repeat(64),
+        }),
+      },
+    ]);
+    const [projectPackage] = await db
+      .insert(packages)
+      .values({
+        organisationId,
+        projectId,
+        packageType: "project_export",
+        currentVersionNumber: 1,
+      })
+      .returning();
+    const [packageVersion] = await db
+      .insert(packageVersions)
+      .values({
+        organisationId,
+        packageId: projectPackage.id,
+        versionNumber: 1,
+        sourceSnapshotHash: "c".repeat(64),
+        manifestHash: "d".repeat(64),
+        renderQaStatus: "pending",
+        readinessSnapshot: JSON.stringify({ confidential: "snapshot" }),
+        generatedByUserId: adminId,
+        // DOCX intentionally overlaps the report row to prove purge planning
+        // deduplicates shared object paths before storage deletion.
+        docxObjectPath: reportBlobPath,
+        docxSha256: "f".repeat(64),
+        pdfObjectPath: packagePdfBlobPath,
+        pdfSha256: "1".repeat(64),
+        zipObjectPath: packageZipBlobPath,
+        zipSha256: "2".repeat(64),
+      })
+      .returning();
+    await db.insert(packageManifestItems).values({
+      organisationId,
+      packageVersionId: packageVersion.id,
+      ordinal: 1,
+      itemType: "signed_report",
+      filename: "confidential-report.docx",
+      sha256: "e".repeat(64),
+      sizeBytes: 128,
     });
   });
 
@@ -253,6 +381,15 @@ interface RetentionBody {
   status: string;
   certificateText: string;
   error: string;
+  commercialFinancialBlockers?: {
+    orders: number;
+    invoiceLines: number;
+    invoices: number;
+    payments: number;
+    entitlements: number;
+    subscriptions: number;
+    entitlementUsage: number;
+  };
 }
 
 async function json(res: globalThis.Response): Promise<RetentionBody> {
@@ -272,6 +409,13 @@ async function rowCount(table: any): Promise<number> {
       .select()
       .from(table)
       .where(eq(table.projectId, projectId));
+    return rows.length;
+  });
+}
+
+async function tenantRowCount(table: any): Promise<number> {
+  return withTenantDatabase(organisationId, async () => {
+    const rows = await db.select().from(table);
     return rows.length;
   });
 }
@@ -333,6 +477,10 @@ describe("retention request lifecycle", () => {
     // Nothing may have been purged by the refused attempt.
     assert.equal(await rowCount(requirements), 1);
     assert.equal(await rowCount(documents), 2);
+    assert.equal(await rowCount(workTasks), 5);
+    assert.equal(await rowCount(notificationEvents), 1);
+    assert.equal(await tenantRowCount(notificationAttempts), 1);
+    assert.equal(await rowCount(packages), 1);
     const [reqRow] = await withTenantDatabase(organisationId, () =>
       db
         .select()
@@ -341,6 +489,88 @@ describe("retention request lifecycle", () => {
     );
     assert.equal(reqRow.status, "pending");
     assert.equal(deletedBlobs.length, 0);
+  });
+
+  test("withholds the certificate before purge when linked financial records survive", async () => {
+    const seeded = await withTenantDatabase(organisationId, async () => {
+      await db
+        .update(projects)
+        .set({
+          physicalArchiveInstruction:
+            "Return all hard copies to client within 7 days",
+        })
+        .where(eq(projects.id, projectId));
+      const now = new Date();
+      const [book] = await db
+        .insert(priceBooks)
+        .values({
+          organisationId,
+          name: `retention-block-${randomUUID()}`,
+          versionNumber: 1,
+          status: "active",
+          effectiveFrom: now,
+          approvedByUserId: adminId,
+          approvedAt: now,
+        })
+        .returning();
+      const [entry] = await db
+        .insert(priceBookEntries)
+        .values({
+          priceBookId: book.id,
+          productCode: "retention-block-proof@1",
+          productKind: "bid_autopsy",
+          currency: "NGN",
+          amountMinor: 100_000n,
+          billingCadence: "one_off",
+        })
+        .returning();
+      const [order] = await db
+        .insert(orders)
+        .values({
+          organisationId,
+          projectId,
+          priceBookEntryId: entry.id,
+          quantity: 1,
+          unitAmountMinor: 100_000n,
+          totalAmountMinor: 100_000n,
+          currency: "NGN",
+          status: "quote_pending_checker",
+          idempotencyKey: `retention-block-${randomUUID()}`,
+          placedByUserId: adminId,
+        })
+        .returning();
+      return { bookId: book.id, entryId: entry.id, orderId: order.id };
+    });
+
+    try {
+      const res = await fetch(
+        `${baseUrl}/retention-requests/${requestId}/complete`,
+        { method: "POST", headers: headers() },
+      );
+      assert.equal(res.status, 409);
+      const body = await json(res);
+      assert.match(body.error, /financial-retention policy/i);
+      assert.equal(body.commercialFinancialBlockers?.orders, 1);
+      assert.equal(body.commercialFinancialBlockers?.invoices, 0);
+      assert.equal(body.commercialFinancialBlockers?.entitlementUsage, 0);
+      assert.equal(deletedBlobs.length, 0, "blob purge did not begin");
+      assert.equal(await rowCount(requirements), 1, "rows remain intact");
+      const [pending] = await withTenantDatabase(organisationId, () =>
+        db
+          .select()
+          .from(retentionRequests)
+          .where(eq(retentionRequests.id, requestId)),
+      );
+      assert.equal(pending.status, "pending");
+    } finally {
+      await withTenantDatabase(organisationId, async () => {
+        await db.delete(orders).where(eq(orders.id, seeded.orderId));
+        await db
+          .delete(priceBookEntries)
+          .where(eq(priceBookEntries.id, seeded.entryId));
+        await db.delete(priceBooks).where(eq(priceBooks.id, seeded.bookId));
+      });
+    }
   });
 
   test("certifies only after purging every stored content class", async () => {
@@ -364,6 +594,10 @@ describe("retention request lifecycle", () => {
     assert.equal(res.status, 200);
     const body = await json(res);
     assert.equal(body.status, "completed");
+    assert.match(body.certificateText, /claims_desk_events=1/u);
+    assert.match(body.certificateText, /client_action_records=1/u);
+    assert.match(body.certificateText, /notification_events=1/u);
+    assert.match(body.certificateText, /notification_attempts=1/u);
 
     // Every derived content class is gone.
     assert.equal(await rowCount(requirements), 0, "requirements purged");
@@ -373,6 +607,28 @@ describe("retention request lifecycle", () => {
     assert.equal(await rowCount(llmRuns), 0, "llm run summaries purged");
     assert.equal(await rowCount(documents), 0, "document rows purged");
     assert.equal(await rowCount(reports), 0, "report rows purged");
+    assert.equal(await rowCount(workTasks), 0, "operations records purged");
+    assert.equal(
+      await rowCount(notificationEvents),
+      0,
+      "notification events purged",
+    );
+    assert.equal(
+      await tenantRowCount(notificationAttempts),
+      0,
+      "notification attempts purged",
+    );
+    assert.equal(await rowCount(packages), 0, "packages purged");
+    assert.equal(
+      await tenantRowCount(packageVersions),
+      0,
+      "package versions purged",
+    );
+    assert.equal(
+      await tenantRowCount(packageManifestItems),
+      0,
+      "package manifests purged",
+    );
 
     // Narrative fields cleared, project archived.
     const [project] = await withTenantDatabase(organisationId, () =>
@@ -388,6 +644,19 @@ describe("retention request lifecycle", () => {
       deletedBlobs.includes(engagementBlobPath),
       "engagement blob purged",
     );
+    assert.equal(
+      deletedBlobs.filter((path) => path === reportBlobPath).length,
+      1,
+      "report/package DOCX path purged once",
+    );
+    assert.ok(
+      deletedBlobs.includes(packagePdfBlobPath),
+      "package PDF blob purged",
+    );
+    assert.ok(
+      deletedBlobs.includes(packageZipBlobPath),
+      "package ZIP blob purged",
+    );
     assert.ok(
       !deletedBlobs.includes(vaultBlobPath),
       "vault artefact blob retained",
@@ -399,6 +668,15 @@ describe("retention request lifecycle", () => {
     assert.match(body.certificateText, /defects=1/);
     assert.match(body.certificateText, /boq_checks=1/);
     assert.match(body.certificateText, /llm_runs=1/);
+    assert.match(body.certificateText, /operations_records=5/);
+    assert.match(body.certificateText, /client_action_records=1/);
+    assert.match(body.certificateText, /notification_events=1/);
+    assert.match(body.certificateText, /notification_attempts=1/);
+    assert.match(body.certificateText, /retainer_service_requests=1/);
+    assert.match(body.certificateText, /consortium_rooms=1/);
+    assert.match(body.certificateText, /packages=1/);
+    assert.match(body.certificateText, /package_versions=1/);
+    assert.match(body.certificateText, /package_manifest_items=1/);
     assert.match(body.certificateText, /audit chain/i);
     assert.match(body.certificateText, /Certificate Vault/i);
   });

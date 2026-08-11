@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ProtectedRoutes from "./protected-routes";
 
 let currentRole = "reviewer";
+let currentAccessSource: "membership" | "partner" = "membership";
 
 const TEST_PERMISSIONS = [
   "analytics:read",
@@ -21,9 +22,12 @@ const TEST_PERMISSIONS = [
   "evaluation:read",
   "partner_relationship:read",
   "entitlement:read",
+  "billing:read",
+  "order:create",
   "audit:read",
   "membership:manage",
   "configuration:manage",
+  "organisation:read",
 ];
 
 const ROUTE_LOAD_WAIT = { timeout: 5_000 };
@@ -96,6 +100,62 @@ vi.mock("@workspace/api-client-react", async (importOriginal) => {
       isLoading: false,
       isError: false,
     }),
+    customFetch: async (path: string) => {
+      if (path === "/api/growth-suite/onboarding") {
+        return {
+          journey: {
+            policyVersion: "route-test-v1",
+            derivedFromRoles: ["valo_operations_administrator"],
+            checklist: [],
+            syntheticTour: {
+              dataClassification: "synthetic_non_customer",
+              writesAuthoritativeState: false,
+              title: "Synthetic route test",
+              steps: [],
+            },
+          },
+          progress: {
+            journeyVersion: "route-test-v1",
+            completedItemIds: [],
+            version: 0,
+          },
+        };
+      }
+      if (path === "/api/growth-suite/offers") {
+        return { catalogueVersion: "route-test-v1", items: [] };
+      }
+      if (path === "/api/commercial-retainer/snapshot") {
+        return {
+          snapshot: {
+            organisationId: "org-test",
+            manifest: {
+              moduleVersion: "valo.commercial-retainer@v1",
+              routeMounted: true,
+              navigationMounted: true,
+              openApiPublished: false,
+              automaticPricingAllowed: false,
+              paymentProviderConnected: false,
+              externalMessagingConnected: false,
+              autonomousWorkAllowed: false,
+              makerCheckerRequired: true,
+            },
+            activation: {
+              fixedPriceBookReady: false,
+              providerConnected: false,
+              manualReconciliationReady: true,
+              retainerDeskReady: false,
+            },
+            offers: [],
+            quotes: [],
+            invoices: [],
+            payments: [],
+            entitlements: [],
+            serviceRequests: [],
+          },
+        };
+      }
+      throw new Error(`Unexpected customFetch route in test: ${path}`);
+    },
   };
 });
 
@@ -112,7 +172,7 @@ vi.mock("./contexts/organisation-context", () => ({
       countryCode: "NG",
       membershipId: "membership-test",
       membershipOrganisationId: "org-test",
-      accessSource: "membership" as const,
+      accessSource: currentAccessSource,
       partnerRelationshipId: null,
       accessExpiresAt: null,
       roles: [currentRole],
@@ -157,6 +217,7 @@ function renderAt(path: string) {
 describe("signed-in routing", () => {
   beforeEach(() => {
     currentRole = "reviewer";
+    currentAccessSource = "membership";
     vi.stubEnv("VITE_FEATURE_CLIENT_PORTAL", "false");
     vi.stubEnv("VITE_FEATURE_PARTNER_WORKSPACE", "false");
   });
@@ -331,6 +392,43 @@ describe("signed-in routing", () => {
     expect(screen.queryByText(/add managed client/i)).not.toBeInTheDocument();
   });
 
+  it("keeps the consortium room under the partner workspace activation gate", async () => {
+    currentRole = "consultancy_partner_analyst_reviewer";
+    renderAt("/consortium-room");
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: /partner workspace requires activation/i },
+        ROUTE_LOAD_WAIT,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/assign, accept, and independently check/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("loads the consortium room only for an activated partner-workspace role", async () => {
+    currentRole = "consultancy_partner_analyst_reviewer";
+    vi.stubEnv("VITE_FEATURE_PARTNER_WORKSPACE", "true");
+    renderAt("/consortium-room");
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: /no active relationship project is available/i },
+        ROUTE_LOAD_WAIT,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("denies the consortium room to roles outside partner_workspace", () => {
+    currentRole = "reviewer";
+    vi.stubEnv("VITE_FEATURE_PARTNER_WORKSPACE", "true");
+    renderAt("/consortium-room");
+    expect(
+      screen.getByRole("heading", { name: /access denied/i }),
+    ).toBeInTheDocument();
+  });
+
   it("opens pursuit workbench in the selected authorised partner context", async () => {
     currentRole = "consultancy_partner_administrator";
     vi.stubEnv("VITE_FEATURE_PARTNER_WORKSPACE", "true");
@@ -362,6 +460,98 @@ describe("signed-in routing", () => {
       screen.getByRole("heading", {
         name: "No intelligence evidence is available",
       }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens the pursuit operations suite without replacing the reviews console", async () => {
+    renderAt("/pursuit-operations");
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: /^pursuit operations suite$/i },
+        ROUTE_LOAD_WAIT,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("opens growth operations for a directly assigned Valo operations administrator", async () => {
+    currentRole = "valo_operations_administrator";
+    renderAt("/growth-operations");
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: /turn interest into governed work/i },
+        ROUTE_LOAD_WAIT,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("opens onboarding and offers for a direct client member", async () => {
+    currentRole = "client_reviewer_approver";
+    renderAt("/growth-operations");
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: /turn interest into governed work/i },
+        ROUTE_LOAD_WAIT,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /qualify before conversion/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("blocks partner-derived access from onboarding and offers", () => {
+    currentRole = "consultancy_partner_analyst_reviewer";
+    currentAccessSource = "partner";
+    renderAt("/growth-operations");
+    expect(
+      screen.getByRole("heading", { name: /access denied/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens the tenant-bound Commercial & Retainer ledger for a direct authorised member", async () => {
+    currentRole = "client_organisation_owner";
+    renderAt("/commercial-retainer");
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: /quote-to-cash and service desk/i },
+        ROUTE_LOAD_WAIT,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/approved, effective fixed price-book seed is missing/i),
+    ).toBeInTheDocument();
+  });
+
+  it("blocks partner-derived access from the Commercial & Retainer ledger", () => {
+    currentRole = "consultancy_partner_administrator";
+    currentAccessSource = "partner";
+    renderAt("/commercial-retainer");
+    expect(
+      screen.getByRole("heading", { name: /access denied/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens the dedicated Claims Desk route for direct project-read membership", async () => {
+    currentRole = "client_reviewer_approver";
+    renderAt("/claims-desk");
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: /no active project is available/i },
+        ROUTE_LOAD_WAIT,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("blocks partner-derived access from the Claims Desk route", () => {
+    currentRole = "consultancy_partner_analyst_reviewer";
+    currentAccessSource = "partner";
+    renderAt("/claims-desk");
+    expect(
+      screen.getByRole("heading", { name: /access denied/i }),
     ).toBeInTheDocument();
   });
 

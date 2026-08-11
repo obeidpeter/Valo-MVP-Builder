@@ -2,10 +2,27 @@
   "name": "Valo",
   "short_name": "Valo",
   "description": "Evidence-led tender readiness and controlled bid-production workflows.",
-  "start_url": "/",
-  "display": "browser",
+  "id": "/app",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
   "background_color": "#f7f5f0",
   "theme_color": "#0d1b2f",
+  "categories": ["business", "productivity"],
+  "shortcuts": [
+    {
+      "name": "My pursuits",
+      "short_name": "Pursuits",
+      "description": "Open the authenticated pursuit workspace.",
+      "url": "/projects"
+    },
+    {
+      "name": "Review work",
+      "short_name": "Reviews",
+      "description": "Open the online reviewer workspace.",
+      "url": "/operations"
+    }
+  ],
   "icons": [
     {
       "src": "/favicon.svg",

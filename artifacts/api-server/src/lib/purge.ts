@@ -1,5 +1,12 @@
 import { eq, inArray } from "drizzle-orm";
-import { db, documents, reports, vaultItems } from "@workspace/db";
+import {
+  db,
+  documents,
+  packageVersions,
+  packages,
+  reports,
+  vaultItems,
+} from "@workspace/db";
 import type { ObjectStorageService } from "./objectStorage";
 
 /**
@@ -28,10 +35,28 @@ export async function planProjectBlobPurge(
     .select({ docxPath: reports.docxPath, pdfPath: reports.pdfPath })
     .from(reports)
     .where(eq(reports.projectId, projectId));
+  const packageOutputs = await db
+    .select({
+      docxObjectPath: packageVersions.docxObjectPath,
+      pdfObjectPath: packageVersions.pdfObjectPath,
+      zipObjectPath: packageVersions.zipObjectPath,
+    })
+    .from(packageVersions)
+    .innerJoin(packages, eq(packageVersions.packageId, packages.id))
+    .where(eq(packages.projectId, projectId));
   const candidates = [
-    ...docs.map((d) => d.objectPath),
-    ...reps.map((r) => r.docxPath).filter((p): p is string => !!p),
-    ...reps.map((r) => r.pdfPath).filter((p): p is string => !!p),
+    ...new Set([
+      ...docs.map((d) => d.objectPath),
+      ...reps.map((r) => r.docxPath).filter((p): p is string => !!p),
+      ...reps.map((r) => r.pdfPath).filter((p): p is string => !!p),
+      ...packageOutputs
+        .flatMap((output) => [
+          output.docxObjectPath,
+          output.pdfObjectPath,
+          output.zipObjectPath,
+        ])
+        .filter((path): path is string => !!path),
+    ]),
   ];
   const protectedPaths = await vaultReferencedPaths(candidates);
   return {

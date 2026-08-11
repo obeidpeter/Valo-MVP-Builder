@@ -18,6 +18,6 @@
 import type { ErrorEnvelope } from './errorEnvelope';
 
 /**
- * Authentication or tenant-context resolution failed unexpectedly
+ * Authentication, tenant-context resolution or request processing failed unexpectedly
  */
 export type InternalServerErrorResponse = ErrorEnvelope;

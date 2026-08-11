@@ -21,6 +21,8 @@ import {
   claimEvidenceLinks,
   redTeamRuns,
   redTeamFindings,
+  packages,
+  packageVersions,
 } from "@workspace/db";
 import { SignOffReportBody } from "@workspace/api-zod";
 import { getLocalUser } from "../middlewares/auth";
@@ -52,9 +54,22 @@ import {
   reportExportDenial,
   reportSignerDenial,
 } from "../lib/reportPolicy";
+import {
+  buildCanonicalProjectExportManifest,
+  includeAuditEventInProjectExport,
+  persistCanonicalProjectExportPackage,
+  PROJECT_EXPORT_AUDIT_POLICY,
+  PROJECT_EXPORT_PACKAGE_LIST_LIMIT,
+  PROJECT_EXPORT_PACKAGE_TYPE,
+  soleCanonicalProjectExportPackageId,
+  type ProjectExportArchiveEntry,
+} from "../lib/projectExportPackage";
 
 const router: IRouter = Router();
 const objectStorage = new ObjectStorageService();
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
 
 // archiver@8 dropped the classic default `archiver(format, options)` factory and
 // now only exports named classes, so we construct a `ZipArchive` directly.
@@ -744,6 +759,112 @@ export function withReviewState<T extends Record<string, unknown>>(
 }
 
 router.get(
+  "/projects/:id/package-versions",
+  requirePermissionOrLegacy("package:read"),
+  async (req: Request, res: Response) => {
+    const projectId = String(req.params.id);
+    const organisationId = getOrganisationId(req);
+    if (!organisationId || !UUID_PATTERN.test(projectId)) {
+      res.status(403).json({ error: "Organisation access denied" });
+      return;
+    }
+    await db.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${projectId}, 0))`,
+    );
+    const canonicalPackages = await db
+      .select({ id: packages.id })
+      .from(packages)
+      .where(
+        and(
+          eq(packages.organisationId, organisationId),
+          eq(packages.projectId, projectId),
+          eq(packages.packageType, PROJECT_EXPORT_PACKAGE_TYPE),
+        ),
+      )
+      .limit(2)
+      .for("share");
+    const canonicalPackageId =
+      soleCanonicalProjectExportPackageId(canonicalPackages);
+    const rows = canonicalPackageId
+      ? await db
+          .select({
+            packageId: packages.id,
+            packageVersionId: packageVersions.id,
+            packageType: packages.packageType,
+            versionNumber: packageVersions.versionNumber,
+            manifestSha256: packageVersions.manifestHash,
+            renderQaStatus: packageVersions.renderQaStatus,
+            createdAt: packageVersions.createdAt,
+          })
+          .from(packages)
+          .innerJoin(
+            packageVersions,
+            and(
+              eq(packageVersions.organisationId, packages.organisationId),
+              eq(packageVersions.packageId, packages.id),
+              eq(packageVersions.versionNumber, packages.currentVersionNumber),
+            ),
+          )
+          .where(
+            and(
+              eq(packages.id, canonicalPackageId),
+              eq(packages.organisationId, organisationId),
+              eq(packages.projectId, projectId),
+              eq(packages.packageType, PROJECT_EXPORT_PACKAGE_TYPE),
+            ),
+          )
+          .orderBy(desc(packageVersions.createdAt), desc(packageVersions.id))
+          .limit(PROJECT_EXPORT_PACKAGE_LIST_LIMIT + 1)
+      : [];
+    if (canonicalPackageId && rows.length !== 1) {
+      throw new Error("Canonical package current version failed validation");
+    }
+    const truncated = rows.length > PROJECT_EXPORT_PACKAGE_LIST_LIMIT;
+    const items = rows
+      .slice(0, PROJECT_EXPORT_PACKAGE_LIST_LIMIT)
+      .map((row) => {
+        if (
+          row.packageType !== PROJECT_EXPORT_PACKAGE_TYPE ||
+          !["pending", "passed", "failed"].includes(row.renderQaStatus) ||
+          !UUID_PATTERN.test(row.packageId) ||
+          !UUID_PATTERN.test(row.packageVersionId) ||
+          !Number.isSafeInteger(row.versionNumber) ||
+          row.versionNumber < 1 ||
+          !SHA256_PATTERN.test(row.manifestSha256) ||
+          !(row.createdAt instanceof Date) ||
+          Number.isNaN(row.createdAt.getTime())
+        ) {
+          throw new Error("Canonical package version failed validation");
+        }
+        return {
+          packageId: row.packageId,
+          packageVersionId: row.packageVersionId,
+          packageType: PROJECT_EXPORT_PACKAGE_TYPE,
+          versionNumber: row.versionNumber,
+          manifestSha256: row.manifestSha256,
+          renderQaStatus: row.renderQaStatus as "pending" | "passed" | "failed",
+          createdAt: row.createdAt.toISOString(),
+        };
+      });
+    await writeAudit({
+      user: getLocalUser(req),
+      organisationId,
+      projectId,
+      eventType: "package.versions_viewed",
+      objectType: "project",
+      objectId: projectId,
+      details: JSON.stringify({ count: items.length, truncated }),
+    });
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json({
+      items,
+      limit: PROJECT_EXPORT_PACKAGE_LIST_LIMIT,
+      truncated,
+    });
+  },
+);
+
+router.get(
   "/projects/:id/export",
   requirePermissionOrLegacy("report:export"),
   async (req: Request, res: Response) => {
@@ -914,9 +1035,192 @@ router.get(
 
     // Flag review state so recipients can tell reviewer-confirmed findings from
     // raw AI suggestions, mirroring how the signed DOCX report segregates them.
-    const reqsCsv = withReviewState(reqs, requirementReviewState);
-    const evCsv = withReviewState(ev, suggestedFlagReviewState);
-    const defsCsv = withReviewState(defs, suggestedFlagReviewState);
+    const byId = <T extends { id: string }>(rows: readonly T[]): T[] =>
+      [...rows].sort((left, right) => left.id.localeCompare(right.id));
+    const orderedRequirements = byId(reqs);
+    const reqsCsv = withReviewState(
+      orderedRequirements,
+      requirementReviewState,
+    );
+    const evCsv = withReviewState(byId(ev), suggestedFlagReviewState);
+    const defsCsv = withReviewState(byId(defs), suggestedFlagReviewState);
+    const exportTransitionAt =
+      project.status === "signed_off" ? new Date() : project.updatedAt;
+    const canonicalProject =
+      project.status === "signed_off"
+        ? {
+            ...project,
+            status: "exported" as const,
+            version: project.version + 1,
+            updatedAt: exportTransitionAt,
+          }
+        : project;
+    const auditRows = [
+      ...[...activeAudits]
+        .filter(includeAuditEventInProjectExport)
+        .sort((left, right) => left.seq - right.seq)
+        .map((event) => ({
+          ...event,
+          auditSource: "active_v2",
+          integrityStatus: "active_v2_record",
+        })),
+      ...byId(archivedAudits).map((event) => ({
+        ...event,
+        auditSource: "legacy_v1_archive",
+      })),
+    ];
+    const scorecard = computeScorecard(
+      orderedRequirements.map((requirement) => ({
+        sourceDocId: requirement.sourceDocId,
+        origin: requirement.origin,
+        isMandatory: requirement.isMandatory,
+        reviewStatus: requirement.reviewStatus,
+      })),
+    );
+    const aggregateSource = {
+      sourceObjectId: projectId,
+      sourceVersion: canonicalProject.version,
+    } as const;
+    const archiveEntries: ProjectExportArchiveEntry[] = [
+      {
+        itemType: "project_snapshot",
+        ...aggregateSource,
+        filename: "project.json",
+        bytes: Buffer.from(JSON.stringify(canonicalProject, null, 2), "utf8"),
+      },
+      {
+        itemType: "requirement_register",
+        ...aggregateSource,
+        filename: "requirements.csv",
+        bytes: Buffer.from(toCsv(reqsCsv), "utf8"),
+      },
+      {
+        itemType: "evidence_register",
+        ...aggregateSource,
+        filename: "evidence.csv",
+        bytes: Buffer.from(toCsv(evCsv), "utf8"),
+      },
+      {
+        itemType: "defect_register",
+        ...aggregateSource,
+        filename: "defects.csv",
+        bytes: Buffer.from(toCsv(defsCsv), "utf8"),
+      },
+      {
+        itemType: "boq_register",
+        ...aggregateSource,
+        filename: "boq_checks.csv",
+        bytes: Buffer.from(toCsv(byId(boqs)), "utf8"),
+      },
+      {
+        itemType: "audit_register",
+        ...aggregateSource,
+        filename: "audit_events.csv",
+        bytes: Buffer.from(toCsv(auditRows), "utf8"),
+      },
+      {
+        itemType: "audit_export_policy",
+        ...aggregateSource,
+        filename: "audit_export_policy.json",
+        bytes: Buffer.from(
+          JSON.stringify(PROJECT_EXPORT_AUDIT_POLICY, null, 2),
+          "utf8",
+        ),
+      },
+      {
+        itemType: "document_manifest",
+        ...aggregateSource,
+        filename: "documents_manifest.csv",
+        bytes: Buffer.from(toCsv(byId(docManifest)), "utf8"),
+      },
+      {
+        itemType: "technical_scorecard",
+        ...aggregateSource,
+        filename: "scorecard.json",
+        bytes: Buffer.from(JSON.stringify(scorecard, null, 2), "utf8"),
+      },
+      {
+        itemType: "signed_report",
+        sourceObjectId: latestReport!.id,
+        sourceVersion: latestReport!.version,
+        filename: reportDocx.name,
+        bytes: reportDocx.buffer,
+      },
+    ];
+    const packageManifest = buildCanonicalProjectExportManifest(
+      {
+        organisationId: getOrganisationId(req)!,
+        projectId,
+        projectVersion: canonicalProject.version,
+        reportId: latestReport!.id,
+        reportVersion: latestReport!.version,
+      },
+      archiveEntries,
+    );
+
+    await db.transaction(
+      async (tx) => {
+        const packageVersion = await persistCanonicalProjectExportPackage(tx, {
+          identity: {
+            organisationId: getOrganisationId(req)!,
+            projectId,
+            projectVersion: canonicalProject.version,
+            reportId: latestReport!.id,
+            reportVersion: latestReport!.version,
+          },
+          manifest: packageManifest,
+          generatedByUserId: getLocalUser(req)?.id ?? null,
+        });
+        if (project.status === "signed_off") {
+          const transitioned = await tx
+            .update(projects)
+            .set({
+              status: "exported",
+              version: sql`${projects.version} + 1`,
+              updatedAt: exportTransitionAt,
+            })
+            .where(
+              and(
+                eq(projects.id, projectId),
+                eq(projects.organisationId, getOrganisationId(req)!),
+                eq(projects.status, "signed_off"),
+                eq(projects.version, project.version),
+              ),
+            )
+            .returning({ id: projects.id });
+          if (transitioned.length !== 1) {
+            throw new Error("Project export status CAS failed");
+          }
+        }
+        await writeAuditTx(tx, {
+          user: getLocalUser(req),
+          organisationId: getOrganisationId(req),
+          projectId,
+          eventType: packageVersion.created
+            ? "package.project_export_version_created"
+            : "package.project_export_version_reused",
+          objectType: "package_version",
+          objectId: packageVersion.packageVersionId,
+          details: JSON.stringify({
+            packageId: packageVersion.packageId,
+            versionNumber: packageVersion.versionNumber,
+            sourceSnapshotHash: packageVersion.sourceSnapshotHash,
+            manifestHash: packageVersion.manifestHash,
+            entryCount: packageManifest.items.length,
+            renderQaStatus: packageVersion.renderQaStatus,
+          }),
+        });
+        await writeAuditTx(tx, {
+          user: getLocalUser(req),
+          organisationId: getOrganisationId(req),
+          projectId,
+          eventType: "project.exported",
+          objectType: "project",
+          objectId: projectId,
+        });
+      },
+      { isolationLevel: "read committed" },
+    );
 
     res.setHeader("Content-Type", "application/zip");
     res.setHeader(
@@ -936,70 +1240,9 @@ router.get(
     });
     archive.pipe(res);
 
-    archive.append(JSON.stringify(project, null, 2), { name: "project.json" });
-    archive.append(toCsv(reqsCsv), { name: "requirements.csv" });
-    archive.append(toCsv(evCsv), { name: "evidence.csv" });
-    archive.append(toCsv(defsCsv), { name: "defects.csv" });
-    archive.append(toCsv(boqs), { name: "boq_checks.csv" });
-    archive.append(
-      toCsv([
-        ...activeAudits.map((event) => ({
-          ...event,
-          auditSource: "active_v2",
-          integrityStatus: "active_v2_record",
-        })),
-        ...archivedAudits.map((event) => ({
-          ...event,
-          auditSource: "legacy_v1_archive",
-        })),
-      ]),
-      { name: "audit_events.csv" },
-    );
-    archive.append(toCsv(docManifest), { name: "documents_manifest.csv" });
-    // Exportable Gate 0 Technical Scorecard (FR-EXT-04): the engine-vs-human
-    // diff and mandatory recall, recomputed from the stored records at export
-    // time so the figures are independently reproducible.
-    archive.append(
-      JSON.stringify(
-        computeScorecard(
-          reqs.map((r) => ({
-            sourceDocId: r.sourceDocId,
-            origin: r.origin,
-            isMandatory: r.isMandatory,
-            reviewStatus: r.reviewStatus,
-          })),
-        ),
-        null,
-        2,
-      ),
-      { name: "scorecard.json" },
-    );
-
-    archive.append(reportDocx.buffer, { name: reportDocx.name });
-
-    await db.transaction(
-      async (tx) => {
-        if (project.status === "signed_off") {
-          await tx
-            .update(projects)
-            .set({
-              status: "exported",
-              version: sql`${projects.version} + 1`,
-              updatedAt: new Date(),
-            })
-            .where(eq(projects.id, projectId));
-        }
-        await writeAuditTx(tx, {
-          user: getLocalUser(req),
-          organisationId: getOrganisationId(req),
-          projectId,
-          eventType: "project.exported",
-          objectType: "project",
-          objectId: projectId,
-        });
-      },
-      { isolationLevel: "read committed" },
-    );
+    for (const entry of archiveEntries) {
+      archive.append(entry.bytes, { name: entry.filename });
+    }
 
     await archive.finalize();
   },

@@ -62,7 +62,7 @@ production DDL path is the source-controlled `migration:replit:intake` launcher:
 it is restricted to Replit production, pins all six migration files and the
 accepted journal states, validates separate same-target owner/runtime URLs,
 holds a fixed advisory lock across migration, and applies only pending
-`0003`-`0005` in one Drizzle transaction. It verifies the exact six-row journal
+`0003`-`0006` in one Drizzle transaction. It verifies the exact seven-row journal
 and intake object catalog before allowing API startup. The effective API
 artifact and legacy `.replit` run path both invoke
 `scripts/start-replit-production.mjs`; this same-process wrapper awaits that
@@ -219,12 +219,12 @@ runtime path to resolve exactly to `pg_catalog, public`, then deparses under a
 transaction-local `search_path=pg_catalog`. It pins all 96 public-table RLS
 flags, the exact 85 FORCE-RLS identities, all 104 policy definitions, all 116
 security triggers, all nine `valo_security` routine signatures and bodies, and
-all four `valo_intake` routine signatures, bodies and execution boundaries, as
+all seven `valo_intake` routine signatures, bodies and execution boundaries, as
 well as the complete effective table/column/sequence privilege matrix. It also
 requires `row_security=on`, `session_replication_role=origin`, the fixed runtime
 identity, no inherited/owned or schema-creation escape, and runtime EXECUTE only
-on the two tenant-context routines plus the bounded Bid Autopsy store and shared
-limiter functions. Direct intake table/column privileges and both owner-side
+on the two tenant-context routines plus the bounded Bid Autopsy store, shared
+limiter, content-minimised active-queue read and status-transition functions. Direct intake table/column privileges and both owner-side
 purge functions remain denied to the web runtime. Any mismatch stops the
 listener/job before application queries.
 
@@ -309,7 +309,7 @@ the source backup and audit export as private evidence.
    procedure above. For the current already-bridged Replit target, require the
    exact adopted `0000`-`0002` journal, verify both checked-in production run
    paths name `scripts/start-replit-production.mjs`, and let its bounded
-   `migration:replit:intake` implementation apply `0003`-`0005`. Never
+   `migration:replit:intake` implementation apply `0003`-`0006`. Never
    substitute the unrestricted migration command or a publish schema diff.
    Halt on any journal, source-hash, catalog, reconciliation, or RLS error.
 5. Deploy workers/API/web in compatible order; keep new commercial flags off.

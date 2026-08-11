@@ -531,6 +531,34 @@ const EXPECTED_INTAKE_FUNCTIONS = new Map<
     },
   ],
   [
+    "get_bid_autopsy_contact_handoff",
+    {
+      argumentCount: 1,
+      argumentTypes: "uuid",
+      returnType: "record",
+      functionResult:
+        "TABLE(request_id uuid, contact_name text, preferred_contact_method text, contact_value text)",
+      returnsSet: true,
+      runtimeCanExecute: true,
+      sourceSha256:
+        "bb803997163ca8502955f5c1a71f13226a9d21d04935ce0139f9b1e63f6f4dbe",
+    },
+  ],
+  [
+    "list_bid_autopsy_work_queue",
+    {
+      argumentCount: 1,
+      argumentTypes: "integer",
+      returnType: "record",
+      functionResult:
+        "TABLE(request_id uuid, organisation_label text, tender_category text, bid_stage text, tender_deadline date, delivery_status text, received_at timestamp with time zone)",
+      returnsSet: true,
+      runtimeCanExecute: true,
+      sourceSha256:
+        "6750d49e15f7d6966b1bf3e24370e0d4001bdb7c18801900c379fafbfa4be4ca",
+    },
+  ],
+  [
     "purge_expired_bid_autopsy_rate_limits",
     {
       argumentCount: 0,
@@ -569,6 +597,19 @@ const EXPECTED_INTAKE_FUNCTIONS = new Map<
       runtimeCanExecute: true,
       sourceSha256:
         "d97eff1d25e172cec633476c0e28a04ead4004cf0e23e794a1c55e4afc7c0430",
+    },
+  ],
+  [
+    "transition_bid_autopsy_work_queue",
+    {
+      argumentCount: 3,
+      argumentTypes: "uuid,text,text",
+      returnType: "record",
+      functionResult: "TABLE(request_id uuid)",
+      returnsSet: true,
+      runtimeCanExecute: true,
+      sourceSha256:
+        "7a52e4670feb5f3c0a55dbfef8ebe1e6781a06f9cf3154e51fefb273f68af22b",
     },
   ],
 ]);
@@ -991,6 +1032,9 @@ export async function assertProductionRuntimeDatabaseSafety(
       can_execute_set_current_organisation: boolean;
       can_execute_store_bid_autopsy_request: boolean;
       can_execute_consume_bid_autopsy_rate_limit: boolean;
+      can_execute_list_bid_autopsy_work_queue: boolean;
+      can_execute_transition_bid_autopsy_work_queue: boolean;
+      can_execute_get_bid_autopsy_contact_handoff: boolean;
       can_execute_purge_bid_autopsy_requests: boolean;
       can_execute_purge_bid_autopsy_rate_limits: boolean;
       can_access_bid_autopsy_request_table: boolean;
@@ -1113,6 +1157,21 @@ export async function assertProductionRuntimeDatabaseSafety(
           'valo_intake.consume_bid_autopsy_rate_limit(text,integer,integer)',
           'EXECUTE'
         ) AS can_execute_consume_bid_autopsy_rate_limit,
+        pg_catalog.has_function_privilege(
+          current_user,
+          'valo_intake.list_bid_autopsy_work_queue(integer)',
+          'EXECUTE'
+        ) AS can_execute_list_bid_autopsy_work_queue,
+        pg_catalog.has_function_privilege(
+          current_user,
+          'valo_intake.transition_bid_autopsy_work_queue(uuid,text,text)',
+          'EXECUTE'
+        ) AS can_execute_transition_bid_autopsy_work_queue,
+        pg_catalog.has_function_privilege(
+          current_user,
+          'valo_intake.get_bid_autopsy_contact_handoff(uuid)',
+          'EXECUTE'
+        ) AS can_execute_get_bid_autopsy_contact_handoff,
         pg_catalog.has_function_privilege(
           current_user,
           'valo_intake.purge_expired_bid_autopsy_requests()',
@@ -1365,6 +1424,9 @@ export async function assertProductionRuntimeDatabaseSafety(
       !proof.can_execute_set_current_organisation ||
       !proof.can_execute_store_bid_autopsy_request ||
       !proof.can_execute_consume_bid_autopsy_rate_limit ||
+      !proof.can_execute_list_bid_autopsy_work_queue ||
+      !proof.can_execute_transition_bid_autopsy_work_queue ||
+      !proof.can_execute_get_bid_autopsy_contact_handoff ||
       proof.can_execute_purge_bid_autopsy_requests ||
       proof.can_execute_purge_bid_autopsy_rate_limits ||
       proof.can_access_bid_autopsy_request_table ||

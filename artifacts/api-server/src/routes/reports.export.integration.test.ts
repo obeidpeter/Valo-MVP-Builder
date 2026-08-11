@@ -1,6 +1,7 @@
 import { test, describe, before, after, mock } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
+import { createHash } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import { createRequire } from "node:module";
 import type { Archiver, ArchiverOptions } from "archiver";
@@ -26,12 +27,23 @@ import {
   auditEvents,
   reports,
   redTeamRuns,
+  packages,
+  packageVersions,
+  packageManifestItems,
 } from "@workspace/db";
 import reportsRouter from "./reports";
+import {
+  createDbOperationsSuiteGuards,
+  createOperationsSuiteRouter,
+} from "./operationsSuite";
 import type { LocalUser } from "../middlewares/auth";
-import { type AccessContext } from "../middlewares/tenancy";
+import {
+  enforceTenantResourceBoundary,
+  type AccessContext,
+} from "../middlewares/tenancy";
 import { attachTenantDatabase } from "../middlewares/databaseTenancy";
 import { normalizeLegacyRole, permissionsForRoles } from "../lib/permissions";
+import { DrizzleOperationsSuiteStore } from "../lib/operationsSuite/drizzleStore";
 import { ObjectStorageService } from "../lib/objectStorage";
 import { writeAudit } from "../lib/audit";
 import { DOCX_MIME } from "../lib/docx";
@@ -42,6 +54,7 @@ import {
   PROMPT_PACK_VERSION,
   TAXONOMY_VERSION,
 } from "../lib/provenance";
+import { computeProjectExportManifestHash } from "../lib/projectExportPackage";
 
 /**
  * End-to-end proof that the real `GET /projects/:id/export` HTTP route can't
@@ -463,6 +476,7 @@ before(async () => {
   );
 
   const app = express();
+  app.use(express.json());
   // Stub a direct tenant membership and logger around the real RLS transaction
   // middleware. Route permissions still derive from the selected role.
   app.use((req: Request, _res: Response, next: NextFunction) => {
@@ -490,7 +504,16 @@ before(async () => {
     next();
   });
   app.use(attachTenantDatabase);
+  app.use(enforceTenantResourceBoundary);
   app.use(reportsRouter);
+  const operationsSuiteGuards = createDbOperationsSuiteGuards();
+  app.use(
+    createOperationsSuiteRouter({
+      projectGuard: operationsSuiteGuards.projectGuard,
+      references: operationsSuiteGuards.references,
+      store: new DrizzleOperationsSuiteStore(),
+    }),
+  );
 
   await new Promise<void>((resolve) => {
     server = createServer(app);
@@ -595,6 +618,7 @@ describe("GET /projects/:id/export (live route)", () => {
 
     // A release package is invalid without its latest governed report.
     assert.deepEqual(files, [
+      "audit_export_policy.json",
       "audit_events.csv",
       "bid-autopsy-report-v2.docx",
       "boq_checks.csv",
@@ -654,10 +678,20 @@ describe("GET /projects/:id/export (live route)", () => {
     assert.ok(boqCsv.rows.some((r) => r.finding === "Extension mismatch"));
     const auditCsv = await read("audit_events.csv");
     assert.ok(auditCsv.includes("seeded audit event"));
+    const auditPolicy = JSON.parse(await read("audit_export_policy.json"));
+    assert.equal(auditPolicy.authoritativeTenantAuditRetained, true);
+    assert.ok(auditPolicy.excludedEventTypes.includes("project.exported"));
 
     // --- project.json is valid and matches the seeded project ---
     const project = JSON.parse(await read("project.json"));
     assert.equal(project.id, projectId);
+    assert.equal(project.status, "exported");
+    const [persistedProject] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, projectId));
+    assert.equal(project.version, persistedProject.version);
+    assert.equal(project.updatedAt, persistedProject.updatedAt.toISOString());
 
     currentUser = null;
   });
@@ -817,6 +851,7 @@ describe("object-storage-backed report attach & download", () => {
     // JSON) PLUS the signed report .docx (versioned filename from the latest
     // signed-off report that has a docxPath, i.e. v2 after the draft v1).
     assert.deepEqual(files, [
+      "audit_export_policy.json",
       "audit_events.csv",
       "bid-autopsy-report-v2.docx",
       "boq_checks.csv",
@@ -837,6 +872,198 @@ describe("object-storage-backed report attach & download", () => {
       "attached .docx bytes match storage payload",
     );
 
+    const packageRows = await db
+      .select()
+      .from(packages)
+      .where(eq(packages.projectId, projectId));
+    assert.equal(packageRows.length, 1);
+    assert.equal(packageRows[0]!.packageType, "project_export");
+    const [packageVersion] = await db
+      .select()
+      .from(packageVersions)
+      .where(eq(packageVersions.packageId, packageRows[0]!.id))
+      .orderBy(sql`${packageVersions.versionNumber} desc`)
+      .limit(1);
+    assert.ok(packageVersion);
+    assert.equal(
+      packageVersion.versionNumber,
+      packageRows[0]!.currentVersionNumber,
+    );
+    assert.equal(packageVersion.renderQaStatus, "pending");
+    const manifestItems = await db
+      .select({
+        ordinal: packageManifestItems.ordinal,
+        itemType: packageManifestItems.itemType,
+        sourceObjectId: packageManifestItems.sourceObjectId,
+        sourceVersion: packageManifestItems.sourceVersion,
+        filename: packageManifestItems.filename,
+        sha256: packageManifestItems.sha256,
+        sizeBytes: packageManifestItems.sizeBytes,
+      })
+      .from(packageManifestItems)
+      .where(eq(packageManifestItems.packageVersionId, packageVersion.id))
+      .orderBy(packageManifestItems.ordinal);
+    assert.equal(manifestItems.length, files.length);
+    assert.equal(
+      computeProjectExportManifestHash(manifestItems),
+      packageVersion.manifestHash,
+    );
+    for (const item of manifestItems) {
+      const bytes = await zip.file(item.filename)!.async("nodebuffer");
+      assert.equal(bytes.byteLength, item.sizeBytes);
+      assert.equal(
+        createHash("sha256").update(bytes).digest("hex"),
+        item.sha256,
+      );
+    }
+
+    const listResponse = await fetch(
+      `${baseUrl}/projects/${projectId}/package-versions`,
+    );
+    assert.equal(listResponse.status, 200);
+    const listed = (await listResponse.json()) as {
+      items: Array<Record<string, unknown>>;
+      limit: number;
+      truncated: boolean;
+    };
+    assert.equal(listed.limit, 100);
+    assert.equal(listed.truncated, false);
+    assert.deepEqual(listed.items, [
+      {
+        packageId: packageRows[0]!.id,
+        packageVersionId: packageVersion.id,
+        packageType: "project_export",
+        versionNumber: packageVersion.versionNumber,
+        manifestSha256: packageVersion.manifestHash,
+        renderQaStatus: "pending",
+        createdAt: packageVersion.createdAt.toISOString(),
+      },
+    ]);
+
+    const qaResponse = await fetch(
+      `${baseUrl}/projects/${projectId}/operations-suite/visual-qa-reports`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          packageVersionId: packageVersion.id,
+          manifestSha256: packageVersion.manifestHash,
+          expectedManifestSha256: packageVersion.manifestHash,
+          pages: [
+            {
+              pageNumber: 1,
+              textCharacterCount: 250,
+              nonWhitespacePixelRatio: 0.2,
+              clippedElementCount: 0,
+            },
+          ],
+        }),
+      },
+    );
+    const qa = (await qaResponse.json()) as {
+      id?: string;
+      result?: { status?: string };
+    };
+    assert.equal(qaResponse.status, 201, JSON.stringify(qa));
+    assert.equal(qa.result?.status, "pass");
+
+    const roomResponse = await fetch(
+      `${baseUrl}/projects/${projectId}/operations-suite/submission-war-rooms`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          packageId: packageRows[0]!.id,
+          packageVersionId: packageVersion.id,
+          manifestSha256: packageVersion.manifestHash,
+        }),
+      },
+    );
+    const room = (await roomResponse.json()) as {
+      id?: string;
+      version?: number;
+      status?: string;
+    };
+    assert.equal(roomResponse.status, 201, JSON.stringify(room));
+    assert.equal(room.status, "planning");
+    assert.equal(typeof room.id, "string");
+
+    const freezeResponse = await fetch(
+      `${baseUrl}/projects/${projectId}/operations-suite/submission-war-rooms/${room.id}/advance`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          expectedVersion: room.version,
+          toStatus: "frozen",
+        }),
+      },
+    );
+    const frozenRoom = (await freezeResponse.json()) as { status?: string };
+    assert.equal(freezeResponse.status, 200, JSON.stringify(frozenRoom));
+    assert.equal(frozenRoom.status, "frozen");
+
+    const postAwardResponse = await fetch(
+      `${baseUrl}/projects/${projectId}/operations-suite/post-award-items`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          category: "obligation",
+          title: "Record the award mobilisation obligation",
+        }),
+      },
+    );
+    const postAward = (await postAwardResponse.json()) as {
+      id?: string;
+      version?: number;
+      status?: string;
+    };
+    assert.equal(postAwardResponse.status, 201, JSON.stringify(postAward));
+    assert.equal(postAward.status, "open");
+
+    const updatePostAwardResponse = await fetch(
+      `${baseUrl}/projects/${projectId}/operations-suite/post-award-items/${postAward.id}`,
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          expectedVersion: postAward.version,
+          status: "in_progress",
+        }),
+      },
+    );
+    const updatedPostAward = (await updatePostAwardResponse.json()) as {
+      status?: string;
+    };
+    assert.equal(
+      updatePostAwardResponse.status,
+      200,
+      JSON.stringify(updatedPostAward),
+    );
+    assert.equal(updatedPostAward.status, "in_progress");
+
+    const repeatedExport = await fetch(
+      `${baseUrl}/projects/${projectId}/export`,
+    );
+    assert.equal(repeatedExport.status, 200);
+    await repeatedExport.arrayBuffer();
+    const [packageAfterRepeat] = await db
+      .select()
+      .from(packages)
+      .where(eq(packages.id, packageRows[0]!.id));
+    const versionsAfterRepeat = await db
+      .select({
+        id: packageVersions.id,
+        renderQaStatus: packageVersions.renderQaStatus,
+      })
+      .from(packageVersions)
+      .where(eq(packageVersions.packageId, packageRows[0]!.id));
+    assert.equal(packageAfterRepeat.currentVersionNumber, 1);
+    assert.deepEqual(versionsAfterRepeat, [
+      { id: packageVersion.id, renderQaStatus: "passed" },
+    ]);
+
     const [releasedAfter] = await db
       .select()
       .from(projects)
@@ -847,6 +1074,44 @@ describe("object-storage-backed report attach & download", () => {
       releasedBefore.version,
       "re-export does not rewrite released project content",
     );
+
+    await db
+      .update(projects)
+      .set({ status: "archived" })
+      .where(eq(projects.id, projectId));
+    const archivedQaResponse = await fetch(
+      `${baseUrl}/projects/${projectId}/operations-suite/visual-qa-reports`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          packageVersionId: packageVersion.id,
+          manifestSha256: packageVersion.manifestHash,
+          expectedManifestSha256: packageVersion.manifestHash,
+          pages: [
+            {
+              pageNumber: 1,
+              textCharacterCount: 250,
+              nonWhitespacePixelRatio: 0.2,
+              clippedElementCount: 0,
+            },
+          ],
+        }),
+      },
+    );
+    assert.equal(archivedQaResponse.status, 409);
+    assert.deepEqual(await archivedQaResponse.json(), {
+      error:
+        "Released project content is immutable; use a governed reopen workflow.",
+    });
+    await db
+      .update(projects)
+      .set({
+        status: "exported",
+        version: releasedAfter.version,
+        updatedAt: releasedAfter.updatedAt,
+      })
+      .where(eq(projects.id, projectId));
 
     currentUser = null;
   });

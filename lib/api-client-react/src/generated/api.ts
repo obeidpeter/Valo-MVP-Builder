@@ -35,6 +35,13 @@ import type {
   AiInputRejectedResponse,
   AiInvalidProviderResultResponse,
   AiOperationsSnapshot,
+  AiShadowCloseDraft,
+  AiShadowCloseResponse,
+  AiShadowObservationDraft,
+  AiShadowObservationMutationResponse,
+  AiShadowPlanDraft,
+  AiShadowPlanMutationResponse,
+  AiShadowProgrammeSnapshot,
   AiUnavailableResponse,
   AppConfig,
   AppConfigUpdate,
@@ -50,12 +57,49 @@ import type {
   CapabilityItem,
   CapabilityItemCreate,
   CapabilityItemUpdate,
+  ClaimsDeskCreateDraft,
+  ClaimsDeskMutationResponse,
+  ClaimsDeskSnapshot,
+  ClaimsDeskTransitionDraft,
   Client,
+  ClientAcknowledgementInput,
+  ClientActionAuthorityDirectory,
+  ClientActionSnapshot,
+  ClientAttachDocumentInput,
   ClientCreate,
   ClientDocumentSummary,
+  ClientEvidenceRequestRecord,
+  ClientPackageDeliveryRecord,
+  ClientSlotReviewInput,
   ClientUpdate,
+  ClientUploadIntentInput,
   CommercialFeatureFlagUpdate,
+  CommercialInvoiceDraft,
+  CommercialInvoiceMutationResponse,
+  CommercialPaymentEvidenceDraft,
+  CommercialPaymentMutationResponse,
+  CommercialPaymentVerificationDraft,
+  CommercialPaymentVerificationResponse,
+  CommercialQuoteDraft,
+  CommercialQuoteMutationResponse,
+  CommercialQuoteResponse,
+  CommercialRetainerManifestResponse,
+  CommercialSnapshotResponse,
+  CommunicationAttemptInput,
+  CommunicationEvent,
+  CommunicationReconciliationInput,
+  CommunicationReferenceSet,
+  CommunicationSnapshot,
   ConflictResponse,
+  ConsortiumParticipantDirectory,
+  ConsortiumQaDecisionInput,
+  ConsortiumQaPreparationInput,
+  ConsortiumResponsibilityDecisionInput,
+  ConsortiumResponsibilityDraft,
+  ConsortiumSnapshot,
+  CreateClientEvidenceRequestInput,
+  CreateClientPackageDeliveryInput,
+  CreateRetainerRequest,
   DashboardMetrics,
   Defect,
   DefectCreate,
@@ -72,13 +116,30 @@ import type {
   EvidenceItem,
   EvidenceMapResult,
   EvidenceUpdate,
+  ExpectedVersionRequest,
   ExtractRequest,
   ExtractResult,
   FeatureFlagRecord,
   ForbiddenResponse,
   GetAccessReviewParams,
+  GetCommercialRetainerSnapshotParams,
   GetMonthlyCostReportParams,
+  GetPrivacyOperationsParams,
+  GrowthCreateQuoteDraft,
+  GrowthLeadContactHandoffRequest,
+  GrowthLeadContactHandoffResponse,
+  GrowthLeadListResponse,
+  GrowthLeadMutation,
+  GrowthLeadMutationResponse,
+  GrowthOfferCatalogueResponse,
+  GrowthOnboardingProgressMutation,
+  GrowthOnboardingProgressMutationResponse,
+  GrowthOnboardingResponse,
+  GrowthQuoteListResponse,
+  GrowthQuoteMutationResponse,
+  GrowthSuiteUnavailableResponse,
   HealthStatus,
+  InitializeConsortiumRoomInput,
   IntelligenceCentreSnapshot,
   IntelligenceEvidenceSearchRequest,
   IntelligenceEvidenceSearchResponse,
@@ -87,11 +148,51 @@ import type {
   IntelligenceReviewMutationResponse,
   InternalServerErrorResponse,
   LegacyAuditIntegrityAssessment,
+  ListGrowthLeadsParams,
+  ListGrowthQuotesParams,
   ListProjectsParams,
   MonthlyCostReport,
   NotFoundResponse,
   NotificationCreate,
   NotificationEvent,
+  OperationsAddWorkComment,
+  OperationsAdvanceSubmissionWarRoom,
+  OperationsBadRequestResponse,
+  OperationsConfirmDeadline,
+  OperationsConflictResponse,
+  OperationsCreateCredentialVerification,
+  OperationsCreateEvidenceRequest,
+  OperationsCreateMission,
+  OperationsCreateOpportunity,
+  OperationsCreatePostAwardItem,
+  OperationsCreateSubmissionWarRoom,
+  OperationsCreateVisualQaReport,
+  OperationsCreateWorkItem,
+  OperationsCredentialVerificationRecord,
+  OperationsEvidenceDecision,
+  OperationsEvidenceRequestRecord,
+  OperationsForbiddenResponse,
+  OperationsMissionRecord,
+  OperationsMobileQueue,
+  OperationsNotFoundResponse,
+  OperationsOpportunityRecord,
+  OperationsPayloadTooLargeResponse,
+  OperationsPolicyDeniedResponse,
+  OperationsPostAwardItemRecord,
+  OperationsRecord,
+  OperationsRecordEvidenceResponse,
+  OperationsSubmissionWarRoomRecord,
+  OperationsSuiteSnapshotResponse,
+  OperationsUpdateMission,
+  OperationsUpdatePostAwardItem,
+  OperationsUpdateWorkItem,
+  OperationsVisualQaReportRecord,
+  OperationsWorkApprovalDecision,
+  OperationsWorkItemRecord,
+  OpportunitySourceCandidate,
+  OpportunitySourceDecision,
+  OpportunitySourceInput,
+  OpportunitySourceListResult,
   OrganisationAccessSummary,
   OrganisationCreate,
   OrganisationCreated,
@@ -100,25 +201,44 @@ import type {
   OrganisationMembershipRecord,
   OrganisationMembershipUpdate,
   OrganisationMembershipView,
+  PartnerConsortiumRoom,
   PartnerRelationship,
   PartnerRelationshipCreate,
   PaymentConfirmationBody,
   PreconditionRequiredResponse,
+  PrivacyConsentWithdrawalDraft,
+  PrivacyDsrTriageDraft,
+  PrivacyHoldReviewDraft,
+  PrivacyMutationResponse,
+  PrivacyOperationsAssigneeList,
+  PrivacyOperationsDashboard,
+  ProductionAcceptanceAuthorityList,
+  ProductionAcceptanceEvidenceDraft,
+  ProductionAcceptanceEvidenceMutation,
+  ProductionAcceptanceSnapshot,
   Project,
   ProjectCost,
   ProjectCreate,
+  ProjectExportPackageVersionListResponse,
   ProjectSummary,
   ProjectUpdate,
+  QueueCommunicationInput,
   Report,
   Requirement,
   RequirementCreate,
   RequirementMerge,
   RequirementUpdate,
   ResponsivenessResult,
+  RetainerRequestAction,
+  RetainerRequestMutationResponse,
+  RetentionCompletionConflict,
   RetentionRequest,
   RetentionRequestCreate,
   RiskAssessment,
   RiskOverride,
+  RoadmapCapacityExceededResponse,
+  RoadmapPolicyDeniedResponse,
+  RoadmapRepositoryUnavailableResponse,
   SbdAnnotation,
   SbdAnnotationCreate,
   SbdTemplate,
@@ -2818,7 +2938,7 @@ export const completeRetentionRequest = async (id: string, options?: RequestInit
 
 
 
-export const getCompleteRetentionRequestMutationOptions = <TError = ErrorType<NotFoundResponse | ConflictResponse | ErrorEnvelope>,
+export const getCompleteRetentionRequestMutationOptions = <TError = ErrorType<NotFoundResponse | RetentionCompletionConflict | ErrorEnvelope>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeRetentionRequest>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof completeRetentionRequest>>, TError,{id: string}, TContext> => {
 
@@ -2847,12 +2967,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CompleteRetentionRequestMutationResult = NonNullable<Awaited<ReturnType<typeof completeRetentionRequest>>>
 
-    export type CompleteRetentionRequestMutationError = ErrorType<NotFoundResponse | ConflictResponse | ErrorEnvelope>
+    export type CompleteRetentionRequestMutationError = ErrorType<NotFoundResponse | RetentionCompletionConflict | ErrorEnvelope>
 
     /**
  * @summary Complete a retention request and issue a deletion certificate
  */
-export const useCompleteRetentionRequest = <TError = ErrorType<NotFoundResponse | ConflictResponse | ErrorEnvelope>,
+export const useCompleteRetentionRequest = <TError = ErrorType<NotFoundResponse | RetentionCompletionConflict | ErrorEnvelope>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeRetentionRequest>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof completeRetentionRequest>>,
@@ -7218,6 +7338,84 @@ export function useDownloadReportPdf<TData = Awaited<ReturnType<typeof downloadR
 
 
 
+export const getListProjectPackageVersionsUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/package-versions`
+}
+
+/**
+ * Returns at most one current canonical project-export package version for the exact tenant and project. The response is metadata-only: it exposes no manifest entries, readiness snapshot, object path, report, tender, register or archive content. A successful response is private and non-cacheable (`Cache-Control: private, no-store`).
+ * @summary List the current canonical project-export package version
+ */
+export const listProjectPackageVersions = async (id: string, options?: RequestInit): Promise<ProjectExportPackageVersionListResponse> => {
+
+  return customFetch<ProjectExportPackageVersionListResponse>(getListProjectPackageVersionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProjectPackageVersionsQueryKey = (id: string,) => {
+    return [
+    `/api/projects/${id}/package-versions`
+    ] as const;
+    }
+
+
+export const getListProjectPackageVersionsQueryOptions = <TData = Awaited<ReturnType<typeof listProjectPackageVersions>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProjectPackageVersions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProjectPackageVersionsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProjectPackageVersions>>> = ({ signal }) => listProjectPackageVersions(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProjectPackageVersions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProjectPackageVersionsQueryResult = NonNullable<Awaited<ReturnType<typeof listProjectPackageVersions>>>
+export type ListProjectPackageVersionsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse>
+
+
+/**
+ * @summary List the current canonical project-export package version
+ */
+
+export function useListProjectPackageVersions<TData = Awaited<ReturnType<typeof listProjectPackageVersions>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProjectPackageVersions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProjectPackageVersionsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getExportProjectUrl = (id: string,) => {
 
 
@@ -7687,6 +7885,6114 @@ export function useListAudit<TData = Awaited<ReturnType<typeof listAudit>>, TErr
 
 
 
+
+export const getGetOperationsSuiteSnapshotUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite`
+}
+
+/**
+ * Returns records from the exact active tenant and project. Opportunity acquisition and submission are record-only, client delivery is manual out of band, and credential verification is a human-recorded observation.
+ * @summary Get the bounded pursuit operations snapshot
+ */
+export const getOperationsSuiteSnapshot = async (id: string, options?: RequestInit): Promise<OperationsSuiteSnapshotResponse> => {
+
+  return customFetch<OperationsSuiteSnapshotResponse>(getGetOperationsSuiteSnapshotUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOperationsSuiteSnapshotQueryKey = (id: string,) => {
+    return [
+    `/api/projects/${id}/operations-suite`
+    ] as const;
+    }
+
+
+export const getGetOperationsSuiteSnapshotQueryOptions = <TData = Awaited<ReturnType<typeof getOperationsSuiteSnapshot>>, TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOperationsSuiteSnapshot>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOperationsSuiteSnapshotQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOperationsSuiteSnapshot>>> = ({ signal }) => getOperationsSuiteSnapshot(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOperationsSuiteSnapshot>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOperationsSuiteSnapshotQueryResult = NonNullable<Awaited<ReturnType<typeof getOperationsSuiteSnapshot>>>
+export type GetOperationsSuiteSnapshotQueryError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>
+
+
+/**
+ * @summary Get the bounded pursuit operations snapshot
+ */
+
+export function useGetOperationsSuiteSnapshot<TData = Awaited<ReturnType<typeof getOperationsSuiteSnapshot>>, TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOperationsSuiteSnapshot>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOperationsSuiteSnapshotQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListMyOperationsWorkUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/my-work`
+}
+
+/**
+ * @summary List work assigned to the current named operator
+ */
+export const listMyOperationsWork = async (id: string, options?: RequestInit): Promise<OperationsWorkItemRecord[]> => {
+
+  return customFetch<OperationsWorkItemRecord[]>(getListMyOperationsWorkUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyOperationsWorkQueryKey = (id: string,) => {
+    return [
+    `/api/projects/${id}/operations-suite/my-work`
+    ] as const;
+    }
+
+
+export const getListMyOperationsWorkQueryOptions = <TData = Awaited<ReturnType<typeof listMyOperationsWork>>, TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyOperationsWork>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyOperationsWorkQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyOperationsWork>>> = ({ signal }) => listMyOperationsWork(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyOperationsWork>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMyOperationsWorkQueryResult = NonNullable<Awaited<ReturnType<typeof listMyOperationsWork>>>
+export type ListMyOperationsWorkQueryError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>
+
+
+/**
+ * @summary List work assigned to the current named operator
+ */
+
+export function useListMyOperationsWork<TData = Awaited<ReturnType<typeof listMyOperationsWork>>, TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyOperationsWork>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMyOperationsWorkQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetOperationsMobileQueueUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/mobile-queue`
+}
+
+/**
+ * Returns an online-only projection of permitted actionable operations. It deliberately excludes record bodies and is limited to 250 items.
+ * @summary Get the compact, restricted operations queue for the named operator
+ */
+export const getOperationsMobileQueue = async (id: string, options?: RequestInit): Promise<OperationsMobileQueue> => {
+
+  return customFetch<OperationsMobileQueue>(getGetOperationsMobileQueueUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOperationsMobileQueueQueryKey = (id: string,) => {
+    return [
+    `/api/projects/${id}/operations-suite/mobile-queue`
+    ] as const;
+    }
+
+
+export const getGetOperationsMobileQueueQueryOptions = <TData = Awaited<ReturnType<typeof getOperationsMobileQueue>>, TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOperationsMobileQueue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOperationsMobileQueueQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOperationsMobileQueue>>> = ({ signal }) => getOperationsMobileQueue(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOperationsMobileQueue>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOperationsMobileQueueQueryResult = NonNullable<Awaited<ReturnType<typeof getOperationsMobileQueue>>>
+export type GetOperationsMobileQueueQueryError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>
+
+
+/**
+ * @summary Get the compact, restricted operations queue for the named operator
+ */
+
+export function useGetOperationsMobileQueue<TData = Awaited<ReturnType<typeof getOperationsMobileQueue>>, TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOperationsMobileQueue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOperationsMobileQueueQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetOperationsRecordUrl = (id: string,
+    recordId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/records/${recordId}`
+}
+
+/**
+ * @summary Get one exact-scope operations record
+ */
+export const getOperationsRecord = async (id: string,
+    recordId: string, options?: RequestInit): Promise<OperationsRecord> => {
+
+  return customFetch<OperationsRecord>(getGetOperationsRecordUrl(id,recordId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOperationsRecordQueryKey = (id: string,
+    recordId: string,) => {
+    return [
+    `/api/projects/${id}/operations-suite/records/${recordId}`
+    ] as const;
+    }
+
+
+export const getGetOperationsRecordQueryOptions = <TData = Awaited<ReturnType<typeof getOperationsRecord>>, TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>>(id: string,
+    recordId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOperationsRecord>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOperationsRecordQueryKey(id,recordId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOperationsRecord>>> = ({ signal }) => getOperationsRecord(id,recordId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined && recordId !== null && recordId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOperationsRecord>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOperationsRecordQueryResult = NonNullable<Awaited<ReturnType<typeof getOperationsRecord>>>
+export type GetOperationsRecordQueryError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>
+
+
+/**
+ * @summary Get one exact-scope operations record
+ */
+
+export function useGetOperationsRecord<TData = Awaited<ReturnType<typeof getOperationsRecord>>, TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>>(
+ id: string,
+    recordId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOperationsRecord>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOperationsRecordQueryOptions(id,recordId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateOperationsOpportunityIntakeUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/opportunities`
+}
+
+/**
+ * Records bounded provenance only. The service does not retrieve the URL, email, CSV or OCDS release and treats every deadline as unconfirmed until a named human confirms it.
+ * @summary Record an authorised opportunity source
+ */
+export const createOperationsOpportunityIntake = async (id: string,
+    operationsCreateOpportunity: OperationsCreateOpportunity, options?: RequestInit): Promise<OperationsOpportunityRecord> => {
+
+  return customFetch<OperationsOpportunityRecord>(getCreateOperationsOpportunityIntakeUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(operationsCreateOpportunity)
+  }
+);}
+
+
+
+
+export const getCreateOperationsOpportunityIntakeMutationOptions = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOperationsOpportunityIntake>>, TError,{id: string;data: BodyType<OperationsCreateOpportunity>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOperationsOpportunityIntake>>, TError,{id: string;data: BodyType<OperationsCreateOpportunity>}, TContext> => {
+
+const mutationKey = ['createOperationsOpportunityIntake'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOperationsOpportunityIntake>>, {id: string;data: BodyType<OperationsCreateOpportunity>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createOperationsOpportunityIntake(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOperationsOpportunityIntakeMutationResult = NonNullable<Awaited<ReturnType<typeof createOperationsOpportunityIntake>>>
+    export type CreateOperationsOpportunityIntakeMutationBody = BodyType<OperationsCreateOpportunity>
+    export type CreateOperationsOpportunityIntakeMutationError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse>
+
+    /**
+ * @summary Record an authorised opportunity source
+ */
+export const useCreateOperationsOpportunityIntake = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOperationsOpportunityIntake>>, TError,{id: string;data: BodyType<OperationsCreateOpportunity>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createOperationsOpportunityIntake>>,
+        TError,
+        {id: string;data: BodyType<OperationsCreateOpportunity>},
+        TContext
+      > => {
+      return useMutation(getCreateOperationsOpportunityIntakeMutationOptions(options));
+    }
+
+export const getConfirmOperationsOpportunityDeadlineUrl = (id: string,
+    recordId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/opportunities/${recordId}/confirm-deadline`
+}
+
+/**
+ * @summary Record a named human deadline confirmation
+ */
+export const confirmOperationsOpportunityDeadline = async (id: string,
+    recordId: string,
+    operationsConfirmDeadline: OperationsConfirmDeadline, options?: RequestInit): Promise<OperationsOpportunityRecord> => {
+
+  return customFetch<OperationsOpportunityRecord>(getConfirmOperationsOpportunityDeadlineUrl(id,recordId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(operationsConfirmDeadline)
+  }
+);}
+
+
+
+
+export const getConfirmOperationsOpportunityDeadlineMutationOptions = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmOperationsOpportunityDeadline>>, TError,{id: string;recordId: string;data: BodyType<OperationsConfirmDeadline>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmOperationsOpportunityDeadline>>, TError,{id: string;recordId: string;data: BodyType<OperationsConfirmDeadline>}, TContext> => {
+
+const mutationKey = ['confirmOperationsOpportunityDeadline'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmOperationsOpportunityDeadline>>, {id: string;recordId: string;data: BodyType<OperationsConfirmDeadline>}> = (props) => {
+          const {id,recordId,data} = props ?? {};
+
+          return  confirmOperationsOpportunityDeadline(id,recordId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmOperationsOpportunityDeadlineMutationResult = NonNullable<Awaited<ReturnType<typeof confirmOperationsOpportunityDeadline>>>
+    export type ConfirmOperationsOpportunityDeadlineMutationBody = BodyType<OperationsConfirmDeadline>
+    export type ConfirmOperationsOpportunityDeadlineMutationError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>
+
+    /**
+ * @summary Record a named human deadline confirmation
+ */
+export const useConfirmOperationsOpportunityDeadline = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmOperationsOpportunityDeadline>>, TError,{id: string;recordId: string;data: BodyType<OperationsConfirmDeadline>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof confirmOperationsOpportunityDeadline>>,
+        TError,
+        {id: string;recordId: string;data: BodyType<OperationsConfirmDeadline>},
+        TContext
+      > => {
+      return useMutation(getConfirmOperationsOpportunityDeadlineMutationOptions(options));
+    }
+
+export const getCreateOperationsWorkItemUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/work-items`
+}
+
+/**
+ * @summary Create one bounded pursuit work item
+ */
+export const createOperationsWorkItem = async (id: string,
+    operationsCreateWorkItem: OperationsCreateWorkItem, options?: RequestInit): Promise<OperationsWorkItemRecord> => {
+
+  return customFetch<OperationsWorkItemRecord>(getCreateOperationsWorkItemUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(operationsCreateWorkItem)
+  }
+);}
+
+
+
+
+export const getCreateOperationsWorkItemMutationOptions = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOperationsWorkItem>>, TError,{id: string;data: BodyType<OperationsCreateWorkItem>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOperationsWorkItem>>, TError,{id: string;data: BodyType<OperationsCreateWorkItem>}, TContext> => {
+
+const mutationKey = ['createOperationsWorkItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOperationsWorkItem>>, {id: string;data: BodyType<OperationsCreateWorkItem>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createOperationsWorkItem(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOperationsWorkItemMutationResult = NonNullable<Awaited<ReturnType<typeof createOperationsWorkItem>>>
+    export type CreateOperationsWorkItemMutationBody = BodyType<OperationsCreateWorkItem>
+    export type CreateOperationsWorkItemMutationError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>
+
+    /**
+ * @summary Create one bounded pursuit work item
+ */
+export const useCreateOperationsWorkItem = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOperationsWorkItem>>, TError,{id: string;data: BodyType<OperationsCreateWorkItem>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createOperationsWorkItem>>,
+        TError,
+        {id: string;data: BodyType<OperationsCreateWorkItem>},
+        TContext
+      > => {
+      return useMutation(getCreateOperationsWorkItemMutationOptions(options));
+    }
+
+export const getUpdateOperationsWorkItemUrl = (id: string,
+    recordId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/work-items/${recordId}`
+}
+
+/**
+ * @summary Update work with optimistic concurrency and dependency gates
+ */
+export const updateOperationsWorkItem = async (id: string,
+    recordId: string,
+    operationsUpdateWorkItem: OperationsUpdateWorkItem, options?: RequestInit): Promise<OperationsWorkItemRecord> => {
+
+  return customFetch<OperationsWorkItemRecord>(getUpdateOperationsWorkItemUrl(id,recordId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(operationsUpdateWorkItem)
+  }
+);}
+
+
+
+
+export const getUpdateOperationsWorkItemMutationOptions = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOperationsWorkItem>>, TError,{id: string;recordId: string;data: BodyType<OperationsUpdateWorkItem>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateOperationsWorkItem>>, TError,{id: string;recordId: string;data: BodyType<OperationsUpdateWorkItem>}, TContext> => {
+
+const mutationKey = ['updateOperationsWorkItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateOperationsWorkItem>>, {id: string;recordId: string;data: BodyType<OperationsUpdateWorkItem>}> = (props) => {
+          const {id,recordId,data} = props ?? {};
+
+          return  updateOperationsWorkItem(id,recordId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateOperationsWorkItemMutationResult = NonNullable<Awaited<ReturnType<typeof updateOperationsWorkItem>>>
+    export type UpdateOperationsWorkItemMutationBody = BodyType<OperationsUpdateWorkItem>
+    export type UpdateOperationsWorkItemMutationError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>
+
+    /**
+ * @summary Update work with optimistic concurrency and dependency gates
+ */
+export const useUpdateOperationsWorkItem = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOperationsWorkItem>>, TError,{id: string;recordId: string;data: BodyType<OperationsUpdateWorkItem>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateOperationsWorkItem>>,
+        TError,
+        {id: string;recordId: string;data: BodyType<OperationsUpdateWorkItem>},
+        TContext
+      > => {
+      return useMutation(getUpdateOperationsWorkItemMutationOptions(options));
+    }
+
+export const getAddOperationsWorkItemCommentUrl = (id: string,
+    recordId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/work-items/${recordId}/comments`
+}
+
+/**
+ * @summary Add an actor-stamped work comment
+ */
+export const addOperationsWorkItemComment = async (id: string,
+    recordId: string,
+    operationsAddWorkComment: OperationsAddWorkComment, options?: RequestInit): Promise<OperationsWorkItemRecord> => {
+
+  return customFetch<OperationsWorkItemRecord>(getAddOperationsWorkItemCommentUrl(id,recordId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(operationsAddWorkComment)
+  }
+);}
+
+
+
+
+export const getAddOperationsWorkItemCommentMutationOptions = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addOperationsWorkItemComment>>, TError,{id: string;recordId: string;data: BodyType<OperationsAddWorkComment>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addOperationsWorkItemComment>>, TError,{id: string;recordId: string;data: BodyType<OperationsAddWorkComment>}, TContext> => {
+
+const mutationKey = ['addOperationsWorkItemComment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addOperationsWorkItemComment>>, {id: string;recordId: string;data: BodyType<OperationsAddWorkComment>}> = (props) => {
+          const {id,recordId,data} = props ?? {};
+
+          return  addOperationsWorkItemComment(id,recordId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddOperationsWorkItemCommentMutationResult = NonNullable<Awaited<ReturnType<typeof addOperationsWorkItemComment>>>
+    export type AddOperationsWorkItemCommentMutationBody = BodyType<OperationsAddWorkComment>
+    export type AddOperationsWorkItemCommentMutationError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>
+
+    /**
+ * @summary Add an actor-stamped work comment
+ */
+export const useAddOperationsWorkItemComment = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addOperationsWorkItemComment>>, TError,{id: string;recordId: string;data: BodyType<OperationsAddWorkComment>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addOperationsWorkItemComment>>,
+        TError,
+        {id: string;recordId: string;data: BodyType<OperationsAddWorkComment>},
+        TContext
+      > => {
+      return useMutation(getAddOperationsWorkItemCommentMutationOptions(options));
+    }
+
+export const getDecideOperationsWorkItemApprovalUrl = (id: string,
+    recordId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/work-items/${recordId}/approval`
+}
+
+/**
+ * @summary Record a named work approval decision
+ */
+export const decideOperationsWorkItemApproval = async (id: string,
+    recordId: string,
+    operationsWorkApprovalDecision: OperationsWorkApprovalDecision, options?: RequestInit): Promise<OperationsWorkItemRecord> => {
+
+  return customFetch<OperationsWorkItemRecord>(getDecideOperationsWorkItemApprovalUrl(id,recordId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(operationsWorkApprovalDecision)
+  }
+);}
+
+
+
+
+export const getDecideOperationsWorkItemApprovalMutationOptions = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideOperationsWorkItemApproval>>, TError,{id: string;recordId: string;data: BodyType<OperationsWorkApprovalDecision>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideOperationsWorkItemApproval>>, TError,{id: string;recordId: string;data: BodyType<OperationsWorkApprovalDecision>}, TContext> => {
+
+const mutationKey = ['decideOperationsWorkItemApproval'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideOperationsWorkItemApproval>>, {id: string;recordId: string;data: BodyType<OperationsWorkApprovalDecision>}> = (props) => {
+          const {id,recordId,data} = props ?? {};
+
+          return  decideOperationsWorkItemApproval(id,recordId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideOperationsWorkItemApprovalMutationResult = NonNullable<Awaited<ReturnType<typeof decideOperationsWorkItemApproval>>>
+    export type DecideOperationsWorkItemApprovalMutationBody = BodyType<OperationsWorkApprovalDecision>
+    export type DecideOperationsWorkItemApprovalMutationError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>
+
+    /**
+ * @summary Record a named work approval decision
+ */
+export const useDecideOperationsWorkItemApproval = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideOperationsWorkItemApproval>>, TError,{id: string;recordId: string;data: BodyType<OperationsWorkApprovalDecision>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof decideOperationsWorkItemApproval>>,
+        TError,
+        {id: string;recordId: string;data: BodyType<OperationsWorkApprovalDecision>},
+        TContext
+      > => {
+      return useMutation(getDecideOperationsWorkItemApprovalMutationOptions(options));
+    }
+
+export const getCreateOperationsEvidenceRequestUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/evidence-requests`
+}
+
+/**
+ * Records request slots only and sends no client message.
+ * @summary Create a manual out-of-band evidence request
+ */
+export const createOperationsEvidenceRequest = async (id: string,
+    operationsCreateEvidenceRequest: OperationsCreateEvidenceRequest, options?: RequestInit): Promise<OperationsEvidenceRequestRecord> => {
+
+  return customFetch<OperationsEvidenceRequestRecord>(getCreateOperationsEvidenceRequestUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(operationsCreateEvidenceRequest)
+  }
+);}
+
+
+
+
+export const getCreateOperationsEvidenceRequestMutationOptions = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOperationsEvidenceRequest>>, TError,{id: string;data: BodyType<OperationsCreateEvidenceRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOperationsEvidenceRequest>>, TError,{id: string;data: BodyType<OperationsCreateEvidenceRequest>}, TContext> => {
+
+const mutationKey = ['createOperationsEvidenceRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOperationsEvidenceRequest>>, {id: string;data: BodyType<OperationsCreateEvidenceRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createOperationsEvidenceRequest(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOperationsEvidenceRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createOperationsEvidenceRequest>>>
+    export type CreateOperationsEvidenceRequestMutationBody = BodyType<OperationsCreateEvidenceRequest>
+    export type CreateOperationsEvidenceRequestMutationError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse>
+
+    /**
+ * @summary Create a manual out-of-band evidence request
+ */
+export const useCreateOperationsEvidenceRequest = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOperationsEvidenceRequest>>, TError,{id: string;data: BodyType<OperationsCreateEvidenceRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createOperationsEvidenceRequest>>,
+        TError,
+        {id: string;data: BodyType<OperationsCreateEvidenceRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateOperationsEvidenceRequestMutationOptions(options));
+    }
+
+export const getMarkOperationsEvidenceRequestSharedUrl = (id: string,
+    recordId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/evidence-requests/${recordId}/mark-shared`
+}
+
+/**
+ * @summary Record that a human shared an evidence request out of band
+ */
+export const markOperationsEvidenceRequestShared = async (id: string,
+    recordId: string,
+    expectedVersionRequest: ExpectedVersionRequest, options?: RequestInit): Promise<OperationsEvidenceRequestRecord> => {
+
+  return customFetch<OperationsEvidenceRequestRecord>(getMarkOperationsEvidenceRequestSharedUrl(id,recordId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(expectedVersionRequest)
+  }
+);}
+
+
+
+
+export const getMarkOperationsEvidenceRequestSharedMutationOptions = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markOperationsEvidenceRequestShared>>, TError,{id: string;recordId: string;data: BodyType<ExpectedVersionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markOperationsEvidenceRequestShared>>, TError,{id: string;recordId: string;data: BodyType<ExpectedVersionRequest>}, TContext> => {
+
+const mutationKey = ['markOperationsEvidenceRequestShared'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markOperationsEvidenceRequestShared>>, {id: string;recordId: string;data: BodyType<ExpectedVersionRequest>}> = (props) => {
+          const {id,recordId,data} = props ?? {};
+
+          return  markOperationsEvidenceRequestShared(id,recordId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkOperationsEvidenceRequestSharedMutationResult = NonNullable<Awaited<ReturnType<typeof markOperationsEvidenceRequestShared>>>
+    export type MarkOperationsEvidenceRequestSharedMutationBody = BodyType<ExpectedVersionRequest>
+    export type MarkOperationsEvidenceRequestSharedMutationError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>
+
+    /**
+ * @summary Record that a human shared an evidence request out of band
+ */
+export const useMarkOperationsEvidenceRequestShared = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markOperationsEvidenceRequestShared>>, TError,{id: string;recordId: string;data: BodyType<ExpectedVersionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markOperationsEvidenceRequestShared>>,
+        TError,
+        {id: string;recordId: string;data: BodyType<ExpectedVersionRequest>},
+        TContext
+      > => {
+      return useMutation(getMarkOperationsEvidenceRequestSharedMutationOptions(options));
+    }
+
+export const getRecordOperationsEvidenceResponseUrl = (id: string,
+    recordId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/evidence-requests/${recordId}/responses`
+}
+
+/**
+ * @summary Record an already received evidence response
+ */
+export const recordOperationsEvidenceResponse = async (id: string,
+    recordId: string,
+    operationsRecordEvidenceResponse: OperationsRecordEvidenceResponse, options?: RequestInit): Promise<OperationsEvidenceRequestRecord> => {
+
+  return customFetch<OperationsEvidenceRequestRecord>(getRecordOperationsEvidenceResponseUrl(id,recordId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(operationsRecordEvidenceResponse)
+  }
+);}
+
+
+
+
+export const getRecordOperationsEvidenceResponseMutationOptions = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordOperationsEvidenceResponse>>, TError,{id: string;recordId: string;data: BodyType<OperationsRecordEvidenceResponse>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordOperationsEvidenceResponse>>, TError,{id: string;recordId: string;data: BodyType<OperationsRecordEvidenceResponse>}, TContext> => {
+
+const mutationKey = ['recordOperationsEvidenceResponse'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordOperationsEvidenceResponse>>, {id: string;recordId: string;data: BodyType<OperationsRecordEvidenceResponse>}> = (props) => {
+          const {id,recordId,data} = props ?? {};
+
+          return  recordOperationsEvidenceResponse(id,recordId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordOperationsEvidenceResponseMutationResult = NonNullable<Awaited<ReturnType<typeof recordOperationsEvidenceResponse>>>
+    export type RecordOperationsEvidenceResponseMutationBody = BodyType<OperationsRecordEvidenceResponse>
+    export type RecordOperationsEvidenceResponseMutationError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>
+
+    /**
+ * @summary Record an already received evidence response
+ */
+export const useRecordOperationsEvidenceResponse = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordOperationsEvidenceResponse>>, TError,{id: string;recordId: string;data: BodyType<OperationsRecordEvidenceResponse>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordOperationsEvidenceResponse>>,
+        TError,
+        {id: string;recordId: string;data: BodyType<OperationsRecordEvidenceResponse>},
+        TContext
+      > => {
+      return useMutation(getRecordOperationsEvidenceResponseMutationOptions(options));
+    }
+
+export const getDecideOperationsEvidenceResponseUrl = (id: string,
+    recordId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/evidence-requests/${recordId}/decisions`
+}
+
+/**
+ * @summary Record a human evidence acceptance decision
+ */
+export const decideOperationsEvidenceResponse = async (id: string,
+    recordId: string,
+    operationsEvidenceDecision: OperationsEvidenceDecision, options?: RequestInit): Promise<OperationsEvidenceRequestRecord> => {
+
+  return customFetch<OperationsEvidenceRequestRecord>(getDecideOperationsEvidenceResponseUrl(id,recordId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(operationsEvidenceDecision)
+  }
+);}
+
+
+
+
+export const getDecideOperationsEvidenceResponseMutationOptions = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideOperationsEvidenceResponse>>, TError,{id: string;recordId: string;data: BodyType<OperationsEvidenceDecision>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideOperationsEvidenceResponse>>, TError,{id: string;recordId: string;data: BodyType<OperationsEvidenceDecision>}, TContext> => {
+
+const mutationKey = ['decideOperationsEvidenceResponse'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideOperationsEvidenceResponse>>, {id: string;recordId: string;data: BodyType<OperationsEvidenceDecision>}> = (props) => {
+          const {id,recordId,data} = props ?? {};
+
+          return  decideOperationsEvidenceResponse(id,recordId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideOperationsEvidenceResponseMutationResult = NonNullable<Awaited<ReturnType<typeof decideOperationsEvidenceResponse>>>
+    export type DecideOperationsEvidenceResponseMutationBody = BodyType<OperationsEvidenceDecision>
+    export type DecideOperationsEvidenceResponseMutationError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>
+
+    /**
+ * @summary Record a human evidence acceptance decision
+ */
+export const useDecideOperationsEvidenceResponse = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideOperationsEvidenceResponse>>, TError,{id: string;recordId: string;data: BodyType<OperationsEvidenceDecision>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof decideOperationsEvidenceResponse>>,
+        TError,
+        {id: string;recordId: string;data: BodyType<OperationsEvidenceDecision>},
+        TContext
+      > => {
+      return useMutation(getDecideOperationsEvidenceResponseMutationOptions(options));
+    }
+
+export const getCreateOperationsSubmissionWarRoomUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/submission-war-rooms`
+}
+
+/**
+ * Freezes no external portal and performs no submission action.
+ * @summary Create a record-only submission war room
+ */
+export const createOperationsSubmissionWarRoom = async (id: string,
+    operationsCreateSubmissionWarRoom: OperationsCreateSubmissionWarRoom, options?: RequestInit): Promise<OperationsSubmissionWarRoomRecord> => {
+
+  return customFetch<OperationsSubmissionWarRoomRecord>(getCreateOperationsSubmissionWarRoomUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(operationsCreateSubmissionWarRoom)
+  }
+);}
+
+
+
+
+export const getCreateOperationsSubmissionWarRoomMutationOptions = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOperationsSubmissionWarRoom>>, TError,{id: string;data: BodyType<OperationsCreateSubmissionWarRoom>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOperationsSubmissionWarRoom>>, TError,{id: string;data: BodyType<OperationsCreateSubmissionWarRoom>}, TContext> => {
+
+const mutationKey = ['createOperationsSubmissionWarRoom'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOperationsSubmissionWarRoom>>, {id: string;data: BodyType<OperationsCreateSubmissionWarRoom>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createOperationsSubmissionWarRoom(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOperationsSubmissionWarRoomMutationResult = NonNullable<Awaited<ReturnType<typeof createOperationsSubmissionWarRoom>>>
+    export type CreateOperationsSubmissionWarRoomMutationBody = BodyType<OperationsCreateSubmissionWarRoom>
+    export type CreateOperationsSubmissionWarRoomMutationError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse>
+
+    /**
+ * @summary Create a record-only submission war room
+ */
+export const useCreateOperationsSubmissionWarRoom = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOperationsSubmissionWarRoom>>, TError,{id: string;data: BodyType<OperationsCreateSubmissionWarRoom>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createOperationsSubmissionWarRoom>>,
+        TError,
+        {id: string;data: BodyType<OperationsCreateSubmissionWarRoom>},
+        TContext
+      > => {
+      return useMutation(getCreateOperationsSubmissionWarRoomMutationOptions(options));
+    }
+
+export const getAdvanceOperationsSubmissionWarRoomUrl = (id: string,
+    recordId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/submission-war-rooms/${recordId}/advance`
+}
+
+/**
+ * Records sequential preparation, sealing, human dispatch and receipt evidence. It never invokes a portal, courier or submission provider.
+ * @summary Record one completed human war-room stage
+ */
+export const advanceOperationsSubmissionWarRoom = async (id: string,
+    recordId: string,
+    operationsAdvanceSubmissionWarRoom: OperationsAdvanceSubmissionWarRoom, options?: RequestInit): Promise<OperationsSubmissionWarRoomRecord> => {
+
+  return customFetch<OperationsSubmissionWarRoomRecord>(getAdvanceOperationsSubmissionWarRoomUrl(id,recordId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(operationsAdvanceSubmissionWarRoom)
+  }
+);}
+
+
+
+
+export const getAdvanceOperationsSubmissionWarRoomMutationOptions = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof advanceOperationsSubmissionWarRoom>>, TError,{id: string;recordId: string;data: BodyType<OperationsAdvanceSubmissionWarRoom>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof advanceOperationsSubmissionWarRoom>>, TError,{id: string;recordId: string;data: BodyType<OperationsAdvanceSubmissionWarRoom>}, TContext> => {
+
+const mutationKey = ['advanceOperationsSubmissionWarRoom'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof advanceOperationsSubmissionWarRoom>>, {id: string;recordId: string;data: BodyType<OperationsAdvanceSubmissionWarRoom>}> = (props) => {
+          const {id,recordId,data} = props ?? {};
+
+          return  advanceOperationsSubmissionWarRoom(id,recordId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdvanceOperationsSubmissionWarRoomMutationResult = NonNullable<Awaited<ReturnType<typeof advanceOperationsSubmissionWarRoom>>>
+    export type AdvanceOperationsSubmissionWarRoomMutationBody = BodyType<OperationsAdvanceSubmissionWarRoom>
+    export type AdvanceOperationsSubmissionWarRoomMutationError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>
+
+    /**
+ * @summary Record one completed human war-room stage
+ */
+export const useAdvanceOperationsSubmissionWarRoom = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof advanceOperationsSubmissionWarRoom>>, TError,{id: string;recordId: string;data: BodyType<OperationsAdvanceSubmissionWarRoom>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof advanceOperationsSubmissionWarRoom>>,
+        TError,
+        {id: string;recordId: string;data: BodyType<OperationsAdvanceSubmissionWarRoom>},
+        TContext
+      > => {
+      return useMutation(getAdvanceOperationsSubmissionWarRoomMutationOptions(options));
+    }
+
+export const getCreateOperationsVisualQaReportUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/visual-qa-reports`
+}
+
+/**
+ * Evaluates only caller-supplied bounded render measurements. It performs no OCR, model call, file access or network request.
+ * @summary Evaluate deterministic package render measurements
+ */
+export const createOperationsVisualQaReport = async (id: string,
+    operationsCreateVisualQaReport: OperationsCreateVisualQaReport, options?: RequestInit): Promise<OperationsVisualQaReportRecord> => {
+
+  return customFetch<OperationsVisualQaReportRecord>(getCreateOperationsVisualQaReportUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(operationsCreateVisualQaReport)
+  }
+);}
+
+
+
+
+export const getCreateOperationsVisualQaReportMutationOptions = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOperationsVisualQaReport>>, TError,{id: string;data: BodyType<OperationsCreateVisualQaReport>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOperationsVisualQaReport>>, TError,{id: string;data: BodyType<OperationsCreateVisualQaReport>}, TContext> => {
+
+const mutationKey = ['createOperationsVisualQaReport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOperationsVisualQaReport>>, {id: string;data: BodyType<OperationsCreateVisualQaReport>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createOperationsVisualQaReport(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOperationsVisualQaReportMutationResult = NonNullable<Awaited<ReturnType<typeof createOperationsVisualQaReport>>>
+    export type CreateOperationsVisualQaReportMutationBody = BodyType<OperationsCreateVisualQaReport>
+    export type CreateOperationsVisualQaReportMutationError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse>
+
+    /**
+ * @summary Evaluate deterministic package render measurements
+ */
+export const useCreateOperationsVisualQaReport = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOperationsVisualQaReport>>, TError,{id: string;data: BodyType<OperationsCreateVisualQaReport>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createOperationsVisualQaReport>>,
+        TError,
+        {id: string;data: BodyType<OperationsCreateVisualQaReport>},
+        TContext
+      > => {
+      return useMutation(getCreateOperationsVisualQaReportMutationOptions(options));
+    }
+
+export const getCreateOperationsCredentialVerificationUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/credential-verifications`
+}
+
+/**
+ * Records what a named person observed and a receipt hash. Valo does not contact the authority or represent independent issuer verification.
+ * @summary Record a human-performed official-source credential check
+ */
+export const createOperationsCredentialVerification = async (id: string,
+    operationsCreateCredentialVerification: OperationsCreateCredentialVerification, options?: RequestInit): Promise<OperationsCredentialVerificationRecord> => {
+
+  return customFetch<OperationsCredentialVerificationRecord>(getCreateOperationsCredentialVerificationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(operationsCreateCredentialVerification)
+  }
+);}
+
+
+
+
+export const getCreateOperationsCredentialVerificationMutationOptions = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOperationsCredentialVerification>>, TError,{id: string;data: BodyType<OperationsCreateCredentialVerification>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOperationsCredentialVerification>>, TError,{id: string;data: BodyType<OperationsCreateCredentialVerification>}, TContext> => {
+
+const mutationKey = ['createOperationsCredentialVerification'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOperationsCredentialVerification>>, {id: string;data: BodyType<OperationsCreateCredentialVerification>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createOperationsCredentialVerification(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOperationsCredentialVerificationMutationResult = NonNullable<Awaited<ReturnType<typeof createOperationsCredentialVerification>>>
+    export type CreateOperationsCredentialVerificationMutationBody = BodyType<OperationsCreateCredentialVerification>
+    export type CreateOperationsCredentialVerificationMutationError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse>
+
+    /**
+ * @summary Record a human-performed official-source credential check
+ */
+export const useCreateOperationsCredentialVerification = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOperationsCredentialVerification>>, TError,{id: string;data: BodyType<OperationsCreateCredentialVerification>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createOperationsCredentialVerification>>,
+        TError,
+        {id: string;data: BodyType<OperationsCreateCredentialVerification>},
+        TContext
+      > => {
+      return useMutation(getCreateOperationsCredentialVerificationMutationOptions(options));
+    }
+
+export const getCreateOperationsMissionUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/missions`
+}
+
+/**
+ * @summary Plan a pre-bid meeting or site visit
+ */
+export const createOperationsMission = async (id: string,
+    operationsCreateMission: OperationsCreateMission, options?: RequestInit): Promise<OperationsMissionRecord> => {
+
+  return customFetch<OperationsMissionRecord>(getCreateOperationsMissionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(operationsCreateMission)
+  }
+);}
+
+
+
+
+export const getCreateOperationsMissionMutationOptions = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOperationsMission>>, TError,{id: string;data: BodyType<OperationsCreateMission>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOperationsMission>>, TError,{id: string;data: BodyType<OperationsCreateMission>}, TContext> => {
+
+const mutationKey = ['createOperationsMission'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOperationsMission>>, {id: string;data: BodyType<OperationsCreateMission>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createOperationsMission(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOperationsMissionMutationResult = NonNullable<Awaited<ReturnType<typeof createOperationsMission>>>
+    export type CreateOperationsMissionMutationBody = BodyType<OperationsCreateMission>
+    export type CreateOperationsMissionMutationError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse>
+
+    /**
+ * @summary Plan a pre-bid meeting or site visit
+ */
+export const useCreateOperationsMission = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOperationsMission>>, TError,{id: string;data: BodyType<OperationsCreateMission>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createOperationsMission>>,
+        TError,
+        {id: string;data: BodyType<OperationsCreateMission>},
+        TContext
+      > => {
+      return useMutation(getCreateOperationsMissionMutationOptions(options));
+    }
+
+export const getUpdateOperationsMissionUrl = (id: string,
+    recordId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/missions/${recordId}`
+}
+
+/**
+ * @summary Record mission checklist, attendance proof or follow-up state
+ */
+export const updateOperationsMission = async (id: string,
+    recordId: string,
+    operationsUpdateMission: OperationsUpdateMission, options?: RequestInit): Promise<OperationsMissionRecord> => {
+
+  return customFetch<OperationsMissionRecord>(getUpdateOperationsMissionUrl(id,recordId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(operationsUpdateMission)
+  }
+);}
+
+
+
+
+export const getUpdateOperationsMissionMutationOptions = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOperationsMission>>, TError,{id: string;recordId: string;data: BodyType<OperationsUpdateMission>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateOperationsMission>>, TError,{id: string;recordId: string;data: BodyType<OperationsUpdateMission>}, TContext> => {
+
+const mutationKey = ['updateOperationsMission'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateOperationsMission>>, {id: string;recordId: string;data: BodyType<OperationsUpdateMission>}> = (props) => {
+          const {id,recordId,data} = props ?? {};
+
+          return  updateOperationsMission(id,recordId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateOperationsMissionMutationResult = NonNullable<Awaited<ReturnType<typeof updateOperationsMission>>>
+    export type UpdateOperationsMissionMutationBody = BodyType<OperationsUpdateMission>
+    export type UpdateOperationsMissionMutationError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>
+
+    /**
+ * @summary Record mission checklist, attendance proof or follow-up state
+ */
+export const useUpdateOperationsMission = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOperationsMission>>, TError,{id: string;recordId: string;data: BodyType<OperationsUpdateMission>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateOperationsMission>>,
+        TError,
+        {id: string;recordId: string;data: BodyType<OperationsUpdateMission>},
+        TContext
+      > => {
+      return useMutation(getUpdateOperationsMissionMutationOptions(options));
+    }
+
+export const getCreateOperationsPostAwardItemUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/post-award-items`
+}
+
+/**
+ * @summary Record a post-award obligation, milestone, variation or notice
+ */
+export const createOperationsPostAwardItem = async (id: string,
+    operationsCreatePostAwardItem: OperationsCreatePostAwardItem, options?: RequestInit): Promise<OperationsPostAwardItemRecord> => {
+
+  return customFetch<OperationsPostAwardItemRecord>(getCreateOperationsPostAwardItemUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(operationsCreatePostAwardItem)
+  }
+);}
+
+
+
+
+export const getCreateOperationsPostAwardItemMutationOptions = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOperationsPostAwardItem>>, TError,{id: string;data: BodyType<OperationsCreatePostAwardItem>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOperationsPostAwardItem>>, TError,{id: string;data: BodyType<OperationsCreatePostAwardItem>}, TContext> => {
+
+const mutationKey = ['createOperationsPostAwardItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOperationsPostAwardItem>>, {id: string;data: BodyType<OperationsCreatePostAwardItem>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createOperationsPostAwardItem(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOperationsPostAwardItemMutationResult = NonNullable<Awaited<ReturnType<typeof createOperationsPostAwardItem>>>
+    export type CreateOperationsPostAwardItemMutationBody = BodyType<OperationsCreatePostAwardItem>
+    export type CreateOperationsPostAwardItemMutationError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse>
+
+    /**
+ * @summary Record a post-award obligation, milestone, variation or notice
+ */
+export const useCreateOperationsPostAwardItem = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOperationsPostAwardItem>>, TError,{id: string;data: BodyType<OperationsCreatePostAwardItem>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createOperationsPostAwardItem>>,
+        TError,
+        {id: string;data: BodyType<OperationsCreatePostAwardItem>},
+        TContext
+      > => {
+      return useMutation(getCreateOperationsPostAwardItemMutationOptions(options));
+    }
+
+export const getUpdateOperationsPostAwardItemUrl = (id: string,
+    recordId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/post-award-items/${recordId}`
+}
+
+/**
+ * @summary Update post-award state with evidence-bound completion
+ */
+export const updateOperationsPostAwardItem = async (id: string,
+    recordId: string,
+    operationsUpdatePostAwardItem: OperationsUpdatePostAwardItem, options?: RequestInit): Promise<OperationsPostAwardItemRecord> => {
+
+  return customFetch<OperationsPostAwardItemRecord>(getUpdateOperationsPostAwardItemUrl(id,recordId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(operationsUpdatePostAwardItem)
+  }
+);}
+
+
+
+
+export const getUpdateOperationsPostAwardItemMutationOptions = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOperationsPostAwardItem>>, TError,{id: string;recordId: string;data: BodyType<OperationsUpdatePostAwardItem>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateOperationsPostAwardItem>>, TError,{id: string;recordId: string;data: BodyType<OperationsUpdatePostAwardItem>}, TContext> => {
+
+const mutationKey = ['updateOperationsPostAwardItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateOperationsPostAwardItem>>, {id: string;recordId: string;data: BodyType<OperationsUpdatePostAwardItem>}> = (props) => {
+          const {id,recordId,data} = props ?? {};
+
+          return  updateOperationsPostAwardItem(id,recordId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateOperationsPostAwardItemMutationResult = NonNullable<Awaited<ReturnType<typeof updateOperationsPostAwardItem>>>
+    export type UpdateOperationsPostAwardItemMutationBody = BodyType<OperationsUpdatePostAwardItem>
+    export type UpdateOperationsPostAwardItemMutationError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>
+
+    /**
+ * @summary Update post-award state with evidence-bound completion
+ */
+export const useUpdateOperationsPostAwardItem = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOperationsPostAwardItem>>, TError,{id: string;recordId: string;data: BodyType<OperationsUpdatePostAwardItem>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateOperationsPostAwardItem>>,
+        TError,
+        {id: string;recordId: string;data: BodyType<OperationsUpdatePostAwardItem>},
+        TContext
+      > => {
+      return useMutation(getUpdateOperationsPostAwardItemMutationOptions(options));
+    }
+
+export const getGetGrowthOnboardingUrl = () => {
+
+
+
+
+  return `/api/growth-suite/onboarding`
+}
+
+/**
+ * Returns a synthetic, non-customer tour derived only from server-resolved roles. The tour writes no authoritative pursuit state and performs no client contact, bid approval or submission action.
+ * @summary Get the role-derived first-pursuit onboarding journey
+ */
+export const getGrowthOnboarding = async ( options?: RequestInit): Promise<GrowthOnboardingResponse> => {
+
+  return customFetch<GrowthOnboardingResponse>(getGetGrowthOnboardingUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGrowthOnboardingQueryKey = () => {
+    return [
+    `/api/growth-suite/onboarding`
+    ] as const;
+    }
+
+
+export const getGetGrowthOnboardingQueryOptions = <TData = Awaited<ReturnType<typeof getGrowthOnboarding>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | GrowthSuiteUnavailableResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGrowthOnboarding>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGrowthOnboardingQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGrowthOnboarding>>> = ({ signal }) => getGrowthOnboarding({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGrowthOnboarding>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGrowthOnboardingQueryResult = NonNullable<Awaited<ReturnType<typeof getGrowthOnboarding>>>
+export type GetGrowthOnboardingQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | GrowthSuiteUnavailableResponse>
+
+
+/**
+ * @summary Get the role-derived first-pursuit onboarding journey
+ */
+
+export function useGetGrowthOnboarding<TData = Awaited<ReturnType<typeof getGrowthOnboarding>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | GrowthSuiteUnavailableResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGrowthOnboarding>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGrowthOnboardingQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMutateGrowthOnboardingProgressUrl = () => {
+
+
+
+
+  return `/api/growth-suite/onboarding/progress`
+}
+
+/**
+ * Records only a named operator's onboarding progress for the current journey policy. It does not change authoritative pursuit state.
+ * @summary Record one onboarding checkpoint with optimistic concurrency
+ */
+export const mutateGrowthOnboardingProgress = async (growthOnboardingProgressMutation: GrowthOnboardingProgressMutation, options?: RequestInit): Promise<GrowthOnboardingProgressMutationResponse> => {
+
+  return customFetch<GrowthOnboardingProgressMutationResponse>(getMutateGrowthOnboardingProgressUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(growthOnboardingProgressMutation)
+  }
+);}
+
+
+
+
+export const getMutateGrowthOnboardingProgressMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | GrowthSuiteUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mutateGrowthOnboardingProgress>>, TError,{data: BodyType<GrowthOnboardingProgressMutation>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof mutateGrowthOnboardingProgress>>, TError,{data: BodyType<GrowthOnboardingProgressMutation>}, TContext> => {
+
+const mutationKey = ['mutateGrowthOnboardingProgress'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof mutateGrowthOnboardingProgress>>, {data: BodyType<GrowthOnboardingProgressMutation>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  mutateGrowthOnboardingProgress(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MutateGrowthOnboardingProgressMutationResult = NonNullable<Awaited<ReturnType<typeof mutateGrowthOnboardingProgress>>>
+    export type MutateGrowthOnboardingProgressMutationBody = BodyType<GrowthOnboardingProgressMutation>
+    export type MutateGrowthOnboardingProgressMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | GrowthSuiteUnavailableResponse>
+
+    /**
+ * @summary Record one onboarding checkpoint with optimistic concurrency
+ */
+export const useMutateGrowthOnboardingProgress = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | GrowthSuiteUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mutateGrowthOnboardingProgress>>, TError,{data: BodyType<GrowthOnboardingProgressMutation>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof mutateGrowthOnboardingProgress>>,
+        TError,
+        {data: BodyType<GrowthOnboardingProgressMutation>},
+        TContext
+      > => {
+      return useMutation(getMutateGrowthOnboardingProgressMutationOptions(options));
+    }
+
+export const getGetGrowthOfferCatalogueUrl = () => {
+
+
+
+
+  return `/api/growth-suite/offers`
+}
+
+/**
+ * Returns product scope boundaries only. Every price is entered by a named operator, payment remains external and manual, and this operation neither calculates nor approves commercial terms.
+ * @summary Get the versioned offer catalogue
+ */
+export const getGrowthOfferCatalogue = async ( options?: RequestInit): Promise<GrowthOfferCatalogueResponse> => {
+
+  return customFetch<GrowthOfferCatalogueResponse>(getGetGrowthOfferCatalogueUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGrowthOfferCatalogueQueryKey = () => {
+    return [
+    `/api/growth-suite/offers`
+    ] as const;
+    }
+
+
+export const getGetGrowthOfferCatalogueQueryOptions = <TData = Awaited<ReturnType<typeof getGrowthOfferCatalogue>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGrowthOfferCatalogue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGrowthOfferCatalogueQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGrowthOfferCatalogue>>> = ({ signal }) => getGrowthOfferCatalogue({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGrowthOfferCatalogue>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGrowthOfferCatalogueQueryResult = NonNullable<Awaited<ReturnType<typeof getGrowthOfferCatalogue>>>
+export type GetGrowthOfferCatalogueQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Get the versioned offer catalogue
+ */
+
+export function useGetGrowthOfferCatalogue<TData = Awaited<ReturnType<typeof getGrowthOfferCatalogue>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGrowthOfferCatalogue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGrowthOfferCatalogueQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListGrowthLeadsUrl = (params?: ListGrowthLeadsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/growth-suite/leads?${stringifiedParams}` : `/api/growth-suite/leads`
+}
+
+/**
+ * Returns tenant-scoped operational summaries without a person's name, email address or telephone number. It is not a CRM or contact channel.
+ * @summary List the bounded lead operations inbox
+ */
+export const listGrowthLeads = async (params?: ListGrowthLeadsParams, options?: RequestInit): Promise<GrowthLeadListResponse> => {
+
+  return customFetch<GrowthLeadListResponse>(getListGrowthLeadsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListGrowthLeadsQueryKey = (params?: ListGrowthLeadsParams,) => {
+    return [
+    `/api/growth-suite/leads`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListGrowthLeadsQueryOptions = <TData = Awaited<ReturnType<typeof listGrowthLeads>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | GrowthSuiteUnavailableResponse>>(params?: ListGrowthLeadsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGrowthLeads>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListGrowthLeadsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listGrowthLeads>>> = ({ signal }) => listGrowthLeads(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listGrowthLeads>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListGrowthLeadsQueryResult = NonNullable<Awaited<ReturnType<typeof listGrowthLeads>>>
+export type ListGrowthLeadsQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | GrowthSuiteUnavailableResponse>
+
+
+/**
+ * @summary List the bounded lead operations inbox
+ */
+
+export function useListGrowthLeads<TData = Awaited<ReturnType<typeof listGrowthLeads>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | GrowthSuiteUnavailableResponse>>(
+ params?: ListGrowthLeadsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGrowthLeads>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListGrowthLeadsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMutateGrowthLeadUrl = (id: string,) => {
+
+
+
+
+  return `/api/growth-suite/leads/${id}/actions`
+}
+
+/**
+ * Records assignment, status, SLA or a conversion proposal. It sends no message, creates no CRM record and never converts a proposal into a pursuit.
+ * @summary Record one named human lead action
+ */
+export const mutateGrowthLead = async (id: string,
+    growthLeadMutation: GrowthLeadMutation, options?: RequestInit): Promise<GrowthLeadMutationResponse> => {
+
+  return customFetch<GrowthLeadMutationResponse>(getMutateGrowthLeadUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(growthLeadMutation)
+  }
+);}
+
+
+
+
+export const getMutateGrowthLeadMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | GrowthSuiteUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mutateGrowthLead>>, TError,{id: string;data: BodyType<GrowthLeadMutation>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof mutateGrowthLead>>, TError,{id: string;data: BodyType<GrowthLeadMutation>}, TContext> => {
+
+const mutationKey = ['mutateGrowthLead'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof mutateGrowthLead>>, {id: string;data: BodyType<GrowthLeadMutation>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  mutateGrowthLead(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MutateGrowthLeadMutationResult = NonNullable<Awaited<ReturnType<typeof mutateGrowthLead>>>
+    export type MutateGrowthLeadMutationBody = BodyType<GrowthLeadMutation>
+    export type MutateGrowthLeadMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | GrowthSuiteUnavailableResponse>
+
+    /**
+ * @summary Record one named human lead action
+ */
+export const useMutateGrowthLead = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | GrowthSuiteUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mutateGrowthLead>>, TError,{id: string;data: BodyType<GrowthLeadMutation>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof mutateGrowthLead>>,
+        TError,
+        {id: string;data: BodyType<GrowthLeadMutation>},
+        TContext
+      > => {
+      return useMutation(getMutateGrowthLeadMutationOptions(options));
+    }
+
+export const getOpenGrowthLeadContactHandoffUrl = (id: string,) => {
+
+
+
+
+  return `/api/growth-suite/leads/${id}/contact-handoff`
+}
+
+/**
+ * Returns one transient contact handoff only to the lead's currently assigned named operator and records the stated purpose. The response sends no message, is excluded from the bulk inbox, must not be copied into logs or exports. The successful handoff is private and non-cacheable (`Cache-Control: private, no-store`).
+ * @summary Open one assigned lead contact for a recorded purpose
+ */
+export const openGrowthLeadContactHandoff = async (id: string,
+    growthLeadContactHandoffRequest: GrowthLeadContactHandoffRequest, options?: RequestInit): Promise<GrowthLeadContactHandoffResponse> => {
+
+  return customFetch<GrowthLeadContactHandoffResponse>(getOpenGrowthLeadContactHandoffUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(growthLeadContactHandoffRequest)
+  }
+);}
+
+
+
+
+export const getOpenGrowthLeadContactHandoffMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | GrowthSuiteUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof openGrowthLeadContactHandoff>>, TError,{id: string;data: BodyType<GrowthLeadContactHandoffRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof openGrowthLeadContactHandoff>>, TError,{id: string;data: BodyType<GrowthLeadContactHandoffRequest>}, TContext> => {
+
+const mutationKey = ['openGrowthLeadContactHandoff'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof openGrowthLeadContactHandoff>>, {id: string;data: BodyType<GrowthLeadContactHandoffRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  openGrowthLeadContactHandoff(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type OpenGrowthLeadContactHandoffMutationResult = NonNullable<Awaited<ReturnType<typeof openGrowthLeadContactHandoff>>>
+    export type OpenGrowthLeadContactHandoffMutationBody = BodyType<GrowthLeadContactHandoffRequest>
+    export type OpenGrowthLeadContactHandoffMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | GrowthSuiteUnavailableResponse>
+
+    /**
+ * @summary Open one assigned lead contact for a recorded purpose
+ */
+export const useOpenGrowthLeadContactHandoff = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | GrowthSuiteUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof openGrowthLeadContactHandoff>>, TError,{id: string;data: BodyType<GrowthLeadContactHandoffRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof openGrowthLeadContactHandoff>>,
+        TError,
+        {id: string;data: BodyType<GrowthLeadContactHandoffRequest>},
+        TContext
+      > => {
+      return useMutation(getOpenGrowthLeadContactHandoffMutationOptions(options));
+    }
+
+export const getListGrowthQuotesUrl = (params?: ListGrowthQuotesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/growth-suite/quotes?${stringifiedParams}` : `/api/growth-suite/quotes`
+}
+
+/**
+ * @summary List human-entered quote proposals
+ */
+export const listGrowthQuotes = async (params?: ListGrowthQuotesParams, options?: RequestInit): Promise<GrowthQuoteListResponse> => {
+
+  return customFetch<GrowthQuoteListResponse>(getListGrowthQuotesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListGrowthQuotesQueryKey = (params?: ListGrowthQuotesParams,) => {
+    return [
+    `/api/growth-suite/quotes`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListGrowthQuotesQueryOptions = <TData = Awaited<ReturnType<typeof listGrowthQuotes>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | GrowthSuiteUnavailableResponse>>(params?: ListGrowthQuotesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGrowthQuotes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListGrowthQuotesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listGrowthQuotes>>> = ({ signal }) => listGrowthQuotes(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listGrowthQuotes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListGrowthQuotesQueryResult = NonNullable<Awaited<ReturnType<typeof listGrowthQuotes>>>
+export type ListGrowthQuotesQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | GrowthSuiteUnavailableResponse>
+
+
+/**
+ * @summary List human-entered quote proposals
+ */
+
+export function useListGrowthQuotes<TData = Awaited<ReturnType<typeof listGrowthQuotes>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | GrowthSuiteUnavailableResponse>>(
+ params?: ListGrowthQuotesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGrowthQuotes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListGrowthQuotesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateGrowthQuoteDraftUrl = () => {
+
+
+
+
+  return `/api/growth-suite/quotes`
+}
+
+/**
+ * Stores terms entered by a named operator against one versioned offer. The server does not calculate the amount, send the quote or collect payment.
+ * @summary Record a manually priced quote draft
+ */
+export const createGrowthQuoteDraft = async (growthCreateQuoteDraft: GrowthCreateQuoteDraft, options?: RequestInit): Promise<GrowthQuoteMutationResponse> => {
+
+  return customFetch<GrowthQuoteMutationResponse>(getCreateGrowthQuoteDraftUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(growthCreateQuoteDraft)
+  }
+);}
+
+
+
+
+export const getCreateGrowthQuoteDraftMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | GrowthSuiteUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createGrowthQuoteDraft>>, TError,{data: BodyType<GrowthCreateQuoteDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createGrowthQuoteDraft>>, TError,{data: BodyType<GrowthCreateQuoteDraft>}, TContext> => {
+
+const mutationKey = ['createGrowthQuoteDraft'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createGrowthQuoteDraft>>, {data: BodyType<GrowthCreateQuoteDraft>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createGrowthQuoteDraft(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateGrowthQuoteDraftMutationResult = NonNullable<Awaited<ReturnType<typeof createGrowthQuoteDraft>>>
+    export type CreateGrowthQuoteDraftMutationBody = BodyType<GrowthCreateQuoteDraft>
+    export type CreateGrowthQuoteDraftMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | GrowthSuiteUnavailableResponse>
+
+    /**
+ * @summary Record a manually priced quote draft
+ */
+export const useCreateGrowthQuoteDraft = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | GrowthSuiteUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createGrowthQuoteDraft>>, TError,{data: BodyType<GrowthCreateQuoteDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createGrowthQuoteDraft>>,
+        TError,
+        {data: BodyType<GrowthCreateQuoteDraft>},
+        TContext
+      > => {
+      return useMutation(getCreateGrowthQuoteDraftMutationOptions(options));
+    }
+
+export const getApproveGrowthQuoteUrl = (id: string,) => {
+
+
+
+
+  return `/api/growth-suite/quotes/${id}/approve`
+}
+
+/**
+ * Records approval only when the approver differs from the draft creator. Approval sends no quote, creates no invoice and collects no payment.
+ * @summary Approve a quote as a distinct named operator
+ */
+export const approveGrowthQuote = async (id: string,
+    expectedVersionRequest: ExpectedVersionRequest, options?: RequestInit): Promise<GrowthQuoteMutationResponse> => {
+
+  return customFetch<GrowthQuoteMutationResponse>(getApproveGrowthQuoteUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(expectedVersionRequest)
+  }
+);}
+
+
+
+
+export const getApproveGrowthQuoteMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | GrowthSuiteUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveGrowthQuote>>, TError,{id: string;data: BodyType<ExpectedVersionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveGrowthQuote>>, TError,{id: string;data: BodyType<ExpectedVersionRequest>}, TContext> => {
+
+const mutationKey = ['approveGrowthQuote'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveGrowthQuote>>, {id: string;data: BodyType<ExpectedVersionRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  approveGrowthQuote(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveGrowthQuoteMutationResult = NonNullable<Awaited<ReturnType<typeof approveGrowthQuote>>>
+    export type ApproveGrowthQuoteMutationBody = BodyType<ExpectedVersionRequest>
+    export type ApproveGrowthQuoteMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | GrowthSuiteUnavailableResponse>
+
+    /**
+ * @summary Approve a quote as a distinct named operator
+ */
+export const useApproveGrowthQuote = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | GrowthSuiteUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveGrowthQuote>>, TError,{id: string;data: BodyType<ExpectedVersionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveGrowthQuote>>,
+        TError,
+        {id: string;data: BodyType<ExpectedVersionRequest>},
+        TContext
+      > => {
+      return useMutation(getApproveGrowthQuoteMutationOptions(options));
+    }
+
+export const getGetProductionAcceptanceSnapshotUrl = () => {
+
+
+
+
+  return `/api/production-acceptance`
+}
+
+/**
+ * Returns a bounded named-human go/no-go recommendation. It never authorises deployment.
+ * @summary Read release-bound production acceptance evidence
+ */
+export const getProductionAcceptanceSnapshot = async ( options?: RequestInit): Promise<ProductionAcceptanceSnapshot> => {
+
+  return customFetch<ProductionAcceptanceSnapshot>(getGetProductionAcceptanceSnapshotUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProductionAcceptanceSnapshotQueryKey = () => {
+    return [
+    `/api/production-acceptance`
+    ] as const;
+    }
+
+
+export const getGetProductionAcceptanceSnapshotQueryOptions = <TData = Awaited<ReturnType<typeof getProductionAcceptanceSnapshot>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProductionAcceptanceSnapshot>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProductionAcceptanceSnapshotQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProductionAcceptanceSnapshot>>> = ({ signal }) => getProductionAcceptanceSnapshot({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProductionAcceptanceSnapshot>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProductionAcceptanceSnapshotQueryResult = NonNullable<Awaited<ReturnType<typeof getProductionAcceptanceSnapshot>>>
+export type GetProductionAcceptanceSnapshotQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+
+/**
+ * @summary Read release-bound production acceptance evidence
+ */
+
+export function useGetProductionAcceptanceSnapshot<TData = Awaited<ReturnType<typeof getProductionAcceptanceSnapshot>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProductionAcceptanceSnapshot>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProductionAcceptanceSnapshotQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListProductionAcceptanceAuthoritiesUrl = () => {
+
+
+
+
+  return `/api/production-acceptance/authorities`
+}
+
+/**
+ * Recorder-only, bounded authority lookup. This endpoint is not a general user directory.
+ * @summary List named operators eligible to own acceptance evidence
+ */
+export const listProductionAcceptanceAuthorities = async ( options?: RequestInit): Promise<ProductionAcceptanceAuthorityList> => {
+
+  return customFetch<ProductionAcceptanceAuthorityList>(getListProductionAcceptanceAuthoritiesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProductionAcceptanceAuthoritiesQueryKey = () => {
+    return [
+    `/api/production-acceptance/authorities`
+    ] as const;
+    }
+
+
+export const getListProductionAcceptanceAuthoritiesQueryOptions = <TData = Awaited<ReturnType<typeof listProductionAcceptanceAuthorities>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProductionAcceptanceAuthorities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProductionAcceptanceAuthoritiesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProductionAcceptanceAuthorities>>> = ({ signal }) => listProductionAcceptanceAuthorities({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProductionAcceptanceAuthorities>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProductionAcceptanceAuthoritiesQueryResult = NonNullable<Awaited<ReturnType<typeof listProductionAcceptanceAuthorities>>>
+export type ListProductionAcceptanceAuthoritiesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+
+/**
+ * @summary List named operators eligible to own acceptance evidence
+ */
+
+export function useListProductionAcceptanceAuthorities<TData = Awaited<ReturnType<typeof listProductionAcceptanceAuthorities>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProductionAcceptanceAuthorities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProductionAcceptanceAuthoritiesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRecordProductionAcceptanceEvidenceUrl = () => {
+
+
+
+
+  return `/api/production-acceptance/evidence`
+}
+
+/**
+ * A named human records evidence; replay is idempotent and the response never grants deployment authority.
+ * @summary Record release-bound acceptance evidence
+ */
+export const recordProductionAcceptanceEvidence = async (productionAcceptanceEvidenceDraft: ProductionAcceptanceEvidenceDraft, options?: RequestInit): Promise<ProductionAcceptanceEvidenceMutation> => {
+
+  return customFetch<ProductionAcceptanceEvidenceMutation>(getRecordProductionAcceptanceEvidenceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(productionAcceptanceEvidenceDraft)
+  }
+);}
+
+
+
+
+export const getRecordProductionAcceptanceEvidenceMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordProductionAcceptanceEvidence>>, TError,{data: BodyType<ProductionAcceptanceEvidenceDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordProductionAcceptanceEvidence>>, TError,{data: BodyType<ProductionAcceptanceEvidenceDraft>}, TContext> => {
+
+const mutationKey = ['recordProductionAcceptanceEvidence'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordProductionAcceptanceEvidence>>, {data: BodyType<ProductionAcceptanceEvidenceDraft>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  recordProductionAcceptanceEvidence(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordProductionAcceptanceEvidenceMutationResult = NonNullable<Awaited<ReturnType<typeof recordProductionAcceptanceEvidence>>>
+    export type RecordProductionAcceptanceEvidenceMutationBody = BodyType<ProductionAcceptanceEvidenceDraft>
+    export type RecordProductionAcceptanceEvidenceMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Record release-bound acceptance evidence
+ */
+export const useRecordProductionAcceptanceEvidence = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordProductionAcceptanceEvidence>>, TError,{data: BodyType<ProductionAcceptanceEvidenceDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordProductionAcceptanceEvidence>>,
+        TError,
+        {data: BodyType<ProductionAcceptanceEvidenceDraft>},
+        TContext
+      > => {
+      return useMutation(getRecordProductionAcceptanceEvidenceMutationOptions(options));
+    }
+
+export const getGetClientActionSnapshotUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/client-actions`
+}
+
+/**
+ * Returns only records visible to the named caller within the exact direct-member tenant and project scope.
+ * @summary Read purpose-bound client action records
+ */
+export const getClientActionSnapshot = async (id: string, options?: RequestInit): Promise<ClientActionSnapshot> => {
+
+  return customFetch<ClientActionSnapshot>(getGetClientActionSnapshotUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientActionSnapshotQueryKey = (id: string,) => {
+    return [
+    `/api/projects/${id}/client-actions`
+    ] as const;
+    }
+
+
+export const getGetClientActionSnapshotQueryOptions = <TData = Awaited<ReturnType<typeof getClientActionSnapshot>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClientActionSnapshot>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientActionSnapshotQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientActionSnapshot>>> = ({ signal }) => getClientActionSnapshot(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientActionSnapshot>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetClientActionSnapshotQueryResult = NonNullable<Awaited<ReturnType<typeof getClientActionSnapshot>>>
+export type GetClientActionSnapshotQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>
+
+
+/**
+ * @summary Read purpose-bound client action records
+ */
+
+export function useGetClientActionSnapshot<TData = Awaited<ReturnType<typeof getClientActionSnapshot>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClientActionSnapshot>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetClientActionSnapshotQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListClientActionAuthoritiesUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/client-actions/authorities`
+}
+
+/**
+ * Returns only other current direct members with document-intake authority in the exact project organisation; the current maker is excluded.
+ * @summary List eligible named client-action recipients
+ */
+export const listClientActionAuthorities = async (id: string, options?: RequestInit): Promise<ClientActionAuthorityDirectory> => {
+
+  return customFetch<ClientActionAuthorityDirectory>(getListClientActionAuthoritiesUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClientActionAuthoritiesQueryKey = (id: string,) => {
+    return [
+    `/api/projects/${id}/client-actions/authorities`
+    ] as const;
+    }
+
+
+export const getListClientActionAuthoritiesQueryOptions = <TData = Awaited<ReturnType<typeof listClientActionAuthorities>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClientActionAuthorities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClientActionAuthoritiesQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientActionAuthorities>>> = ({ signal }) => listClientActionAuthorities(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClientActionAuthorities>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListClientActionAuthoritiesQueryResult = NonNullable<Awaited<ReturnType<typeof listClientActionAuthorities>>>
+export type ListClientActionAuthoritiesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse>
+
+
+/**
+ * @summary List eligible named client-action recipients
+ */
+
+export function useListClientActionAuthorities<TData = Awaited<ReturnType<typeof listClientActionAuthorities>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClientActionAuthorities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListClientActionAuthoritiesQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateClientEvidenceRequestUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/client-actions/evidence-requests`
+}
+
+/**
+ * @summary Create a purpose-bound client evidence request
+ */
+export const createClientEvidenceRequest = async (id: string,
+    createClientEvidenceRequestInput: CreateClientEvidenceRequestInput, options?: RequestInit): Promise<ClientEvidenceRequestRecord> => {
+
+  return customFetch<ClientEvidenceRequestRecord>(getCreateClientEvidenceRequestUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createClientEvidenceRequestInput)
+  }
+);}
+
+
+
+
+export const getCreateClientEvidenceRequestMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClientEvidenceRequest>>, TError,{id: string;data: BodyType<CreateClientEvidenceRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createClientEvidenceRequest>>, TError,{id: string;data: BodyType<CreateClientEvidenceRequestInput>}, TContext> => {
+
+const mutationKey = ['createClientEvidenceRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createClientEvidenceRequest>>, {id: string;data: BodyType<CreateClientEvidenceRequestInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createClientEvidenceRequest(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateClientEvidenceRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createClientEvidenceRequest>>>
+    export type CreateClientEvidenceRequestMutationBody = BodyType<CreateClientEvidenceRequestInput>
+    export type CreateClientEvidenceRequestMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>
+
+    /**
+ * @summary Create a purpose-bound client evidence request
+ */
+export const useCreateClientEvidenceRequest = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClientEvidenceRequest>>, TError,{id: string;data: BodyType<CreateClientEvidenceRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createClientEvidenceRequest>>,
+        TError,
+        {id: string;data: BodyType<CreateClientEvidenceRequestInput>},
+        TContext
+      > => {
+      return useMutation(getCreateClientEvidenceRequestMutationOptions(options));
+    }
+
+export const getAcknowledgeClientEvidenceRequestUrl = (id: string,
+    recordId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/client-actions/evidence-requests/${recordId}/acknowledgements`
+}
+
+/**
+ * @summary Record the named recipient's request acknowledgement
+ */
+export const acknowledgeClientEvidenceRequest = async (id: string,
+    recordId: string,
+    clientAcknowledgementInput: ClientAcknowledgementInput, options?: RequestInit): Promise<ClientEvidenceRequestRecord> => {
+
+  return customFetch<ClientEvidenceRequestRecord>(getAcknowledgeClientEvidenceRequestUrl(id,recordId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(clientAcknowledgementInput)
+  }
+);}
+
+
+
+
+export const getAcknowledgeClientEvidenceRequestMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acknowledgeClientEvidenceRequest>>, TError,{id: string;recordId: string;data: BodyType<ClientAcknowledgementInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acknowledgeClientEvidenceRequest>>, TError,{id: string;recordId: string;data: BodyType<ClientAcknowledgementInput>}, TContext> => {
+
+const mutationKey = ['acknowledgeClientEvidenceRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acknowledgeClientEvidenceRequest>>, {id: string;recordId: string;data: BodyType<ClientAcknowledgementInput>}> = (props) => {
+          const {id,recordId,data} = props ?? {};
+
+          return  acknowledgeClientEvidenceRequest(id,recordId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcknowledgeClientEvidenceRequestMutationResult = NonNullable<Awaited<ReturnType<typeof acknowledgeClientEvidenceRequest>>>
+    export type AcknowledgeClientEvidenceRequestMutationBody = BodyType<ClientAcknowledgementInput>
+    export type AcknowledgeClientEvidenceRequestMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>
+
+    /**
+ * @summary Record the named recipient's request acknowledgement
+ */
+export const useAcknowledgeClientEvidenceRequest = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acknowledgeClientEvidenceRequest>>, TError,{id: string;recordId: string;data: BodyType<ClientAcknowledgementInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acknowledgeClientEvidenceRequest>>,
+        TError,
+        {id: string;recordId: string;data: BodyType<ClientAcknowledgementInput>},
+        TContext
+      > => {
+      return useMutation(getAcknowledgeClientEvidenceRequestMutationOptions(options));
+    }
+
+export const getCreateClientUploadIntentUrl = (id: string,
+    recordId: string,
+    slotId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/client-actions/evidence-requests/${recordId}/slots/${slotId}/upload-intents`
+}
+
+/**
+ * Records metadata intent only; this operation neither accepts raw bytes nor bypasses canonical document registration.
+ * @summary Record a controlled upload-slot intent
+ */
+export const createClientUploadIntent = async (id: string,
+    recordId: string,
+    slotId: string,
+    clientUploadIntentInput: ClientUploadIntentInput, options?: RequestInit): Promise<ClientEvidenceRequestRecord> => {
+
+  return customFetch<ClientEvidenceRequestRecord>(getCreateClientUploadIntentUrl(id,recordId,slotId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(clientUploadIntentInput)
+  }
+);}
+
+
+
+
+export const getCreateClientUploadIntentMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClientUploadIntent>>, TError,{id: string;recordId: string;slotId: string;data: BodyType<ClientUploadIntentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createClientUploadIntent>>, TError,{id: string;recordId: string;slotId: string;data: BodyType<ClientUploadIntentInput>}, TContext> => {
+
+const mutationKey = ['createClientUploadIntent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createClientUploadIntent>>, {id: string;recordId: string;slotId: string;data: BodyType<ClientUploadIntentInput>}> = (props) => {
+          const {id,recordId,slotId,data} = props ?? {};
+
+          return  createClientUploadIntent(id,recordId,slotId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateClientUploadIntentMutationResult = NonNullable<Awaited<ReturnType<typeof createClientUploadIntent>>>
+    export type CreateClientUploadIntentMutationBody = BodyType<ClientUploadIntentInput>
+    export type CreateClientUploadIntentMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>
+
+    /**
+ * @summary Record a controlled upload-slot intent
+ */
+export const useCreateClientUploadIntent = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClientUploadIntent>>, TError,{id: string;recordId: string;slotId: string;data: BodyType<ClientUploadIntentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createClientUploadIntent>>,
+        TError,
+        {id: string;recordId: string;slotId: string;data: BodyType<ClientUploadIntentInput>},
+        TContext
+      > => {
+      return useMutation(getCreateClientUploadIntentMutationOptions(options));
+    }
+
+export const getAttachClientEvidenceDocumentUrl = (id: string,
+    recordId: string,
+    slotId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/client-actions/evidence-requests/${recordId}/slots/${slotId}/documents`
+}
+
+/**
+ * @summary Bind a canonical document to a recorded upload intent
+ */
+export const attachClientEvidenceDocument = async (id: string,
+    recordId: string,
+    slotId: string,
+    clientAttachDocumentInput: ClientAttachDocumentInput, options?: RequestInit): Promise<ClientEvidenceRequestRecord> => {
+
+  return customFetch<ClientEvidenceRequestRecord>(getAttachClientEvidenceDocumentUrl(id,recordId,slotId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(clientAttachDocumentInput)
+  }
+);}
+
+
+
+
+export const getAttachClientEvidenceDocumentMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof attachClientEvidenceDocument>>, TError,{id: string;recordId: string;slotId: string;data: BodyType<ClientAttachDocumentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof attachClientEvidenceDocument>>, TError,{id: string;recordId: string;slotId: string;data: BodyType<ClientAttachDocumentInput>}, TContext> => {
+
+const mutationKey = ['attachClientEvidenceDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof attachClientEvidenceDocument>>, {id: string;recordId: string;slotId: string;data: BodyType<ClientAttachDocumentInput>}> = (props) => {
+          const {id,recordId,slotId,data} = props ?? {};
+
+          return  attachClientEvidenceDocument(id,recordId,slotId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AttachClientEvidenceDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof attachClientEvidenceDocument>>>
+    export type AttachClientEvidenceDocumentMutationBody = BodyType<ClientAttachDocumentInput>
+    export type AttachClientEvidenceDocumentMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>
+
+    /**
+ * @summary Bind a canonical document to a recorded upload intent
+ */
+export const useAttachClientEvidenceDocument = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof attachClientEvidenceDocument>>, TError,{id: string;recordId: string;slotId: string;data: BodyType<ClientAttachDocumentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof attachClientEvidenceDocument>>,
+        TError,
+        {id: string;recordId: string;slotId: string;data: BodyType<ClientAttachDocumentInput>},
+        TContext
+      > => {
+      return useMutation(getAttachClientEvidenceDocumentMutationOptions(options));
+    }
+
+export const getReviewClientEvidenceSlotUrl = (id: string,
+    recordId: string,
+    slotId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/client-actions/evidence-requests/${recordId}/slots/${slotId}/reviews`
+}
+
+/**
+ * @summary Record a human evidence-slot review
+ */
+export const reviewClientEvidenceSlot = async (id: string,
+    recordId: string,
+    slotId: string,
+    clientSlotReviewInput: ClientSlotReviewInput, options?: RequestInit): Promise<ClientEvidenceRequestRecord> => {
+
+  return customFetch<ClientEvidenceRequestRecord>(getReviewClientEvidenceSlotUrl(id,recordId,slotId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(clientSlotReviewInput)
+  }
+);}
+
+
+
+
+export const getReviewClientEvidenceSlotMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewClientEvidenceSlot>>, TError,{id: string;recordId: string;slotId: string;data: BodyType<ClientSlotReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewClientEvidenceSlot>>, TError,{id: string;recordId: string;slotId: string;data: BodyType<ClientSlotReviewInput>}, TContext> => {
+
+const mutationKey = ['reviewClientEvidenceSlot'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewClientEvidenceSlot>>, {id: string;recordId: string;slotId: string;data: BodyType<ClientSlotReviewInput>}> = (props) => {
+          const {id,recordId,slotId,data} = props ?? {};
+
+          return  reviewClientEvidenceSlot(id,recordId,slotId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewClientEvidenceSlotMutationResult = NonNullable<Awaited<ReturnType<typeof reviewClientEvidenceSlot>>>
+    export type ReviewClientEvidenceSlotMutationBody = BodyType<ClientSlotReviewInput>
+    export type ReviewClientEvidenceSlotMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>
+
+    /**
+ * @summary Record a human evidence-slot review
+ */
+export const useReviewClientEvidenceSlot = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewClientEvidenceSlot>>, TError,{id: string;recordId: string;slotId: string;data: BodyType<ClientSlotReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewClientEvidenceSlot>>,
+        TError,
+        {id: string;recordId: string;slotId: string;data: BodyType<ClientSlotReviewInput>},
+        TContext
+      > => {
+      return useMutation(getReviewClientEvidenceSlotMutationOptions(options));
+    }
+
+export const getAcknowledgeClientEvidenceCorrectionUrl = (id: string,
+    recordId: string,
+    slotId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/client-actions/evidence-requests/${recordId}/slots/${slotId}/correction-acknowledgements`
+}
+
+/**
+ * @summary Acknowledge a requested evidence correction
+ */
+export const acknowledgeClientEvidenceCorrection = async (id: string,
+    recordId: string,
+    slotId: string,
+    clientAcknowledgementInput: ClientAcknowledgementInput, options?: RequestInit): Promise<ClientEvidenceRequestRecord> => {
+
+  return customFetch<ClientEvidenceRequestRecord>(getAcknowledgeClientEvidenceCorrectionUrl(id,recordId,slotId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(clientAcknowledgementInput)
+  }
+);}
+
+
+
+
+export const getAcknowledgeClientEvidenceCorrectionMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acknowledgeClientEvidenceCorrection>>, TError,{id: string;recordId: string;slotId: string;data: BodyType<ClientAcknowledgementInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acknowledgeClientEvidenceCorrection>>, TError,{id: string;recordId: string;slotId: string;data: BodyType<ClientAcknowledgementInput>}, TContext> => {
+
+const mutationKey = ['acknowledgeClientEvidenceCorrection'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acknowledgeClientEvidenceCorrection>>, {id: string;recordId: string;slotId: string;data: BodyType<ClientAcknowledgementInput>}> = (props) => {
+          const {id,recordId,slotId,data} = props ?? {};
+
+          return  acknowledgeClientEvidenceCorrection(id,recordId,slotId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcknowledgeClientEvidenceCorrectionMutationResult = NonNullable<Awaited<ReturnType<typeof acknowledgeClientEvidenceCorrection>>>
+    export type AcknowledgeClientEvidenceCorrectionMutationBody = BodyType<ClientAcknowledgementInput>
+    export type AcknowledgeClientEvidenceCorrectionMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>
+
+    /**
+ * @summary Acknowledge a requested evidence correction
+ */
+export const useAcknowledgeClientEvidenceCorrection = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acknowledgeClientEvidenceCorrection>>, TError,{id: string;recordId: string;slotId: string;data: BodyType<ClientAcknowledgementInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acknowledgeClientEvidenceCorrection>>,
+        TError,
+        {id: string;recordId: string;slotId: string;data: BodyType<ClientAcknowledgementInput>},
+        TContext
+      > => {
+      return useMutation(getAcknowledgeClientEvidenceCorrectionMutationOptions(options));
+    }
+
+export const getCreateClientPackageDeliveryUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/client-actions/package-deliveries`
+}
+
+/**
+ * Records package metadata only and performs no external delivery.
+ * @summary Record a released-package availability intent
+ */
+export const createClientPackageDelivery = async (id: string,
+    createClientPackageDeliveryInput: CreateClientPackageDeliveryInput, options?: RequestInit): Promise<ClientPackageDeliveryRecord> => {
+
+  return customFetch<ClientPackageDeliveryRecord>(getCreateClientPackageDeliveryUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createClientPackageDeliveryInput)
+  }
+);}
+
+
+
+
+export const getCreateClientPackageDeliveryMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClientPackageDelivery>>, TError,{id: string;data: BodyType<CreateClientPackageDeliveryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createClientPackageDelivery>>, TError,{id: string;data: BodyType<CreateClientPackageDeliveryInput>}, TContext> => {
+
+const mutationKey = ['createClientPackageDelivery'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createClientPackageDelivery>>, {id: string;data: BodyType<CreateClientPackageDeliveryInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createClientPackageDelivery(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateClientPackageDeliveryMutationResult = NonNullable<Awaited<ReturnType<typeof createClientPackageDelivery>>>
+    export type CreateClientPackageDeliveryMutationBody = BodyType<CreateClientPackageDeliveryInput>
+    export type CreateClientPackageDeliveryMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>
+
+    /**
+ * @summary Record a released-package availability intent
+ */
+export const useCreateClientPackageDelivery = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClientPackageDelivery>>, TError,{id: string;data: BodyType<CreateClientPackageDeliveryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createClientPackageDelivery>>,
+        TError,
+        {id: string;data: BodyType<CreateClientPackageDeliveryInput>},
+        TContext
+      > => {
+      return useMutation(getCreateClientPackageDeliveryMutationOptions(options));
+    }
+
+export const getAcknowledgeClientPackageDeliveryUrl = (id: string,
+    recordId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/client-actions/package-deliveries/${recordId}/acknowledgements`
+}
+
+/**
+ * @summary Record the named recipient's package-delivery acknowledgement
+ */
+export const acknowledgeClientPackageDelivery = async (id: string,
+    recordId: string,
+    clientAcknowledgementInput: ClientAcknowledgementInput, options?: RequestInit): Promise<ClientPackageDeliveryRecord> => {
+
+  return customFetch<ClientPackageDeliveryRecord>(getAcknowledgeClientPackageDeliveryUrl(id,recordId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(clientAcknowledgementInput)
+  }
+);}
+
+
+
+
+export const getAcknowledgeClientPackageDeliveryMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acknowledgeClientPackageDelivery>>, TError,{id: string;recordId: string;data: BodyType<ClientAcknowledgementInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acknowledgeClientPackageDelivery>>, TError,{id: string;recordId: string;data: BodyType<ClientAcknowledgementInput>}, TContext> => {
+
+const mutationKey = ['acknowledgeClientPackageDelivery'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acknowledgeClientPackageDelivery>>, {id: string;recordId: string;data: BodyType<ClientAcknowledgementInput>}> = (props) => {
+          const {id,recordId,data} = props ?? {};
+
+          return  acknowledgeClientPackageDelivery(id,recordId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcknowledgeClientPackageDeliveryMutationResult = NonNullable<Awaited<ReturnType<typeof acknowledgeClientPackageDelivery>>>
+    export type AcknowledgeClientPackageDeliveryMutationBody = BodyType<ClientAcknowledgementInput>
+    export type AcknowledgeClientPackageDeliveryMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>
+
+    /**
+ * @summary Record the named recipient's package-delivery acknowledgement
+ */
+export const useAcknowledgeClientPackageDelivery = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acknowledgeClientPackageDelivery>>, TError,{id: string;recordId: string;data: BodyType<ClientAcknowledgementInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acknowledgeClientPackageDelivery>>,
+        TError,
+        {id: string;recordId: string;data: BodyType<ClientAcknowledgementInput>},
+        TContext
+      > => {
+      return useMutation(getAcknowledgeClientPackageDeliveryMutationOptions(options));
+    }
+
+export const getListOpportunitySourceCandidatesUrl = () => {
+
+
+
+
+  return `/api/opportunity-sources`
+}
+
+/**
+ * This manual metadata-only pilot is capped at 250 lifetime source receipts per organisation and has no in-app archive. Intake must stop before capacity until a reviewed retention/storage migration is approved; audit events must never be deleted merely to recover capacity.
+ * @summary List provenance-preserving opportunity candidates
+ */
+export const listOpportunitySourceCandidates = async ( options?: RequestInit): Promise<OpportunitySourceListResult> => {
+
+  return customFetch<OpportunitySourceListResult>(getListOpportunitySourceCandidatesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOpportunitySourceCandidatesQueryKey = () => {
+    return [
+    `/api/opportunity-sources`
+    ] as const;
+    }
+
+
+export const getListOpportunitySourceCandidatesQueryOptions = <TData = Awaited<ReturnType<typeof listOpportunitySourceCandidates>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOpportunitySourceCandidates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOpportunitySourceCandidatesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOpportunitySourceCandidates>>> = ({ signal }) => listOpportunitySourceCandidates({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOpportunitySourceCandidates>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOpportunitySourceCandidatesQueryResult = NonNullable<Awaited<ReturnType<typeof listOpportunitySourceCandidates>>>
+export type ListOpportunitySourceCandidatesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+
+/**
+ * @summary List provenance-preserving opportunity candidates
+ */
+
+export function useListOpportunitySourceCandidates<TData = Awaited<ReturnType<typeof listOpportunitySourceCandidates>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOpportunitySourceCandidates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOpportunitySourceCandidatesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetOpportunitySourceCandidateUrl = (candidateId: string,) => {
+
+
+
+
+  return `/api/opportunity-sources/${candidateId}`
+}
+
+/**
+ * This manual metadata-only pilot is capped at 250 lifetime source receipts per organisation and has no in-app archive. Intake must stop before capacity until a reviewed retention/storage migration is approved; audit events must never be deleted merely to recover capacity.
+ * @summary Read one exact-tenant source candidate
+ */
+export const getOpportunitySourceCandidate = async (candidateId: string, options?: RequestInit): Promise<OpportunitySourceCandidate> => {
+
+  return customFetch<OpportunitySourceCandidate>(getGetOpportunitySourceCandidateUrl(candidateId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOpportunitySourceCandidateQueryKey = (candidateId: string,) => {
+    return [
+    `/api/opportunity-sources/${candidateId}`
+    ] as const;
+    }
+
+
+export const getGetOpportunitySourceCandidateQueryOptions = <TData = Awaited<ReturnType<typeof getOpportunitySourceCandidate>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(candidateId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOpportunitySourceCandidate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOpportunitySourceCandidateQueryKey(candidateId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOpportunitySourceCandidate>>> = ({ signal }) => getOpportunitySourceCandidate(candidateId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: candidateId !== null && candidateId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOpportunitySourceCandidate>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOpportunitySourceCandidateQueryResult = NonNullable<Awaited<ReturnType<typeof getOpportunitySourceCandidate>>>
+export type GetOpportunitySourceCandidateQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+
+/**
+ * @summary Read one exact-tenant source candidate
+ */
+
+export function useGetOpportunitySourceCandidate<TData = Awaited<ReturnType<typeof getOpportunitySourceCandidate>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(
+ candidateId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOpportunitySourceCandidate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOpportunitySourceCandidateQueryOptions(candidateId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRecordManualOpportunitySourceUrl = () => {
+
+
+
+
+  return `/api/opportunity-sources/manual`
+}
+
+/**
+ * Creates a metadata-only pending candidate and never activates pursuit automatically. This pilot is capped at 250 lifetime source receipts per organisation and has no in-app archive. Intake must stop before capacity until a reviewed retention/storage migration is approved; audit events must never be deleted merely to recover capacity.
+ * @summary Record a manually supplied opportunity source
+ */
+export const recordManualOpportunitySource = async (opportunitySourceInput: OpportunitySourceInput, options?: RequestInit): Promise<OpportunitySourceCandidate> => {
+
+  return customFetch<OpportunitySourceCandidate>(getRecordManualOpportunitySourceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(opportunitySourceInput)
+  }
+);}
+
+
+
+
+export const getRecordManualOpportunitySourceMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordManualOpportunitySource>>, TError,{data: BodyType<OpportunitySourceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordManualOpportunitySource>>, TError,{data: BodyType<OpportunitySourceInput>}, TContext> => {
+
+const mutationKey = ['recordManualOpportunitySource'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordManualOpportunitySource>>, {data: BodyType<OpportunitySourceInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  recordManualOpportunitySource(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordManualOpportunitySourceMutationResult = NonNullable<Awaited<ReturnType<typeof recordManualOpportunitySource>>>
+    export type RecordManualOpportunitySourceMutationBody = BodyType<OpportunitySourceInput>
+    export type RecordManualOpportunitySourceMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Record a manually supplied opportunity source
+ */
+export const useRecordManualOpportunitySource = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordManualOpportunitySource>>, TError,{data: BodyType<OpportunitySourceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordManualOpportunitySource>>,
+        TError,
+        {data: BodyType<OpportunitySourceInput>},
+        TContext
+      > => {
+      return useMutation(getRecordManualOpportunitySourceMutationOptions(options));
+    }
+
+export const getDecideOpportunitySourceCandidateUrl = (candidateId: string,) => {
+
+
+
+
+  return `/api/opportunity-sources/${candidateId}/decision`
+}
+
+/**
+ * This manual metadata-only pilot is capped at 250 lifetime source receipts per organisation and has no in-app archive. Intake must stop before capacity until a reviewed retention/storage migration is approved; audit events must never be deleted merely to recover capacity.
+ * @summary Record a named-human accept or reject decision
+ */
+export const decideOpportunitySourceCandidate = async (candidateId: string,
+    opportunitySourceDecision: OpportunitySourceDecision, options?: RequestInit): Promise<OpportunitySourceCandidate> => {
+
+  return customFetch<OpportunitySourceCandidate>(getDecideOpportunitySourceCandidateUrl(candidateId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(opportunitySourceDecision)
+  }
+);}
+
+
+
+
+export const getDecideOpportunitySourceCandidateMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideOpportunitySourceCandidate>>, TError,{candidateId: string;data: BodyType<OpportunitySourceDecision>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideOpportunitySourceCandidate>>, TError,{candidateId: string;data: BodyType<OpportunitySourceDecision>}, TContext> => {
+
+const mutationKey = ['decideOpportunitySourceCandidate'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideOpportunitySourceCandidate>>, {candidateId: string;data: BodyType<OpportunitySourceDecision>}> = (props) => {
+          const {candidateId,data} = props ?? {};
+
+          return  decideOpportunitySourceCandidate(candidateId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideOpportunitySourceCandidateMutationResult = NonNullable<Awaited<ReturnType<typeof decideOpportunitySourceCandidate>>>
+    export type DecideOpportunitySourceCandidateMutationBody = BodyType<OpportunitySourceDecision>
+    export type DecideOpportunitySourceCandidateMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Record a named-human accept or reject decision
+ */
+export const useDecideOpportunitySourceCandidate = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideOpportunitySourceCandidate>>, TError,{candidateId: string;data: BodyType<OpportunitySourceDecision>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof decideOpportunitySourceCandidate>>,
+        TError,
+        {candidateId: string;data: BodyType<OpportunitySourceDecision>},
+        TContext
+      > => {
+      return useMutation(getDecideOpportunitySourceCandidateMutationOptions(options));
+    }
+
+export const getGetReconciledCommunicationsUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/communications`
+}
+
+/**
+ * Delivery is represented only when a provider receipt has been independently verified.
+ * @summary Read the content-minimised communication ledger
+ */
+export const getReconciledCommunications = async (id: string, options?: RequestInit): Promise<CommunicationSnapshot> => {
+
+  return customFetch<CommunicationSnapshot>(getGetReconciledCommunicationsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetReconciledCommunicationsQueryKey = (id: string,) => {
+    return [
+    `/api/projects/${id}/communications`
+    ] as const;
+    }
+
+
+export const getGetReconciledCommunicationsQueryOptions = <TData = Awaited<ReturnType<typeof getReconciledCommunications>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReconciledCommunications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetReconciledCommunicationsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReconciledCommunications>>> = ({ signal }) => getReconciledCommunications(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReconciledCommunications>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetReconciledCommunicationsQueryResult = NonNullable<Awaited<ReturnType<typeof getReconciledCommunications>>>
+export type GetReconciledCommunicationsQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+
+/**
+ * @summary Read the content-minimised communication ledger
+ */
+
+export function useGetReconciledCommunications<TData = Awaited<ReturnType<typeof getReconciledCommunications>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReconciledCommunications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetReconciledCommunicationsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListProjectCommunicationReferencesUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/communications/references`
+}
+
+/**
+ * Returns named member and canonical project-context selectors without raw addresses, contact details or arbitrary message content.
+ * @summary List bounded, consent-verified communication references
+ */
+export const listProjectCommunicationReferences = async (id: string, options?: RequestInit): Promise<CommunicationReferenceSet> => {
+
+  return customFetch<CommunicationReferenceSet>(getListProjectCommunicationReferencesUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProjectCommunicationReferencesQueryKey = (id: string,) => {
+    return [
+    `/api/projects/${id}/communications/references`
+    ] as const;
+    }
+
+
+export const getListProjectCommunicationReferencesQueryOptions = <TData = Awaited<ReturnType<typeof listProjectCommunicationReferences>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProjectCommunicationReferences>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProjectCommunicationReferencesQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProjectCommunicationReferences>>> = ({ signal }) => listProjectCommunicationReferences(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProjectCommunicationReferences>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProjectCommunicationReferencesQueryResult = NonNullable<Awaited<ReturnType<typeof listProjectCommunicationReferences>>>
+export type ListProjectCommunicationReferencesQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+
+/**
+ * @summary List bounded, consent-verified communication references
+ */
+
+export function useListProjectCommunicationReferences<TData = Awaited<ReturnType<typeof listProjectCommunicationReferences>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProjectCommunicationReferences>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProjectCommunicationReferencesQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getQueueCommunicationIntentUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/communications/intents`
+}
+
+/**
+ * A named human queues an intent; the disconnected default performs no external send.
+ * @summary Queue an approved-template communication intent
+ */
+export const queueCommunicationIntent = async (id: string,
+    queueCommunicationInput: QueueCommunicationInput, options?: RequestInit): Promise<CommunicationEvent> => {
+
+  return customFetch<CommunicationEvent>(getQueueCommunicationIntentUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(queueCommunicationInput)
+  }
+);}
+
+
+
+
+export const getQueueCommunicationIntentMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof queueCommunicationIntent>>, TError,{id: string;data: BodyType<QueueCommunicationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof queueCommunicationIntent>>, TError,{id: string;data: BodyType<QueueCommunicationInput>}, TContext> => {
+
+const mutationKey = ['queueCommunicationIntent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof queueCommunicationIntent>>, {id: string;data: BodyType<QueueCommunicationInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  queueCommunicationIntent(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type QueueCommunicationIntentMutationResult = NonNullable<Awaited<ReturnType<typeof queueCommunicationIntent>>>
+    export type QueueCommunicationIntentMutationBody = BodyType<QueueCommunicationInput>
+    export type QueueCommunicationIntentMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Queue an approved-template communication intent
+ */
+export const useQueueCommunicationIntent = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof queueCommunicationIntent>>, TError,{id: string;data: BodyType<QueueCommunicationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof queueCommunicationIntent>>,
+        TError,
+        {id: string;data: BodyType<QueueCommunicationInput>},
+        TContext
+      > => {
+      return useMutation(getQueueCommunicationIntentMutationOptions(options));
+    }
+
+export const getRecordCommunicationAttemptUrl = (id: string,
+    eventId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/communications/intents/${eventId}/attempts`
+}
+
+/**
+ * @summary Record a pre-effect provider attempt under compare-and-swap
+ */
+export const recordCommunicationAttempt = async (id: string,
+    eventId: string,
+    communicationAttemptInput: CommunicationAttemptInput, options?: RequestInit): Promise<CommunicationEvent> => {
+
+  return customFetch<CommunicationEvent>(getRecordCommunicationAttemptUrl(id,eventId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(communicationAttemptInput)
+  }
+);}
+
+
+
+
+export const getRecordCommunicationAttemptMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordCommunicationAttempt>>, TError,{id: string;eventId: string;data: BodyType<CommunicationAttemptInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordCommunicationAttempt>>, TError,{id: string;eventId: string;data: BodyType<CommunicationAttemptInput>}, TContext> => {
+
+const mutationKey = ['recordCommunicationAttempt'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordCommunicationAttempt>>, {id: string;eventId: string;data: BodyType<CommunicationAttemptInput>}> = (props) => {
+          const {id,eventId,data} = props ?? {};
+
+          return  recordCommunicationAttempt(id,eventId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordCommunicationAttemptMutationResult = NonNullable<Awaited<ReturnType<typeof recordCommunicationAttempt>>>
+    export type RecordCommunicationAttemptMutationBody = BodyType<CommunicationAttemptInput>
+    export type RecordCommunicationAttemptMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Record a pre-effect provider attempt under compare-and-swap
+ */
+export const useRecordCommunicationAttempt = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordCommunicationAttempt>>, TError,{id: string;eventId: string;data: BodyType<CommunicationAttemptInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordCommunicationAttempt>>,
+        TError,
+        {id: string;eventId: string;data: BodyType<CommunicationAttemptInput>},
+        TContext
+      > => {
+      return useMutation(getRecordCommunicationAttemptMutationOptions(options));
+    }
+
+export const getReconcileCommunicationReceiptUrl = (id: string,
+    eventId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/communications/intents/${eventId}/reconciliations`
+}
+
+/**
+ * @summary Reconcile a provider receipt into the durable event state
+ */
+export const reconcileCommunicationReceipt = async (id: string,
+    eventId: string,
+    communicationReconciliationInput: CommunicationReconciliationInput, options?: RequestInit): Promise<CommunicationEvent> => {
+
+  return customFetch<CommunicationEvent>(getReconcileCommunicationReceiptUrl(id,eventId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(communicationReconciliationInput)
+  }
+);}
+
+
+
+
+export const getReconcileCommunicationReceiptMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileCommunicationReceipt>>, TError,{id: string;eventId: string;data: BodyType<CommunicationReconciliationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reconcileCommunicationReceipt>>, TError,{id: string;eventId: string;data: BodyType<CommunicationReconciliationInput>}, TContext> => {
+
+const mutationKey = ['reconcileCommunicationReceipt'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reconcileCommunicationReceipt>>, {id: string;eventId: string;data: BodyType<CommunicationReconciliationInput>}> = (props) => {
+          const {id,eventId,data} = props ?? {};
+
+          return  reconcileCommunicationReceipt(id,eventId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReconcileCommunicationReceiptMutationResult = NonNullable<Awaited<ReturnType<typeof reconcileCommunicationReceipt>>>
+    export type ReconcileCommunicationReceiptMutationBody = BodyType<CommunicationReconciliationInput>
+    export type ReconcileCommunicationReceiptMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Reconcile a provider receipt into the durable event state
+ */
+export const useReconcileCommunicationReceipt = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileCommunicationReceipt>>, TError,{id: string;eventId: string;data: BodyType<CommunicationReconciliationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reconcileCommunicationReceipt>>,
+        TError,
+        {id: string;eventId: string;data: BodyType<CommunicationReconciliationInput>},
+        TContext
+      > => {
+      return useMutation(getReconcileCommunicationReceiptMutationOptions(options));
+    }
+
+export const getGetCommercialRetainerManifestUrl = () => {
+
+
+
+
+  return `/api/commercial-retainer/manifest`
+}
+
+/**
+ * @summary Read the closed commercial authority manifest
+ */
+export const getCommercialRetainerManifest = async ( options?: RequestInit): Promise<CommercialRetainerManifestResponse> => {
+
+  return customFetch<CommercialRetainerManifestResponse>(getGetCommercialRetainerManifestUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCommercialRetainerManifestQueryKey = () => {
+    return [
+    `/api/commercial-retainer/manifest`
+    ] as const;
+    }
+
+
+export const getGetCommercialRetainerManifestQueryOptions = <TData = Awaited<ReturnType<typeof getCommercialRetainerManifest>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse | InternalServerErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCommercialRetainerManifest>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCommercialRetainerManifestQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCommercialRetainerManifest>>> = ({ signal }) => getCommercialRetainerManifest({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCommercialRetainerManifest>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCommercialRetainerManifestQueryResult = NonNullable<Awaited<ReturnType<typeof getCommercialRetainerManifest>>>
+export type GetCommercialRetainerManifestQueryError = ErrorType<UnauthorizedResponse | NotFoundResponse | InternalServerErrorResponse>
+
+
+/**
+ * @summary Read the closed commercial authority manifest
+ */
+
+export function useGetCommercialRetainerManifest<TData = Awaited<ReturnType<typeof getCommercialRetainerManifest>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse | InternalServerErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCommercialRetainerManifest>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCommercialRetainerManifestQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetCommercialRetainerSnapshotUrl = (params?: GetCommercialRetainerSnapshotParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/commercial-retainer/snapshot?${stringifiedParams}` : `/api/commercial-retainer/snapshot`
+}
+
+/**
+ * @summary Read the bounded fixed-catalogue commercial ledger
+ */
+export const getCommercialRetainerSnapshot = async (params?: GetCommercialRetainerSnapshotParams, options?: RequestInit): Promise<CommercialSnapshotResponse> => {
+
+  return customFetch<CommercialSnapshotResponse>(getGetCommercialRetainerSnapshotUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCommercialRetainerSnapshotQueryKey = (params?: GetCommercialRetainerSnapshotParams,) => {
+    return [
+    `/api/commercial-retainer/snapshot`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetCommercialRetainerSnapshotQueryOptions = <TData = Awaited<ReturnType<typeof getCommercialRetainerSnapshot>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(params?: GetCommercialRetainerSnapshotParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCommercialRetainerSnapshot>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCommercialRetainerSnapshotQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCommercialRetainerSnapshot>>> = ({ signal }) => getCommercialRetainerSnapshot(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCommercialRetainerSnapshot>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCommercialRetainerSnapshotQueryResult = NonNullable<Awaited<ReturnType<typeof getCommercialRetainerSnapshot>>>
+export type GetCommercialRetainerSnapshotQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+
+/**
+ * @summary Read the bounded fixed-catalogue commercial ledger
+ */
+
+export function useGetCommercialRetainerSnapshot<TData = Awaited<ReturnType<typeof getCommercialRetainerSnapshot>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(
+ params?: GetCommercialRetainerSnapshotParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCommercialRetainerSnapshot>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCommercialRetainerSnapshotQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateCommercialQuoteUrl = () => {
+
+
+
+
+  return `/api/commercial-retainer/quotes`
+}
+
+/**
+ * Performs no automatic pricing, external messaging or payment collection.
+ * @summary Create a human-authored fixed-catalogue quote draft
+ */
+export const createCommercialQuote = async (commercialQuoteDraft: CommercialQuoteDraft, options?: RequestInit): Promise<CommercialQuoteResponse> => {
+
+  return customFetch<CommercialQuoteResponse>(getCreateCommercialQuoteUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(commercialQuoteDraft)
+  }
+);}
+
+
+
+
+export const getCreateCommercialQuoteMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCommercialQuote>>, TError,{data: BodyType<CommercialQuoteDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCommercialQuote>>, TError,{data: BodyType<CommercialQuoteDraft>}, TContext> => {
+
+const mutationKey = ['createCommercialQuote'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCommercialQuote>>, {data: BodyType<CommercialQuoteDraft>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCommercialQuote(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCommercialQuoteMutationResult = NonNullable<Awaited<ReturnType<typeof createCommercialQuote>>>
+    export type CreateCommercialQuoteMutationBody = BodyType<CommercialQuoteDraft>
+    export type CreateCommercialQuoteMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Create a human-authored fixed-catalogue quote draft
+ */
+export const useCreateCommercialQuote = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCommercialQuote>>, TError,{data: BodyType<CommercialQuoteDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCommercialQuote>>,
+        TError,
+        {data: BodyType<CommercialQuoteDraft>},
+        TContext
+      > => {
+      return useMutation(getCreateCommercialQuoteMutationOptions(options));
+    }
+
+export const getApproveCommercialQuoteUrl = (orderId: string,) => {
+
+
+
+
+  return `/api/commercial-retainer/quotes/${orderId}/approve`
+}
+
+/**
+ * @summary Approve a quote as a distinct named checker
+ */
+export const approveCommercialQuote = async (orderId: string,
+    expectedVersionRequest: ExpectedVersionRequest, options?: RequestInit): Promise<CommercialQuoteMutationResponse> => {
+
+  return customFetch<CommercialQuoteMutationResponse>(getApproveCommercialQuoteUrl(orderId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(expectedVersionRequest)
+  }
+);}
+
+
+
+
+export const getApproveCommercialQuoteMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveCommercialQuote>>, TError,{orderId: string;data: BodyType<ExpectedVersionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveCommercialQuote>>, TError,{orderId: string;data: BodyType<ExpectedVersionRequest>}, TContext> => {
+
+const mutationKey = ['approveCommercialQuote'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveCommercialQuote>>, {orderId: string;data: BodyType<ExpectedVersionRequest>}> = (props) => {
+          const {orderId,data} = props ?? {};
+
+          return  approveCommercialQuote(orderId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveCommercialQuoteMutationResult = NonNullable<Awaited<ReturnType<typeof approveCommercialQuote>>>
+    export type ApproveCommercialQuoteMutationBody = BodyType<ExpectedVersionRequest>
+    export type ApproveCommercialQuoteMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Approve a quote as a distinct named checker
+ */
+export const useApproveCommercialQuote = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveCommercialQuote>>, TError,{orderId: string;data: BodyType<ExpectedVersionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveCommercialQuote>>,
+        TError,
+        {orderId: string;data: BodyType<ExpectedVersionRequest>},
+        TContext
+      > => {
+      return useMutation(getApproveCommercialQuoteMutationOptions(options));
+    }
+
+export const getCreateCommercialInvoiceUrl = (orderId: string,) => {
+
+
+
+
+  return `/api/commercial-retainer/quotes/${orderId}/invoices`
+}
+
+/**
+ * @summary Record a manually issued invoice for an approved quote
+ */
+export const createCommercialInvoice = async (orderId: string,
+    commercialInvoiceDraft: CommercialInvoiceDraft, options?: RequestInit): Promise<CommercialInvoiceMutationResponse> => {
+
+  return customFetch<CommercialInvoiceMutationResponse>(getCreateCommercialInvoiceUrl(orderId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(commercialInvoiceDraft)
+  }
+);}
+
+
+
+
+export const getCreateCommercialInvoiceMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCommercialInvoice>>, TError,{orderId: string;data: BodyType<CommercialInvoiceDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCommercialInvoice>>, TError,{orderId: string;data: BodyType<CommercialInvoiceDraft>}, TContext> => {
+
+const mutationKey = ['createCommercialInvoice'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCommercialInvoice>>, {orderId: string;data: BodyType<CommercialInvoiceDraft>}> = (props) => {
+          const {orderId,data} = props ?? {};
+
+          return  createCommercialInvoice(orderId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCommercialInvoiceMutationResult = NonNullable<Awaited<ReturnType<typeof createCommercialInvoice>>>
+    export type CreateCommercialInvoiceMutationBody = BodyType<CommercialInvoiceDraft>
+    export type CreateCommercialInvoiceMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Record a manually issued invoice for an approved quote
+ */
+export const useCreateCommercialInvoice = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCommercialInvoice>>, TError,{orderId: string;data: BodyType<CommercialInvoiceDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCommercialInvoice>>,
+        TError,
+        {orderId: string;data: BodyType<CommercialInvoiceDraft>},
+        TContext
+      > => {
+      return useMutation(getCreateCommercialInvoiceMutationOptions(options));
+    }
+
+export const getRecordCommercialPaymentUrl = (invoiceId: string,) => {
+
+
+
+
+  return `/api/commercial-retainer/invoices/${invoiceId}/payments`
+}
+
+/**
+ * Records evidence only; no payment provider is connected.
+ * @summary Record manual payment evidence
+ */
+export const recordCommercialPayment = async (invoiceId: string,
+    commercialPaymentEvidenceDraft: CommercialPaymentEvidenceDraft, options?: RequestInit): Promise<CommercialPaymentMutationResponse> => {
+
+  return customFetch<CommercialPaymentMutationResponse>(getRecordCommercialPaymentUrl(invoiceId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(commercialPaymentEvidenceDraft)
+  }
+);}
+
+
+
+
+export const getRecordCommercialPaymentMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordCommercialPayment>>, TError,{invoiceId: string;data: BodyType<CommercialPaymentEvidenceDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordCommercialPayment>>, TError,{invoiceId: string;data: BodyType<CommercialPaymentEvidenceDraft>}, TContext> => {
+
+const mutationKey = ['recordCommercialPayment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordCommercialPayment>>, {invoiceId: string;data: BodyType<CommercialPaymentEvidenceDraft>}> = (props) => {
+          const {invoiceId,data} = props ?? {};
+
+          return  recordCommercialPayment(invoiceId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordCommercialPaymentMutationResult = NonNullable<Awaited<ReturnType<typeof recordCommercialPayment>>>
+    export type RecordCommercialPaymentMutationBody = BodyType<CommercialPaymentEvidenceDraft>
+    export type RecordCommercialPaymentMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Record manual payment evidence
+ */
+export const useRecordCommercialPayment = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordCommercialPayment>>, TError,{invoiceId: string;data: BodyType<CommercialPaymentEvidenceDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordCommercialPayment>>,
+        TError,
+        {invoiceId: string;data: BodyType<CommercialPaymentEvidenceDraft>},
+        TContext
+      > => {
+      return useMutation(getRecordCommercialPaymentMutationOptions(options));
+    }
+
+export const getVerifyCommercialPaymentUrl = (paymentId: string,) => {
+
+
+
+
+  return `/api/commercial-retainer/payments/${paymentId}/verify`
+}
+
+/**
+ * @summary Verify manual payment evidence as a distinct checker
+ */
+export const verifyCommercialPayment = async (paymentId: string,
+    commercialPaymentVerificationDraft: CommercialPaymentVerificationDraft, options?: RequestInit): Promise<CommercialPaymentVerificationResponse> => {
+
+  return customFetch<CommercialPaymentVerificationResponse>(getVerifyCommercialPaymentUrl(paymentId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(commercialPaymentVerificationDraft)
+  }
+);}
+
+
+
+
+export const getVerifyCommercialPaymentMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyCommercialPayment>>, TError,{paymentId: string;data: BodyType<CommercialPaymentVerificationDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifyCommercialPayment>>, TError,{paymentId: string;data: BodyType<CommercialPaymentVerificationDraft>}, TContext> => {
+
+const mutationKey = ['verifyCommercialPayment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyCommercialPayment>>, {paymentId: string;data: BodyType<CommercialPaymentVerificationDraft>}> = (props) => {
+          const {paymentId,data} = props ?? {};
+
+          return  verifyCommercialPayment(paymentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VerifyCommercialPaymentMutationResult = NonNullable<Awaited<ReturnType<typeof verifyCommercialPayment>>>
+    export type VerifyCommercialPaymentMutationBody = BodyType<CommercialPaymentVerificationDraft>
+    export type VerifyCommercialPaymentMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Verify manual payment evidence as a distinct checker
+ */
+export const useVerifyCommercialPayment = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyCommercialPayment>>, TError,{paymentId: string;data: BodyType<CommercialPaymentVerificationDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof verifyCommercialPayment>>,
+        TError,
+        {paymentId: string;data: BodyType<CommercialPaymentVerificationDraft>},
+        TContext
+      > => {
+      return useMutation(getVerifyCommercialPaymentMutationOptions(options));
+    }
+
+export const getCreateRetainerRequestUrl = () => {
+
+
+
+
+  return `/api/commercial-retainer/retainer/requests`
+}
+
+/**
+ * @summary Create a bounded human-operated retainer request
+ */
+export const createRetainerRequest = async (createRetainerRequest: CreateRetainerRequest, options?: RequestInit): Promise<RetainerRequestMutationResponse> => {
+
+  return customFetch<RetainerRequestMutationResponse>(getCreateRetainerRequestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createRetainerRequest)
+  }
+);}
+
+
+
+
+export const getCreateRetainerRequestMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRetainerRequest>>, TError,{data: BodyType<CreateRetainerRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createRetainerRequest>>, TError,{data: BodyType<CreateRetainerRequest>}, TContext> => {
+
+const mutationKey = ['createRetainerRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createRetainerRequest>>, {data: BodyType<CreateRetainerRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createRetainerRequest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateRetainerRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createRetainerRequest>>>
+    export type CreateRetainerRequestMutationBody = BodyType<CreateRetainerRequest>
+    export type CreateRetainerRequestMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Create a bounded human-operated retainer request
+ */
+export const useCreateRetainerRequest = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRetainerRequest>>, TError,{data: BodyType<CreateRetainerRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createRetainerRequest>>,
+        TError,
+        {data: BodyType<CreateRetainerRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateRetainerRequestMutationOptions(options));
+    }
+
+export const getMutateRetainerRequestUrl = (requestId: string,) => {
+
+
+
+
+  return `/api/commercial-retainer/retainer/requests/${requestId}/actions`
+}
+
+/**
+ * @summary Record a bounded retainer comment, evidence receipt, status or reassignment
+ */
+export const mutateRetainerRequest = async (requestId: string,
+    retainerRequestAction: RetainerRequestAction, options?: RequestInit): Promise<RetainerRequestMutationResponse> => {
+
+  return customFetch<RetainerRequestMutationResponse>(getMutateRetainerRequestUrl(requestId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(retainerRequestAction)
+  }
+);}
+
+
+
+
+export const getMutateRetainerRequestMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mutateRetainerRequest>>, TError,{requestId: string;data: BodyType<RetainerRequestAction>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof mutateRetainerRequest>>, TError,{requestId: string;data: BodyType<RetainerRequestAction>}, TContext> => {
+
+const mutationKey = ['mutateRetainerRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof mutateRetainerRequest>>, {requestId: string;data: BodyType<RetainerRequestAction>}> = (props) => {
+          const {requestId,data} = props ?? {};
+
+          return  mutateRetainerRequest(requestId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MutateRetainerRequestMutationResult = NonNullable<Awaited<ReturnType<typeof mutateRetainerRequest>>>
+    export type MutateRetainerRequestMutationBody = BodyType<RetainerRequestAction>
+    export type MutateRetainerRequestMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Record a bounded retainer comment, evidence receipt, status or reassignment
+ */
+export const useMutateRetainerRequest = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mutateRetainerRequest>>, TError,{requestId: string;data: BodyType<RetainerRequestAction>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof mutateRetainerRequest>>,
+        TError,
+        {requestId: string;data: BodyType<RetainerRequestAction>},
+        TContext
+      > => {
+      return useMutation(getMutateRetainerRequestMutationOptions(options));
+    }
+
+export const getGetPartnerConsortiumRoomUrl = (id: string,
+    relationshipId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/consortium-rooms/${relationshipId}`
+}
+
+/**
+ * Requires the active exact relationship and a direct or partner-authorised tenant context on every access.
+ * @summary Read the exact-relationship project consortium room
+ */
+export const getPartnerConsortiumRoom = async (id: string,
+    relationshipId: string, options?: RequestInit): Promise<ConsortiumSnapshot> => {
+
+  return customFetch<ConsortiumSnapshot>(getGetPartnerConsortiumRoomUrl(id,relationshipId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPartnerConsortiumRoomQueryKey = (id: string,
+    relationshipId: string,) => {
+    return [
+    `/api/projects/${id}/consortium-rooms/${relationshipId}`
+    ] as const;
+    }
+
+
+export const getGetPartnerConsortiumRoomQueryOptions = <TData = Awaited<ReturnType<typeof getPartnerConsortiumRoom>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>>(id: string,
+    relationshipId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartnerConsortiumRoom>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPartnerConsortiumRoomQueryKey(id,relationshipId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPartnerConsortiumRoom>>> = ({ signal }) => getPartnerConsortiumRoom(id,relationshipId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined && relationshipId !== null && relationshipId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPartnerConsortiumRoom>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPartnerConsortiumRoomQueryResult = NonNullable<Awaited<ReturnType<typeof getPartnerConsortiumRoom>>>
+export type GetPartnerConsortiumRoomQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>
+
+
+/**
+ * @summary Read the exact-relationship project consortium room
+ */
+
+export function useGetPartnerConsortiumRoom<TData = Awaited<ReturnType<typeof getPartnerConsortiumRoom>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>>(
+ id: string,
+    relationshipId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartnerConsortiumRoom>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPartnerConsortiumRoomQueryOptions(id,relationshipId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getInitializePartnerConsortiumRoomUrl = (id: string,
+    relationshipId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/consortium-rooms/${relationshipId}`
+}
+
+/**
+ * @summary Initialise a governed room with named coordinators
+ */
+export const initializePartnerConsortiumRoom = async (id: string,
+    relationshipId: string,
+    initializeConsortiumRoomInput: InitializeConsortiumRoomInput, options?: RequestInit): Promise<PartnerConsortiumRoom> => {
+
+  return customFetch<PartnerConsortiumRoom>(getInitializePartnerConsortiumRoomUrl(id,relationshipId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(initializeConsortiumRoomInput)
+  }
+);}
+
+
+
+
+export const getInitializePartnerConsortiumRoomMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof initializePartnerConsortiumRoom>>, TError,{id: string;relationshipId: string;data: BodyType<InitializeConsortiumRoomInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof initializePartnerConsortiumRoom>>, TError,{id: string;relationshipId: string;data: BodyType<InitializeConsortiumRoomInput>}, TContext> => {
+
+const mutationKey = ['initializePartnerConsortiumRoom'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof initializePartnerConsortiumRoom>>, {id: string;relationshipId: string;data: BodyType<InitializeConsortiumRoomInput>}> = (props) => {
+          const {id,relationshipId,data} = props ?? {};
+
+          return  initializePartnerConsortiumRoom(id,relationshipId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type InitializePartnerConsortiumRoomMutationResult = NonNullable<Awaited<ReturnType<typeof initializePartnerConsortiumRoom>>>
+    export type InitializePartnerConsortiumRoomMutationBody = BodyType<InitializeConsortiumRoomInput>
+    export type InitializePartnerConsortiumRoomMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>
+
+    /**
+ * @summary Initialise a governed room with named coordinators
+ */
+export const useInitializePartnerConsortiumRoom = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof initializePartnerConsortiumRoom>>, TError,{id: string;relationshipId: string;data: BodyType<InitializeConsortiumRoomInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof initializePartnerConsortiumRoom>>,
+        TError,
+        {id: string;relationshipId: string;data: BodyType<InitializeConsortiumRoomInput>},
+        TContext
+      > => {
+      return useMutation(getInitializePartnerConsortiumRoomMutationOptions(options));
+    }
+
+export const getListConsortiumRoomParticipantsUrl = (id: string,
+    relationshipId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/consortium-rooms/${relationshipId}/participants`
+}
+
+/**
+ * Requires requirement-write authority, the active exact relationship, and the same direct or relationship-authorised project scope as the room.
+ * @summary List named participants for the exact relationship parties
+ */
+export const listConsortiumRoomParticipants = async (id: string,
+    relationshipId: string, options?: RequestInit): Promise<ConsortiumParticipantDirectory> => {
+
+  return customFetch<ConsortiumParticipantDirectory>(getListConsortiumRoomParticipantsUrl(id,relationshipId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListConsortiumRoomParticipantsQueryKey = (id: string,
+    relationshipId: string,) => {
+    return [
+    `/api/projects/${id}/consortium-rooms/${relationshipId}/participants`
+    ] as const;
+    }
+
+
+export const getListConsortiumRoomParticipantsQueryOptions = <TData = Awaited<ReturnType<typeof listConsortiumRoomParticipants>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>>(id: string,
+    relationshipId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listConsortiumRoomParticipants>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListConsortiumRoomParticipantsQueryKey(id,relationshipId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listConsortiumRoomParticipants>>> = ({ signal }) => listConsortiumRoomParticipants(id,relationshipId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined && relationshipId !== null && relationshipId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listConsortiumRoomParticipants>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListConsortiumRoomParticipantsQueryResult = NonNullable<Awaited<ReturnType<typeof listConsortiumRoomParticipants>>>
+export type ListConsortiumRoomParticipantsQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>
+
+
+/**
+ * @summary List named participants for the exact relationship parties
+ */
+
+export function useListConsortiumRoomParticipants<TData = Awaited<ReturnType<typeof listConsortiumRoomParticipants>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>>(
+ id: string,
+    relationshipId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listConsortiumRoomParticipants>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListConsortiumRoomParticipantsQueryOptions(id,relationshipId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAddConsortiumResponsibilityUrl = (id: string,
+    relationshipId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/consortium-rooms/${relationshipId}/responsibilities`
+}
+
+/**
+ * @summary Add a named-owner responsibility requiring both parties' acceptance
+ */
+export const addConsortiumResponsibility = async (id: string,
+    relationshipId: string,
+    consortiumResponsibilityDraft: ConsortiumResponsibilityDraft, options?: RequestInit): Promise<PartnerConsortiumRoom> => {
+
+  return customFetch<PartnerConsortiumRoom>(getAddConsortiumResponsibilityUrl(id,relationshipId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(consortiumResponsibilityDraft)
+  }
+);}
+
+
+
+
+export const getAddConsortiumResponsibilityMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addConsortiumResponsibility>>, TError,{id: string;relationshipId: string;data: BodyType<ConsortiumResponsibilityDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addConsortiumResponsibility>>, TError,{id: string;relationshipId: string;data: BodyType<ConsortiumResponsibilityDraft>}, TContext> => {
+
+const mutationKey = ['addConsortiumResponsibility'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addConsortiumResponsibility>>, {id: string;relationshipId: string;data: BodyType<ConsortiumResponsibilityDraft>}> = (props) => {
+          const {id,relationshipId,data} = props ?? {};
+
+          return  addConsortiumResponsibility(id,relationshipId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddConsortiumResponsibilityMutationResult = NonNullable<Awaited<ReturnType<typeof addConsortiumResponsibility>>>
+    export type AddConsortiumResponsibilityMutationBody = BodyType<ConsortiumResponsibilityDraft>
+    export type AddConsortiumResponsibilityMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>
+
+    /**
+ * @summary Add a named-owner responsibility requiring both parties' acceptance
+ */
+export const useAddConsortiumResponsibility = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addConsortiumResponsibility>>, TError,{id: string;relationshipId: string;data: BodyType<ConsortiumResponsibilityDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addConsortiumResponsibility>>,
+        TError,
+        {id: string;relationshipId: string;data: BodyType<ConsortiumResponsibilityDraft>},
+        TContext
+      > => {
+      return useMutation(getAddConsortiumResponsibilityMutationOptions(options));
+    }
+
+export const getReviseConsortiumResponsibilityUrl = (id: string,
+    relationshipId: string,
+    responsibilityId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/consortium-rooms/${relationshipId}/responsibilities/${responsibilityId}/revisions`
+}
+
+/**
+ * @summary Revise an unaccepted responsibility under compare-and-swap
+ */
+export const reviseConsortiumResponsibility = async (id: string,
+    relationshipId: string,
+    responsibilityId: string,
+    consortiumResponsibilityDraft: ConsortiumResponsibilityDraft, options?: RequestInit): Promise<PartnerConsortiumRoom> => {
+
+  return customFetch<PartnerConsortiumRoom>(getReviseConsortiumResponsibilityUrl(id,relationshipId,responsibilityId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(consortiumResponsibilityDraft)
+  }
+);}
+
+
+
+
+export const getReviseConsortiumResponsibilityMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviseConsortiumResponsibility>>, TError,{id: string;relationshipId: string;responsibilityId: string;data: BodyType<ConsortiumResponsibilityDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviseConsortiumResponsibility>>, TError,{id: string;relationshipId: string;responsibilityId: string;data: BodyType<ConsortiumResponsibilityDraft>}, TContext> => {
+
+const mutationKey = ['reviseConsortiumResponsibility'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviseConsortiumResponsibility>>, {id: string;relationshipId: string;responsibilityId: string;data: BodyType<ConsortiumResponsibilityDraft>}> = (props) => {
+          const {id,relationshipId,responsibilityId,data} = props ?? {};
+
+          return  reviseConsortiumResponsibility(id,relationshipId,responsibilityId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviseConsortiumResponsibilityMutationResult = NonNullable<Awaited<ReturnType<typeof reviseConsortiumResponsibility>>>
+    export type ReviseConsortiumResponsibilityMutationBody = BodyType<ConsortiumResponsibilityDraft>
+    export type ReviseConsortiumResponsibilityMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>
+
+    /**
+ * @summary Revise an unaccepted responsibility under compare-and-swap
+ */
+export const useReviseConsortiumResponsibility = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviseConsortiumResponsibility>>, TError,{id: string;relationshipId: string;responsibilityId: string;data: BodyType<ConsortiumResponsibilityDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviseConsortiumResponsibility>>,
+        TError,
+        {id: string;relationshipId: string;responsibilityId: string;data: BodyType<ConsortiumResponsibilityDraft>},
+        TContext
+      > => {
+      return useMutation(getReviseConsortiumResponsibilityMutationOptions(options));
+    }
+
+export const getDecideConsortiumResponsibilityUrl = (id: string,
+    relationshipId: string,
+    responsibilityId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/consortium-rooms/${relationshipId}/responsibilities/${responsibilityId}/decisions`
+}
+
+/**
+ * @summary Record one party's maker-checker responsibility decision
+ */
+export const decideConsortiumResponsibility = async (id: string,
+    relationshipId: string,
+    responsibilityId: string,
+    consortiumResponsibilityDecisionInput: ConsortiumResponsibilityDecisionInput, options?: RequestInit): Promise<PartnerConsortiumRoom> => {
+
+  return customFetch<PartnerConsortiumRoom>(getDecideConsortiumResponsibilityUrl(id,relationshipId,responsibilityId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(consortiumResponsibilityDecisionInput)
+  }
+);}
+
+
+
+
+export const getDecideConsortiumResponsibilityMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideConsortiumResponsibility>>, TError,{id: string;relationshipId: string;responsibilityId: string;data: BodyType<ConsortiumResponsibilityDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideConsortiumResponsibility>>, TError,{id: string;relationshipId: string;responsibilityId: string;data: BodyType<ConsortiumResponsibilityDecisionInput>}, TContext> => {
+
+const mutationKey = ['decideConsortiumResponsibility'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideConsortiumResponsibility>>, {id: string;relationshipId: string;responsibilityId: string;data: BodyType<ConsortiumResponsibilityDecisionInput>}> = (props) => {
+          const {id,relationshipId,responsibilityId,data} = props ?? {};
+
+          return  decideConsortiumResponsibility(id,relationshipId,responsibilityId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideConsortiumResponsibilityMutationResult = NonNullable<Awaited<ReturnType<typeof decideConsortiumResponsibility>>>
+    export type DecideConsortiumResponsibilityMutationBody = BodyType<ConsortiumResponsibilityDecisionInput>
+    export type DecideConsortiumResponsibilityMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>
+
+    /**
+ * @summary Record one party's maker-checker responsibility decision
+ */
+export const useDecideConsortiumResponsibility = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideConsortiumResponsibility>>, TError,{id: string;relationshipId: string;responsibilityId: string;data: BodyType<ConsortiumResponsibilityDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof decideConsortiumResponsibility>>,
+        TError,
+        {id: string;relationshipId: string;responsibilityId: string;data: BodyType<ConsortiumResponsibilityDecisionInput>},
+        TContext
+      > => {
+      return useMutation(getDecideConsortiumResponsibilityMutationOptions(options));
+    }
+
+export const getPrepareConsortiumQaItemUrl = (id: string,
+    relationshipId: string,
+    qaItemId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/consortium-rooms/${relationshipId}/qa/${qaItemId}/preparations`
+}
+
+/**
+ * @summary Ready a required QA item with evidence digest
+ */
+export const prepareConsortiumQaItem = async (id: string,
+    relationshipId: string,
+    qaItemId: string,
+    consortiumQaPreparationInput: ConsortiumQaPreparationInput, options?: RequestInit): Promise<PartnerConsortiumRoom> => {
+
+  return customFetch<PartnerConsortiumRoom>(getPrepareConsortiumQaItemUrl(id,relationshipId,qaItemId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(consortiumQaPreparationInput)
+  }
+);}
+
+
+
+
+export const getPrepareConsortiumQaItemMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof prepareConsortiumQaItem>>, TError,{id: string;relationshipId: string;qaItemId: string;data: BodyType<ConsortiumQaPreparationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof prepareConsortiumQaItem>>, TError,{id: string;relationshipId: string;qaItemId: string;data: BodyType<ConsortiumQaPreparationInput>}, TContext> => {
+
+const mutationKey = ['prepareConsortiumQaItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof prepareConsortiumQaItem>>, {id: string;relationshipId: string;qaItemId: string;data: BodyType<ConsortiumQaPreparationInput>}> = (props) => {
+          const {id,relationshipId,qaItemId,data} = props ?? {};
+
+          return  prepareConsortiumQaItem(id,relationshipId,qaItemId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PrepareConsortiumQaItemMutationResult = NonNullable<Awaited<ReturnType<typeof prepareConsortiumQaItem>>>
+    export type PrepareConsortiumQaItemMutationBody = BodyType<ConsortiumQaPreparationInput>
+    export type PrepareConsortiumQaItemMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>
+
+    /**
+ * @summary Ready a required QA item with evidence digest
+ */
+export const usePrepareConsortiumQaItem = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof prepareConsortiumQaItem>>, TError,{id: string;relationshipId: string;qaItemId: string;data: BodyType<ConsortiumQaPreparationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof prepareConsortiumQaItem>>,
+        TError,
+        {id: string;relationshipId: string;qaItemId: string;data: BodyType<ConsortiumQaPreparationInput>},
+        TContext
+      > => {
+      return useMutation(getPrepareConsortiumQaItemMutationOptions(options));
+    }
+
+export const getDecideConsortiumQaItemUrl = (id: string,
+    relationshipId: string,
+    qaItemId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/consortium-rooms/${relationshipId}/qa/${qaItemId}/decisions`
+}
+
+/**
+ * @summary Record an independent QA or co-sign decision
+ */
+export const decideConsortiumQaItem = async (id: string,
+    relationshipId: string,
+    qaItemId: string,
+    consortiumQaDecisionInput: ConsortiumQaDecisionInput, options?: RequestInit): Promise<PartnerConsortiumRoom> => {
+
+  return customFetch<PartnerConsortiumRoom>(getDecideConsortiumQaItemUrl(id,relationshipId,qaItemId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(consortiumQaDecisionInput)
+  }
+);}
+
+
+
+
+export const getDecideConsortiumQaItemMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideConsortiumQaItem>>, TError,{id: string;relationshipId: string;qaItemId: string;data: BodyType<ConsortiumQaDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideConsortiumQaItem>>, TError,{id: string;relationshipId: string;qaItemId: string;data: BodyType<ConsortiumQaDecisionInput>}, TContext> => {
+
+const mutationKey = ['decideConsortiumQaItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideConsortiumQaItem>>, {id: string;relationshipId: string;qaItemId: string;data: BodyType<ConsortiumQaDecisionInput>}> = (props) => {
+          const {id,relationshipId,qaItemId,data} = props ?? {};
+
+          return  decideConsortiumQaItem(id,relationshipId,qaItemId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideConsortiumQaItemMutationResult = NonNullable<Awaited<ReturnType<typeof decideConsortiumQaItem>>>
+    export type DecideConsortiumQaItemMutationBody = BodyType<ConsortiumQaDecisionInput>
+    export type DecideConsortiumQaItemMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>
+
+    /**
+ * @summary Record an independent QA or co-sign decision
+ */
+export const useDecideConsortiumQaItem = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideConsortiumQaItem>>, TError,{id: string;relationshipId: string;qaItemId: string;data: BodyType<ConsortiumQaDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof decideConsortiumQaItem>>,
+        TError,
+        {id: string;relationshipId: string;qaItemId: string;data: BodyType<ConsortiumQaDecisionInput>},
+        TContext
+      > => {
+      return useMutation(getDecideConsortiumQaItemMutationOptions(options));
+    }
+
+export const getGetAiShadowProgrammeUrl = () => {
+
+
+
+
+  return `/api/ai/shadow-programme`
+}
+
+/**
+ * This no-provider, no-output evidence register is capped at 25 lifetime plans per organisation, has no in-app archive and never grants production activation. Intake must stop before capacity until a reviewed retention/storage migration is approved; audit events must never be deleted merely to recover capacity.
+ * @summary Read provider-free AI shadow evaluation posture
+ */
+export const getAiShadowProgramme = async ( options?: RequestInit): Promise<AiShadowProgrammeSnapshot> => {
+
+  return customFetch<AiShadowProgrammeSnapshot>(getGetAiShadowProgrammeUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAiShadowProgrammeQueryKey = () => {
+    return [
+    `/api/ai/shadow-programme`
+    ] as const;
+    }
+
+
+export const getGetAiShadowProgrammeQueryOptions = <TData = Awaited<ReturnType<typeof getAiShadowProgramme>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiShadowProgramme>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAiShadowProgrammeQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAiShadowProgramme>>> = ({ signal }) => getAiShadowProgramme({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAiShadowProgramme>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAiShadowProgrammeQueryResult = NonNullable<Awaited<ReturnType<typeof getAiShadowProgramme>>>
+export type GetAiShadowProgrammeQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+
+/**
+ * @summary Read provider-free AI shadow evaluation posture
+ */
+
+export function useGetAiShadowProgramme<TData = Awaited<ReturnType<typeof getAiShadowProgramme>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiShadowProgramme>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAiShadowProgrammeQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAiShadowPlanUrl = () => {
+
+
+
+
+  return `/api/ai/shadow-programme/plans`
+}
+
+/**
+ * This no-provider, no-output evidence register is capped at 25 lifetime plans per organisation, has no in-app archive and never grants production activation. Intake must stop before capacity until a reviewed retention/storage migration is approved; audit events must never be deleted merely to recover capacity.
+ * @summary Create a version-pinned no-output shadow plan
+ */
+export const createAiShadowPlan = async (aiShadowPlanDraft: AiShadowPlanDraft, options?: RequestInit): Promise<AiShadowPlanMutationResponse> => {
+
+  return customFetch<AiShadowPlanMutationResponse>(getCreateAiShadowPlanUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(aiShadowPlanDraft)
+  }
+);}
+
+
+
+
+export const getCreateAiShadowPlanMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAiShadowPlan>>, TError,{data: BodyType<AiShadowPlanDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAiShadowPlan>>, TError,{data: BodyType<AiShadowPlanDraft>}, TContext> => {
+
+const mutationKey = ['createAiShadowPlan'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAiShadowPlan>>, {data: BodyType<AiShadowPlanDraft>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAiShadowPlan(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAiShadowPlanMutationResult = NonNullable<Awaited<ReturnType<typeof createAiShadowPlan>>>
+    export type CreateAiShadowPlanMutationBody = BodyType<AiShadowPlanDraft>
+    export type CreateAiShadowPlanMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Create a version-pinned no-output shadow plan
+ */
+export const useCreateAiShadowPlan = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAiShadowPlan>>, TError,{data: BodyType<AiShadowPlanDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAiShadowPlan>>,
+        TError,
+        {data: BodyType<AiShadowPlanDraft>},
+        TContext
+      > => {
+      return useMutation(getCreateAiShadowPlanMutationOptions(options));
+    }
+
+export const getRecordAiShadowObservationUrl = (planId: string,) => {
+
+
+
+
+  return `/api/ai/shadow-programme/plans/${planId}/observations`
+}
+
+/**
+ * This no-provider, no-output evidence register is capped at 25 lifetime plans per organisation, has no in-app archive and never grants production activation. Intake must stop before capacity until a reviewed retention/storage migration is approved; audit events must never be deleted merely to recover capacity.
+ * @summary Record content-free shadow case metrics
+ */
+export const recordAiShadowObservation = async (planId: string,
+    aiShadowObservationDraft: AiShadowObservationDraft, options?: RequestInit): Promise<AiShadowObservationMutationResponse> => {
+
+  return customFetch<AiShadowObservationMutationResponse>(getRecordAiShadowObservationUrl(planId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(aiShadowObservationDraft)
+  }
+);}
+
+
+
+
+export const getRecordAiShadowObservationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordAiShadowObservation>>, TError,{planId: string;data: BodyType<AiShadowObservationDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordAiShadowObservation>>, TError,{planId: string;data: BodyType<AiShadowObservationDraft>}, TContext> => {
+
+const mutationKey = ['recordAiShadowObservation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordAiShadowObservation>>, {planId: string;data: BodyType<AiShadowObservationDraft>}> = (props) => {
+          const {planId,data} = props ?? {};
+
+          return  recordAiShadowObservation(planId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordAiShadowObservationMutationResult = NonNullable<Awaited<ReturnType<typeof recordAiShadowObservation>>>
+    export type RecordAiShadowObservationMutationBody = BodyType<AiShadowObservationDraft>
+    export type RecordAiShadowObservationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Record content-free shadow case metrics
+ */
+export const useRecordAiShadowObservation = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordAiShadowObservation>>, TError,{planId: string;data: BodyType<AiShadowObservationDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordAiShadowObservation>>,
+        TError,
+        {planId: string;data: BodyType<AiShadowObservationDraft>},
+        TContext
+      > => {
+      return useMutation(getRecordAiShadowObservationMutationOptions(options));
+    }
+
+export const getCloseAiShadowPlanUrl = (planId: string,) => {
+
+
+
+
+  return `/api/ai/shadow-programme/plans/${planId}/close`
+}
+
+/**
+ * This no-provider, no-output evidence register is capped at 25 lifetime plans per organisation, has no in-app archive and never grants production activation. Intake must stop before capacity until a reviewed retention/storage migration is approved; audit events must never be deleted merely to recover capacity.
+ * @summary Close a shadow plan for later named-human governance review
+ */
+export const closeAiShadowPlan = async (planId: string,
+    aiShadowCloseDraft: AiShadowCloseDraft, options?: RequestInit): Promise<AiShadowCloseResponse> => {
+
+  return customFetch<AiShadowCloseResponse>(getCloseAiShadowPlanUrl(planId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(aiShadowCloseDraft)
+  }
+);}
+
+
+
+
+export const getCloseAiShadowPlanMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeAiShadowPlan>>, TError,{planId: string;data: BodyType<AiShadowCloseDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof closeAiShadowPlan>>, TError,{planId: string;data: BodyType<AiShadowCloseDraft>}, TContext> => {
+
+const mutationKey = ['closeAiShadowPlan'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof closeAiShadowPlan>>, {planId: string;data: BodyType<AiShadowCloseDraft>}> = (props) => {
+          const {planId,data} = props ?? {};
+
+          return  closeAiShadowPlan(planId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CloseAiShadowPlanMutationResult = NonNullable<Awaited<ReturnType<typeof closeAiShadowPlan>>>
+    export type CloseAiShadowPlanMutationBody = BodyType<AiShadowCloseDraft>
+    export type CloseAiShadowPlanMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Close a shadow plan for later named-human governance review
+ */
+export const useCloseAiShadowPlan = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapPolicyDeniedResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeAiShadowPlan>>, TError,{planId: string;data: BodyType<AiShadowCloseDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof closeAiShadowPlan>>,
+        TError,
+        {planId: string;data: BodyType<AiShadowCloseDraft>},
+        TContext
+      > => {
+      return useMutation(getCloseAiShadowPlanMutationOptions(options));
+    }
+
+export const getGetPrivacyOperationsUrl = (params?: GetPrivacyOperationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/privacy-operations?${stringifiedParams}` : `/api/privacy-operations`
+}
+
+/**
+ * @summary Read the content-minimised privacy operations dashboard
+ */
+export const getPrivacyOperations = async (params?: GetPrivacyOperationsParams, options?: RequestInit): Promise<PrivacyOperationsDashboard> => {
+
+  return customFetch<PrivacyOperationsDashboard>(getGetPrivacyOperationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPrivacyOperationsQueryKey = (params?: GetPrivacyOperationsParams,) => {
+    return [
+    `/api/privacy-operations`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPrivacyOperationsQueryOptions = <TData = Awaited<ReturnType<typeof getPrivacyOperations>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse | RoadmapRepositoryUnavailableResponse>>(params?: GetPrivacyOperationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPrivacyOperations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPrivacyOperationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPrivacyOperations>>> = ({ signal }) => getPrivacyOperations(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPrivacyOperations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPrivacyOperationsQueryResult = NonNullable<Awaited<ReturnType<typeof getPrivacyOperations>>>
+export type GetPrivacyOperationsQueryError = ErrorType<BadRequestResponse | ForbiddenResponse | RoadmapRepositoryUnavailableResponse>
+
+
+/**
+ * @summary Read the content-minimised privacy operations dashboard
+ */
+
+export function useGetPrivacyOperations<TData = Awaited<ReturnType<typeof getPrivacyOperations>>, TError = ErrorType<BadRequestResponse | ForbiddenResponse | RoadmapRepositoryUnavailableResponse>>(
+ params?: GetPrivacyOperationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPrivacyOperations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPrivacyOperationsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListPrivacyOperationsAssigneesUrl = () => {
+
+
+
+
+  return `/api/privacy-operations/assignees`
+}
+
+/**
+ * Manager-only bounded selector; this endpoint is not a general user directory.
+ * @summary List current named privacy managers eligible for DSR assignment
+ */
+export const listPrivacyOperationsAssignees = async ( options?: RequestInit): Promise<PrivacyOperationsAssigneeList> => {
+
+  return customFetch<PrivacyOperationsAssigneeList>(getListPrivacyOperationsAssigneesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPrivacyOperationsAssigneesQueryKey = () => {
+    return [
+    `/api/privacy-operations/assignees`
+    ] as const;
+    }
+
+
+export const getListPrivacyOperationsAssigneesQueryOptions = <TData = Awaited<ReturnType<typeof listPrivacyOperationsAssignees>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPrivacyOperationsAssignees>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPrivacyOperationsAssigneesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPrivacyOperationsAssignees>>> = ({ signal }) => listPrivacyOperationsAssignees({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPrivacyOperationsAssignees>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPrivacyOperationsAssigneesQueryResult = NonNullable<Awaited<ReturnType<typeof listPrivacyOperationsAssignees>>>
+export type ListPrivacyOperationsAssigneesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+
+/**
+ * @summary List current named privacy managers eligible for DSR assignment
+ */
+
+export function useListPrivacyOperationsAssignees<TData = Awaited<ReturnType<typeof listPrivacyOperationsAssignees>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPrivacyOperationsAssignees>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPrivacyOperationsAssigneesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getTriagePrivacyDataSubjectRequestUrl = (id: string,) => {
+
+
+
+
+  return `/api/privacy-operations/data-subject-requests/${id}/triage`
+}
+
+/**
+ * @summary Record named-human DSR triage evidence
+ */
+export const triagePrivacyDataSubjectRequest = async (id: string,
+    privacyDsrTriageDraft: PrivacyDsrTriageDraft, options?: RequestInit): Promise<PrivacyMutationResponse> => {
+
+  return customFetch<PrivacyMutationResponse>(getTriagePrivacyDataSubjectRequestUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(privacyDsrTriageDraft)
+  }
+);}
+
+
+
+
+export const getTriagePrivacyDataSubjectRequestMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PreconditionRequiredResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof triagePrivacyDataSubjectRequest>>, TError,{id: string;data: BodyType<PrivacyDsrTriageDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof triagePrivacyDataSubjectRequest>>, TError,{id: string;data: BodyType<PrivacyDsrTriageDraft>}, TContext> => {
+
+const mutationKey = ['triagePrivacyDataSubjectRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof triagePrivacyDataSubjectRequest>>, {id: string;data: BodyType<PrivacyDsrTriageDraft>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  triagePrivacyDataSubjectRequest(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TriagePrivacyDataSubjectRequestMutationResult = NonNullable<Awaited<ReturnType<typeof triagePrivacyDataSubjectRequest>>>
+    export type TriagePrivacyDataSubjectRequestMutationBody = BodyType<PrivacyDsrTriageDraft>
+    export type TriagePrivacyDataSubjectRequestMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PreconditionRequiredResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Record named-human DSR triage evidence
+ */
+export const useTriagePrivacyDataSubjectRequest = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PreconditionRequiredResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof triagePrivacyDataSubjectRequest>>, TError,{id: string;data: BodyType<PrivacyDsrTriageDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof triagePrivacyDataSubjectRequest>>,
+        TError,
+        {id: string;data: BodyType<PrivacyDsrTriageDraft>},
+        TContext
+      > => {
+      return useMutation(getTriagePrivacyDataSubjectRequestMutationOptions(options));
+    }
+
+export const getRecordPrivacyConsentWithdrawalUrl = (id: string,) => {
+
+
+
+
+  return `/api/privacy-operations/consent-records/${id}/withdrawal`
+}
+
+/**
+ * @summary Record a consent withdrawal receipt under compare-and-swap
+ */
+export const recordPrivacyConsentWithdrawal = async (id: string,
+    privacyConsentWithdrawalDraft: PrivacyConsentWithdrawalDraft, options?: RequestInit): Promise<PrivacyMutationResponse> => {
+
+  return customFetch<PrivacyMutationResponse>(getRecordPrivacyConsentWithdrawalUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(privacyConsentWithdrawalDraft)
+  }
+);}
+
+
+
+
+export const getRecordPrivacyConsentWithdrawalMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PreconditionRequiredResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordPrivacyConsentWithdrawal>>, TError,{id: string;data: BodyType<PrivacyConsentWithdrawalDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordPrivacyConsentWithdrawal>>, TError,{id: string;data: BodyType<PrivacyConsentWithdrawalDraft>}, TContext> => {
+
+const mutationKey = ['recordPrivacyConsentWithdrawal'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordPrivacyConsentWithdrawal>>, {id: string;data: BodyType<PrivacyConsentWithdrawalDraft>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  recordPrivacyConsentWithdrawal(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordPrivacyConsentWithdrawalMutationResult = NonNullable<Awaited<ReturnType<typeof recordPrivacyConsentWithdrawal>>>
+    export type RecordPrivacyConsentWithdrawalMutationBody = BodyType<PrivacyConsentWithdrawalDraft>
+    export type RecordPrivacyConsentWithdrawalMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PreconditionRequiredResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Record a consent withdrawal receipt under compare-and-swap
+ */
+export const useRecordPrivacyConsentWithdrawal = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PreconditionRequiredResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordPrivacyConsentWithdrawal>>, TError,{id: string;data: BodyType<PrivacyConsentWithdrawalDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordPrivacyConsentWithdrawal>>,
+        TError,
+        {id: string;data: BodyType<PrivacyConsentWithdrawalDraft>},
+        TContext
+      > => {
+      return useMutation(getRecordPrivacyConsentWithdrawalMutationOptions(options));
+    }
+
+export const getRecordPrivacyLegalHoldReviewUrl = (id: string,) => {
+
+
+
+
+  return `/api/privacy-operations/legal-holds/${id}/reviews`
+}
+
+/**
+ * Records evidence for human legal review; it makes no automated legal decision.
+ * @summary Record a legal-hold review recommendation
+ */
+export const recordPrivacyLegalHoldReview = async (id: string,
+    privacyHoldReviewDraft: PrivacyHoldReviewDraft, options?: RequestInit): Promise<PrivacyMutationResponse> => {
+
+  return customFetch<PrivacyMutationResponse>(getRecordPrivacyLegalHoldReviewUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(privacyHoldReviewDraft)
+  }
+);}
+
+
+
+
+export const getRecordPrivacyLegalHoldReviewMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PreconditionRequiredResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordPrivacyLegalHoldReview>>, TError,{id: string;data: BodyType<PrivacyHoldReviewDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordPrivacyLegalHoldReview>>, TError,{id: string;data: BodyType<PrivacyHoldReviewDraft>}, TContext> => {
+
+const mutationKey = ['recordPrivacyLegalHoldReview'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordPrivacyLegalHoldReview>>, {id: string;data: BodyType<PrivacyHoldReviewDraft>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  recordPrivacyLegalHoldReview(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordPrivacyLegalHoldReviewMutationResult = NonNullable<Awaited<ReturnType<typeof recordPrivacyLegalHoldReview>>>
+    export type RecordPrivacyLegalHoldReviewMutationBody = BodyType<PrivacyHoldReviewDraft>
+    export type RecordPrivacyLegalHoldReviewMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PreconditionRequiredResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Record a legal-hold review recommendation
+ */
+export const useRecordPrivacyLegalHoldReview = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PreconditionRequiredResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordPrivacyLegalHoldReview>>, TError,{id: string;data: BodyType<PrivacyHoldReviewDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordPrivacyLegalHoldReview>>,
+        TError,
+        {id: string;data: BodyType<PrivacyHoldReviewDraft>},
+        TContext
+      > => {
+      return useMutation(getRecordPrivacyLegalHoldReviewMutationOptions(options));
+    }
+
+export const getGetClaimsDeskUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/projects/${projectId}/claims-desk`
+}
+
+/**
+ * @summary Read the human-governed claims and contract-events ledger
+ */
+export const getClaimsDesk = async (projectId: string, options?: RequestInit): Promise<ClaimsDeskSnapshot> => {
+
+  return customFetch<ClaimsDeskSnapshot>(getGetClaimsDeskUrl(projectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClaimsDeskQueryKey = (projectId: string,) => {
+    return [
+    `/api/projects/${projectId}/claims-desk`
+    ] as const;
+    }
+
+
+export const getGetClaimsDeskQueryOptions = <TData = Awaited<ReturnType<typeof getClaimsDesk>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapRepositoryUnavailableResponse>>(projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClaimsDesk>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClaimsDeskQueryKey(projectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClaimsDesk>>> = ({ signal }) => getClaimsDesk(projectId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: projectId !== null && projectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClaimsDesk>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetClaimsDeskQueryResult = NonNullable<Awaited<ReturnType<typeof getClaimsDesk>>>
+export type GetClaimsDeskQueryError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapRepositoryUnavailableResponse>
+
+
+/**
+ * @summary Read the human-governed claims and contract-events ledger
+ */
+
+export function useGetClaimsDesk<TData = Awaited<ReturnType<typeof getClaimsDesk>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapRepositoryUnavailableResponse>>(
+ projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClaimsDesk>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetClaimsDeskQueryOptions(projectId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateClaimsDeskRecordUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/projects/${projectId}/claims-desk/records`
+}
+
+/**
+ * @summary Register a contract event, deadline, variation, claim, certificate or obligation
+ */
+export const createClaimsDeskRecord = async (projectId: string,
+    claimsDeskCreateDraft: ClaimsDeskCreateDraft, options?: RequestInit): Promise<ClaimsDeskMutationResponse> => {
+
+  return customFetch<ClaimsDeskMutationResponse>(getCreateClaimsDeskRecordUrl(projectId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(claimsDeskCreateDraft)
+  }
+);}
+
+
+
+
+export const getCreateClaimsDeskRecordMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClaimsDeskRecord>>, TError,{projectId: string;data: BodyType<ClaimsDeskCreateDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createClaimsDeskRecord>>, TError,{projectId: string;data: BodyType<ClaimsDeskCreateDraft>}, TContext> => {
+
+const mutationKey = ['createClaimsDeskRecord'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createClaimsDeskRecord>>, {projectId: string;data: BodyType<ClaimsDeskCreateDraft>}> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  createClaimsDeskRecord(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateClaimsDeskRecordMutationResult = NonNullable<Awaited<ReturnType<typeof createClaimsDeskRecord>>>
+    export type CreateClaimsDeskRecordMutationBody = BodyType<ClaimsDeskCreateDraft>
+    export type CreateClaimsDeskRecordMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Register a contract event, deadline, variation, claim, certificate or obligation
+ */
+export const useCreateClaimsDeskRecord = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | ConflictResponse | RoadmapCapacityExceededResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClaimsDeskRecord>>, TError,{projectId: string;data: BodyType<ClaimsDeskCreateDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createClaimsDeskRecord>>,
+        TError,
+        {projectId: string;data: BodyType<ClaimsDeskCreateDraft>},
+        TContext
+      > => {
+      return useMutation(getCreateClaimsDeskRecordMutationOptions(options));
+    }
+
+export const getTransitionClaimsDeskRecordUrl = (projectId: string,
+    recordId: string,) => {
+
+
+
+
+  return `/api/projects/${projectId}/claims-desk/records/${recordId}/transitions`
+}
+
+/**
+ * @summary Record a maker-checker Claims Desk transition
+ */
+export const transitionClaimsDeskRecord = async (projectId: string,
+    recordId: string,
+    claimsDeskTransitionDraft: ClaimsDeskTransitionDraft, options?: RequestInit): Promise<ClaimsDeskMutationResponse> => {
+
+  return customFetch<ClaimsDeskMutationResponse>(getTransitionClaimsDeskRecordUrl(projectId,recordId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(claimsDeskTransitionDraft)
+  }
+);}
+
+
+
+
+export const getTransitionClaimsDeskRecordMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PreconditionRequiredResponse | RoadmapCapacityExceededResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transitionClaimsDeskRecord>>, TError,{projectId: string;recordId: string;data: BodyType<ClaimsDeskTransitionDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof transitionClaimsDeskRecord>>, TError,{projectId: string;recordId: string;data: BodyType<ClaimsDeskTransitionDraft>}, TContext> => {
+
+const mutationKey = ['transitionClaimsDeskRecord'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof transitionClaimsDeskRecord>>, {projectId: string;recordId: string;data: BodyType<ClaimsDeskTransitionDraft>}> = (props) => {
+          const {projectId,recordId,data} = props ?? {};
+
+          return  transitionClaimsDeskRecord(projectId,recordId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TransitionClaimsDeskRecordMutationResult = NonNullable<Awaited<ReturnType<typeof transitionClaimsDeskRecord>>>
+    export type TransitionClaimsDeskRecordMutationBody = BodyType<ClaimsDeskTransitionDraft>
+    export type TransitionClaimsDeskRecordMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PreconditionRequiredResponse | RoadmapCapacityExceededResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Record a maker-checker Claims Desk transition
+ */
+export const useTransitionClaimsDeskRecord = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PreconditionRequiredResponse | RoadmapCapacityExceededResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transitionClaimsDeskRecord>>, TError,{projectId: string;recordId: string;data: BodyType<ClaimsDeskTransitionDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof transitionClaimsDeskRecord>>,
+        TError,
+        {projectId: string;recordId: string;data: BodyType<ClaimsDeskTransitionDraft>},
+        TContext
+      > => {
+      return useMutation(getTransitionClaimsDeskRecordMutationOptions(options));
+    }
 
 export const getRequestUploadUrlUrl = () => {
 
