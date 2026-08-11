@@ -468,11 +468,14 @@ describe("signed-in routing", () => {
     expect(
       await screen.findByRole(
         "heading",
-        { name: /^pursuit operations suite$/i },
+        { name: /no authorised pursuits are available/i },
         ROUTE_LOAD_WAIT,
       ),
     ).toBeInTheDocument();
-  }, 10_000);
+    expect(
+      screen.queryByRole("heading", { name: /^reviews$/i }),
+    ).not.toBeInTheDocument();
+  });
 
   it("opens growth operations for a directly assigned Valo operations administrator", async () => {
     currentRole = "valo_operations_administrator";

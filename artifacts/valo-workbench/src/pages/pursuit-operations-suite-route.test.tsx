@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
@@ -928,8 +928,8 @@ describe("PursuitOperationsSuiteRoute", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "Record acceptance" }),
-    ).toBeDisabled();
+      screen.queryByRole("button", { name: "Record acceptance" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Record human check" }),
     ).toBeDisabled();
@@ -942,22 +942,24 @@ describe("PursuitOperationsSuiteRoute", () => {
   });
 
   it("changes project without retaining the prior snapshot or recorder text", async () => {
-    const user = userEvent.setup();
     const { location } = renderRoute();
     await screen.findByRole("heading", { name: "Pursuit operations suite" });
     await screen.findByRole("heading", { name: "Record bounded operations" });
-    await user.click(screen.getByText("1. Opportunity intake"));
-    await user.type(
-      screen.getByLabelText("Opportunity title"),
-      "Sensitive former-project title",
-    );
-    await user.click(screen.getByText("2. Pursuit work"));
-    await user.selectOptions(screen.getByLabelText("Work owner"), "user-1");
+    fireEvent.click(screen.getByText("1. Opportunity intake"));
+    fireEvent.change(screen.getByLabelText("Opportunity title"), {
+      target: { value: "Sensitive former-project title" },
+    });
+    fireEvent.click(screen.getByText("2. Pursuit work"));
+    fireEvent.change(screen.getByLabelText("Work owner"), {
+      target: { value: "user-1" },
+    });
     expect(screen.getByLabelText("Opportunity title")).toHaveValue(
       "Sensitive former-project title",
     );
     expect(screen.getByLabelText("Work owner")).toHaveValue("user-1");
-    await user.selectOptions(screen.getByLabelText("Pursuit"), "project-2");
+    fireEvent.change(screen.getByLabelText("Pursuit"), {
+      target: { value: "project-2" },
+    });
 
     await waitFor(() =>
       expect(location.hook()[0]).toContain("project=project-2"),

@@ -260,7 +260,8 @@ describe("PursuitOperationsSuiteRecorder", () => {
       screen.getByLabelText("Delegate authority note (required with delegate)"),
       "The authenticated operator recorded their delegated authority.",
     );
-    await user.type(screen.getByLabelText(/^Checklist JSON/u), "[]");
+    await user.click(screen.getByLabelText(/^Checklist JSON/u));
+    await user.paste("[]");
     await user.click(
       screen.getByRole("button", { name: "Record mission plan" }),
     );
@@ -428,7 +429,8 @@ describe("PursuitOperationsSuiteRecorder", () => {
       }),
       "package-version-1",
     );
-    await user.type(screen.getByLabelText(/^Page metrics JSON/u), "[]");
+    await user.click(screen.getByLabelText(/^Page metrics JSON/u));
+    await user.paste("[]");
     await user.click(
       screen.getByRole("button", { name: "Evaluate and record visual QA" }),
     );
@@ -515,7 +517,7 @@ describe("PursuitOperationsSuiteRecorder", () => {
     );
     await user.selectOptions(
       screen.getByLabelText(
-        "Canonical completion evidence / receipt document (optional)",
+        /^Canonical completion evidence \/ receipt document \(optional\)/u,
       ),
       "document-1",
     );

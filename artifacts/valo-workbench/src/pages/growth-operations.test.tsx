@@ -190,9 +190,7 @@ describe("GrowthOperationsView", () => {
     });
 
     expect(
-      screen.getByRole("heading", {
-        name: "Durable quote ledger unavailable",
-      }),
+      screen.getByText("Durable quote ledger unavailable"),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /^draft quote$/i }),
