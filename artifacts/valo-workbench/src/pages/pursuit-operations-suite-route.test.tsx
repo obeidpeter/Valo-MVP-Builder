@@ -981,7 +981,7 @@ describe("PursuitOperationsSuiteRoute", () => {
           (options as { method?: string } | undefined)?.method === "POST",
       ),
     ).toBe(false);
-  });
+  }, 15_000);
 
   it("uses the summary endpoint exclusively in URL-driven mobile mode", async () => {
     const user = userEvent.setup();

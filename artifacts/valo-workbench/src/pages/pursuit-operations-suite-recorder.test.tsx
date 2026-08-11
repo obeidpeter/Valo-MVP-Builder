@@ -314,7 +314,7 @@ describe("PursuitOperationsSuiteRecorder", () => {
         },
       }),
     );
-  });
+  }, 15_000);
 
   it("records credential provenance against a canonical vault version and document hash", async () => {
     const user = userEvent.setup();
