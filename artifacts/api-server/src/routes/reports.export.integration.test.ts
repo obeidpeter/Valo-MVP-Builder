@@ -618,8 +618,8 @@ describe("GET /projects/:id/export (live route)", () => {
 
     // A release package is invalid without its latest governed report.
     assert.deepEqual(files, [
-      "audit_export_policy.json",
       "audit_events.csv",
+      "audit_export_policy.json",
       "bid-autopsy-report-v2.docx",
       "boq_checks.csv",
       "defects.csv",
@@ -851,8 +851,8 @@ describe("object-storage-backed report attach & download", () => {
     // JSON) PLUS the signed report .docx (versioned filename from the latest
     // signed-off report that has a docxPath, i.e. v2 after the draft v1).
     assert.deepEqual(files, [
-      "audit_export_policy.json",
       "audit_events.csv",
+      "audit_export_policy.json",
       "bid-autopsy-report-v2.docx",
       "boq_checks.csv",
       "defects.csv",
