@@ -255,6 +255,7 @@ describe("payment confirmation is fail-closed until authority is bound", () => {
       tenderTitle: "Payment identity proof",
     });
     projectId = project.id;
+    await waitForProjectVisibility(projectId);
 
     const res = await confirmPayment(projectId, "founder");
     assert.equal(res.status, 503);
