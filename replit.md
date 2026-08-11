@@ -68,16 +68,20 @@ supported in-place upgrade is the reviewed one-time legacy bridge described
 below. Never mark historical migrations as applied without proving that the
 live schema and constraints match them.
 
-The Replit production database has completed the reviewed legacy bridge and has
-the exact adopted `0000`-`0002` journal. Never replay that bridge, the baseline,
-or a push/schema-diff operation. Both production run manifests use the shared
-same-process startup wrapper, which may invoke only the bounded
-`migration:replit:intake` implementation: it pins the seven source migration hashes, requires the
-production journal to be exactly `0000`-`0002` or `0000`-`0006`, validates the
-separate same-target owner/runtime credentials, serializes Autoscale starts with
-a PostgreSQL advisory lock, and atomically applies only the pending
-`0003`-`0006` suffix before API startup. Any other journal, source, credential,
-schema, or postcondition stops the candidate before listen. Development and
+The Replit production database has completed the reviewed legacy bridge. Never
+replay that bridge, the baseline, or a push/schema-diff operation. Both
+production run manifests use the shared same-process startup wrapper, which may
+invoke only the bounded `migration:replit:intake` implementation: it pins the
+seven source migration hashes and accepts only the exact `0000`-`0002`,
+`0000`-`0005`, or `0000`-`0006` journal prefix. The three-row baseline requires
+`valo_intake` to be absent and atomically applies `0003`-`0006`; the six-row
+upgrade state requires the existing intake schema and applies only `0006`; the
+seven-row state requires that schema and is already current. The launcher also
+validates the separate same-target owner/runtime credentials, serializes
+Autoscale starts with a PostgreSQL advisory lock, and completes the exact
+seven-row journal and catalog proof before API startup. Any other journal,
+source, credential, schema, or postcondition stops the candidate before listen.
+Development and
 production remain separate source instances; never reuse one environment's
 evidence for the other. `DATABASE_URL` must use a direct, session-affine
 PostgreSQL endpoint rather than transaction pooling because the bounded launcher
