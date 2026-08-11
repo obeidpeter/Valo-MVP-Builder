@@ -1480,6 +1480,9 @@ export const ListVaultItemsParams = zod.object({
   "id": zod.coerce.string().uuid()
 })
 
+
+
+
 export const ListVaultItemsResponseItem = zod.object({
   "id": zod.string(),
   "clientId": zod.string(),
@@ -1489,6 +1492,7 @@ export const ListVaultItemsResponseItem = zod.object({
   "expiryDate": zod.string().nullish(),
   "renewalLeadDays": zod.number().nullish(),
   "status": zod.string(),
+  "version": zod.number().min(1),
   "objectPath": zod.string().nullish(),
   "sha256": zod.string().nullish(),
   "sourceDocumentId": zod.string().nullish(),
@@ -1521,6 +1525,9 @@ export const CreateVaultItemBody = zod.object({
   "sourceDocumentId": zod.string().optional()
 })
 
+
+
+
 export const CreateVaultItemResponse = zod.object({
   "id": zod.string(),
   "clientId": zod.string(),
@@ -1530,6 +1537,7 @@ export const CreateVaultItemResponse = zod.object({
   "expiryDate": zod.string().nullish(),
   "renewalLeadDays": zod.number().nullish(),
   "status": zod.string(),
+  "version": zod.number().min(1),
   "objectPath": zod.string().nullish(),
   "sha256": zod.string().nullish(),
   "sourceDocumentId": zod.string().nullish(),
@@ -1558,6 +1566,9 @@ export const UpdateVaultItemBody = zod.object({
   "sourceDocumentId": zod.string().nullish()
 })
 
+
+
+
 export const UpdateVaultItemResponse = zod.object({
   "id": zod.string(),
   "clientId": zod.string(),
@@ -1567,6 +1578,7 @@ export const UpdateVaultItemResponse = zod.object({
   "expiryDate": zod.string().nullish(),
   "renewalLeadDays": zod.number().nullish(),
   "status": zod.string(),
+  "version": zod.number().min(1),
   "objectPath": zod.string().nullish(),
   "sha256": zod.string().nullish(),
   "sourceDocumentId": zod.string().nullish(),
@@ -1586,6 +1598,9 @@ export const DeleteVaultItemResponse = zod.void()
 /**
  * @summary Cross-client expiry telemetry (renewal radar)
  */
+
+
+
 export const GetVaultExpiringResponse = zod.object({
   "buckets": zod.object({
   "expired": zod.number(),
@@ -1602,6 +1617,7 @@ export const GetVaultExpiringResponse = zod.object({
   "expiryDate": zod.string().nullish(),
   "renewalLeadDays": zod.number().nullish(),
   "status": zod.string(),
+  "version": zod.number().min(1),
   "objectPath": zod.string().nullish(),
   "sha256": zod.string().nullish(),
   "sourceDocumentId": zod.string().nullish(),
@@ -3363,6 +3379,35 @@ export const DownloadReportPdfResponse = zod.unknown()
 
 
 /**
+ * Returns at most one current canonical project-export package version for the exact tenant and project. The response is metadata-only: it exposes no manifest entries, readiness snapshot, object path, report, tender, register or archive content. A successful response is private and non-cacheable (`Cache-Control: private, no-store`).
+ * @summary List the current canonical project-export package version
+ */
+export const ListProjectPackageVersionsParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+
+export const listProjectPackageVersionsResponseItemsItemManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const listProjectPackageVersionsResponseItemsMax = 100;
+
+
+
+export const ListProjectPackageVersionsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "packageId": zod.string().uuid(),
+  "packageVersionId": zod.string().uuid(),
+  "packageType": zod.literal("project_export"),
+  "versionNumber": zod.number().min(1),
+  "manifestSha256": zod.string().regex(listProjectPackageVersionsResponseItemsItemManifestSha256RegExp),
+  "renderQaStatus": zod.enum(['pending', 'passed', 'failed']),
+  "createdAt": zod.coerce.date()
+}).strict().describe('Metadata-only identity for the current canonical project-export package version. Archive contents and storage locations are excluded.')).max(listProjectPackageVersionsResponseItemsMax),
+  "limit": zod.literal(100),
+  "truncated": zod.boolean()
+}).strict()
+
+
+/**
  * @summary Export project data as a ZIP (admin only)
  */
 export const ExportProjectParams = zod.object({
@@ -3497,6 +3542,8230 @@ export const ListAuditResponseItem = zod.object({
   "integrityStatus": zod.enum(['active_v2_record', 'payload_hash_verified', 'known_discontinuity'])
 })
 export const ListAuditResponse = zod.array(ListAuditResponseItem)
+
+
+/**
+ * Returns records from the exact active tenant and project. Opportunity acquisition and submission are record-only, client delivery is manual out of band, and credential verification is a human-recorded observation.
+ * @summary Get the bounded pursuit operations snapshot
+ */
+export const GetOperationsSuiteSnapshotParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+
+export const getOperationsSuiteSnapshotResponseRecordsItemOneTwoTitleMax = 4096;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemOneTwoIssuerMax = 4096;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemOneTwoReferenceMax = 256;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemOneTwoLotMax = 256;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemOneTwoSourceLocatorMax = 2048;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemOneTwoSourceAuthorisationBasisMax = 1024;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemOneTwoSourceContentSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsSuiteSnapshotResponseRecordsItemOneTwoDedupeKeyRegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsSuiteSnapshotResponseRecordsItemOneTwoProvenanceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoTitleMax = 4096;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoDescriptionMax = 4096;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoLinksOneRequirementIdsItemMax = 128;
+
+
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoLinksOneRequirementIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoLinksOneRequirementIdsMax = 100;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoLinksOneEvidenceItemIdsItemMax = 128;
+
+
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoLinksOneEvidenceItemIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoLinksOneEvidenceItemIdsMax = 100;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoLinksOnePackageIdsItemMax = 128;
+
+
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoLinksOnePackageIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoLinksOnePackageIdsMax = 100;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoDependsOnIdsMax = 50;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoCommentsItemBodyMax = 2048;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoCommentsMax = 100;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoApprovalReasonMax = 1024;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoStatusReasonHistoryItemFromStatusMax = 256;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoStatusReasonHistoryItemToStatusMax = 256;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoStatusReasonHistoryItemReasonMax = 1024;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoStatusReasonHistoryMax = 100;
+
+
+export const getOperationsSuiteSnapshotResponseRecordsItemThreeTwoRecipientLabelMax = 256;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemThreeTwoRequestMessageMax = 4096;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsItemLabelMax = 256;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsItemAcceptedContentTypesItemMax = 128;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsItemAcceptedContentTypesMax = 20;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsItemResponseOneSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsItemResponseOneAttestationMax = 2048;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsItemAcceptanceOneReasonMax = 1024;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsItemResponseHistoryItemResponseSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsItemResponseHistoryItemResponseAttestationMax = 2048;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsItemResponseHistoryItemAcceptanceReasonMax = 1024;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsItemResponseHistoryMax = 20;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsMax = 50;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemThreeTwoReceiptSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+
+export const getOperationsSuiteSnapshotResponseRecordsItemFourTwoManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsSuiteSnapshotResponseRecordsItemFourTwoCopyCountMin = 0;
+export const getOperationsSuiteSnapshotResponseRecordsItemFourTwoCopyCountMax = 10000;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemFourTwoSealIdentifiersItemMax = 256;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemFourTwoSealIdentifiersMax = 100;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemFourTwoDispatchMethodMax = 256;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemFourTwoReceiptSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsSuiteSnapshotResponseRecordsItemFourTwoStatusReasonHistoryItemFromStatusMax = 256;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemFourTwoStatusReasonHistoryItemToStatusMax = 256;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemFourTwoStatusReasonHistoryItemReasonMax = 1024;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemFourTwoStatusReasonHistoryMax = 100;
+
+
+export const getOperationsSuiteSnapshotResponseRecordsItemFiveTwoManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsSuiteSnapshotResponseRecordsItemFiveTwoExpectedManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsSuiteSnapshotResponseRecordsItemFiveTwoResultInputSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsSuiteSnapshotResponseRecordsItemFiveTwoResultFindingsItemMessageMax = 4096;
+
+
+export const getOperationsSuiteSnapshotResponseRecordsItemFiveTwoResultFindingsMax = 7500;
+
+
+
+export const getOperationsSuiteSnapshotResponseRecordsItemSixTwoDocumentSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsSuiteSnapshotResponseRecordsItemSixTwoAuthorityNameMax = 256;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemSixTwoOfficialSourceLocatorMax = 2048;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemSixTwoReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsSuiteSnapshotResponseRecordsItemSixTwoNotesMax = 4096;
+
+
+export const getOperationsSuiteSnapshotResponseRecordsItemSevenTwoTitleMax = 4096;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemSevenTwoLocationMax = 1024;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemSevenTwoDelegateAuthorityNoteMax = 1024;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemSevenTwoChecklistItemOneLabelMax = 256;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemSevenTwoChecklistMax = 100;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemSevenTwoProofsItemSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsSuiteSnapshotResponseRecordsItemSevenTwoProofsMax = 50;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemSevenTwoFollowUpWorkItemIdsMax = 100;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemSevenTwoStatusReasonHistoryItemFromStatusMax = 256;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemSevenTwoStatusReasonHistoryItemToStatusMax = 256;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemSevenTwoStatusReasonHistoryItemReasonMax = 1024;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemSevenTwoStatusReasonHistoryMax = 100;
+
+
+export const getOperationsSuiteSnapshotResponseRecordsItemEightTwoTitleMax = 4096;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemEightTwoDescriptionMax = 4096;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemEightTwoEvidenceDocumentIdsMax = 100;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemEightTwoValueMinorUnitsMin = 0;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemEightTwoCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const getOperationsSuiteSnapshotResponseRecordsItemEightTwoCompletionReceiptSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsSuiteSnapshotResponseRecordsItemEightTwoStatusReasonHistoryItemFromStatusMax = 256;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemEightTwoStatusReasonHistoryItemToStatusMax = 256;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemEightTwoStatusReasonHistoryItemReasonMax = 1024;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemEightTwoStatusReasonHistoryMax = 100;
+
+export const getOperationsSuiteSnapshotResponseRecordsMax = 1000;
+
+export const getOperationsSuiteSnapshotResponseCountsOpportunityIntakeMin = 0;
+export const getOperationsSuiteSnapshotResponseCountsOpportunityIntakeMax = 250;
+
+export const getOperationsSuiteSnapshotResponseCountsWorkItemMin = 0;
+export const getOperationsSuiteSnapshotResponseCountsWorkItemMax = 250;
+
+export const getOperationsSuiteSnapshotResponseCountsEvidenceRequestMin = 0;
+export const getOperationsSuiteSnapshotResponseCountsEvidenceRequestMax = 250;
+
+export const getOperationsSuiteSnapshotResponseCountsSubmissionWarRoomMin = 0;
+export const getOperationsSuiteSnapshotResponseCountsSubmissionWarRoomMax = 250;
+
+export const getOperationsSuiteSnapshotResponseCountsVisualQaReportMin = 0;
+export const getOperationsSuiteSnapshotResponseCountsVisualQaReportMax = 250;
+
+export const getOperationsSuiteSnapshotResponseCountsCredentialVerificationMin = 0;
+export const getOperationsSuiteSnapshotResponseCountsCredentialVerificationMax = 250;
+
+export const getOperationsSuiteSnapshotResponseCountsMissionMin = 0;
+export const getOperationsSuiteSnapshotResponseCountsMissionMax = 250;
+
+export const getOperationsSuiteSnapshotResponseCountsPostAwardItemMin = 0;
+export const getOperationsSuiteSnapshotResponseCountsPostAwardItemMax = 250;
+
+
+
+export const GetOperationsSuiteSnapshotResponse = zod.object({
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "records": zod.array(zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("opportunity_intake"),
+  "title": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemOneTwoTitleMax),
+  "issuer": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemOneTwoIssuerMax),
+  "reference": zod.string().max(getOperationsSuiteSnapshotResponseRecordsItemOneTwoReferenceMax).nullable(),
+  "lot": zod.string().max(getOperationsSuiteSnapshotResponseRecordsItemOneTwoLotMax).nullable(),
+  "source": zod.object({
+  "type": zod.enum(['manual_url', 'forwarded_email', 'licensed_csv', 'ocds']),
+  "locator": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemOneTwoSourceLocatorMax),
+  "receivedAt": zod.coerce.date(),
+  "authorisationBasis": zod.string().max(getOperationsSuiteSnapshotResponseRecordsItemOneTwoSourceAuthorisationBasisMax).nullable(),
+  "contentSha256": zod.union([zod.string().regex(getOperationsSuiteSnapshotResponseRecordsItemOneTwoSourceContentSha256OneRegExp),zod.null()])
+}),
+  "dedupeKey": zod.string().regex(getOperationsSuiteSnapshotResponseRecordsItemOneTwoDedupeKeyRegExp),
+  "provenanceSha256": zod.string().regex(getOperationsSuiteSnapshotResponseRecordsItemOneTwoProvenanceSha256RegExp),
+  "deadline": zod.coerce.date().nullable(),
+  "deadlineStatus": zod.enum(['unconfirmed', 'human_confirmed']),
+  "deadlineConfirmedByUserId": zod.string().uuid().nullable(),
+  "deadlineConfirmedAt": zod.coerce.date().nullable(),
+  "status": zod.enum(['recorded', 'qualified', 'not_pursued'])
+})),zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("work_item"),
+  "title": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoTitleMax),
+  "description": zod.string().max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoDescriptionMax).nullable(),
+  "ownerUserId": zod.string().uuid().nullable(),
+  "dueAt": zod.coerce.date().nullable(),
+  "priority": zod.enum(['low', 'normal', 'high', 'critical']),
+  "status": zod.enum(['backlog', 'ready', 'in_progress', 'blocked', 'in_review', 'done', 'cancelled']),
+  "links": zod.object({
+  "requirementIds": zod.array(zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoLinksOneRequirementIdsItemMax).regex(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoLinksOneRequirementIdsItemRegExp)).max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoLinksOneRequirementIdsMax),
+  "evidenceItemIds": zod.array(zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoLinksOneEvidenceItemIdsItemMax).regex(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoLinksOneEvidenceItemIdsItemRegExp)).max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoLinksOneEvidenceItemIdsMax),
+  "packageIds": zod.array(zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoLinksOnePackageIdsItemMax).regex(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoLinksOnePackageIdsItemRegExp)).max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoLinksOnePackageIdsMax)
+}).and(zod.object({
+
+}).passthrough()),
+  "dependsOnIds": zod.array(zod.string().uuid()).max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoDependsOnIdsMax),
+  "comments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "body": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoCommentsItemBodyMax),
+  "authorUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date()
+})).max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoCommentsMax),
+  "approval": zod.object({
+  "status": zod.enum(['not_required', 'pending', 'approved', 'rejected']),
+  "decidedByUserId": zod.string().uuid().nullable(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "reason": zod.string().max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoApprovalReasonMax).nullable()
+}),
+  "statusReasonHistory": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromStatus": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoStatusReasonHistoryItemFromStatusMax),
+  "toStatus": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoStatusReasonHistoryItemToStatusMax),
+  "reason": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoStatusReasonHistoryItemReasonMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoStatusReasonHistoryMax)
+})),zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("evidence_request"),
+  "recipientLabel": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemThreeTwoRecipientLabelMax),
+  "dueAt": zod.coerce.date().nullable(),
+  "requestMessage": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemThreeTwoRequestMessageMax),
+  "deliveryMode": zod.literal("manual_out_of_band"),
+  "status": zod.enum(['draft', 'shared_manually', 'response_recorded', 'accepted', 'closed']),
+  "sharedByUserId": zod.string().uuid().nullable(),
+  "sharedAt": zod.coerce.date().nullable(),
+  "slots": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsItemLabelMax),
+  "required": zod.boolean(),
+  "acceptedContentTypes": zod.array(zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsItemAcceptedContentTypesItemMax)).max(getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsItemAcceptedContentTypesMax),
+  "response": zod.union([zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsItemResponseOneSha256RegExp),
+  "attestation": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsItemResponseOneAttestationMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+}),zod.null()]),
+  "acceptance": zod.union([zod.object({
+  "decision": zod.enum(['accepted', 'rejected']),
+  "reason": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsItemAcceptanceOneReasonMax),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.coerce.date()
+}),zod.null()]),
+  "responseHistory": zod.array(zod.object({
+  "response": zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsItemResponseHistoryItemResponseSha256RegExp),
+  "attestation": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsItemResponseHistoryItemResponseAttestationMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+}),
+  "acceptance": zod.object({
+  "decision": zod.enum(['accepted', 'rejected']),
+  "reason": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsItemResponseHistoryItemAcceptanceReasonMax),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.coerce.date()
+})
+})).max(getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsItemResponseHistoryMax).describe('Immutable prior rejected response-decision pairs, oldest first.')
+})).min(1).max(getOperationsSuiteSnapshotResponseRecordsItemThreeTwoSlotsMax),
+  "receiptSha256": zod.union([zod.string().regex(getOperationsSuiteSnapshotResponseRecordsItemThreeTwoReceiptSha256OneRegExp),zod.null()])
+})),zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("submission_war_room"),
+  "packageId": zod.string().uuid(),
+  "packageVersionId": zod.string().uuid(),
+  "manifestSha256": zod.string().regex(getOperationsSuiteSnapshotResponseRecordsItemFourTwoManifestSha256RegExp),
+  "copyCount": zod.number().min(getOperationsSuiteSnapshotResponseRecordsItemFourTwoCopyCountMin).max(getOperationsSuiteSnapshotResponseRecordsItemFourTwoCopyCountMax),
+  "sealIdentifiers": zod.array(zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemFourTwoSealIdentifiersItemMax)).max(getOperationsSuiteSnapshotResponseRecordsItemFourTwoSealIdentifiersMax),
+  "status": zod.enum(['planning', 'frozen', 'copies_prepared', 'sealed', 'dispatched', 'receipt_recorded', 'cancelled']),
+  "externalActionPolicy": zod.literal("record_only"),
+  "frozenByUserId": zod.string().uuid().nullable(),
+  "frozenAt": zod.coerce.date().nullable(),
+  "dispatchedByUserId": zod.string().uuid().nullable(),
+  "dispatchedAt": zod.coerce.date().nullable(),
+  "dispatchMethod": zod.string().max(getOperationsSuiteSnapshotResponseRecordsItemFourTwoDispatchMethodMax).nullable(),
+  "receiptSha256": zod.union([zod.string().regex(getOperationsSuiteSnapshotResponseRecordsItemFourTwoReceiptSha256OneRegExp),zod.null()]),
+  "receiptRecordedByUserId": zod.string().uuid().nullable(),
+  "receiptRecordedAt": zod.coerce.date().nullable(),
+  "statusReasonHistory": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromStatus": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemFourTwoStatusReasonHistoryItemFromStatusMax),
+  "toStatus": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemFourTwoStatusReasonHistoryItemToStatusMax),
+  "reason": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemFourTwoStatusReasonHistoryItemReasonMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(getOperationsSuiteSnapshotResponseRecordsItemFourTwoStatusReasonHistoryMax)
+})),zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("visual_qa_report"),
+  "packageVersionId": zod.string().uuid(),
+  "manifestSha256": zod.string().regex(getOperationsSuiteSnapshotResponseRecordsItemFiveTwoManifestSha256RegExp),
+  "expectedManifestSha256": zod.string().regex(getOperationsSuiteSnapshotResponseRecordsItemFiveTwoExpectedManifestSha256RegExp),
+  "result": zod.object({
+  "algorithmVersion": zod.literal("visual-qa-v1"),
+  "status": zod.enum(['pass', 'review', 'fail']),
+  "inputSha256": zod.string().regex(getOperationsSuiteSnapshotResponseRecordsItemFiveTwoResultInputSha256RegExp),
+  "findings": zod.array(zod.object({
+  "code": zod.enum(['manifest_mismatch', 'unexpected_blank_page', 'clipped_content', 'broken_cross_reference', 'missing_signature']),
+  "severity": zod.enum(['blocker', 'warning']),
+  "message": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemFiveTwoResultFindingsItemMessageMax),
+  "pageNumber": zod.number().min(1).nullable()
+})).max(getOperationsSuiteSnapshotResponseRecordsItemFiveTwoResultFindingsMax)
+})
+})),zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("credential_verification"),
+  "vaultItemId": zod.string().uuid(),
+  "vaultItemVersion": zod.number().min(1),
+  "documentSha256": zod.string().regex(getOperationsSuiteSnapshotResponseRecordsItemSixTwoDocumentSha256RegExp),
+  "authorityName": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemSixTwoAuthorityNameMax),
+  "officialSourceLocator": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemSixTwoOfficialSourceLocatorMax),
+  "checkedAt": zod.coerce.date(),
+  "checkedByUserId": zod.string().uuid(),
+  "outcome": zod.enum(['verified', 'not_verified', 'inconclusive']),
+  "receiptSha256": zod.string().regex(getOperationsSuiteSnapshotResponseRecordsItemSixTwoReceiptSha256RegExp),
+  "notes": zod.string().max(getOperationsSuiteSnapshotResponseRecordsItemSixTwoNotesMax).nullable(),
+  "verificationMode": zod.literal("human_recorded")
+})),zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("mission"),
+  "missionType": zod.enum(['pre_bid', 'site_visit']),
+  "title": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemSevenTwoTitleMax),
+  "location": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemSevenTwoLocationMax),
+  "startsAt": zod.coerce.date(),
+  "attendanceRequired": zod.boolean(),
+  "delegateUserId": zod.string().uuid().nullable(),
+  "delegateAuthorityNote": zod.string().max(getOperationsSuiteSnapshotResponseRecordsItemSevenTwoDelegateAuthorityNoteMax).nullable(),
+  "checklist": zod.array(zod.object({
+  "label": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemSevenTwoChecklistItemOneLabelMax),
+  "required": zod.boolean()
+}).and(zod.object({
+  "id": zod.string().uuid(),
+  "completedByUserId": zod.string().uuid().nullable(),
+  "completedAt": zod.coerce.date().nullable()
+}))).max(getOperationsSuiteSnapshotResponseRecordsItemSevenTwoChecklistMax),
+  "proofs": zod.array(zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(getOperationsSuiteSnapshotResponseRecordsItemSevenTwoProofsItemSha256RegExp),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(getOperationsSuiteSnapshotResponseRecordsItemSevenTwoProofsMax),
+  "followUpWorkItemIds": zod.array(zod.string().uuid()).max(getOperationsSuiteSnapshotResponseRecordsItemSevenTwoFollowUpWorkItemIdsMax),
+  "status": zod.enum(['planned', 'attended', 'missed', 'completed', 'cancelled']),
+  "statusReasonHistory": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromStatus": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemSevenTwoStatusReasonHistoryItemFromStatusMax),
+  "toStatus": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemSevenTwoStatusReasonHistoryItemToStatusMax),
+  "reason": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemSevenTwoStatusReasonHistoryItemReasonMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(getOperationsSuiteSnapshotResponseRecordsItemSevenTwoStatusReasonHistoryMax)
+})),zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("post_award_item"),
+  "category": zod.enum(['obligation', 'deliverable', 'variation', 'payment_milestone', 'notice', 'completion_record']),
+  "title": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemEightTwoTitleMax),
+  "description": zod.string().max(getOperationsSuiteSnapshotResponseRecordsItemEightTwoDescriptionMax).nullable(),
+  "dueAt": zod.coerce.date().nullable(),
+  "ownerUserId": zod.string().uuid().nullable(),
+  "sourceDocumentId": zod.string().uuid().nullable(),
+  "evidenceDocumentIds": zod.array(zod.string().uuid()).max(getOperationsSuiteSnapshotResponseRecordsItemEightTwoEvidenceDocumentIdsMax),
+  "valueMinorUnits": zod.number().min(getOperationsSuiteSnapshotResponseRecordsItemEightTwoValueMinorUnitsMin).nullable(),
+  "currency": zod.string().regex(getOperationsSuiteSnapshotResponseRecordsItemEightTwoCurrencyRegExp).nullable(),
+  "status": zod.enum(['open', 'in_progress', 'satisfied', 'disputed', 'cancelled']),
+  "completionReceiptSha256": zod.union([zod.string().regex(getOperationsSuiteSnapshotResponseRecordsItemEightTwoCompletionReceiptSha256OneRegExp),zod.null()]),
+  "completedByUserId": zod.string().uuid().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "statusReasonHistory": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromStatus": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemEightTwoStatusReasonHistoryItemFromStatusMax),
+  "toStatus": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemEightTwoStatusReasonHistoryItemToStatusMax),
+  "reason": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemEightTwoStatusReasonHistoryItemReasonMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(getOperationsSuiteSnapshotResponseRecordsItemEightTwoStatusReasonHistoryMax)
+}))])).max(getOperationsSuiteSnapshotResponseRecordsMax),
+  "counts": zod.object({
+  "opportunity_intake": zod.number().min(getOperationsSuiteSnapshotResponseCountsOpportunityIntakeMin).max(getOperationsSuiteSnapshotResponseCountsOpportunityIntakeMax),
+  "work_item": zod.number().min(getOperationsSuiteSnapshotResponseCountsWorkItemMin).max(getOperationsSuiteSnapshotResponseCountsWorkItemMax),
+  "evidence_request": zod.number().min(getOperationsSuiteSnapshotResponseCountsEvidenceRequestMin).max(getOperationsSuiteSnapshotResponseCountsEvidenceRequestMax),
+  "submission_war_room": zod.number().min(getOperationsSuiteSnapshotResponseCountsSubmissionWarRoomMin).max(getOperationsSuiteSnapshotResponseCountsSubmissionWarRoomMax),
+  "visual_qa_report": zod.number().min(getOperationsSuiteSnapshotResponseCountsVisualQaReportMin).max(getOperationsSuiteSnapshotResponseCountsVisualQaReportMax),
+  "credential_verification": zod.number().min(getOperationsSuiteSnapshotResponseCountsCredentialVerificationMin).max(getOperationsSuiteSnapshotResponseCountsCredentialVerificationMax),
+  "mission": zod.number().min(getOperationsSuiteSnapshotResponseCountsMissionMin).max(getOperationsSuiteSnapshotResponseCountsMissionMax),
+  "post_award_item": zod.number().min(getOperationsSuiteSnapshotResponseCountsPostAwardItemMin).max(getOperationsSuiteSnapshotResponseCountsPostAwardItemMax)
+}),
+  "visibility": zod.object({
+  "visibleKinds": zod.array(zod.enum(['opportunity_intake', 'work_item', 'evidence_request', 'submission_war_room', 'visual_qa_report', 'credential_verification', 'mission', 'post_award_item'])),
+  "filtered": zod.boolean()
+}),
+  "authority": zod.object({
+  "opportunityAcquisition": zod.literal("record_only"),
+  "clientDelivery": zod.literal("manual_out_of_band"),
+  "credentialVerification": zod.literal("human_recorded"),
+  "submission": zod.literal("record_only")
+})
+})
+
+
+/**
+ * @summary List work assigned to the current named operator
+ */
+export const ListMyOperationsWorkParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+
+export const listMyOperationsWorkResponseTwoTitleMax = 4096;
+
+export const listMyOperationsWorkResponseTwoDescriptionMax = 4096;
+
+export const listMyOperationsWorkResponseTwoLinksOneRequirementIdsItemMax = 128;
+
+
+export const listMyOperationsWorkResponseTwoLinksOneRequirementIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const listMyOperationsWorkResponseTwoLinksOneRequirementIdsMax = 100;
+
+export const listMyOperationsWorkResponseTwoLinksOneEvidenceItemIdsItemMax = 128;
+
+
+export const listMyOperationsWorkResponseTwoLinksOneEvidenceItemIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const listMyOperationsWorkResponseTwoLinksOneEvidenceItemIdsMax = 100;
+
+export const listMyOperationsWorkResponseTwoLinksOnePackageIdsItemMax = 128;
+
+
+export const listMyOperationsWorkResponseTwoLinksOnePackageIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const listMyOperationsWorkResponseTwoLinksOnePackageIdsMax = 100;
+
+export const listMyOperationsWorkResponseTwoDependsOnIdsMax = 50;
+
+export const listMyOperationsWorkResponseTwoCommentsItemBodyMax = 2048;
+
+export const listMyOperationsWorkResponseTwoCommentsMax = 100;
+
+export const listMyOperationsWorkResponseTwoApprovalReasonMax = 1024;
+
+export const listMyOperationsWorkResponseTwoStatusReasonHistoryItemFromStatusMax = 256;
+
+export const listMyOperationsWorkResponseTwoStatusReasonHistoryItemToStatusMax = 256;
+
+export const listMyOperationsWorkResponseTwoStatusReasonHistoryItemReasonMax = 1024;
+
+export const listMyOperationsWorkResponseTwoStatusReasonHistoryMax = 100;
+
+
+
+export const ListMyOperationsWorkResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("work_item"),
+  "title": zod.string().min(1).max(listMyOperationsWorkResponseTwoTitleMax),
+  "description": zod.string().max(listMyOperationsWorkResponseTwoDescriptionMax).nullable(),
+  "ownerUserId": zod.string().uuid().nullable(),
+  "dueAt": zod.coerce.date().nullable(),
+  "priority": zod.enum(['low', 'normal', 'high', 'critical']),
+  "status": zod.enum(['backlog', 'ready', 'in_progress', 'blocked', 'in_review', 'done', 'cancelled']),
+  "links": zod.object({
+  "requirementIds": zod.array(zod.string().min(1).max(listMyOperationsWorkResponseTwoLinksOneRequirementIdsItemMax).regex(listMyOperationsWorkResponseTwoLinksOneRequirementIdsItemRegExp)).max(listMyOperationsWorkResponseTwoLinksOneRequirementIdsMax),
+  "evidenceItemIds": zod.array(zod.string().min(1).max(listMyOperationsWorkResponseTwoLinksOneEvidenceItemIdsItemMax).regex(listMyOperationsWorkResponseTwoLinksOneEvidenceItemIdsItemRegExp)).max(listMyOperationsWorkResponseTwoLinksOneEvidenceItemIdsMax),
+  "packageIds": zod.array(zod.string().min(1).max(listMyOperationsWorkResponseTwoLinksOnePackageIdsItemMax).regex(listMyOperationsWorkResponseTwoLinksOnePackageIdsItemRegExp)).max(listMyOperationsWorkResponseTwoLinksOnePackageIdsMax)
+}).and(zod.object({
+
+}).passthrough()),
+  "dependsOnIds": zod.array(zod.string().uuid()).max(listMyOperationsWorkResponseTwoDependsOnIdsMax),
+  "comments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "body": zod.string().min(1).max(listMyOperationsWorkResponseTwoCommentsItemBodyMax),
+  "authorUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date()
+})).max(listMyOperationsWorkResponseTwoCommentsMax),
+  "approval": zod.object({
+  "status": zod.enum(['not_required', 'pending', 'approved', 'rejected']),
+  "decidedByUserId": zod.string().uuid().nullable(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "reason": zod.string().max(listMyOperationsWorkResponseTwoApprovalReasonMax).nullable()
+}),
+  "statusReasonHistory": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromStatus": zod.string().min(1).max(listMyOperationsWorkResponseTwoStatusReasonHistoryItemFromStatusMax),
+  "toStatus": zod.string().min(1).max(listMyOperationsWorkResponseTwoStatusReasonHistoryItemToStatusMax),
+  "reason": zod.string().min(1).max(listMyOperationsWorkResponseTwoStatusReasonHistoryItemReasonMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(listMyOperationsWorkResponseTwoStatusReasonHistoryMax)
+}))
+export const ListMyOperationsWorkResponse = zod.array(ListMyOperationsWorkResponseItem).max(250)
+
+
+/**
+ * Returns an online-only projection of permitted actionable operations. It deliberately excludes record bodies and is limited to 250 items.
+ * @summary Get the compact, restricted operations queue for the named operator
+ */
+export const GetOperationsMobileQueueParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const getOperationsMobileQueueResponseItemsItemIdMax = 256;
+
+export const getOperationsMobileQueueResponseItemsItemStatusMax = 256;
+
+export const getOperationsMobileQueueResponseItemsItemLabelMax = 256;
+
+export const getOperationsMobileQueueResponseItemsMax = 250;
+
+
+
+export const GetOperationsMobileQueueResponse = zod.object({
+  "restrictedContent": zod.literal(true),
+  "maxItems": zod.literal(250),
+  "items": zod.array(zod.object({
+  "id": zod.string().min(1).max(getOperationsMobileQueueResponseItemsItemIdMax),
+  "recordId": zod.string().uuid(),
+  "subresourceId": zod.string().uuid().nullable(),
+  "kind": zod.enum(['work_item', 'evidence_request', 'submission_war_room', 'mission']),
+  "status": zod.string().min(1).max(getOperationsMobileQueueResponseItemsItemStatusMax),
+  "label": zod.string().min(1).max(getOperationsMobileQueueResponseItemsItemLabelMax),
+  "dueAt": zod.coerce.date().nullable(),
+  "priority": zod.union([zod.literal('low'),zod.literal('normal'),zod.literal('high'),zod.literal('critical'),zod.literal(null)]).nullable(),
+  "action": zod.enum(['continue_work', 'review_evidence_response', 'record_submission_receipt', 'prepare_mission']),
+  "restrictedContent": zod.literal(true)
+})).max(getOperationsMobileQueueResponseItemsMax)
+})
+
+
+/**
+ * @summary Get one exact-scope operations record
+ */
+export const GetOperationsRecordParams = zod.object({
+  "id": zod.coerce.string().uuid(),
+  "recordId": zod.coerce.string().uuid().describe('Operations record UUID within the active tenant and project.')
+})
+
+
+export const getOperationsRecordResponseOneTwoTitleMax = 4096;
+
+export const getOperationsRecordResponseOneTwoIssuerMax = 4096;
+
+export const getOperationsRecordResponseOneTwoReferenceMax = 256;
+
+export const getOperationsRecordResponseOneTwoLotMax = 256;
+
+export const getOperationsRecordResponseOneTwoSourceLocatorMax = 2048;
+
+export const getOperationsRecordResponseOneTwoSourceAuthorisationBasisMax = 1024;
+
+export const getOperationsRecordResponseOneTwoSourceContentSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsRecordResponseOneTwoDedupeKeyRegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsRecordResponseOneTwoProvenanceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+export const getOperationsRecordResponseTwoTwoTitleMax = 4096;
+
+export const getOperationsRecordResponseTwoTwoDescriptionMax = 4096;
+
+export const getOperationsRecordResponseTwoTwoLinksOneRequirementIdsItemMax = 128;
+
+
+export const getOperationsRecordResponseTwoTwoLinksOneRequirementIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const getOperationsRecordResponseTwoTwoLinksOneRequirementIdsMax = 100;
+
+export const getOperationsRecordResponseTwoTwoLinksOneEvidenceItemIdsItemMax = 128;
+
+
+export const getOperationsRecordResponseTwoTwoLinksOneEvidenceItemIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const getOperationsRecordResponseTwoTwoLinksOneEvidenceItemIdsMax = 100;
+
+export const getOperationsRecordResponseTwoTwoLinksOnePackageIdsItemMax = 128;
+
+
+export const getOperationsRecordResponseTwoTwoLinksOnePackageIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const getOperationsRecordResponseTwoTwoLinksOnePackageIdsMax = 100;
+
+export const getOperationsRecordResponseTwoTwoDependsOnIdsMax = 50;
+
+export const getOperationsRecordResponseTwoTwoCommentsItemBodyMax = 2048;
+
+export const getOperationsRecordResponseTwoTwoCommentsMax = 100;
+
+export const getOperationsRecordResponseTwoTwoApprovalReasonMax = 1024;
+
+export const getOperationsRecordResponseTwoTwoStatusReasonHistoryItemFromStatusMax = 256;
+
+export const getOperationsRecordResponseTwoTwoStatusReasonHistoryItemToStatusMax = 256;
+
+export const getOperationsRecordResponseTwoTwoStatusReasonHistoryItemReasonMax = 1024;
+
+export const getOperationsRecordResponseTwoTwoStatusReasonHistoryMax = 100;
+
+
+export const getOperationsRecordResponseThreeTwoRecipientLabelMax = 256;
+
+export const getOperationsRecordResponseThreeTwoRequestMessageMax = 4096;
+
+export const getOperationsRecordResponseThreeTwoSlotsItemLabelMax = 256;
+
+export const getOperationsRecordResponseThreeTwoSlotsItemAcceptedContentTypesItemMax = 128;
+
+export const getOperationsRecordResponseThreeTwoSlotsItemAcceptedContentTypesMax = 20;
+
+export const getOperationsRecordResponseThreeTwoSlotsItemResponseOneSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsRecordResponseThreeTwoSlotsItemResponseOneAttestationMax = 2048;
+
+export const getOperationsRecordResponseThreeTwoSlotsItemAcceptanceOneReasonMax = 1024;
+
+export const getOperationsRecordResponseThreeTwoSlotsItemResponseHistoryItemResponseSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsRecordResponseThreeTwoSlotsItemResponseHistoryItemResponseAttestationMax = 2048;
+
+export const getOperationsRecordResponseThreeTwoSlotsItemResponseHistoryItemAcceptanceReasonMax = 1024;
+
+export const getOperationsRecordResponseThreeTwoSlotsItemResponseHistoryMax = 20;
+
+export const getOperationsRecordResponseThreeTwoSlotsMax = 50;
+
+export const getOperationsRecordResponseThreeTwoReceiptSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+
+export const getOperationsRecordResponseFourTwoManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsRecordResponseFourTwoCopyCountMin = 0;
+export const getOperationsRecordResponseFourTwoCopyCountMax = 10000;
+
+export const getOperationsRecordResponseFourTwoSealIdentifiersItemMax = 256;
+
+export const getOperationsRecordResponseFourTwoSealIdentifiersMax = 100;
+
+export const getOperationsRecordResponseFourTwoDispatchMethodMax = 256;
+
+export const getOperationsRecordResponseFourTwoReceiptSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsRecordResponseFourTwoStatusReasonHistoryItemFromStatusMax = 256;
+
+export const getOperationsRecordResponseFourTwoStatusReasonHistoryItemToStatusMax = 256;
+
+export const getOperationsRecordResponseFourTwoStatusReasonHistoryItemReasonMax = 1024;
+
+export const getOperationsRecordResponseFourTwoStatusReasonHistoryMax = 100;
+
+
+export const getOperationsRecordResponseFiveTwoManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsRecordResponseFiveTwoExpectedManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsRecordResponseFiveTwoResultInputSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsRecordResponseFiveTwoResultFindingsItemMessageMax = 4096;
+
+
+export const getOperationsRecordResponseFiveTwoResultFindingsMax = 7500;
+
+
+
+export const getOperationsRecordResponseSixTwoDocumentSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsRecordResponseSixTwoAuthorityNameMax = 256;
+
+export const getOperationsRecordResponseSixTwoOfficialSourceLocatorMax = 2048;
+
+export const getOperationsRecordResponseSixTwoReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsRecordResponseSixTwoNotesMax = 4096;
+
+
+export const getOperationsRecordResponseSevenTwoTitleMax = 4096;
+
+export const getOperationsRecordResponseSevenTwoLocationMax = 1024;
+
+export const getOperationsRecordResponseSevenTwoDelegateAuthorityNoteMax = 1024;
+
+export const getOperationsRecordResponseSevenTwoChecklistItemOneLabelMax = 256;
+
+export const getOperationsRecordResponseSevenTwoChecklistMax = 100;
+
+export const getOperationsRecordResponseSevenTwoProofsItemSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsRecordResponseSevenTwoProofsMax = 50;
+
+export const getOperationsRecordResponseSevenTwoFollowUpWorkItemIdsMax = 100;
+
+export const getOperationsRecordResponseSevenTwoStatusReasonHistoryItemFromStatusMax = 256;
+
+export const getOperationsRecordResponseSevenTwoStatusReasonHistoryItemToStatusMax = 256;
+
+export const getOperationsRecordResponseSevenTwoStatusReasonHistoryItemReasonMax = 1024;
+
+export const getOperationsRecordResponseSevenTwoStatusReasonHistoryMax = 100;
+
+
+export const getOperationsRecordResponseEightTwoTitleMax = 4096;
+
+export const getOperationsRecordResponseEightTwoDescriptionMax = 4096;
+
+export const getOperationsRecordResponseEightTwoEvidenceDocumentIdsMax = 100;
+
+export const getOperationsRecordResponseEightTwoValueMinorUnitsMin = 0;
+
+export const getOperationsRecordResponseEightTwoCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const getOperationsRecordResponseEightTwoCompletionReceiptSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsRecordResponseEightTwoStatusReasonHistoryItemFromStatusMax = 256;
+
+export const getOperationsRecordResponseEightTwoStatusReasonHistoryItemToStatusMax = 256;
+
+export const getOperationsRecordResponseEightTwoStatusReasonHistoryItemReasonMax = 1024;
+
+export const getOperationsRecordResponseEightTwoStatusReasonHistoryMax = 100;
+
+
+
+export const GetOperationsRecordResponse = zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("opportunity_intake"),
+  "title": zod.string().min(1).max(getOperationsRecordResponseOneTwoTitleMax),
+  "issuer": zod.string().min(1).max(getOperationsRecordResponseOneTwoIssuerMax),
+  "reference": zod.string().max(getOperationsRecordResponseOneTwoReferenceMax).nullable(),
+  "lot": zod.string().max(getOperationsRecordResponseOneTwoLotMax).nullable(),
+  "source": zod.object({
+  "type": zod.enum(['manual_url', 'forwarded_email', 'licensed_csv', 'ocds']),
+  "locator": zod.string().min(1).max(getOperationsRecordResponseOneTwoSourceLocatorMax),
+  "receivedAt": zod.coerce.date(),
+  "authorisationBasis": zod.string().max(getOperationsRecordResponseOneTwoSourceAuthorisationBasisMax).nullable(),
+  "contentSha256": zod.union([zod.string().regex(getOperationsRecordResponseOneTwoSourceContentSha256OneRegExp),zod.null()])
+}),
+  "dedupeKey": zod.string().regex(getOperationsRecordResponseOneTwoDedupeKeyRegExp),
+  "provenanceSha256": zod.string().regex(getOperationsRecordResponseOneTwoProvenanceSha256RegExp),
+  "deadline": zod.coerce.date().nullable(),
+  "deadlineStatus": zod.enum(['unconfirmed', 'human_confirmed']),
+  "deadlineConfirmedByUserId": zod.string().uuid().nullable(),
+  "deadlineConfirmedAt": zod.coerce.date().nullable(),
+  "status": zod.enum(['recorded', 'qualified', 'not_pursued'])
+})),zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("work_item"),
+  "title": zod.string().min(1).max(getOperationsRecordResponseTwoTwoTitleMax),
+  "description": zod.string().max(getOperationsRecordResponseTwoTwoDescriptionMax).nullable(),
+  "ownerUserId": zod.string().uuid().nullable(),
+  "dueAt": zod.coerce.date().nullable(),
+  "priority": zod.enum(['low', 'normal', 'high', 'critical']),
+  "status": zod.enum(['backlog', 'ready', 'in_progress', 'blocked', 'in_review', 'done', 'cancelled']),
+  "links": zod.object({
+  "requirementIds": zod.array(zod.string().min(1).max(getOperationsRecordResponseTwoTwoLinksOneRequirementIdsItemMax).regex(getOperationsRecordResponseTwoTwoLinksOneRequirementIdsItemRegExp)).max(getOperationsRecordResponseTwoTwoLinksOneRequirementIdsMax),
+  "evidenceItemIds": zod.array(zod.string().min(1).max(getOperationsRecordResponseTwoTwoLinksOneEvidenceItemIdsItemMax).regex(getOperationsRecordResponseTwoTwoLinksOneEvidenceItemIdsItemRegExp)).max(getOperationsRecordResponseTwoTwoLinksOneEvidenceItemIdsMax),
+  "packageIds": zod.array(zod.string().min(1).max(getOperationsRecordResponseTwoTwoLinksOnePackageIdsItemMax).regex(getOperationsRecordResponseTwoTwoLinksOnePackageIdsItemRegExp)).max(getOperationsRecordResponseTwoTwoLinksOnePackageIdsMax)
+}).and(zod.object({
+
+}).passthrough()),
+  "dependsOnIds": zod.array(zod.string().uuid()).max(getOperationsRecordResponseTwoTwoDependsOnIdsMax),
+  "comments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "body": zod.string().min(1).max(getOperationsRecordResponseTwoTwoCommentsItemBodyMax),
+  "authorUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date()
+})).max(getOperationsRecordResponseTwoTwoCommentsMax),
+  "approval": zod.object({
+  "status": zod.enum(['not_required', 'pending', 'approved', 'rejected']),
+  "decidedByUserId": zod.string().uuid().nullable(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "reason": zod.string().max(getOperationsRecordResponseTwoTwoApprovalReasonMax).nullable()
+}),
+  "statusReasonHistory": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromStatus": zod.string().min(1).max(getOperationsRecordResponseTwoTwoStatusReasonHistoryItemFromStatusMax),
+  "toStatus": zod.string().min(1).max(getOperationsRecordResponseTwoTwoStatusReasonHistoryItemToStatusMax),
+  "reason": zod.string().min(1).max(getOperationsRecordResponseTwoTwoStatusReasonHistoryItemReasonMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(getOperationsRecordResponseTwoTwoStatusReasonHistoryMax)
+})),zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("evidence_request"),
+  "recipientLabel": zod.string().min(1).max(getOperationsRecordResponseThreeTwoRecipientLabelMax),
+  "dueAt": zod.coerce.date().nullable(),
+  "requestMessage": zod.string().min(1).max(getOperationsRecordResponseThreeTwoRequestMessageMax),
+  "deliveryMode": zod.literal("manual_out_of_band"),
+  "status": zod.enum(['draft', 'shared_manually', 'response_recorded', 'accepted', 'closed']),
+  "sharedByUserId": zod.string().uuid().nullable(),
+  "sharedAt": zod.coerce.date().nullable(),
+  "slots": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(getOperationsRecordResponseThreeTwoSlotsItemLabelMax),
+  "required": zod.boolean(),
+  "acceptedContentTypes": zod.array(zod.string().min(1).max(getOperationsRecordResponseThreeTwoSlotsItemAcceptedContentTypesItemMax)).max(getOperationsRecordResponseThreeTwoSlotsItemAcceptedContentTypesMax),
+  "response": zod.union([zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(getOperationsRecordResponseThreeTwoSlotsItemResponseOneSha256RegExp),
+  "attestation": zod.string().min(1).max(getOperationsRecordResponseThreeTwoSlotsItemResponseOneAttestationMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+}),zod.null()]),
+  "acceptance": zod.union([zod.object({
+  "decision": zod.enum(['accepted', 'rejected']),
+  "reason": zod.string().min(1).max(getOperationsRecordResponseThreeTwoSlotsItemAcceptanceOneReasonMax),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.coerce.date()
+}),zod.null()]),
+  "responseHistory": zod.array(zod.object({
+  "response": zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(getOperationsRecordResponseThreeTwoSlotsItemResponseHistoryItemResponseSha256RegExp),
+  "attestation": zod.string().min(1).max(getOperationsRecordResponseThreeTwoSlotsItemResponseHistoryItemResponseAttestationMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+}),
+  "acceptance": zod.object({
+  "decision": zod.enum(['accepted', 'rejected']),
+  "reason": zod.string().min(1).max(getOperationsRecordResponseThreeTwoSlotsItemResponseHistoryItemAcceptanceReasonMax),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.coerce.date()
+})
+})).max(getOperationsRecordResponseThreeTwoSlotsItemResponseHistoryMax).describe('Immutable prior rejected response-decision pairs, oldest first.')
+})).min(1).max(getOperationsRecordResponseThreeTwoSlotsMax),
+  "receiptSha256": zod.union([zod.string().regex(getOperationsRecordResponseThreeTwoReceiptSha256OneRegExp),zod.null()])
+})),zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("submission_war_room"),
+  "packageId": zod.string().uuid(),
+  "packageVersionId": zod.string().uuid(),
+  "manifestSha256": zod.string().regex(getOperationsRecordResponseFourTwoManifestSha256RegExp),
+  "copyCount": zod.number().min(getOperationsRecordResponseFourTwoCopyCountMin).max(getOperationsRecordResponseFourTwoCopyCountMax),
+  "sealIdentifiers": zod.array(zod.string().min(1).max(getOperationsRecordResponseFourTwoSealIdentifiersItemMax)).max(getOperationsRecordResponseFourTwoSealIdentifiersMax),
+  "status": zod.enum(['planning', 'frozen', 'copies_prepared', 'sealed', 'dispatched', 'receipt_recorded', 'cancelled']),
+  "externalActionPolicy": zod.literal("record_only"),
+  "frozenByUserId": zod.string().uuid().nullable(),
+  "frozenAt": zod.coerce.date().nullable(),
+  "dispatchedByUserId": zod.string().uuid().nullable(),
+  "dispatchedAt": zod.coerce.date().nullable(),
+  "dispatchMethod": zod.string().max(getOperationsRecordResponseFourTwoDispatchMethodMax).nullable(),
+  "receiptSha256": zod.union([zod.string().regex(getOperationsRecordResponseFourTwoReceiptSha256OneRegExp),zod.null()]),
+  "receiptRecordedByUserId": zod.string().uuid().nullable(),
+  "receiptRecordedAt": zod.coerce.date().nullable(),
+  "statusReasonHistory": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromStatus": zod.string().min(1).max(getOperationsRecordResponseFourTwoStatusReasonHistoryItemFromStatusMax),
+  "toStatus": zod.string().min(1).max(getOperationsRecordResponseFourTwoStatusReasonHistoryItemToStatusMax),
+  "reason": zod.string().min(1).max(getOperationsRecordResponseFourTwoStatusReasonHistoryItemReasonMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(getOperationsRecordResponseFourTwoStatusReasonHistoryMax)
+})),zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("visual_qa_report"),
+  "packageVersionId": zod.string().uuid(),
+  "manifestSha256": zod.string().regex(getOperationsRecordResponseFiveTwoManifestSha256RegExp),
+  "expectedManifestSha256": zod.string().regex(getOperationsRecordResponseFiveTwoExpectedManifestSha256RegExp),
+  "result": zod.object({
+  "algorithmVersion": zod.literal("visual-qa-v1"),
+  "status": zod.enum(['pass', 'review', 'fail']),
+  "inputSha256": zod.string().regex(getOperationsRecordResponseFiveTwoResultInputSha256RegExp),
+  "findings": zod.array(zod.object({
+  "code": zod.enum(['manifest_mismatch', 'unexpected_blank_page', 'clipped_content', 'broken_cross_reference', 'missing_signature']),
+  "severity": zod.enum(['blocker', 'warning']),
+  "message": zod.string().min(1).max(getOperationsRecordResponseFiveTwoResultFindingsItemMessageMax),
+  "pageNumber": zod.number().min(1).nullable()
+})).max(getOperationsRecordResponseFiveTwoResultFindingsMax)
+})
+})),zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("credential_verification"),
+  "vaultItemId": zod.string().uuid(),
+  "vaultItemVersion": zod.number().min(1),
+  "documentSha256": zod.string().regex(getOperationsRecordResponseSixTwoDocumentSha256RegExp),
+  "authorityName": zod.string().min(1).max(getOperationsRecordResponseSixTwoAuthorityNameMax),
+  "officialSourceLocator": zod.string().min(1).max(getOperationsRecordResponseSixTwoOfficialSourceLocatorMax),
+  "checkedAt": zod.coerce.date(),
+  "checkedByUserId": zod.string().uuid(),
+  "outcome": zod.enum(['verified', 'not_verified', 'inconclusive']),
+  "receiptSha256": zod.string().regex(getOperationsRecordResponseSixTwoReceiptSha256RegExp),
+  "notes": zod.string().max(getOperationsRecordResponseSixTwoNotesMax).nullable(),
+  "verificationMode": zod.literal("human_recorded")
+})),zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("mission"),
+  "missionType": zod.enum(['pre_bid', 'site_visit']),
+  "title": zod.string().min(1).max(getOperationsRecordResponseSevenTwoTitleMax),
+  "location": zod.string().min(1).max(getOperationsRecordResponseSevenTwoLocationMax),
+  "startsAt": zod.coerce.date(),
+  "attendanceRequired": zod.boolean(),
+  "delegateUserId": zod.string().uuid().nullable(),
+  "delegateAuthorityNote": zod.string().max(getOperationsRecordResponseSevenTwoDelegateAuthorityNoteMax).nullable(),
+  "checklist": zod.array(zod.object({
+  "label": zod.string().min(1).max(getOperationsRecordResponseSevenTwoChecklistItemOneLabelMax),
+  "required": zod.boolean()
+}).and(zod.object({
+  "id": zod.string().uuid(),
+  "completedByUserId": zod.string().uuid().nullable(),
+  "completedAt": zod.coerce.date().nullable()
+}))).max(getOperationsRecordResponseSevenTwoChecklistMax),
+  "proofs": zod.array(zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(getOperationsRecordResponseSevenTwoProofsItemSha256RegExp),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(getOperationsRecordResponseSevenTwoProofsMax),
+  "followUpWorkItemIds": zod.array(zod.string().uuid()).max(getOperationsRecordResponseSevenTwoFollowUpWorkItemIdsMax),
+  "status": zod.enum(['planned', 'attended', 'missed', 'completed', 'cancelled']),
+  "statusReasonHistory": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromStatus": zod.string().min(1).max(getOperationsRecordResponseSevenTwoStatusReasonHistoryItemFromStatusMax),
+  "toStatus": zod.string().min(1).max(getOperationsRecordResponseSevenTwoStatusReasonHistoryItemToStatusMax),
+  "reason": zod.string().min(1).max(getOperationsRecordResponseSevenTwoStatusReasonHistoryItemReasonMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(getOperationsRecordResponseSevenTwoStatusReasonHistoryMax)
+})),zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("post_award_item"),
+  "category": zod.enum(['obligation', 'deliverable', 'variation', 'payment_milestone', 'notice', 'completion_record']),
+  "title": zod.string().min(1).max(getOperationsRecordResponseEightTwoTitleMax),
+  "description": zod.string().max(getOperationsRecordResponseEightTwoDescriptionMax).nullable(),
+  "dueAt": zod.coerce.date().nullable(),
+  "ownerUserId": zod.string().uuid().nullable(),
+  "sourceDocumentId": zod.string().uuid().nullable(),
+  "evidenceDocumentIds": zod.array(zod.string().uuid()).max(getOperationsRecordResponseEightTwoEvidenceDocumentIdsMax),
+  "valueMinorUnits": zod.number().min(getOperationsRecordResponseEightTwoValueMinorUnitsMin).nullable(),
+  "currency": zod.string().regex(getOperationsRecordResponseEightTwoCurrencyRegExp).nullable(),
+  "status": zod.enum(['open', 'in_progress', 'satisfied', 'disputed', 'cancelled']),
+  "completionReceiptSha256": zod.union([zod.string().regex(getOperationsRecordResponseEightTwoCompletionReceiptSha256OneRegExp),zod.null()]),
+  "completedByUserId": zod.string().uuid().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "statusReasonHistory": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromStatus": zod.string().min(1).max(getOperationsRecordResponseEightTwoStatusReasonHistoryItemFromStatusMax),
+  "toStatus": zod.string().min(1).max(getOperationsRecordResponseEightTwoStatusReasonHistoryItemToStatusMax),
+  "reason": zod.string().min(1).max(getOperationsRecordResponseEightTwoStatusReasonHistoryItemReasonMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(getOperationsRecordResponseEightTwoStatusReasonHistoryMax)
+}))])
+
+
+/**
+ * Records bounded provenance only. The service does not retrieve the URL, email, CSV or OCDS release and treats every deadline as unconfirmed until a named human confirms it.
+ * @summary Record an authorised opportunity source
+ */
+export const CreateOperationsOpportunityIntakeParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const createOperationsOpportunityIntakeBodyTitleMax = 4096;
+
+export const createOperationsOpportunityIntakeBodyIssuerMax = 4096;
+
+export const createOperationsOpportunityIntakeBodyReferenceMax = 256;
+
+export const createOperationsOpportunityIntakeBodyLotMax = 256;
+
+export const createOperationsOpportunityIntakeBodySourceLocatorMax = 2048;
+
+export const createOperationsOpportunityIntakeBodySourceAuthorisationBasisMax = 1024;
+
+export const createOperationsOpportunityIntakeBodySourceContentSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const CreateOperationsOpportunityIntakeBody = zod.object({
+  "title": zod.string().min(1).max(createOperationsOpportunityIntakeBodyTitleMax),
+  "issuer": zod.string().min(1).max(createOperationsOpportunityIntakeBodyIssuerMax),
+  "reference": zod.string().min(1).max(createOperationsOpportunityIntakeBodyReferenceMax).nullish(),
+  "lot": zod.string().min(1).max(createOperationsOpportunityIntakeBodyLotMax).nullish(),
+  "deadline": zod.coerce.date().nullish(),
+  "source": zod.object({
+  "type": zod.enum(['manual_url', 'forwarded_email', 'licensed_csv', 'ocds']),
+  "locator": zod.string().min(1).max(createOperationsOpportunityIntakeBodySourceLocatorMax),
+  "receivedAt": zod.coerce.date(),
+  "authorisationBasis": zod.string().min(1).max(createOperationsOpportunityIntakeBodySourceAuthorisationBasisMax).nullish(),
+  "contentSha256": zod.union([zod.string().regex(createOperationsOpportunityIntakeBodySourceContentSha256OneRegExp),zod.null()]).optional()
+})
+})
+
+
+export const createOperationsOpportunityIntakeResponseTwoTitleMax = 4096;
+
+export const createOperationsOpportunityIntakeResponseTwoIssuerMax = 4096;
+
+export const createOperationsOpportunityIntakeResponseTwoReferenceMax = 256;
+
+export const createOperationsOpportunityIntakeResponseTwoLotMax = 256;
+
+export const createOperationsOpportunityIntakeResponseTwoSourceLocatorMax = 2048;
+
+export const createOperationsOpportunityIntakeResponseTwoSourceAuthorisationBasisMax = 1024;
+
+export const createOperationsOpportunityIntakeResponseTwoSourceContentSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+export const createOperationsOpportunityIntakeResponseTwoDedupeKeyRegExp = new RegExp('^[a-f0-9]{64}$');
+export const createOperationsOpportunityIntakeResponseTwoProvenanceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const CreateOperationsOpportunityIntakeResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("opportunity_intake"),
+  "title": zod.string().min(1).max(createOperationsOpportunityIntakeResponseTwoTitleMax),
+  "issuer": zod.string().min(1).max(createOperationsOpportunityIntakeResponseTwoIssuerMax),
+  "reference": zod.string().max(createOperationsOpportunityIntakeResponseTwoReferenceMax).nullable(),
+  "lot": zod.string().max(createOperationsOpportunityIntakeResponseTwoLotMax).nullable(),
+  "source": zod.object({
+  "type": zod.enum(['manual_url', 'forwarded_email', 'licensed_csv', 'ocds']),
+  "locator": zod.string().min(1).max(createOperationsOpportunityIntakeResponseTwoSourceLocatorMax),
+  "receivedAt": zod.coerce.date(),
+  "authorisationBasis": zod.string().max(createOperationsOpportunityIntakeResponseTwoSourceAuthorisationBasisMax).nullable(),
+  "contentSha256": zod.union([zod.string().regex(createOperationsOpportunityIntakeResponseTwoSourceContentSha256OneRegExp),zod.null()])
+}),
+  "dedupeKey": zod.string().regex(createOperationsOpportunityIntakeResponseTwoDedupeKeyRegExp),
+  "provenanceSha256": zod.string().regex(createOperationsOpportunityIntakeResponseTwoProvenanceSha256RegExp),
+  "deadline": zod.coerce.date().nullable(),
+  "deadlineStatus": zod.enum(['unconfirmed', 'human_confirmed']),
+  "deadlineConfirmedByUserId": zod.string().uuid().nullable(),
+  "deadlineConfirmedAt": zod.coerce.date().nullable(),
+  "status": zod.enum(['recorded', 'qualified', 'not_pursued'])
+}))
+
+
+/**
+ * @summary Record a named human deadline confirmation
+ */
+export const ConfirmOperationsOpportunityDeadlineParams = zod.object({
+  "id": zod.coerce.string().uuid(),
+  "recordId": zod.coerce.string().uuid().describe('Operations record UUID within the active tenant and project.')
+})
+
+
+
+
+export const ConfirmOperationsOpportunityDeadlineBody = zod.object({
+  "expectedVersion": zod.number().min(1),
+  "deadline": zod.coerce.date()
+})
+
+
+export const confirmOperationsOpportunityDeadlineResponseTwoTitleMax = 4096;
+
+export const confirmOperationsOpportunityDeadlineResponseTwoIssuerMax = 4096;
+
+export const confirmOperationsOpportunityDeadlineResponseTwoReferenceMax = 256;
+
+export const confirmOperationsOpportunityDeadlineResponseTwoLotMax = 256;
+
+export const confirmOperationsOpportunityDeadlineResponseTwoSourceLocatorMax = 2048;
+
+export const confirmOperationsOpportunityDeadlineResponseTwoSourceAuthorisationBasisMax = 1024;
+
+export const confirmOperationsOpportunityDeadlineResponseTwoSourceContentSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+export const confirmOperationsOpportunityDeadlineResponseTwoDedupeKeyRegExp = new RegExp('^[a-f0-9]{64}$');
+export const confirmOperationsOpportunityDeadlineResponseTwoProvenanceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const ConfirmOperationsOpportunityDeadlineResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("opportunity_intake"),
+  "title": zod.string().min(1).max(confirmOperationsOpportunityDeadlineResponseTwoTitleMax),
+  "issuer": zod.string().min(1).max(confirmOperationsOpportunityDeadlineResponseTwoIssuerMax),
+  "reference": zod.string().max(confirmOperationsOpportunityDeadlineResponseTwoReferenceMax).nullable(),
+  "lot": zod.string().max(confirmOperationsOpportunityDeadlineResponseTwoLotMax).nullable(),
+  "source": zod.object({
+  "type": zod.enum(['manual_url', 'forwarded_email', 'licensed_csv', 'ocds']),
+  "locator": zod.string().min(1).max(confirmOperationsOpportunityDeadlineResponseTwoSourceLocatorMax),
+  "receivedAt": zod.coerce.date(),
+  "authorisationBasis": zod.string().max(confirmOperationsOpportunityDeadlineResponseTwoSourceAuthorisationBasisMax).nullable(),
+  "contentSha256": zod.union([zod.string().regex(confirmOperationsOpportunityDeadlineResponseTwoSourceContentSha256OneRegExp),zod.null()])
+}),
+  "dedupeKey": zod.string().regex(confirmOperationsOpportunityDeadlineResponseTwoDedupeKeyRegExp),
+  "provenanceSha256": zod.string().regex(confirmOperationsOpportunityDeadlineResponseTwoProvenanceSha256RegExp),
+  "deadline": zod.coerce.date().nullable(),
+  "deadlineStatus": zod.enum(['unconfirmed', 'human_confirmed']),
+  "deadlineConfirmedByUserId": zod.string().uuid().nullable(),
+  "deadlineConfirmedAt": zod.coerce.date().nullable(),
+  "status": zod.enum(['recorded', 'qualified', 'not_pursued'])
+}))
+
+
+/**
+ * @summary Create one bounded pursuit work item
+ */
+export const CreateOperationsWorkItemParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const createOperationsWorkItemBodyTitleMax = 4096;
+
+export const createOperationsWorkItemBodyDescriptionMax = 4096;
+
+export const createOperationsWorkItemBodyLinksRequirementIdsItemMax = 128;
+
+
+export const createOperationsWorkItemBodyLinksRequirementIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const createOperationsWorkItemBodyLinksRequirementIdsMax = 100;
+
+export const createOperationsWorkItemBodyLinksEvidenceItemIdsItemMax = 128;
+
+
+export const createOperationsWorkItemBodyLinksEvidenceItemIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const createOperationsWorkItemBodyLinksEvidenceItemIdsMax = 100;
+
+export const createOperationsWorkItemBodyLinksPackageIdsItemMax = 128;
+
+
+export const createOperationsWorkItemBodyLinksPackageIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const createOperationsWorkItemBodyLinksPackageIdsMax = 100;
+
+export const createOperationsWorkItemBodyDependsOnIdsMax = 50;
+
+
+
+export const CreateOperationsWorkItemBody = zod.object({
+  "title": zod.string().min(1).max(createOperationsWorkItemBodyTitleMax),
+  "description": zod.string().min(1).max(createOperationsWorkItemBodyDescriptionMax).nullish(),
+  "ownerUserId": zod.string().uuid().nullish(),
+  "dueAt": zod.coerce.date().nullish(),
+  "priority": zod.enum(['low', 'normal', 'high', 'critical']).optional(),
+  "links": zod.object({
+  "requirementIds": zod.array(zod.string().min(1).max(createOperationsWorkItemBodyLinksRequirementIdsItemMax).regex(createOperationsWorkItemBodyLinksRequirementIdsItemRegExp)).max(createOperationsWorkItemBodyLinksRequirementIdsMax).optional(),
+  "evidenceItemIds": zod.array(zod.string().min(1).max(createOperationsWorkItemBodyLinksEvidenceItemIdsItemMax).regex(createOperationsWorkItemBodyLinksEvidenceItemIdsItemRegExp)).max(createOperationsWorkItemBodyLinksEvidenceItemIdsMax).optional(),
+  "packageIds": zod.array(zod.string().min(1).max(createOperationsWorkItemBodyLinksPackageIdsItemMax).regex(createOperationsWorkItemBodyLinksPackageIdsItemRegExp)).max(createOperationsWorkItemBodyLinksPackageIdsMax).optional()
+}).optional(),
+  "dependsOnIds": zod.array(zod.string().uuid()).max(createOperationsWorkItemBodyDependsOnIdsMax).optional(),
+  "approvalRequired": zod.boolean().optional()
+})
+
+
+export const createOperationsWorkItemResponseTwoTitleMax = 4096;
+
+export const createOperationsWorkItemResponseTwoDescriptionMax = 4096;
+
+export const createOperationsWorkItemResponseTwoLinksOneRequirementIdsItemMax = 128;
+
+
+export const createOperationsWorkItemResponseTwoLinksOneRequirementIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const createOperationsWorkItemResponseTwoLinksOneRequirementIdsMax = 100;
+
+export const createOperationsWorkItemResponseTwoLinksOneEvidenceItemIdsItemMax = 128;
+
+
+export const createOperationsWorkItemResponseTwoLinksOneEvidenceItemIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const createOperationsWorkItemResponseTwoLinksOneEvidenceItemIdsMax = 100;
+
+export const createOperationsWorkItemResponseTwoLinksOnePackageIdsItemMax = 128;
+
+
+export const createOperationsWorkItemResponseTwoLinksOnePackageIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const createOperationsWorkItemResponseTwoLinksOnePackageIdsMax = 100;
+
+export const createOperationsWorkItemResponseTwoDependsOnIdsMax = 50;
+
+export const createOperationsWorkItemResponseTwoCommentsItemBodyMax = 2048;
+
+export const createOperationsWorkItemResponseTwoCommentsMax = 100;
+
+export const createOperationsWorkItemResponseTwoApprovalReasonMax = 1024;
+
+export const createOperationsWorkItemResponseTwoStatusReasonHistoryItemFromStatusMax = 256;
+
+export const createOperationsWorkItemResponseTwoStatusReasonHistoryItemToStatusMax = 256;
+
+export const createOperationsWorkItemResponseTwoStatusReasonHistoryItemReasonMax = 1024;
+
+export const createOperationsWorkItemResponseTwoStatusReasonHistoryMax = 100;
+
+
+
+export const CreateOperationsWorkItemResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("work_item"),
+  "title": zod.string().min(1).max(createOperationsWorkItemResponseTwoTitleMax),
+  "description": zod.string().max(createOperationsWorkItemResponseTwoDescriptionMax).nullable(),
+  "ownerUserId": zod.string().uuid().nullable(),
+  "dueAt": zod.coerce.date().nullable(),
+  "priority": zod.enum(['low', 'normal', 'high', 'critical']),
+  "status": zod.enum(['backlog', 'ready', 'in_progress', 'blocked', 'in_review', 'done', 'cancelled']),
+  "links": zod.object({
+  "requirementIds": zod.array(zod.string().min(1).max(createOperationsWorkItemResponseTwoLinksOneRequirementIdsItemMax).regex(createOperationsWorkItemResponseTwoLinksOneRequirementIdsItemRegExp)).max(createOperationsWorkItemResponseTwoLinksOneRequirementIdsMax),
+  "evidenceItemIds": zod.array(zod.string().min(1).max(createOperationsWorkItemResponseTwoLinksOneEvidenceItemIdsItemMax).regex(createOperationsWorkItemResponseTwoLinksOneEvidenceItemIdsItemRegExp)).max(createOperationsWorkItemResponseTwoLinksOneEvidenceItemIdsMax),
+  "packageIds": zod.array(zod.string().min(1).max(createOperationsWorkItemResponseTwoLinksOnePackageIdsItemMax).regex(createOperationsWorkItemResponseTwoLinksOnePackageIdsItemRegExp)).max(createOperationsWorkItemResponseTwoLinksOnePackageIdsMax)
+}).and(zod.object({
+
+}).passthrough()),
+  "dependsOnIds": zod.array(zod.string().uuid()).max(createOperationsWorkItemResponseTwoDependsOnIdsMax),
+  "comments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "body": zod.string().min(1).max(createOperationsWorkItemResponseTwoCommentsItemBodyMax),
+  "authorUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date()
+})).max(createOperationsWorkItemResponseTwoCommentsMax),
+  "approval": zod.object({
+  "status": zod.enum(['not_required', 'pending', 'approved', 'rejected']),
+  "decidedByUserId": zod.string().uuid().nullable(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "reason": zod.string().max(createOperationsWorkItemResponseTwoApprovalReasonMax).nullable()
+}),
+  "statusReasonHistory": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromStatus": zod.string().min(1).max(createOperationsWorkItemResponseTwoStatusReasonHistoryItemFromStatusMax),
+  "toStatus": zod.string().min(1).max(createOperationsWorkItemResponseTwoStatusReasonHistoryItemToStatusMax),
+  "reason": zod.string().min(1).max(createOperationsWorkItemResponseTwoStatusReasonHistoryItemReasonMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(createOperationsWorkItemResponseTwoStatusReasonHistoryMax)
+}))
+
+
+/**
+ * @summary Update work with optimistic concurrency and dependency gates
+ */
+export const UpdateOperationsWorkItemParams = zod.object({
+  "id": zod.coerce.string().uuid(),
+  "recordId": zod.coerce.string().uuid().describe('Operations record UUID within the active tenant and project.')
+})
+
+
+export const updateOperationsWorkItemBodyTwoTitleMax = 4096;
+
+export const updateOperationsWorkItemBodyTwoDescriptionMax = 4096;
+
+export const updateOperationsWorkItemBodyTwoLinksRequirementIdsItemMax = 128;
+
+
+export const updateOperationsWorkItemBodyTwoLinksRequirementIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const updateOperationsWorkItemBodyTwoLinksRequirementIdsMax = 100;
+
+export const updateOperationsWorkItemBodyTwoLinksEvidenceItemIdsItemMax = 128;
+
+
+export const updateOperationsWorkItemBodyTwoLinksEvidenceItemIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const updateOperationsWorkItemBodyTwoLinksEvidenceItemIdsMax = 100;
+
+export const updateOperationsWorkItemBodyTwoLinksPackageIdsItemMax = 128;
+
+
+export const updateOperationsWorkItemBodyTwoLinksPackageIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const updateOperationsWorkItemBodyTwoLinksPackageIdsMax = 100;
+
+export const updateOperationsWorkItemBodyTwoDependsOnIdsMax = 50;
+
+export const updateOperationsWorkItemBodyTwoReasonMax = 1024;
+
+
+
+export const UpdateOperationsWorkItemBody = zod.unknown().and(zod.object({
+  "expectedVersion": zod.number().min(1),
+  "title": zod.string().min(1).max(updateOperationsWorkItemBodyTwoTitleMax).optional(),
+  "description": zod.string().min(1).max(updateOperationsWorkItemBodyTwoDescriptionMax).nullish(),
+  "ownerUserId": zod.string().uuid().nullish(),
+  "dueAt": zod.coerce.date().nullish(),
+  "priority": zod.enum(['low', 'normal', 'high', 'critical']).optional(),
+  "status": zod.enum(['backlog', 'ready', 'in_progress', 'blocked', 'in_review', 'done', 'cancelled']).optional(),
+  "links": zod.object({
+  "requirementIds": zod.array(zod.string().min(1).max(updateOperationsWorkItemBodyTwoLinksRequirementIdsItemMax).regex(updateOperationsWorkItemBodyTwoLinksRequirementIdsItemRegExp)).max(updateOperationsWorkItemBodyTwoLinksRequirementIdsMax).optional(),
+  "evidenceItemIds": zod.array(zod.string().min(1).max(updateOperationsWorkItemBodyTwoLinksEvidenceItemIdsItemMax).regex(updateOperationsWorkItemBodyTwoLinksEvidenceItemIdsItemRegExp)).max(updateOperationsWorkItemBodyTwoLinksEvidenceItemIdsMax).optional(),
+  "packageIds": zod.array(zod.string().min(1).max(updateOperationsWorkItemBodyTwoLinksPackageIdsItemMax).regex(updateOperationsWorkItemBodyTwoLinksPackageIdsItemRegExp)).max(updateOperationsWorkItemBodyTwoLinksPackageIdsMax).optional()
+}).optional(),
+  "dependsOnIds": zod.array(zod.string().uuid()).max(updateOperationsWorkItemBodyTwoDependsOnIdsMax).optional(),
+  "reason": zod.string().min(1).max(updateOperationsWorkItemBodyTwoReasonMax).optional()
+})).superRefine((value, context) => {
+  if (value.status === "cancelled" && !value.reason) {
+    context.addIssue({
+      code: zod.ZodIssueCode.custom,
+      path: ["reason"],
+      message: "reason is required when status is cancelled",
+    });
+  }
+})
+
+
+export const updateOperationsWorkItemResponseTwoTitleMax = 4096;
+
+export const updateOperationsWorkItemResponseTwoDescriptionMax = 4096;
+
+export const updateOperationsWorkItemResponseTwoLinksOneRequirementIdsItemMax = 128;
+
+
+export const updateOperationsWorkItemResponseTwoLinksOneRequirementIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const updateOperationsWorkItemResponseTwoLinksOneRequirementIdsMax = 100;
+
+export const updateOperationsWorkItemResponseTwoLinksOneEvidenceItemIdsItemMax = 128;
+
+
+export const updateOperationsWorkItemResponseTwoLinksOneEvidenceItemIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const updateOperationsWorkItemResponseTwoLinksOneEvidenceItemIdsMax = 100;
+
+export const updateOperationsWorkItemResponseTwoLinksOnePackageIdsItemMax = 128;
+
+
+export const updateOperationsWorkItemResponseTwoLinksOnePackageIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const updateOperationsWorkItemResponseTwoLinksOnePackageIdsMax = 100;
+
+export const updateOperationsWorkItemResponseTwoDependsOnIdsMax = 50;
+
+export const updateOperationsWorkItemResponseTwoCommentsItemBodyMax = 2048;
+
+export const updateOperationsWorkItemResponseTwoCommentsMax = 100;
+
+export const updateOperationsWorkItemResponseTwoApprovalReasonMax = 1024;
+
+export const updateOperationsWorkItemResponseTwoStatusReasonHistoryItemFromStatusMax = 256;
+
+export const updateOperationsWorkItemResponseTwoStatusReasonHistoryItemToStatusMax = 256;
+
+export const updateOperationsWorkItemResponseTwoStatusReasonHistoryItemReasonMax = 1024;
+
+export const updateOperationsWorkItemResponseTwoStatusReasonHistoryMax = 100;
+
+
+
+export const UpdateOperationsWorkItemResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("work_item"),
+  "title": zod.string().min(1).max(updateOperationsWorkItemResponseTwoTitleMax),
+  "description": zod.string().max(updateOperationsWorkItemResponseTwoDescriptionMax).nullable(),
+  "ownerUserId": zod.string().uuid().nullable(),
+  "dueAt": zod.coerce.date().nullable(),
+  "priority": zod.enum(['low', 'normal', 'high', 'critical']),
+  "status": zod.enum(['backlog', 'ready', 'in_progress', 'blocked', 'in_review', 'done', 'cancelled']),
+  "links": zod.object({
+  "requirementIds": zod.array(zod.string().min(1).max(updateOperationsWorkItemResponseTwoLinksOneRequirementIdsItemMax).regex(updateOperationsWorkItemResponseTwoLinksOneRequirementIdsItemRegExp)).max(updateOperationsWorkItemResponseTwoLinksOneRequirementIdsMax),
+  "evidenceItemIds": zod.array(zod.string().min(1).max(updateOperationsWorkItemResponseTwoLinksOneEvidenceItemIdsItemMax).regex(updateOperationsWorkItemResponseTwoLinksOneEvidenceItemIdsItemRegExp)).max(updateOperationsWorkItemResponseTwoLinksOneEvidenceItemIdsMax),
+  "packageIds": zod.array(zod.string().min(1).max(updateOperationsWorkItemResponseTwoLinksOnePackageIdsItemMax).regex(updateOperationsWorkItemResponseTwoLinksOnePackageIdsItemRegExp)).max(updateOperationsWorkItemResponseTwoLinksOnePackageIdsMax)
+}).and(zod.object({
+
+}).passthrough()),
+  "dependsOnIds": zod.array(zod.string().uuid()).max(updateOperationsWorkItemResponseTwoDependsOnIdsMax),
+  "comments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "body": zod.string().min(1).max(updateOperationsWorkItemResponseTwoCommentsItemBodyMax),
+  "authorUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date()
+})).max(updateOperationsWorkItemResponseTwoCommentsMax),
+  "approval": zod.object({
+  "status": zod.enum(['not_required', 'pending', 'approved', 'rejected']),
+  "decidedByUserId": zod.string().uuid().nullable(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "reason": zod.string().max(updateOperationsWorkItemResponseTwoApprovalReasonMax).nullable()
+}),
+  "statusReasonHistory": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromStatus": zod.string().min(1).max(updateOperationsWorkItemResponseTwoStatusReasonHistoryItemFromStatusMax),
+  "toStatus": zod.string().min(1).max(updateOperationsWorkItemResponseTwoStatusReasonHistoryItemToStatusMax),
+  "reason": zod.string().min(1).max(updateOperationsWorkItemResponseTwoStatusReasonHistoryItemReasonMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(updateOperationsWorkItemResponseTwoStatusReasonHistoryMax)
+}))
+
+
+/**
+ * @summary Add an actor-stamped work comment
+ */
+export const AddOperationsWorkItemCommentParams = zod.object({
+  "id": zod.coerce.string().uuid(),
+  "recordId": zod.coerce.string().uuid().describe('Operations record UUID within the active tenant and project.')
+})
+
+
+export const addOperationsWorkItemCommentBodyBodyMax = 2048;
+
+
+
+export const AddOperationsWorkItemCommentBody = zod.object({
+  "expectedVersion": zod.number().min(1),
+  "body": zod.string().min(1).max(addOperationsWorkItemCommentBodyBodyMax)
+})
+
+
+export const addOperationsWorkItemCommentResponseTwoTitleMax = 4096;
+
+export const addOperationsWorkItemCommentResponseTwoDescriptionMax = 4096;
+
+export const addOperationsWorkItemCommentResponseTwoLinksOneRequirementIdsItemMax = 128;
+
+
+export const addOperationsWorkItemCommentResponseTwoLinksOneRequirementIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const addOperationsWorkItemCommentResponseTwoLinksOneRequirementIdsMax = 100;
+
+export const addOperationsWorkItemCommentResponseTwoLinksOneEvidenceItemIdsItemMax = 128;
+
+
+export const addOperationsWorkItemCommentResponseTwoLinksOneEvidenceItemIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const addOperationsWorkItemCommentResponseTwoLinksOneEvidenceItemIdsMax = 100;
+
+export const addOperationsWorkItemCommentResponseTwoLinksOnePackageIdsItemMax = 128;
+
+
+export const addOperationsWorkItemCommentResponseTwoLinksOnePackageIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const addOperationsWorkItemCommentResponseTwoLinksOnePackageIdsMax = 100;
+
+export const addOperationsWorkItemCommentResponseTwoDependsOnIdsMax = 50;
+
+export const addOperationsWorkItemCommentResponseTwoCommentsItemBodyMax = 2048;
+
+export const addOperationsWorkItemCommentResponseTwoCommentsMax = 100;
+
+export const addOperationsWorkItemCommentResponseTwoApprovalReasonMax = 1024;
+
+export const addOperationsWorkItemCommentResponseTwoStatusReasonHistoryItemFromStatusMax = 256;
+
+export const addOperationsWorkItemCommentResponseTwoStatusReasonHistoryItemToStatusMax = 256;
+
+export const addOperationsWorkItemCommentResponseTwoStatusReasonHistoryItemReasonMax = 1024;
+
+export const addOperationsWorkItemCommentResponseTwoStatusReasonHistoryMax = 100;
+
+
+
+export const AddOperationsWorkItemCommentResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("work_item"),
+  "title": zod.string().min(1).max(addOperationsWorkItemCommentResponseTwoTitleMax),
+  "description": zod.string().max(addOperationsWorkItemCommentResponseTwoDescriptionMax).nullable(),
+  "ownerUserId": zod.string().uuid().nullable(),
+  "dueAt": zod.coerce.date().nullable(),
+  "priority": zod.enum(['low', 'normal', 'high', 'critical']),
+  "status": zod.enum(['backlog', 'ready', 'in_progress', 'blocked', 'in_review', 'done', 'cancelled']),
+  "links": zod.object({
+  "requirementIds": zod.array(zod.string().min(1).max(addOperationsWorkItemCommentResponseTwoLinksOneRequirementIdsItemMax).regex(addOperationsWorkItemCommentResponseTwoLinksOneRequirementIdsItemRegExp)).max(addOperationsWorkItemCommentResponseTwoLinksOneRequirementIdsMax),
+  "evidenceItemIds": zod.array(zod.string().min(1).max(addOperationsWorkItemCommentResponseTwoLinksOneEvidenceItemIdsItemMax).regex(addOperationsWorkItemCommentResponseTwoLinksOneEvidenceItemIdsItemRegExp)).max(addOperationsWorkItemCommentResponseTwoLinksOneEvidenceItemIdsMax),
+  "packageIds": zod.array(zod.string().min(1).max(addOperationsWorkItemCommentResponseTwoLinksOnePackageIdsItemMax).regex(addOperationsWorkItemCommentResponseTwoLinksOnePackageIdsItemRegExp)).max(addOperationsWorkItemCommentResponseTwoLinksOnePackageIdsMax)
+}).and(zod.object({
+
+}).passthrough()),
+  "dependsOnIds": zod.array(zod.string().uuid()).max(addOperationsWorkItemCommentResponseTwoDependsOnIdsMax),
+  "comments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "body": zod.string().min(1).max(addOperationsWorkItemCommentResponseTwoCommentsItemBodyMax),
+  "authorUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date()
+})).max(addOperationsWorkItemCommentResponseTwoCommentsMax),
+  "approval": zod.object({
+  "status": zod.enum(['not_required', 'pending', 'approved', 'rejected']),
+  "decidedByUserId": zod.string().uuid().nullable(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "reason": zod.string().max(addOperationsWorkItemCommentResponseTwoApprovalReasonMax).nullable()
+}),
+  "statusReasonHistory": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromStatus": zod.string().min(1).max(addOperationsWorkItemCommentResponseTwoStatusReasonHistoryItemFromStatusMax),
+  "toStatus": zod.string().min(1).max(addOperationsWorkItemCommentResponseTwoStatusReasonHistoryItemToStatusMax),
+  "reason": zod.string().min(1).max(addOperationsWorkItemCommentResponseTwoStatusReasonHistoryItemReasonMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(addOperationsWorkItemCommentResponseTwoStatusReasonHistoryMax)
+}))
+
+
+/**
+ * @summary Record a named work approval decision
+ */
+export const DecideOperationsWorkItemApprovalParams = zod.object({
+  "id": zod.coerce.string().uuid(),
+  "recordId": zod.coerce.string().uuid().describe('Operations record UUID within the active tenant and project.')
+})
+
+
+export const decideOperationsWorkItemApprovalBodyReasonMax = 1024;
+
+
+
+export const DecideOperationsWorkItemApprovalBody = zod.object({
+  "expectedVersion": zod.number().min(1),
+  "decision": zod.enum(['approved', 'rejected']),
+  "reason": zod.string().min(1).max(decideOperationsWorkItemApprovalBodyReasonMax)
+})
+
+
+export const decideOperationsWorkItemApprovalResponseTwoTitleMax = 4096;
+
+export const decideOperationsWorkItemApprovalResponseTwoDescriptionMax = 4096;
+
+export const decideOperationsWorkItemApprovalResponseTwoLinksOneRequirementIdsItemMax = 128;
+
+
+export const decideOperationsWorkItemApprovalResponseTwoLinksOneRequirementIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const decideOperationsWorkItemApprovalResponseTwoLinksOneRequirementIdsMax = 100;
+
+export const decideOperationsWorkItemApprovalResponseTwoLinksOneEvidenceItemIdsItemMax = 128;
+
+
+export const decideOperationsWorkItemApprovalResponseTwoLinksOneEvidenceItemIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const decideOperationsWorkItemApprovalResponseTwoLinksOneEvidenceItemIdsMax = 100;
+
+export const decideOperationsWorkItemApprovalResponseTwoLinksOnePackageIdsItemMax = 128;
+
+
+export const decideOperationsWorkItemApprovalResponseTwoLinksOnePackageIdsItemRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const decideOperationsWorkItemApprovalResponseTwoLinksOnePackageIdsMax = 100;
+
+export const decideOperationsWorkItemApprovalResponseTwoDependsOnIdsMax = 50;
+
+export const decideOperationsWorkItemApprovalResponseTwoCommentsItemBodyMax = 2048;
+
+export const decideOperationsWorkItemApprovalResponseTwoCommentsMax = 100;
+
+export const decideOperationsWorkItemApprovalResponseTwoApprovalReasonMax = 1024;
+
+export const decideOperationsWorkItemApprovalResponseTwoStatusReasonHistoryItemFromStatusMax = 256;
+
+export const decideOperationsWorkItemApprovalResponseTwoStatusReasonHistoryItemToStatusMax = 256;
+
+export const decideOperationsWorkItemApprovalResponseTwoStatusReasonHistoryItemReasonMax = 1024;
+
+export const decideOperationsWorkItemApprovalResponseTwoStatusReasonHistoryMax = 100;
+
+
+
+export const DecideOperationsWorkItemApprovalResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("work_item"),
+  "title": zod.string().min(1).max(decideOperationsWorkItemApprovalResponseTwoTitleMax),
+  "description": zod.string().max(decideOperationsWorkItemApprovalResponseTwoDescriptionMax).nullable(),
+  "ownerUserId": zod.string().uuid().nullable(),
+  "dueAt": zod.coerce.date().nullable(),
+  "priority": zod.enum(['low', 'normal', 'high', 'critical']),
+  "status": zod.enum(['backlog', 'ready', 'in_progress', 'blocked', 'in_review', 'done', 'cancelled']),
+  "links": zod.object({
+  "requirementIds": zod.array(zod.string().min(1).max(decideOperationsWorkItemApprovalResponseTwoLinksOneRequirementIdsItemMax).regex(decideOperationsWorkItemApprovalResponseTwoLinksOneRequirementIdsItemRegExp)).max(decideOperationsWorkItemApprovalResponseTwoLinksOneRequirementIdsMax),
+  "evidenceItemIds": zod.array(zod.string().min(1).max(decideOperationsWorkItemApprovalResponseTwoLinksOneEvidenceItemIdsItemMax).regex(decideOperationsWorkItemApprovalResponseTwoLinksOneEvidenceItemIdsItemRegExp)).max(decideOperationsWorkItemApprovalResponseTwoLinksOneEvidenceItemIdsMax),
+  "packageIds": zod.array(zod.string().min(1).max(decideOperationsWorkItemApprovalResponseTwoLinksOnePackageIdsItemMax).regex(decideOperationsWorkItemApprovalResponseTwoLinksOnePackageIdsItemRegExp)).max(decideOperationsWorkItemApprovalResponseTwoLinksOnePackageIdsMax)
+}).and(zod.object({
+
+}).passthrough()),
+  "dependsOnIds": zod.array(zod.string().uuid()).max(decideOperationsWorkItemApprovalResponseTwoDependsOnIdsMax),
+  "comments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "body": zod.string().min(1).max(decideOperationsWorkItemApprovalResponseTwoCommentsItemBodyMax),
+  "authorUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date()
+})).max(decideOperationsWorkItemApprovalResponseTwoCommentsMax),
+  "approval": zod.object({
+  "status": zod.enum(['not_required', 'pending', 'approved', 'rejected']),
+  "decidedByUserId": zod.string().uuid().nullable(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "reason": zod.string().max(decideOperationsWorkItemApprovalResponseTwoApprovalReasonMax).nullable()
+}),
+  "statusReasonHistory": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromStatus": zod.string().min(1).max(decideOperationsWorkItemApprovalResponseTwoStatusReasonHistoryItemFromStatusMax),
+  "toStatus": zod.string().min(1).max(decideOperationsWorkItemApprovalResponseTwoStatusReasonHistoryItemToStatusMax),
+  "reason": zod.string().min(1).max(decideOperationsWorkItemApprovalResponseTwoStatusReasonHistoryItemReasonMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(decideOperationsWorkItemApprovalResponseTwoStatusReasonHistoryMax)
+}))
+
+
+/**
+ * Records request slots only and sends no client message.
+ * @summary Create a manual out-of-band evidence request
+ */
+export const CreateOperationsEvidenceRequestParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const createOperationsEvidenceRequestBodyRecipientLabelMax = 256;
+
+export const createOperationsEvidenceRequestBodyRequestMessageMax = 4096;
+
+export const createOperationsEvidenceRequestBodySlotsItemLabelMax = 256;
+
+export const createOperationsEvidenceRequestBodySlotsItemAcceptedContentTypesItemMax = 128;
+
+export const createOperationsEvidenceRequestBodySlotsItemAcceptedContentTypesMax = 20;
+
+export const createOperationsEvidenceRequestBodySlotsMax = 50;
+
+
+
+export const CreateOperationsEvidenceRequestBody = zod.object({
+  "recipientLabel": zod.string().min(1).max(createOperationsEvidenceRequestBodyRecipientLabelMax),
+  "dueAt": zod.coerce.date().nullish(),
+  "requestMessage": zod.string().min(1).max(createOperationsEvidenceRequestBodyRequestMessageMax),
+  "slots": zod.array(zod.object({
+  "label": zod.string().min(1).max(createOperationsEvidenceRequestBodySlotsItemLabelMax),
+  "required": zod.boolean(),
+  "acceptedContentTypes": zod.array(zod.string().min(1).max(createOperationsEvidenceRequestBodySlotsItemAcceptedContentTypesItemMax)).max(createOperationsEvidenceRequestBodySlotsItemAcceptedContentTypesMax).optional()
+})).min(1).max(createOperationsEvidenceRequestBodySlotsMax)
+})
+
+
+export const createOperationsEvidenceRequestResponseTwoRecipientLabelMax = 256;
+
+export const createOperationsEvidenceRequestResponseTwoRequestMessageMax = 4096;
+
+export const createOperationsEvidenceRequestResponseTwoSlotsItemLabelMax = 256;
+
+export const createOperationsEvidenceRequestResponseTwoSlotsItemAcceptedContentTypesItemMax = 128;
+
+export const createOperationsEvidenceRequestResponseTwoSlotsItemAcceptedContentTypesMax = 20;
+
+export const createOperationsEvidenceRequestResponseTwoSlotsItemResponseOneSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createOperationsEvidenceRequestResponseTwoSlotsItemResponseOneAttestationMax = 2048;
+
+export const createOperationsEvidenceRequestResponseTwoSlotsItemAcceptanceOneReasonMax = 1024;
+
+export const createOperationsEvidenceRequestResponseTwoSlotsItemResponseHistoryItemResponseSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createOperationsEvidenceRequestResponseTwoSlotsItemResponseHistoryItemResponseAttestationMax = 2048;
+
+export const createOperationsEvidenceRequestResponseTwoSlotsItemResponseHistoryItemAcceptanceReasonMax = 1024;
+
+export const createOperationsEvidenceRequestResponseTwoSlotsItemResponseHistoryMax = 20;
+
+export const createOperationsEvidenceRequestResponseTwoSlotsMax = 50;
+
+export const createOperationsEvidenceRequestResponseTwoReceiptSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const CreateOperationsEvidenceRequestResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("evidence_request"),
+  "recipientLabel": zod.string().min(1).max(createOperationsEvidenceRequestResponseTwoRecipientLabelMax),
+  "dueAt": zod.coerce.date().nullable(),
+  "requestMessage": zod.string().min(1).max(createOperationsEvidenceRequestResponseTwoRequestMessageMax),
+  "deliveryMode": zod.literal("manual_out_of_band"),
+  "status": zod.enum(['draft', 'shared_manually', 'response_recorded', 'accepted', 'closed']),
+  "sharedByUserId": zod.string().uuid().nullable(),
+  "sharedAt": zod.coerce.date().nullable(),
+  "slots": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(createOperationsEvidenceRequestResponseTwoSlotsItemLabelMax),
+  "required": zod.boolean(),
+  "acceptedContentTypes": zod.array(zod.string().min(1).max(createOperationsEvidenceRequestResponseTwoSlotsItemAcceptedContentTypesItemMax)).max(createOperationsEvidenceRequestResponseTwoSlotsItemAcceptedContentTypesMax),
+  "response": zod.union([zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(createOperationsEvidenceRequestResponseTwoSlotsItemResponseOneSha256RegExp),
+  "attestation": zod.string().min(1).max(createOperationsEvidenceRequestResponseTwoSlotsItemResponseOneAttestationMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+}),zod.null()]),
+  "acceptance": zod.union([zod.object({
+  "decision": zod.enum(['accepted', 'rejected']),
+  "reason": zod.string().min(1).max(createOperationsEvidenceRequestResponseTwoSlotsItemAcceptanceOneReasonMax),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.coerce.date()
+}),zod.null()]),
+  "responseHistory": zod.array(zod.object({
+  "response": zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(createOperationsEvidenceRequestResponseTwoSlotsItemResponseHistoryItemResponseSha256RegExp),
+  "attestation": zod.string().min(1).max(createOperationsEvidenceRequestResponseTwoSlotsItemResponseHistoryItemResponseAttestationMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+}),
+  "acceptance": zod.object({
+  "decision": zod.enum(['accepted', 'rejected']),
+  "reason": zod.string().min(1).max(createOperationsEvidenceRequestResponseTwoSlotsItemResponseHistoryItemAcceptanceReasonMax),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.coerce.date()
+})
+})).max(createOperationsEvidenceRequestResponseTwoSlotsItemResponseHistoryMax).describe('Immutable prior rejected response-decision pairs, oldest first.')
+})).min(1).max(createOperationsEvidenceRequestResponseTwoSlotsMax),
+  "receiptSha256": zod.union([zod.string().regex(createOperationsEvidenceRequestResponseTwoReceiptSha256OneRegExp),zod.null()])
+}))
+
+
+/**
+ * @summary Record that a human shared an evidence request out of band
+ */
+export const MarkOperationsEvidenceRequestSharedParams = zod.object({
+  "id": zod.coerce.string().uuid(),
+  "recordId": zod.coerce.string().uuid().describe('Operations record UUID within the active tenant and project.')
+})
+
+
+
+
+export const MarkOperationsEvidenceRequestSharedBody = zod.object({
+  "expectedVersion": zod.number().min(1)
+})
+
+
+export const markOperationsEvidenceRequestSharedResponseTwoRecipientLabelMax = 256;
+
+export const markOperationsEvidenceRequestSharedResponseTwoRequestMessageMax = 4096;
+
+export const markOperationsEvidenceRequestSharedResponseTwoSlotsItemLabelMax = 256;
+
+export const markOperationsEvidenceRequestSharedResponseTwoSlotsItemAcceptedContentTypesItemMax = 128;
+
+export const markOperationsEvidenceRequestSharedResponseTwoSlotsItemAcceptedContentTypesMax = 20;
+
+export const markOperationsEvidenceRequestSharedResponseTwoSlotsItemResponseOneSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const markOperationsEvidenceRequestSharedResponseTwoSlotsItemResponseOneAttestationMax = 2048;
+
+export const markOperationsEvidenceRequestSharedResponseTwoSlotsItemAcceptanceOneReasonMax = 1024;
+
+export const markOperationsEvidenceRequestSharedResponseTwoSlotsItemResponseHistoryItemResponseSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const markOperationsEvidenceRequestSharedResponseTwoSlotsItemResponseHistoryItemResponseAttestationMax = 2048;
+
+export const markOperationsEvidenceRequestSharedResponseTwoSlotsItemResponseHistoryItemAcceptanceReasonMax = 1024;
+
+export const markOperationsEvidenceRequestSharedResponseTwoSlotsItemResponseHistoryMax = 20;
+
+export const markOperationsEvidenceRequestSharedResponseTwoSlotsMax = 50;
+
+export const markOperationsEvidenceRequestSharedResponseTwoReceiptSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const MarkOperationsEvidenceRequestSharedResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("evidence_request"),
+  "recipientLabel": zod.string().min(1).max(markOperationsEvidenceRequestSharedResponseTwoRecipientLabelMax),
+  "dueAt": zod.coerce.date().nullable(),
+  "requestMessage": zod.string().min(1).max(markOperationsEvidenceRequestSharedResponseTwoRequestMessageMax),
+  "deliveryMode": zod.literal("manual_out_of_band"),
+  "status": zod.enum(['draft', 'shared_manually', 'response_recorded', 'accepted', 'closed']),
+  "sharedByUserId": zod.string().uuid().nullable(),
+  "sharedAt": zod.coerce.date().nullable(),
+  "slots": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(markOperationsEvidenceRequestSharedResponseTwoSlotsItemLabelMax),
+  "required": zod.boolean(),
+  "acceptedContentTypes": zod.array(zod.string().min(1).max(markOperationsEvidenceRequestSharedResponseTwoSlotsItemAcceptedContentTypesItemMax)).max(markOperationsEvidenceRequestSharedResponseTwoSlotsItemAcceptedContentTypesMax),
+  "response": zod.union([zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(markOperationsEvidenceRequestSharedResponseTwoSlotsItemResponseOneSha256RegExp),
+  "attestation": zod.string().min(1).max(markOperationsEvidenceRequestSharedResponseTwoSlotsItemResponseOneAttestationMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+}),zod.null()]),
+  "acceptance": zod.union([zod.object({
+  "decision": zod.enum(['accepted', 'rejected']),
+  "reason": zod.string().min(1).max(markOperationsEvidenceRequestSharedResponseTwoSlotsItemAcceptanceOneReasonMax),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.coerce.date()
+}),zod.null()]),
+  "responseHistory": zod.array(zod.object({
+  "response": zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(markOperationsEvidenceRequestSharedResponseTwoSlotsItemResponseHistoryItemResponseSha256RegExp),
+  "attestation": zod.string().min(1).max(markOperationsEvidenceRequestSharedResponseTwoSlotsItemResponseHistoryItemResponseAttestationMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+}),
+  "acceptance": zod.object({
+  "decision": zod.enum(['accepted', 'rejected']),
+  "reason": zod.string().min(1).max(markOperationsEvidenceRequestSharedResponseTwoSlotsItemResponseHistoryItemAcceptanceReasonMax),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.coerce.date()
+})
+})).max(markOperationsEvidenceRequestSharedResponseTwoSlotsItemResponseHistoryMax).describe('Immutable prior rejected response-decision pairs, oldest first.')
+})).min(1).max(markOperationsEvidenceRequestSharedResponseTwoSlotsMax),
+  "receiptSha256": zod.union([zod.string().regex(markOperationsEvidenceRequestSharedResponseTwoReceiptSha256OneRegExp),zod.null()])
+}))
+
+
+/**
+ * @summary Record an already received evidence response
+ */
+export const RecordOperationsEvidenceResponseParams = zod.object({
+  "id": zod.coerce.string().uuid(),
+  "recordId": zod.coerce.string().uuid().describe('Operations record UUID within the active tenant and project.')
+})
+
+
+export const recordOperationsEvidenceResponseBodySha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const recordOperationsEvidenceResponseBodyAttestationMax = 2048;
+
+
+
+export const RecordOperationsEvidenceResponseBody = zod.object({
+  "expectedVersion": zod.number().min(1),
+  "slotId": zod.string().uuid(),
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(recordOperationsEvidenceResponseBodySha256RegExp),
+  "attestation": zod.string().min(1).max(recordOperationsEvidenceResponseBodyAttestationMax)
+})
+
+
+export const recordOperationsEvidenceResponseResponseTwoRecipientLabelMax = 256;
+
+export const recordOperationsEvidenceResponseResponseTwoRequestMessageMax = 4096;
+
+export const recordOperationsEvidenceResponseResponseTwoSlotsItemLabelMax = 256;
+
+export const recordOperationsEvidenceResponseResponseTwoSlotsItemAcceptedContentTypesItemMax = 128;
+
+export const recordOperationsEvidenceResponseResponseTwoSlotsItemAcceptedContentTypesMax = 20;
+
+export const recordOperationsEvidenceResponseResponseTwoSlotsItemResponseOneSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const recordOperationsEvidenceResponseResponseTwoSlotsItemResponseOneAttestationMax = 2048;
+
+export const recordOperationsEvidenceResponseResponseTwoSlotsItemAcceptanceOneReasonMax = 1024;
+
+export const recordOperationsEvidenceResponseResponseTwoSlotsItemResponseHistoryItemResponseSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const recordOperationsEvidenceResponseResponseTwoSlotsItemResponseHistoryItemResponseAttestationMax = 2048;
+
+export const recordOperationsEvidenceResponseResponseTwoSlotsItemResponseHistoryItemAcceptanceReasonMax = 1024;
+
+export const recordOperationsEvidenceResponseResponseTwoSlotsItemResponseHistoryMax = 20;
+
+export const recordOperationsEvidenceResponseResponseTwoSlotsMax = 50;
+
+export const recordOperationsEvidenceResponseResponseTwoReceiptSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const RecordOperationsEvidenceResponseResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("evidence_request"),
+  "recipientLabel": zod.string().min(1).max(recordOperationsEvidenceResponseResponseTwoRecipientLabelMax),
+  "dueAt": zod.coerce.date().nullable(),
+  "requestMessage": zod.string().min(1).max(recordOperationsEvidenceResponseResponseTwoRequestMessageMax),
+  "deliveryMode": zod.literal("manual_out_of_band"),
+  "status": zod.enum(['draft', 'shared_manually', 'response_recorded', 'accepted', 'closed']),
+  "sharedByUserId": zod.string().uuid().nullable(),
+  "sharedAt": zod.coerce.date().nullable(),
+  "slots": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(recordOperationsEvidenceResponseResponseTwoSlotsItemLabelMax),
+  "required": zod.boolean(),
+  "acceptedContentTypes": zod.array(zod.string().min(1).max(recordOperationsEvidenceResponseResponseTwoSlotsItemAcceptedContentTypesItemMax)).max(recordOperationsEvidenceResponseResponseTwoSlotsItemAcceptedContentTypesMax),
+  "response": zod.union([zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(recordOperationsEvidenceResponseResponseTwoSlotsItemResponseOneSha256RegExp),
+  "attestation": zod.string().min(1).max(recordOperationsEvidenceResponseResponseTwoSlotsItemResponseOneAttestationMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+}),zod.null()]),
+  "acceptance": zod.union([zod.object({
+  "decision": zod.enum(['accepted', 'rejected']),
+  "reason": zod.string().min(1).max(recordOperationsEvidenceResponseResponseTwoSlotsItemAcceptanceOneReasonMax),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.coerce.date()
+}),zod.null()]),
+  "responseHistory": zod.array(zod.object({
+  "response": zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(recordOperationsEvidenceResponseResponseTwoSlotsItemResponseHistoryItemResponseSha256RegExp),
+  "attestation": zod.string().min(1).max(recordOperationsEvidenceResponseResponseTwoSlotsItemResponseHistoryItemResponseAttestationMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+}),
+  "acceptance": zod.object({
+  "decision": zod.enum(['accepted', 'rejected']),
+  "reason": zod.string().min(1).max(recordOperationsEvidenceResponseResponseTwoSlotsItemResponseHistoryItemAcceptanceReasonMax),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.coerce.date()
+})
+})).max(recordOperationsEvidenceResponseResponseTwoSlotsItemResponseHistoryMax).describe('Immutable prior rejected response-decision pairs, oldest first.')
+})).min(1).max(recordOperationsEvidenceResponseResponseTwoSlotsMax),
+  "receiptSha256": zod.union([zod.string().regex(recordOperationsEvidenceResponseResponseTwoReceiptSha256OneRegExp),zod.null()])
+}))
+
+
+/**
+ * @summary Record a human evidence acceptance decision
+ */
+export const DecideOperationsEvidenceResponseParams = zod.object({
+  "id": zod.coerce.string().uuid(),
+  "recordId": zod.coerce.string().uuid().describe('Operations record UUID within the active tenant and project.')
+})
+
+
+export const decideOperationsEvidenceResponseBodyReasonMax = 1024;
+
+
+
+export const DecideOperationsEvidenceResponseBody = zod.object({
+  "expectedVersion": zod.number().min(1),
+  "slotId": zod.string().uuid(),
+  "decision": zod.enum(['accepted', 'rejected']),
+  "reason": zod.string().min(1).max(decideOperationsEvidenceResponseBodyReasonMax)
+})
+
+
+export const decideOperationsEvidenceResponseResponseTwoRecipientLabelMax = 256;
+
+export const decideOperationsEvidenceResponseResponseTwoRequestMessageMax = 4096;
+
+export const decideOperationsEvidenceResponseResponseTwoSlotsItemLabelMax = 256;
+
+export const decideOperationsEvidenceResponseResponseTwoSlotsItemAcceptedContentTypesItemMax = 128;
+
+export const decideOperationsEvidenceResponseResponseTwoSlotsItemAcceptedContentTypesMax = 20;
+
+export const decideOperationsEvidenceResponseResponseTwoSlotsItemResponseOneSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const decideOperationsEvidenceResponseResponseTwoSlotsItemResponseOneAttestationMax = 2048;
+
+export const decideOperationsEvidenceResponseResponseTwoSlotsItemAcceptanceOneReasonMax = 1024;
+
+export const decideOperationsEvidenceResponseResponseTwoSlotsItemResponseHistoryItemResponseSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const decideOperationsEvidenceResponseResponseTwoSlotsItemResponseHistoryItemResponseAttestationMax = 2048;
+
+export const decideOperationsEvidenceResponseResponseTwoSlotsItemResponseHistoryItemAcceptanceReasonMax = 1024;
+
+export const decideOperationsEvidenceResponseResponseTwoSlotsItemResponseHistoryMax = 20;
+
+export const decideOperationsEvidenceResponseResponseTwoSlotsMax = 50;
+
+export const decideOperationsEvidenceResponseResponseTwoReceiptSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const DecideOperationsEvidenceResponseResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("evidence_request"),
+  "recipientLabel": zod.string().min(1).max(decideOperationsEvidenceResponseResponseTwoRecipientLabelMax),
+  "dueAt": zod.coerce.date().nullable(),
+  "requestMessage": zod.string().min(1).max(decideOperationsEvidenceResponseResponseTwoRequestMessageMax),
+  "deliveryMode": zod.literal("manual_out_of_band"),
+  "status": zod.enum(['draft', 'shared_manually', 'response_recorded', 'accepted', 'closed']),
+  "sharedByUserId": zod.string().uuid().nullable(),
+  "sharedAt": zod.coerce.date().nullable(),
+  "slots": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(decideOperationsEvidenceResponseResponseTwoSlotsItemLabelMax),
+  "required": zod.boolean(),
+  "acceptedContentTypes": zod.array(zod.string().min(1).max(decideOperationsEvidenceResponseResponseTwoSlotsItemAcceptedContentTypesItemMax)).max(decideOperationsEvidenceResponseResponseTwoSlotsItemAcceptedContentTypesMax),
+  "response": zod.union([zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(decideOperationsEvidenceResponseResponseTwoSlotsItemResponseOneSha256RegExp),
+  "attestation": zod.string().min(1).max(decideOperationsEvidenceResponseResponseTwoSlotsItemResponseOneAttestationMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+}),zod.null()]),
+  "acceptance": zod.union([zod.object({
+  "decision": zod.enum(['accepted', 'rejected']),
+  "reason": zod.string().min(1).max(decideOperationsEvidenceResponseResponseTwoSlotsItemAcceptanceOneReasonMax),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.coerce.date()
+}),zod.null()]),
+  "responseHistory": zod.array(zod.object({
+  "response": zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(decideOperationsEvidenceResponseResponseTwoSlotsItemResponseHistoryItemResponseSha256RegExp),
+  "attestation": zod.string().min(1).max(decideOperationsEvidenceResponseResponseTwoSlotsItemResponseHistoryItemResponseAttestationMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+}),
+  "acceptance": zod.object({
+  "decision": zod.enum(['accepted', 'rejected']),
+  "reason": zod.string().min(1).max(decideOperationsEvidenceResponseResponseTwoSlotsItemResponseHistoryItemAcceptanceReasonMax),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.coerce.date()
+})
+})).max(decideOperationsEvidenceResponseResponseTwoSlotsItemResponseHistoryMax).describe('Immutable prior rejected response-decision pairs, oldest first.')
+})).min(1).max(decideOperationsEvidenceResponseResponseTwoSlotsMax),
+  "receiptSha256": zod.union([zod.string().regex(decideOperationsEvidenceResponseResponseTwoReceiptSha256OneRegExp),zod.null()])
+}))
+
+
+/**
+ * Freezes no external portal and performs no submission action.
+ * @summary Create a record-only submission war room
+ */
+export const CreateOperationsSubmissionWarRoomParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const createOperationsSubmissionWarRoomBodyManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createOperationsSubmissionWarRoomBodyCopyCountMin = 0;
+export const createOperationsSubmissionWarRoomBodyCopyCountMax = 10000;
+
+export const createOperationsSubmissionWarRoomBodySealIdentifiersItemMax = 256;
+
+export const createOperationsSubmissionWarRoomBodySealIdentifiersMax = 100;
+
+
+
+export const CreateOperationsSubmissionWarRoomBody = zod.object({
+  "packageId": zod.string().uuid(),
+  "packageVersionId": zod.string().uuid(),
+  "manifestSha256": zod.string().regex(createOperationsSubmissionWarRoomBodyManifestSha256RegExp),
+  "copyCount": zod.number().min(createOperationsSubmissionWarRoomBodyCopyCountMin).max(createOperationsSubmissionWarRoomBodyCopyCountMax).optional(),
+  "sealIdentifiers": zod.array(zod.string().min(1).max(createOperationsSubmissionWarRoomBodySealIdentifiersItemMax)).max(createOperationsSubmissionWarRoomBodySealIdentifiersMax).optional()
+})
+
+
+export const createOperationsSubmissionWarRoomResponseTwoManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createOperationsSubmissionWarRoomResponseTwoCopyCountMin = 0;
+export const createOperationsSubmissionWarRoomResponseTwoCopyCountMax = 10000;
+
+export const createOperationsSubmissionWarRoomResponseTwoSealIdentifiersItemMax = 256;
+
+export const createOperationsSubmissionWarRoomResponseTwoSealIdentifiersMax = 100;
+
+export const createOperationsSubmissionWarRoomResponseTwoDispatchMethodMax = 256;
+
+export const createOperationsSubmissionWarRoomResponseTwoReceiptSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+export const createOperationsSubmissionWarRoomResponseTwoStatusReasonHistoryItemFromStatusMax = 256;
+
+export const createOperationsSubmissionWarRoomResponseTwoStatusReasonHistoryItemToStatusMax = 256;
+
+export const createOperationsSubmissionWarRoomResponseTwoStatusReasonHistoryItemReasonMax = 1024;
+
+export const createOperationsSubmissionWarRoomResponseTwoStatusReasonHistoryMax = 100;
+
+
+
+export const CreateOperationsSubmissionWarRoomResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("submission_war_room"),
+  "packageId": zod.string().uuid(),
+  "packageVersionId": zod.string().uuid(),
+  "manifestSha256": zod.string().regex(createOperationsSubmissionWarRoomResponseTwoManifestSha256RegExp),
+  "copyCount": zod.number().min(createOperationsSubmissionWarRoomResponseTwoCopyCountMin).max(createOperationsSubmissionWarRoomResponseTwoCopyCountMax),
+  "sealIdentifiers": zod.array(zod.string().min(1).max(createOperationsSubmissionWarRoomResponseTwoSealIdentifiersItemMax)).max(createOperationsSubmissionWarRoomResponseTwoSealIdentifiersMax),
+  "status": zod.enum(['planning', 'frozen', 'copies_prepared', 'sealed', 'dispatched', 'receipt_recorded', 'cancelled']),
+  "externalActionPolicy": zod.literal("record_only"),
+  "frozenByUserId": zod.string().uuid().nullable(),
+  "frozenAt": zod.coerce.date().nullable(),
+  "dispatchedByUserId": zod.string().uuid().nullable(),
+  "dispatchedAt": zod.coerce.date().nullable(),
+  "dispatchMethod": zod.string().max(createOperationsSubmissionWarRoomResponseTwoDispatchMethodMax).nullable(),
+  "receiptSha256": zod.union([zod.string().regex(createOperationsSubmissionWarRoomResponseTwoReceiptSha256OneRegExp),zod.null()]),
+  "receiptRecordedByUserId": zod.string().uuid().nullable(),
+  "receiptRecordedAt": zod.coerce.date().nullable(),
+  "statusReasonHistory": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromStatus": zod.string().min(1).max(createOperationsSubmissionWarRoomResponseTwoStatusReasonHistoryItemFromStatusMax),
+  "toStatus": zod.string().min(1).max(createOperationsSubmissionWarRoomResponseTwoStatusReasonHistoryItemToStatusMax),
+  "reason": zod.string().min(1).max(createOperationsSubmissionWarRoomResponseTwoStatusReasonHistoryItemReasonMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(createOperationsSubmissionWarRoomResponseTwoStatusReasonHistoryMax)
+}))
+
+
+/**
+ * Records sequential preparation, sealing, human dispatch and receipt evidence. It never invokes a portal, courier or submission provider.
+ * @summary Record one completed human war-room stage
+ */
+export const AdvanceOperationsSubmissionWarRoomParams = zod.object({
+  "id": zod.coerce.string().uuid(),
+  "recordId": zod.coerce.string().uuid().describe('Operations record UUID within the active tenant and project.')
+})
+
+
+export const advanceOperationsSubmissionWarRoomBodyTwoDispatchMethodMax = 256;
+
+export const advanceOperationsSubmissionWarRoomBodyTwoReceiptSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+export const advanceOperationsSubmissionWarRoomBodyTwoReasonMax = 1024;
+
+
+
+export const AdvanceOperationsSubmissionWarRoomBody = zod.unknown().and(zod.object({
+  "expectedVersion": zod.number().min(1),
+  "toStatus": zod.enum(['frozen', 'copies_prepared', 'sealed', 'dispatched', 'receipt_recorded', 'cancelled']),
+  "dispatchMethod": zod.string().min(1).max(advanceOperationsSubmissionWarRoomBodyTwoDispatchMethodMax).nullish(),
+  "receiptSha256": zod.union([zod.string().regex(advanceOperationsSubmissionWarRoomBodyTwoReceiptSha256OneRegExp),zod.null()]).optional(),
+  "reason": zod.string().min(1).max(advanceOperationsSubmissionWarRoomBodyTwoReasonMax).nullish()
+})).superRefine((value, context) => {
+  if (value.toStatus === "cancelled" && !value.reason) {
+    context.addIssue({
+      code: zod.ZodIssueCode.custom,
+      path: ["reason"],
+      message: "reason is required when status is cancelled",
+    });
+  }
+})
+
+
+export const advanceOperationsSubmissionWarRoomResponseTwoManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const advanceOperationsSubmissionWarRoomResponseTwoCopyCountMin = 0;
+export const advanceOperationsSubmissionWarRoomResponseTwoCopyCountMax = 10000;
+
+export const advanceOperationsSubmissionWarRoomResponseTwoSealIdentifiersItemMax = 256;
+
+export const advanceOperationsSubmissionWarRoomResponseTwoSealIdentifiersMax = 100;
+
+export const advanceOperationsSubmissionWarRoomResponseTwoDispatchMethodMax = 256;
+
+export const advanceOperationsSubmissionWarRoomResponseTwoReceiptSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+export const advanceOperationsSubmissionWarRoomResponseTwoStatusReasonHistoryItemFromStatusMax = 256;
+
+export const advanceOperationsSubmissionWarRoomResponseTwoStatusReasonHistoryItemToStatusMax = 256;
+
+export const advanceOperationsSubmissionWarRoomResponseTwoStatusReasonHistoryItemReasonMax = 1024;
+
+export const advanceOperationsSubmissionWarRoomResponseTwoStatusReasonHistoryMax = 100;
+
+
+
+export const AdvanceOperationsSubmissionWarRoomResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("submission_war_room"),
+  "packageId": zod.string().uuid(),
+  "packageVersionId": zod.string().uuid(),
+  "manifestSha256": zod.string().regex(advanceOperationsSubmissionWarRoomResponseTwoManifestSha256RegExp),
+  "copyCount": zod.number().min(advanceOperationsSubmissionWarRoomResponseTwoCopyCountMin).max(advanceOperationsSubmissionWarRoomResponseTwoCopyCountMax),
+  "sealIdentifiers": zod.array(zod.string().min(1).max(advanceOperationsSubmissionWarRoomResponseTwoSealIdentifiersItemMax)).max(advanceOperationsSubmissionWarRoomResponseTwoSealIdentifiersMax),
+  "status": zod.enum(['planning', 'frozen', 'copies_prepared', 'sealed', 'dispatched', 'receipt_recorded', 'cancelled']),
+  "externalActionPolicy": zod.literal("record_only"),
+  "frozenByUserId": zod.string().uuid().nullable(),
+  "frozenAt": zod.coerce.date().nullable(),
+  "dispatchedByUserId": zod.string().uuid().nullable(),
+  "dispatchedAt": zod.coerce.date().nullable(),
+  "dispatchMethod": zod.string().max(advanceOperationsSubmissionWarRoomResponseTwoDispatchMethodMax).nullable(),
+  "receiptSha256": zod.union([zod.string().regex(advanceOperationsSubmissionWarRoomResponseTwoReceiptSha256OneRegExp),zod.null()]),
+  "receiptRecordedByUserId": zod.string().uuid().nullable(),
+  "receiptRecordedAt": zod.coerce.date().nullable(),
+  "statusReasonHistory": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromStatus": zod.string().min(1).max(advanceOperationsSubmissionWarRoomResponseTwoStatusReasonHistoryItemFromStatusMax),
+  "toStatus": zod.string().min(1).max(advanceOperationsSubmissionWarRoomResponseTwoStatusReasonHistoryItemToStatusMax),
+  "reason": zod.string().min(1).max(advanceOperationsSubmissionWarRoomResponseTwoStatusReasonHistoryItemReasonMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(advanceOperationsSubmissionWarRoomResponseTwoStatusReasonHistoryMax)
+}))
+
+
+/**
+ * Evaluates only caller-supplied bounded render measurements. It performs no OCR, model call, file access or network request.
+ * @summary Evaluate deterministic package render measurements
+ */
+export const CreateOperationsVisualQaReportParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const createOperationsVisualQaReportBodyManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createOperationsVisualQaReportBodyExpectedManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createOperationsVisualQaReportBodyPagesItemPageNumberMax = 100000;
+
+export const createOperationsVisualQaReportBodyPagesItemTextCharacterCountMin = 0;
+
+export const createOperationsVisualQaReportBodyPagesItemNonWhitespacePixelRatioMin = 0;
+export const createOperationsVisualQaReportBodyPagesItemNonWhitespacePixelRatioMax = 1;
+
+export const createOperationsVisualQaReportBodyPagesItemClippedElementCountMin = 0;
+
+export const createOperationsVisualQaReportBodyPagesMax = 2000;
+
+export const createOperationsVisualQaReportBodyCrossReferencesItemLabelMax = 256;
+
+export const createOperationsVisualQaReportBodyCrossReferencesMax = 5000;
+
+export const createOperationsVisualQaReportBodySignaturesItemLabelMax = 256;
+
+export const createOperationsVisualQaReportBodySignaturesMax = 250;
+
+
+
+export const CreateOperationsVisualQaReportBody = zod.object({
+  "packageVersionId": zod.string().uuid(),
+  "manifestSha256": zod.string().regex(createOperationsVisualQaReportBodyManifestSha256RegExp),
+  "expectedManifestSha256": zod.string().regex(createOperationsVisualQaReportBodyExpectedManifestSha256RegExp),
+  "pages": zod.array(zod.object({
+  "pageNumber": zod.number().min(1).max(createOperationsVisualQaReportBodyPagesItemPageNumberMax),
+  "textCharacterCount": zod.number().min(createOperationsVisualQaReportBodyPagesItemTextCharacterCountMin),
+  "nonWhitespacePixelRatio": zod.number().min(createOperationsVisualQaReportBodyPagesItemNonWhitespacePixelRatioMin).max(createOperationsVisualQaReportBodyPagesItemNonWhitespacePixelRatioMax),
+  "clippedElementCount": zod.number().min(createOperationsVisualQaReportBodyPagesItemClippedElementCountMin)
+})).min(1).max(createOperationsVisualQaReportBodyPagesMax),
+  "crossReferences": zod.array(zod.object({
+  "label": zod.string().min(1).max(createOperationsVisualQaReportBodyCrossReferencesItemLabelMax),
+  "resolved": zod.boolean()
+})).max(createOperationsVisualQaReportBodyCrossReferencesMax).optional(),
+  "signatures": zod.array(zod.object({
+  "label": zod.string().min(1).max(createOperationsVisualQaReportBodySignaturesItemLabelMax),
+  "required": zod.boolean(),
+  "present": zod.boolean()
+})).max(createOperationsVisualQaReportBodySignaturesMax).optional()
+})
+
+
+export const createOperationsVisualQaReportResponseTwoManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createOperationsVisualQaReportResponseTwoExpectedManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createOperationsVisualQaReportResponseTwoResultInputSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createOperationsVisualQaReportResponseTwoResultFindingsItemMessageMax = 4096;
+
+
+export const createOperationsVisualQaReportResponseTwoResultFindingsMax = 7500;
+
+
+
+export const CreateOperationsVisualQaReportResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("visual_qa_report"),
+  "packageVersionId": zod.string().uuid(),
+  "manifestSha256": zod.string().regex(createOperationsVisualQaReportResponseTwoManifestSha256RegExp),
+  "expectedManifestSha256": zod.string().regex(createOperationsVisualQaReportResponseTwoExpectedManifestSha256RegExp),
+  "result": zod.object({
+  "algorithmVersion": zod.literal("visual-qa-v1"),
+  "status": zod.enum(['pass', 'review', 'fail']),
+  "inputSha256": zod.string().regex(createOperationsVisualQaReportResponseTwoResultInputSha256RegExp),
+  "findings": zod.array(zod.object({
+  "code": zod.enum(['manifest_mismatch', 'unexpected_blank_page', 'clipped_content', 'broken_cross_reference', 'missing_signature']),
+  "severity": zod.enum(['blocker', 'warning']),
+  "message": zod.string().min(1).max(createOperationsVisualQaReportResponseTwoResultFindingsItemMessageMax),
+  "pageNumber": zod.number().min(1).nullable()
+})).max(createOperationsVisualQaReportResponseTwoResultFindingsMax)
+})
+}))
+
+
+/**
+ * Records what a named person observed and a receipt hash. Valo does not contact the authority or represent independent issuer verification.
+ * @summary Record a human-performed official-source credential check
+ */
+export const CreateOperationsCredentialVerificationParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+
+export const createOperationsCredentialVerificationBodyDocumentSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createOperationsCredentialVerificationBodyAuthorityNameMax = 256;
+
+export const createOperationsCredentialVerificationBodyOfficialSourceLocatorMax = 2048;
+
+export const createOperationsCredentialVerificationBodyReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createOperationsCredentialVerificationBodyNotesMax = 4096;
+
+
+
+export const CreateOperationsCredentialVerificationBody = zod.object({
+  "vaultItemId": zod.string().uuid(),
+  "vaultItemVersion": zod.number().min(1),
+  "documentSha256": zod.string().regex(createOperationsCredentialVerificationBodyDocumentSha256RegExp),
+  "authorityName": zod.string().min(1).max(createOperationsCredentialVerificationBodyAuthorityNameMax),
+  "officialSourceLocator": zod.string().min(1).max(createOperationsCredentialVerificationBodyOfficialSourceLocatorMax),
+  "checkedAt": zod.coerce.date(),
+  "outcome": zod.enum(['verified', 'not_verified', 'inconclusive']),
+  "receiptSha256": zod.string().regex(createOperationsCredentialVerificationBodyReceiptSha256RegExp),
+  "notes": zod.string().min(1).max(createOperationsCredentialVerificationBodyNotesMax).nullish()
+})
+
+
+
+export const createOperationsCredentialVerificationResponseTwoDocumentSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createOperationsCredentialVerificationResponseTwoAuthorityNameMax = 256;
+
+export const createOperationsCredentialVerificationResponseTwoOfficialSourceLocatorMax = 2048;
+
+export const createOperationsCredentialVerificationResponseTwoReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createOperationsCredentialVerificationResponseTwoNotesMax = 4096;
+
+
+
+export const CreateOperationsCredentialVerificationResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("credential_verification"),
+  "vaultItemId": zod.string().uuid(),
+  "vaultItemVersion": zod.number().min(1),
+  "documentSha256": zod.string().regex(createOperationsCredentialVerificationResponseTwoDocumentSha256RegExp),
+  "authorityName": zod.string().min(1).max(createOperationsCredentialVerificationResponseTwoAuthorityNameMax),
+  "officialSourceLocator": zod.string().min(1).max(createOperationsCredentialVerificationResponseTwoOfficialSourceLocatorMax),
+  "checkedAt": zod.coerce.date(),
+  "checkedByUserId": zod.string().uuid(),
+  "outcome": zod.enum(['verified', 'not_verified', 'inconclusive']),
+  "receiptSha256": zod.string().regex(createOperationsCredentialVerificationResponseTwoReceiptSha256RegExp),
+  "notes": zod.string().max(createOperationsCredentialVerificationResponseTwoNotesMax).nullable(),
+  "verificationMode": zod.literal("human_recorded")
+}))
+
+
+/**
+ * @summary Plan a pre-bid meeting or site visit
+ */
+export const CreateOperationsMissionParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const createOperationsMissionBodyTitleMax = 4096;
+
+export const createOperationsMissionBodyLocationMax = 1024;
+
+export const createOperationsMissionBodyDelegateAuthorityNoteMax = 1024;
+
+export const createOperationsMissionBodyChecklistItemLabelMax = 256;
+
+export const createOperationsMissionBodyChecklistMax = 100;
+
+
+
+export const CreateOperationsMissionBody = zod.object({
+  "missionType": zod.enum(['pre_bid', 'site_visit']),
+  "title": zod.string().min(1).max(createOperationsMissionBodyTitleMax),
+  "location": zod.string().min(1).max(createOperationsMissionBodyLocationMax),
+  "startsAt": zod.coerce.date(),
+  "attendanceRequired": zod.boolean(),
+  "delegateUserId": zod.string().uuid().nullish(),
+  "delegateAuthorityNote": zod.string().min(1).max(createOperationsMissionBodyDelegateAuthorityNoteMax).nullish(),
+  "checklist": zod.array(zod.object({
+  "label": zod.string().min(1).max(createOperationsMissionBodyChecklistItemLabelMax),
+  "required": zod.boolean()
+})).max(createOperationsMissionBodyChecklistMax)
+})
+
+
+export const createOperationsMissionResponseTwoTitleMax = 4096;
+
+export const createOperationsMissionResponseTwoLocationMax = 1024;
+
+export const createOperationsMissionResponseTwoDelegateAuthorityNoteMax = 1024;
+
+export const createOperationsMissionResponseTwoChecklistItemOneLabelMax = 256;
+
+export const createOperationsMissionResponseTwoChecklistMax = 100;
+
+export const createOperationsMissionResponseTwoProofsItemSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createOperationsMissionResponseTwoProofsMax = 50;
+
+export const createOperationsMissionResponseTwoFollowUpWorkItemIdsMax = 100;
+
+export const createOperationsMissionResponseTwoStatusReasonHistoryItemFromStatusMax = 256;
+
+export const createOperationsMissionResponseTwoStatusReasonHistoryItemToStatusMax = 256;
+
+export const createOperationsMissionResponseTwoStatusReasonHistoryItemReasonMax = 1024;
+
+export const createOperationsMissionResponseTwoStatusReasonHistoryMax = 100;
+
+
+
+export const CreateOperationsMissionResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("mission"),
+  "missionType": zod.enum(['pre_bid', 'site_visit']),
+  "title": zod.string().min(1).max(createOperationsMissionResponseTwoTitleMax),
+  "location": zod.string().min(1).max(createOperationsMissionResponseTwoLocationMax),
+  "startsAt": zod.coerce.date(),
+  "attendanceRequired": zod.boolean(),
+  "delegateUserId": zod.string().uuid().nullable(),
+  "delegateAuthorityNote": zod.string().max(createOperationsMissionResponseTwoDelegateAuthorityNoteMax).nullable(),
+  "checklist": zod.array(zod.object({
+  "label": zod.string().min(1).max(createOperationsMissionResponseTwoChecklistItemOneLabelMax),
+  "required": zod.boolean()
+}).and(zod.object({
+  "id": zod.string().uuid(),
+  "completedByUserId": zod.string().uuid().nullable(),
+  "completedAt": zod.coerce.date().nullable()
+}))).max(createOperationsMissionResponseTwoChecklistMax),
+  "proofs": zod.array(zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(createOperationsMissionResponseTwoProofsItemSha256RegExp),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(createOperationsMissionResponseTwoProofsMax),
+  "followUpWorkItemIds": zod.array(zod.string().uuid()).max(createOperationsMissionResponseTwoFollowUpWorkItemIdsMax),
+  "status": zod.enum(['planned', 'attended', 'missed', 'completed', 'cancelled']),
+  "statusReasonHistory": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromStatus": zod.string().min(1).max(createOperationsMissionResponseTwoStatusReasonHistoryItemFromStatusMax),
+  "toStatus": zod.string().min(1).max(createOperationsMissionResponseTwoStatusReasonHistoryItemToStatusMax),
+  "reason": zod.string().min(1).max(createOperationsMissionResponseTwoStatusReasonHistoryItemReasonMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(createOperationsMissionResponseTwoStatusReasonHistoryMax)
+}))
+
+
+/**
+ * @summary Record mission checklist, attendance proof or follow-up state
+ */
+export const UpdateOperationsMissionParams = zod.object({
+  "id": zod.coerce.string().uuid(),
+  "recordId": zod.coerce.string().uuid().describe('Operations record UUID within the active tenant and project.')
+})
+
+
+export const updateOperationsMissionBodyTwoProofSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const updateOperationsMissionBodyTwoReasonMax = 1024;
+
+
+
+export const UpdateOperationsMissionBody = zod.unknown().and(zod.object({
+  "expectedVersion": zod.number().min(1),
+  "status": zod.enum(['planned', 'attended', 'missed', 'completed', 'cancelled']).optional(),
+  "completedChecklistItemId": zod.string().uuid().optional(),
+  "proofDocumentId": zod.string().uuid().optional(),
+  "proofSha256": zod.string().regex(updateOperationsMissionBodyTwoProofSha256RegExp).optional(),
+  "followUpWorkItemId": zod.string().uuid().optional(),
+  "reason": zod.string().min(1).max(updateOperationsMissionBodyTwoReasonMax).optional()
+})).superRefine((value, context) => {
+  if (value.status === "cancelled" && !value.reason) {
+    context.addIssue({
+      code: zod.ZodIssueCode.custom,
+      path: ["reason"],
+      message: "reason is required when status is cancelled",
+    });
+  }
+})
+
+
+export const updateOperationsMissionResponseTwoTitleMax = 4096;
+
+export const updateOperationsMissionResponseTwoLocationMax = 1024;
+
+export const updateOperationsMissionResponseTwoDelegateAuthorityNoteMax = 1024;
+
+export const updateOperationsMissionResponseTwoChecklistItemOneLabelMax = 256;
+
+export const updateOperationsMissionResponseTwoChecklistMax = 100;
+
+export const updateOperationsMissionResponseTwoProofsItemSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const updateOperationsMissionResponseTwoProofsMax = 50;
+
+export const updateOperationsMissionResponseTwoFollowUpWorkItemIdsMax = 100;
+
+export const updateOperationsMissionResponseTwoStatusReasonHistoryItemFromStatusMax = 256;
+
+export const updateOperationsMissionResponseTwoStatusReasonHistoryItemToStatusMax = 256;
+
+export const updateOperationsMissionResponseTwoStatusReasonHistoryItemReasonMax = 1024;
+
+export const updateOperationsMissionResponseTwoStatusReasonHistoryMax = 100;
+
+
+
+export const UpdateOperationsMissionResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("mission"),
+  "missionType": zod.enum(['pre_bid', 'site_visit']),
+  "title": zod.string().min(1).max(updateOperationsMissionResponseTwoTitleMax),
+  "location": zod.string().min(1).max(updateOperationsMissionResponseTwoLocationMax),
+  "startsAt": zod.coerce.date(),
+  "attendanceRequired": zod.boolean(),
+  "delegateUserId": zod.string().uuid().nullable(),
+  "delegateAuthorityNote": zod.string().max(updateOperationsMissionResponseTwoDelegateAuthorityNoteMax).nullable(),
+  "checklist": zod.array(zod.object({
+  "label": zod.string().min(1).max(updateOperationsMissionResponseTwoChecklistItemOneLabelMax),
+  "required": zod.boolean()
+}).and(zod.object({
+  "id": zod.string().uuid(),
+  "completedByUserId": zod.string().uuid().nullable(),
+  "completedAt": zod.coerce.date().nullable()
+}))).max(updateOperationsMissionResponseTwoChecklistMax),
+  "proofs": zod.array(zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(updateOperationsMissionResponseTwoProofsItemSha256RegExp),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(updateOperationsMissionResponseTwoProofsMax),
+  "followUpWorkItemIds": zod.array(zod.string().uuid()).max(updateOperationsMissionResponseTwoFollowUpWorkItemIdsMax),
+  "status": zod.enum(['planned', 'attended', 'missed', 'completed', 'cancelled']),
+  "statusReasonHistory": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromStatus": zod.string().min(1).max(updateOperationsMissionResponseTwoStatusReasonHistoryItemFromStatusMax),
+  "toStatus": zod.string().min(1).max(updateOperationsMissionResponseTwoStatusReasonHistoryItemToStatusMax),
+  "reason": zod.string().min(1).max(updateOperationsMissionResponseTwoStatusReasonHistoryItemReasonMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(updateOperationsMissionResponseTwoStatusReasonHistoryMax)
+}))
+
+
+/**
+ * @summary Record a post-award obligation, milestone, variation or notice
+ */
+export const CreateOperationsPostAwardItemParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const createOperationsPostAwardItemBodyTitleMax = 4096;
+
+export const createOperationsPostAwardItemBodyDescriptionMax = 4096;
+
+export const createOperationsPostAwardItemBodyEvidenceDocumentIdsMax = 100;
+
+export const createOperationsPostAwardItemBodyValueMinorUnitsMin = 0;
+
+export const createOperationsPostAwardItemBodyCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+
+
+export const CreateOperationsPostAwardItemBody = zod.object({
+  "category": zod.enum(['obligation', 'deliverable', 'variation', 'payment_milestone', 'notice', 'completion_record']),
+  "title": zod.string().min(1).max(createOperationsPostAwardItemBodyTitleMax),
+  "description": zod.string().min(1).max(createOperationsPostAwardItemBodyDescriptionMax).nullish(),
+  "dueAt": zod.coerce.date().nullish(),
+  "ownerUserId": zod.string().uuid().nullish(),
+  "sourceDocumentId": zod.string().uuid().nullish(),
+  "evidenceDocumentIds": zod.array(zod.string().uuid()).max(createOperationsPostAwardItemBodyEvidenceDocumentIdsMax).optional(),
+  "valueMinorUnits": zod.number().min(createOperationsPostAwardItemBodyValueMinorUnitsMin).nullish(),
+  "currency": zod.string().regex(createOperationsPostAwardItemBodyCurrencyRegExp).nullish()
+})
+
+
+export const createOperationsPostAwardItemResponseTwoTitleMax = 4096;
+
+export const createOperationsPostAwardItemResponseTwoDescriptionMax = 4096;
+
+export const createOperationsPostAwardItemResponseTwoEvidenceDocumentIdsMax = 100;
+
+export const createOperationsPostAwardItemResponseTwoValueMinorUnitsMin = 0;
+
+export const createOperationsPostAwardItemResponseTwoCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const createOperationsPostAwardItemResponseTwoCompletionReceiptSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+export const createOperationsPostAwardItemResponseTwoStatusReasonHistoryItemFromStatusMax = 256;
+
+export const createOperationsPostAwardItemResponseTwoStatusReasonHistoryItemToStatusMax = 256;
+
+export const createOperationsPostAwardItemResponseTwoStatusReasonHistoryItemReasonMax = 1024;
+
+export const createOperationsPostAwardItemResponseTwoStatusReasonHistoryMax = 100;
+
+
+
+export const CreateOperationsPostAwardItemResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("post_award_item"),
+  "category": zod.enum(['obligation', 'deliverable', 'variation', 'payment_milestone', 'notice', 'completion_record']),
+  "title": zod.string().min(1).max(createOperationsPostAwardItemResponseTwoTitleMax),
+  "description": zod.string().max(createOperationsPostAwardItemResponseTwoDescriptionMax).nullable(),
+  "dueAt": zod.coerce.date().nullable(),
+  "ownerUserId": zod.string().uuid().nullable(),
+  "sourceDocumentId": zod.string().uuid().nullable(),
+  "evidenceDocumentIds": zod.array(zod.string().uuid()).max(createOperationsPostAwardItemResponseTwoEvidenceDocumentIdsMax),
+  "valueMinorUnits": zod.number().min(createOperationsPostAwardItemResponseTwoValueMinorUnitsMin).nullable(),
+  "currency": zod.string().regex(createOperationsPostAwardItemResponseTwoCurrencyRegExp).nullable(),
+  "status": zod.enum(['open', 'in_progress', 'satisfied', 'disputed', 'cancelled']),
+  "completionReceiptSha256": zod.union([zod.string().regex(createOperationsPostAwardItemResponseTwoCompletionReceiptSha256OneRegExp),zod.null()]),
+  "completedByUserId": zod.string().uuid().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "statusReasonHistory": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromStatus": zod.string().min(1).max(createOperationsPostAwardItemResponseTwoStatusReasonHistoryItemFromStatusMax),
+  "toStatus": zod.string().min(1).max(createOperationsPostAwardItemResponseTwoStatusReasonHistoryItemToStatusMax),
+  "reason": zod.string().min(1).max(createOperationsPostAwardItemResponseTwoStatusReasonHistoryItemReasonMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(createOperationsPostAwardItemResponseTwoStatusReasonHistoryMax)
+}))
+
+
+/**
+ * @summary Update post-award state with evidence-bound completion
+ */
+export const UpdateOperationsPostAwardItemParams = zod.object({
+  "id": zod.coerce.string().uuid(),
+  "recordId": zod.coerce.string().uuid().describe('Operations record UUID within the active tenant and project.')
+})
+
+
+export const updateOperationsPostAwardItemBodyTwoEvidenceDocumentIdsMax = 100;
+
+export const updateOperationsPostAwardItemBodyTwoCompletionReceiptSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+export const updateOperationsPostAwardItemBodyTwoReasonMax = 1024;
+
+
+
+export const UpdateOperationsPostAwardItemBody = zod.unknown().and(zod.object({
+  "expectedVersion": zod.number().min(1),
+  "status": zod.enum(['open', 'in_progress', 'satisfied', 'disputed', 'cancelled']).optional(),
+  "ownerUserId": zod.string().uuid().nullish(),
+  "dueAt": zod.coerce.date().nullish(),
+  "evidenceDocumentIds": zod.array(zod.string().uuid()).max(updateOperationsPostAwardItemBodyTwoEvidenceDocumentIdsMax).optional(),
+  "completionReceiptSha256": zod.union([zod.string().regex(updateOperationsPostAwardItemBodyTwoCompletionReceiptSha256OneRegExp),zod.null()]).optional(),
+  "reason": zod.string().min(1).max(updateOperationsPostAwardItemBodyTwoReasonMax).optional()
+})).superRefine((value, context) => {
+  if (value.status === "cancelled" && !value.reason) {
+    context.addIssue({
+      code: zod.ZodIssueCode.custom,
+      path: ["reason"],
+      message: "reason is required when status is cancelled",
+    });
+  }
+})
+
+
+export const updateOperationsPostAwardItemResponseTwoTitleMax = 4096;
+
+export const updateOperationsPostAwardItemResponseTwoDescriptionMax = 4096;
+
+export const updateOperationsPostAwardItemResponseTwoEvidenceDocumentIdsMax = 100;
+
+export const updateOperationsPostAwardItemResponseTwoValueMinorUnitsMin = 0;
+
+export const updateOperationsPostAwardItemResponseTwoCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const updateOperationsPostAwardItemResponseTwoCompletionReceiptSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+export const updateOperationsPostAwardItemResponseTwoStatusReasonHistoryItemFromStatusMax = 256;
+
+export const updateOperationsPostAwardItemResponseTwoStatusReasonHistoryItemToStatusMax = 256;
+
+export const updateOperationsPostAwardItemResponseTwoStatusReasonHistoryItemReasonMax = 1024;
+
+export const updateOperationsPostAwardItemResponseTwoStatusReasonHistoryMax = 100;
+
+
+
+export const UpdateOperationsPostAwardItemResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.string(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "kind": zod.literal("post_award_item"),
+  "category": zod.enum(['obligation', 'deliverable', 'variation', 'payment_milestone', 'notice', 'completion_record']),
+  "title": zod.string().min(1).max(updateOperationsPostAwardItemResponseTwoTitleMax),
+  "description": zod.string().max(updateOperationsPostAwardItemResponseTwoDescriptionMax).nullable(),
+  "dueAt": zod.coerce.date().nullable(),
+  "ownerUserId": zod.string().uuid().nullable(),
+  "sourceDocumentId": zod.string().uuid().nullable(),
+  "evidenceDocumentIds": zod.array(zod.string().uuid()).max(updateOperationsPostAwardItemResponseTwoEvidenceDocumentIdsMax),
+  "valueMinorUnits": zod.number().min(updateOperationsPostAwardItemResponseTwoValueMinorUnitsMin).nullable(),
+  "currency": zod.string().regex(updateOperationsPostAwardItemResponseTwoCurrencyRegExp).nullable(),
+  "status": zod.enum(['open', 'in_progress', 'satisfied', 'disputed', 'cancelled']),
+  "completionReceiptSha256": zod.union([zod.string().regex(updateOperationsPostAwardItemResponseTwoCompletionReceiptSha256OneRegExp),zod.null()]),
+  "completedByUserId": zod.string().uuid().nullable(),
+  "completedAt": zod.coerce.date().nullable(),
+  "statusReasonHistory": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromStatus": zod.string().min(1).max(updateOperationsPostAwardItemResponseTwoStatusReasonHistoryItemFromStatusMax),
+  "toStatus": zod.string().min(1).max(updateOperationsPostAwardItemResponseTwoStatusReasonHistoryItemToStatusMax),
+  "reason": zod.string().min(1).max(updateOperationsPostAwardItemResponseTwoStatusReasonHistoryItemReasonMax),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.coerce.date()
+})).max(updateOperationsPostAwardItemResponseTwoStatusReasonHistoryMax)
+}))
+
+
+/**
+ * Returns a synthetic, non-customer tour derived only from server-resolved roles. The tour writes no authoritative pursuit state and performs no client contact, bid approval or submission action.
+ * @summary Get the role-derived first-pursuit onboarding journey
+ */
+export const getGrowthOnboardingResponseJourneyDerivedFromRolesMax = 12;
+
+export const getGrowthOnboardingResponseJourneyChecklistItemIdMax = 160;
+
+export const getGrowthOnboardingResponseJourneyChecklistItemTitleMax = 160;
+
+export const getGrowthOnboardingResponseJourneyChecklistItemPurposeMax = 1000;
+
+export const getGrowthOnboardingResponseJourneyChecklistItemCompletionEvidenceMax = 1000;
+
+export const getGrowthOnboardingResponseJourneyChecklistMax = 12;
+
+export const getGrowthOnboardingResponseJourneySyntheticTourTitleMax = 160;
+
+export const getGrowthOnboardingResponseJourneySyntheticTourStepsItemIdMax = 160;
+
+export const getGrowthOnboardingResponseJourneySyntheticTourStepsItemTitleMax = 160;
+
+export const getGrowthOnboardingResponseJourneySyntheticTourStepsItemInstructionMax = 1000;
+
+export const getGrowthOnboardingResponseJourneySyntheticTourStepsItemSyntheticObjectReferenceMax = 160;
+
+export const getGrowthOnboardingResponseJourneySyntheticTourStepsMax = 16;
+
+export const getGrowthOnboardingResponseProgressCompletedItemIdsItemMax = 128;
+
+export const getGrowthOnboardingResponseProgressCompletedItemIdsMax = 512;
+
+export const getGrowthOnboardingResponseProgressVersionMin = 0;
+
+
+
+export const GetGrowthOnboardingResponse = zod.object({
+  "journey": zod.object({
+  "policyVersion": zod.literal("2026-08-11.2"),
+  "derivedFromRoles": zod.array(zod.enum(['client_organisation_owner', 'client_administrator', 'bid_manager', 'contributor', 'client_reviewer_approver', 'valo_operations_administrator', 'restricted_platform_administrator', 'consultancy_partner_administrator', 'consultancy_partner_analyst_reviewer', 'read_only_auditor', 'valo_analyst', 'valo_quality_adviser'])).max(getGrowthOnboardingResponseJourneyDerivedFromRolesMax),
+  "checklist": zod.array(zod.object({
+  "id": zod.string().min(1).max(getGrowthOnboardingResponseJourneyChecklistItemIdMax),
+  "title": zod.string().min(1).max(getGrowthOnboardingResponseJourneyChecklistItemTitleMax),
+  "purpose": zod.string().min(1).max(getGrowthOnboardingResponseJourneyChecklistItemPurposeMax),
+  "completionEvidence": zod.string().min(1).max(getGrowthOnboardingResponseJourneyChecklistItemCompletionEvidenceMax)
+})).max(getGrowthOnboardingResponseJourneyChecklistMax),
+  "syntheticTour": zod.object({
+  "dataClassification": zod.literal("synthetic_non_customer"),
+  "writesAuthoritativeState": zod.boolean(),
+  "title": zod.string().min(1).max(getGrowthOnboardingResponseJourneySyntheticTourTitleMax),
+  "steps": zod.array(zod.object({
+  "id": zod.string().min(1).max(getGrowthOnboardingResponseJourneySyntheticTourStepsItemIdMax),
+  "title": zod.string().min(1).max(getGrowthOnboardingResponseJourneySyntheticTourStepsItemTitleMax),
+  "instruction": zod.string().min(1).max(getGrowthOnboardingResponseJourneySyntheticTourStepsItemInstructionMax),
+  "syntheticObjectReference": zod.string().min(1).max(getGrowthOnboardingResponseJourneySyntheticTourStepsItemSyntheticObjectReferenceMax)
+})).max(getGrowthOnboardingResponseJourneySyntheticTourStepsMax)
+})
+}),
+  "progress": zod.object({
+  "journeyVersion": zod.literal("2026-08-11.2"),
+  "completedItemIds": zod.array(zod.string().min(1).max(getGrowthOnboardingResponseProgressCompletedItemIdsItemMax)).max(getGrowthOnboardingResponseProgressCompletedItemIdsMax),
+  "version": zod.number().min(getGrowthOnboardingResponseProgressVersionMin)
+}),
+  "authorityNote": zod.literal("Every assignment, qualification, conversion proposal, quote term and quote approval is a named human action. This surface sends no email, creates no CRM record, converts no pursuit, submits no bid, calculates no price and collects no payment.").describe('Closed authority boundary returned by every growth-suite success response.')
+})
+
+
+/**
+ * Records only a named operator's onboarding progress for the current journey policy. It does not change authoritative pursuit state.
+ * @summary Record one onboarding checkpoint with optimistic concurrency
+ */
+export const mutateGrowthOnboardingProgressBodyItemIdMax = 128;
+
+export const mutateGrowthOnboardingProgressBodyExpectedVersionMin = 0;
+
+
+
+export const MutateGrowthOnboardingProgressBody = zod.object({
+  "journeyVersion": zod.literal("2026-08-11.2"),
+  "itemId": zod.string().min(1).max(mutateGrowthOnboardingProgressBodyItemIdMax),
+  "expectedVersion": zod.number().min(mutateGrowthOnboardingProgressBodyExpectedVersionMin),
+  "completed": zod.boolean()
+})
+
+export const mutateGrowthOnboardingProgressResponseProgressCompletedItemIdsItemMax = 128;
+
+export const mutateGrowthOnboardingProgressResponseProgressCompletedItemIdsMax = 512;
+
+export const mutateGrowthOnboardingProgressResponseProgressVersionMin = 0;
+
+
+
+export const MutateGrowthOnboardingProgressResponse = zod.object({
+  "progress": zod.object({
+  "journeyVersion": zod.literal("2026-08-11.2"),
+  "completedItemIds": zod.array(zod.string().min(1).max(mutateGrowthOnboardingProgressResponseProgressCompletedItemIdsItemMax)).max(mutateGrowthOnboardingProgressResponseProgressCompletedItemIdsMax),
+  "version": zod.number().min(mutateGrowthOnboardingProgressResponseProgressVersionMin)
+}),
+  "authorityNote": zod.literal("Every assignment, qualification, conversion proposal, quote term and quote approval is a named human action. This surface sends no email, creates no CRM record, converts no pursuit, submits no bid, calculates no price and collects no payment.").describe('Closed authority boundary returned by every growth-suite success response.')
+})
+
+
+/**
+ * Returns product scope boundaries only. Every price is entered by a named operator, payment remains external and manual, and this operation neither calculates nor approves commercial terms.
+ * @summary Get the versioned offer catalogue
+ */
+export const getGrowthOfferCatalogueResponseItemsItemTitleMax = 160;
+
+export const getGrowthOfferCatalogueResponseItemsItemSummaryMax = 1000;
+
+export const getGrowthOfferCatalogueResponseItemsItemIncludedOutcomesItemMax = 160;
+
+export const getGrowthOfferCatalogueResponseItemsItemIncludedOutcomesMax = 20;
+
+export const getGrowthOfferCatalogueResponseItemsItemExcludedActionsItemMax = 160;
+
+export const getGrowthOfferCatalogueResponseItemsItemExcludedActionsMax = 20;
+
+export const getGrowthOfferCatalogueResponseItemsMin = 3;
+export const getGrowthOfferCatalogueResponseItemsMax = 3;
+
+
+
+export const GetGrowthOfferCatalogueResponse = zod.object({
+  "catalogueVersion": zod.literal("2026-08-11.1"),
+  "items": zod.array(zod.object({
+  "sku": zod.enum(['bid_autopsy', 'assisted_bid', 'evidence_readiness_retainer']),
+  "versionId": zod.enum(['bid_autopsy@1', 'assisted_bid@1', 'evidence_readiness_retainer@1']),
+  "revision": zod.number(),
+  "title": zod.string().min(1).max(getGrowthOfferCatalogueResponseItemsItemTitleMax),
+  "summary": zod.string().min(1).max(getGrowthOfferCatalogueResponseItemsItemSummaryMax),
+  "includedOutcomes": zod.array(zod.string().min(1).max(getGrowthOfferCatalogueResponseItemsItemIncludedOutcomesItemMax)).max(getGrowthOfferCatalogueResponseItemsItemIncludedOutcomesMax),
+  "excludedActions": zod.array(zod.string().min(1).max(getGrowthOfferCatalogueResponseItemsItemExcludedActionsItemMax)).max(getGrowthOfferCatalogueResponseItemsItemExcludedActionsMax),
+  "pricingMode": zod.literal("human_quote_required"),
+  "paymentMode": zod.literal("external_manual_only"),
+  "status": zod.literal("active")
+})).min(getGrowthOfferCatalogueResponseItemsMin).max(getGrowthOfferCatalogueResponseItemsMax),
+  "authorityNote": zod.literal("Every assignment, qualification, conversion proposal, quote term and quote approval is a named human action. This surface sends no email, creates no CRM record, converts no pursuit, submits no bid, calculates no price and collects no payment.").describe('Closed authority boundary returned by every growth-suite success response.')
+})
+
+
+/**
+ * Returns tenant-scoped operational summaries without a person's name, email address or telephone number. It is not a CRM or contact channel.
+ * @summary List the bounded lead operations inbox
+ */
+export const listGrowthLeadsQueryLimitDefault = 25;
+export const listGrowthLeadsQueryLimitMax = 50;
+
+
+
+export const ListGrowthLeadsQueryParams = zod.object({
+  "limit": zod.coerce.number().min(1).max(listGrowthLeadsQueryLimitMax).default(listGrowthLeadsQueryLimitDefault).describe('Maximum bounded rows to return.')
+})
+
+export const listGrowthLeadsResponseItemsItemIdMax = 128;
+
+export const listGrowthLeadsResponseItemsItemOrganisationIdMax = 128;
+
+export const listGrowthLeadsResponseItemsItemLeadReferenceMax = 160;
+
+export const listGrowthLeadsResponseItemsItemOrganisationLabelMax = 160;
+
+export const listGrowthLeadsResponseItemsItemTenderCategoryMax = 160;
+
+export const listGrowthLeadsResponseItemsItemBidStageMax = 160;
+
+export const listGrowthLeadsResponseItemsItemAssignedToUserIdMax = 128;
+
+export const listGrowthLeadsResponseItemsItemConversionProposalOneIdMax = 128;
+
+export const listGrowthLeadsResponseItemsItemConversionProposalOneProposedByUserIdMax = 128;
+
+export const listGrowthLeadsResponseItemsItemConversionProposalOneSuggestedPursuitTitleMax = 160;
+
+export const listGrowthLeadsResponseItemsItemConversionProposalOneRationaleMax = 1000;
+
+export const listGrowthLeadsResponseItemsItemLatestStatusDecisionOneReasonMax = 1000;
+
+export const listGrowthLeadsResponseItemsItemLatestStatusDecisionOneDecidedByUserIdMax = 128;
+
+export const listGrowthLeadsResponseItemsItemLatestStatusDecisionOneExternalTargetReferenceOneMax = 160;
+
+export const listGrowthLeadsResponseItemsItemLatestStatusDecisionOneReceiptSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+
+export const listGrowthLeadsResponseItemsMax = 50;
+
+export const listGrowthLeadsResponseCountMin = 0;
+export const listGrowthLeadsResponseCountMax = 50;
+
+
+
+export const ListGrowthLeadsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().min(1).max(listGrowthLeadsResponseItemsItemIdMax),
+  "organisationId": zod.string().min(1).max(listGrowthLeadsResponseItemsItemOrganisationIdMax),
+  "leadReference": zod.string().min(1).max(listGrowthLeadsResponseItemsItemLeadReferenceMax),
+  "organisationLabel": zod.string().min(1).max(listGrowthLeadsResponseItemsItemOrganisationLabelMax),
+  "tenderCategory": zod.string().min(1).max(listGrowthLeadsResponseItemsItemTenderCategoryMax),
+  "bidStage": zod.string().min(1).max(listGrowthLeadsResponseItemsItemBidStageMax),
+  "receivedAt": zod.coerce.date(),
+  "tenderDeadline": zod.string().nullable(),
+  "assignedToUserId": zod.string().max(listGrowthLeadsResponseItemsItemAssignedToUserIdMax).nullable(),
+  "status": zod.enum(['new', 'qualified', 'not_a_fit', 'converted', 'conversion_proposed']),
+  "slaDueAt": zod.coerce.date().nullable(),
+  "conversionProposal": zod.union([zod.object({
+  "id": zod.string().min(1).max(listGrowthLeadsResponseItemsItemConversionProposalOneIdMax),
+  "status": zod.literal("pending_human_decision"),
+  "proposedAt": zod.coerce.date(),
+  "proposedByUserId": zod.string().min(1).max(listGrowthLeadsResponseItemsItemConversionProposalOneProposedByUserIdMax),
+  "suggestedPursuitTitle": zod.string().min(1).max(listGrowthLeadsResponseItemsItemConversionProposalOneSuggestedPursuitTitleMax),
+  "rationale": zod.string().min(1).max(listGrowthLeadsResponseItemsItemConversionProposalOneRationaleMax)
+}),zod.null()]),
+  "latestStatusDecision": zod.union([zod.object({
+  "status": zod.enum(['qualified', 'not_a_fit', 'converted']),
+  "reason": zod.string().min(1).max(listGrowthLeadsResponseItemsItemLatestStatusDecisionOneReasonMax),
+  "decidedAt": zod.coerce.date(),
+  "decidedByUserId": zod.string().min(1).max(listGrowthLeadsResponseItemsItemLatestStatusDecisionOneDecidedByUserIdMax),
+  "externalTargetReference": zod.union([zod.string().min(1).max(listGrowthLeadsResponseItemsItemLatestStatusDecisionOneExternalTargetReferenceOneMax),zod.null()]),
+  "receiptSha256": zod.union([zod.string().regex(listGrowthLeadsResponseItemsItemLatestStatusDecisionOneReceiptSha256OneRegExp),zod.null()])
+}),zod.null()]),
+  "version": zod.number().min(1),
+  "updatedAt": zod.coerce.date()
+}).describe('Deliberately excludes a person\'s name, email address and telephone number.')).max(listGrowthLeadsResponseItemsMax),
+  "count": zod.number().min(listGrowthLeadsResponseCountMin).max(listGrowthLeadsResponseCountMax),
+  "contactDataIncluded": zod.literal(false),
+  "authorityNote": zod.literal("Every assignment, qualification, conversion proposal, quote term and quote approval is a named human action. This surface sends no email, creates no CRM record, converts no pursuit, submits no bid, calculates no price and collects no payment.").describe('Closed authority boundary returned by every growth-suite success response.')
+})
+
+
+/**
+ * Records assignment, status, SLA or a conversion proposal. It sends no message, creates no CRM record and never converts a proposal into a pursuit.
+ * @summary Record one named human lead action
+ */
+export const mutateGrowthLeadPathIdMax = 128;
+
+
+export const mutateGrowthLeadPathIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:@-]*$');
+
+
+export const MutateGrowthLeadParams = zod.object({
+  "id": zod.coerce.string().min(1).max(mutateGrowthLeadPathIdMax).regex(mutateGrowthLeadPathIdRegExp).describe('Bounded lead or quote identifier within the active tenant.')
+})
+
+
+export const mutateGrowthLeadBodyOneAssigneeUserIdMax = 128;
+
+
+export const mutateGrowthLeadBodyTwoOneReasonMax = 1000;
+
+
+export const mutateGrowthLeadBodyTwoTwoReasonMax = 1000;
+
+export const mutateGrowthLeadBodyTwoTwoExternalTargetReferenceMax = 160;
+
+export const mutateGrowthLeadBodyTwoTwoReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const mutateGrowthLeadBodyFourSuggestedPursuitTitleMax = 160;
+
+export const mutateGrowthLeadBodyFourRationaleMax = 1000;
+
+
+
+export const MutateGrowthLeadBody = zod.union([zod.object({
+  "action": zod.literal("assign"),
+  "expectedVersion": zod.number().min(1),
+  "assigneeUserId": zod.string().min(1).max(mutateGrowthLeadBodyOneAssigneeUserIdMax)
+}).strict(),zod.union([zod.object({
+  "action": zod.literal("set_status"),
+  "expectedVersion": zod.number().min(1),
+  "status": zod.enum(['qualified', 'not_a_fit']),
+  "reason": zod.string().min(1).max(mutateGrowthLeadBodyTwoOneReasonMax)
+}).strict(),zod.object({
+  "action": zod.literal("set_status"),
+  "expectedVersion": zod.number().min(1),
+  "status": zod.literal("converted"),
+  "reason": zod.string().min(1).max(mutateGrowthLeadBodyTwoTwoReasonMax),
+  "externalTargetReference": zod.string().min(1).max(mutateGrowthLeadBodyTwoTwoExternalTargetReferenceMax),
+  "receiptSha256": zod.string().regex(mutateGrowthLeadBodyTwoTwoReceiptSha256RegExp)
+}).strict()]),zod.object({
+  "action": zod.literal("set_sla"),
+  "expectedVersion": zod.number().min(1),
+  "slaDueAt": zod.coerce.date()
+}).strict(),zod.object({
+  "action": zod.literal("propose_conversion"),
+  "expectedVersion": zod.number().min(1),
+  "suggestedPursuitTitle": zod.string().min(1).max(mutateGrowthLeadBodyFourSuggestedPursuitTitleMax),
+  "rationale": zod.string().min(1).max(mutateGrowthLeadBodyFourRationaleMax)
+}).strict()])
+
+export const mutateGrowthLeadResponseItemIdMax = 128;
+
+export const mutateGrowthLeadResponseItemOrganisationIdMax = 128;
+
+export const mutateGrowthLeadResponseItemLeadReferenceMax = 160;
+
+export const mutateGrowthLeadResponseItemOrganisationLabelMax = 160;
+
+export const mutateGrowthLeadResponseItemTenderCategoryMax = 160;
+
+export const mutateGrowthLeadResponseItemBidStageMax = 160;
+
+export const mutateGrowthLeadResponseItemAssignedToUserIdMax = 128;
+
+export const mutateGrowthLeadResponseItemConversionProposalOneIdMax = 128;
+
+export const mutateGrowthLeadResponseItemConversionProposalOneProposedByUserIdMax = 128;
+
+export const mutateGrowthLeadResponseItemConversionProposalOneSuggestedPursuitTitleMax = 160;
+
+export const mutateGrowthLeadResponseItemConversionProposalOneRationaleMax = 1000;
+
+export const mutateGrowthLeadResponseItemLatestStatusDecisionOneReasonMax = 1000;
+
+export const mutateGrowthLeadResponseItemLatestStatusDecisionOneDecidedByUserIdMax = 128;
+
+export const mutateGrowthLeadResponseItemLatestStatusDecisionOneExternalTargetReferenceOneMax = 160;
+
+export const mutateGrowthLeadResponseItemLatestStatusDecisionOneReceiptSha256OneRegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+
+export const MutateGrowthLeadResponse = zod.object({
+  "item": zod.object({
+  "id": zod.string().min(1).max(mutateGrowthLeadResponseItemIdMax),
+  "organisationId": zod.string().min(1).max(mutateGrowthLeadResponseItemOrganisationIdMax),
+  "leadReference": zod.string().min(1).max(mutateGrowthLeadResponseItemLeadReferenceMax),
+  "organisationLabel": zod.string().min(1).max(mutateGrowthLeadResponseItemOrganisationLabelMax),
+  "tenderCategory": zod.string().min(1).max(mutateGrowthLeadResponseItemTenderCategoryMax),
+  "bidStage": zod.string().min(1).max(mutateGrowthLeadResponseItemBidStageMax),
+  "receivedAt": zod.coerce.date(),
+  "tenderDeadline": zod.string().nullable(),
+  "assignedToUserId": zod.string().max(mutateGrowthLeadResponseItemAssignedToUserIdMax).nullable(),
+  "status": zod.enum(['new', 'qualified', 'not_a_fit', 'converted', 'conversion_proposed']),
+  "slaDueAt": zod.coerce.date().nullable(),
+  "conversionProposal": zod.union([zod.object({
+  "id": zod.string().min(1).max(mutateGrowthLeadResponseItemConversionProposalOneIdMax),
+  "status": zod.literal("pending_human_decision"),
+  "proposedAt": zod.coerce.date(),
+  "proposedByUserId": zod.string().min(1).max(mutateGrowthLeadResponseItemConversionProposalOneProposedByUserIdMax),
+  "suggestedPursuitTitle": zod.string().min(1).max(mutateGrowthLeadResponseItemConversionProposalOneSuggestedPursuitTitleMax),
+  "rationale": zod.string().min(1).max(mutateGrowthLeadResponseItemConversionProposalOneRationaleMax)
+}),zod.null()]),
+  "latestStatusDecision": zod.union([zod.object({
+  "status": zod.enum(['qualified', 'not_a_fit', 'converted']),
+  "reason": zod.string().min(1).max(mutateGrowthLeadResponseItemLatestStatusDecisionOneReasonMax),
+  "decidedAt": zod.coerce.date(),
+  "decidedByUserId": zod.string().min(1).max(mutateGrowthLeadResponseItemLatestStatusDecisionOneDecidedByUserIdMax),
+  "externalTargetReference": zod.union([zod.string().min(1).max(mutateGrowthLeadResponseItemLatestStatusDecisionOneExternalTargetReferenceOneMax),zod.null()]),
+  "receiptSha256": zod.union([zod.string().regex(mutateGrowthLeadResponseItemLatestStatusDecisionOneReceiptSha256OneRegExp),zod.null()])
+}),zod.null()]),
+  "version": zod.number().min(1),
+  "updatedAt": zod.coerce.date()
+}).describe('Deliberately excludes a person\'s name, email address and telephone number.'),
+  "authorityNote": zod.literal("Every assignment, qualification, conversion proposal, quote term and quote approval is a named human action. This surface sends no email, creates no CRM record, converts no pursuit, submits no bid, calculates no price and collects no payment.").describe('Closed authority boundary returned by every growth-suite success response.')
+})
+
+
+/**
+ * Returns one transient contact handoff only to the lead's currently assigned named operator and records the stated purpose. The response sends no message, is excluded from the bulk inbox, must not be copied into logs or exports. The successful handoff is private and non-cacheable (`Cache-Control: private, no-store`).
+ * @summary Open one assigned lead contact for a recorded purpose
+ */
+export const openGrowthLeadContactHandoffPathIdMax = 128;
+
+
+export const openGrowthLeadContactHandoffPathIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:@-]*$');
+
+
+export const OpenGrowthLeadContactHandoffParams = zod.object({
+  "id": zod.coerce.string().min(1).max(openGrowthLeadContactHandoffPathIdMax).regex(openGrowthLeadContactHandoffPathIdRegExp).describe('Bounded lead or quote identifier within the active tenant.')
+})
+
+
+
+
+export const OpenGrowthLeadContactHandoffBody = zod.object({
+  "expectedVersion": zod.number().min(1),
+  "purpose": zod.enum(['initial_follow_up', 'qualification_call', 'conversion_handoff'])
+}).strict()
+
+export const openGrowthLeadContactHandoffResponseHandoffOneLeadIdMax = 128;
+
+export const openGrowthLeadContactHandoffResponseHandoffOneContactNameMax = 120;
+
+export const openGrowthLeadContactHandoffResponseHandoffOneContactValueMax = 254;
+
+
+export const openGrowthLeadContactHandoffResponseHandoffTwoLeadIdMax = 128;
+
+export const openGrowthLeadContactHandoffResponseHandoffTwoContactNameMax = 120;
+
+export const openGrowthLeadContactHandoffResponseHandoffTwoContactValueMax = 32;
+
+
+
+
+export const OpenGrowthLeadContactHandoffResponse = zod.object({
+  "handoff": zod.union([zod.object({
+  "leadId": zod.string().min(1).max(openGrowthLeadContactHandoffResponseHandoffOneLeadIdMax),
+  "contactName": zod.string().min(1).max(openGrowthLeadContactHandoffResponseHandoffOneContactNameMax),
+  "preferredContactMethod": zod.literal("email"),
+  "contactValue": zod.string().min(1).max(openGrowthLeadContactHandoffResponseHandoffOneContactValueMax),
+  "purpose": zod.enum(['initial_follow_up', 'qualification_call', 'conversion_handoff']),
+  "accessedAt": zod.coerce.date(),
+  "version": zod.number().min(1)
+}).strict(),zod.object({
+  "leadId": zod.string().min(1).max(openGrowthLeadContactHandoffResponseHandoffTwoLeadIdMax),
+  "contactName": zod.string().min(1).max(openGrowthLeadContactHandoffResponseHandoffTwoContactNameMax),
+  "preferredContactMethod": zod.literal("telephone"),
+  "contactValue": zod.string().min(1).max(openGrowthLeadContactHandoffResponseHandoffTwoContactValueMax),
+  "purpose": zod.enum(['initial_follow_up', 'qualification_call', 'conversion_handoff']),
+  "accessedAt": zod.coerce.date(),
+  "version": zod.number().min(1)
+}).strict()]).describe('Transient contact data for one assigned lead. It must not be retained in a client cache, bulk export, application log or analytics event.'),
+  "contactDataIncluded": zod.literal(true),
+  "authorityNote": zod.literal("This single-record contact handoff is for the recorded purpose and assigned operator only. It sends no message and must not be copied into logs or bulk exports.")
+}).strict()
+
+
+/**
+ * @summary List human-entered quote proposals
+ */
+export const listGrowthQuotesQueryLimitDefault = 25;
+export const listGrowthQuotesQueryLimitMax = 50;
+
+
+
+export const ListGrowthQuotesQueryParams = zod.object({
+  "limit": zod.coerce.number().min(1).max(listGrowthQuotesQueryLimitMax).default(listGrowthQuotesQueryLimitDefault).describe('Maximum bounded rows to return.')
+})
+
+export const listGrowthQuotesResponseItemsItemIdMax = 128;
+
+export const listGrowthQuotesResponseItemsItemOrganisationIdMax = 128;
+
+export const listGrowthQuotesResponseItemsItemCustomerReferenceMax = 128;
+
+export const listGrowthQuotesResponseItemsItemScopeSummaryMax = 1000;
+
+export const listGrowthQuotesResponseItemsItemCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const listGrowthQuotesResponseItemsItemAmountMinorMax = 1000000000000000;
+
+export const listGrowthQuotesResponseItemsItemCreatedByUserIdMax = 128;
+
+export const listGrowthQuotesResponseItemsItemApprovedByUserIdMax = 128;
+
+
+export const listGrowthQuotesResponseItemsMax = 50;
+
+export const listGrowthQuotesResponseCountMin = 0;
+export const listGrowthQuotesResponseCountMax = 50;
+
+
+
+export const ListGrowthQuotesResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().min(1).max(listGrowthQuotesResponseItemsItemIdMax),
+  "organisationId": zod.string().min(1).max(listGrowthQuotesResponseItemsItemOrganisationIdMax),
+  "customerReference": zod.string().min(1).max(listGrowthQuotesResponseItemsItemCustomerReferenceMax),
+  "offerVersionId": zod.enum(['bid_autopsy@1', 'assisted_bid@1', 'evidence_readiness_retainer@1']),
+  "scopeSummary": zod.string().min(1).max(listGrowthQuotesResponseItemsItemScopeSummaryMax),
+  "currency": zod.string().regex(listGrowthQuotesResponseItemsItemCurrencyRegExp),
+  "amountMinor": zod.number().min(1).max(listGrowthQuotesResponseItemsItemAmountMinorMax),
+  "validUntil": zod.coerce.date(),
+  "status": zod.enum(['draft', 'approved']),
+  "createdByUserId": zod.string().min(1).max(listGrowthQuotesResponseItemsItemCreatedByUserIdMax),
+  "approvedByUserId": zod.string().max(listGrowthQuotesResponseItemsItemApprovedByUserIdMax).nullable(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "version": zod.number().min(1),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})).max(listGrowthQuotesResponseItemsMax),
+  "count": zod.number().min(listGrowthQuotesResponseCountMin).max(listGrowthQuotesResponseCountMax),
+  "authorityNote": zod.literal("Every assignment, qualification, conversion proposal, quote term and quote approval is a named human action. This surface sends no email, creates no CRM record, converts no pursuit, submits no bid, calculates no price and collects no payment.").describe('Closed authority boundary returned by every growth-suite success response.')
+})
+
+
+/**
+ * Stores terms entered by a named operator against one versioned offer. The server does not calculate the amount, send the quote or collect payment.
+ * @summary Record a manually priced quote draft
+ */
+export const createGrowthQuoteDraftBodyCustomerReferenceMax = 128;
+
+export const createGrowthQuoteDraftBodyScopeSummaryMax = 1000;
+
+export const createGrowthQuoteDraftBodyCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const createGrowthQuoteDraftBodyAmountMinorMax = 1000000000000000;
+
+
+
+export const CreateGrowthQuoteDraftBody = zod.object({
+  "customerReference": zod.string().min(1).max(createGrowthQuoteDraftBodyCustomerReferenceMax),
+  "offerVersionId": zod.enum(['bid_autopsy@1', 'assisted_bid@1', 'evidence_readiness_retainer@1']),
+  "scopeSummary": zod.string().min(1).max(createGrowthQuoteDraftBodyScopeSummaryMax),
+  "currency": zod.string().regex(createGrowthQuoteDraftBodyCurrencyRegExp),
+  "amountMinor": zod.number().min(1).max(createGrowthQuoteDraftBodyAmountMinorMax).describe('Entered by a named operator; never calculated by Valo.'),
+  "validUntil": zod.coerce.date()
+})
+
+export const createGrowthQuoteDraftResponseQuoteIdMax = 128;
+
+export const createGrowthQuoteDraftResponseQuoteOrganisationIdMax = 128;
+
+export const createGrowthQuoteDraftResponseQuoteCustomerReferenceMax = 128;
+
+export const createGrowthQuoteDraftResponseQuoteScopeSummaryMax = 1000;
+
+export const createGrowthQuoteDraftResponseQuoteCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const createGrowthQuoteDraftResponseQuoteAmountMinorMax = 1000000000000000;
+
+export const createGrowthQuoteDraftResponseQuoteCreatedByUserIdMax = 128;
+
+export const createGrowthQuoteDraftResponseQuoteApprovedByUserIdMax = 128;
+
+
+
+
+export const CreateGrowthQuoteDraftResponse = zod.object({
+  "quote": zod.object({
+  "id": zod.string().min(1).max(createGrowthQuoteDraftResponseQuoteIdMax),
+  "organisationId": zod.string().min(1).max(createGrowthQuoteDraftResponseQuoteOrganisationIdMax),
+  "customerReference": zod.string().min(1).max(createGrowthQuoteDraftResponseQuoteCustomerReferenceMax),
+  "offerVersionId": zod.enum(['bid_autopsy@1', 'assisted_bid@1', 'evidence_readiness_retainer@1']),
+  "scopeSummary": zod.string().min(1).max(createGrowthQuoteDraftResponseQuoteScopeSummaryMax),
+  "currency": zod.string().regex(createGrowthQuoteDraftResponseQuoteCurrencyRegExp),
+  "amountMinor": zod.number().min(1).max(createGrowthQuoteDraftResponseQuoteAmountMinorMax),
+  "validUntil": zod.coerce.date(),
+  "status": zod.enum(['draft', 'approved']),
+  "createdByUserId": zod.string().min(1).max(createGrowthQuoteDraftResponseQuoteCreatedByUserIdMax),
+  "approvedByUserId": zod.string().max(createGrowthQuoteDraftResponseQuoteApprovedByUserIdMax).nullable(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "version": zod.number().min(1),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "authorityNote": zod.literal("Every assignment, qualification, conversion proposal, quote term and quote approval is a named human action. This surface sends no email, creates no CRM record, converts no pursuit, submits no bid, calculates no price and collects no payment.").describe('Closed authority boundary returned by every growth-suite success response.')
+})
+
+
+/**
+ * Records approval only when the approver differs from the draft creator. Approval sends no quote, creates no invoice and collects no payment.
+ * @summary Approve a quote as a distinct named operator
+ */
+export const approveGrowthQuotePathIdMax = 128;
+
+
+export const approveGrowthQuotePathIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:@-]*$');
+
+
+export const ApproveGrowthQuoteParams = zod.object({
+  "id": zod.coerce.string().min(1).max(approveGrowthQuotePathIdMax).regex(approveGrowthQuotePathIdRegExp).describe('Bounded lead or quote identifier within the active tenant.')
+})
+
+
+
+
+export const ApproveGrowthQuoteBody = zod.object({
+  "expectedVersion": zod.number().min(1)
+})
+
+export const approveGrowthQuoteResponseQuoteIdMax = 128;
+
+export const approveGrowthQuoteResponseQuoteOrganisationIdMax = 128;
+
+export const approveGrowthQuoteResponseQuoteCustomerReferenceMax = 128;
+
+export const approveGrowthQuoteResponseQuoteScopeSummaryMax = 1000;
+
+export const approveGrowthQuoteResponseQuoteCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const approveGrowthQuoteResponseQuoteAmountMinorMax = 1000000000000000;
+
+export const approveGrowthQuoteResponseQuoteCreatedByUserIdMax = 128;
+
+export const approveGrowthQuoteResponseQuoteApprovedByUserIdMax = 128;
+
+
+
+
+export const ApproveGrowthQuoteResponse = zod.object({
+  "quote": zod.object({
+  "id": zod.string().min(1).max(approveGrowthQuoteResponseQuoteIdMax),
+  "organisationId": zod.string().min(1).max(approveGrowthQuoteResponseQuoteOrganisationIdMax),
+  "customerReference": zod.string().min(1).max(approveGrowthQuoteResponseQuoteCustomerReferenceMax),
+  "offerVersionId": zod.enum(['bid_autopsy@1', 'assisted_bid@1', 'evidence_readiness_retainer@1']),
+  "scopeSummary": zod.string().min(1).max(approveGrowthQuoteResponseQuoteScopeSummaryMax),
+  "currency": zod.string().regex(approveGrowthQuoteResponseQuoteCurrencyRegExp),
+  "amountMinor": zod.number().min(1).max(approveGrowthQuoteResponseQuoteAmountMinorMax),
+  "validUntil": zod.coerce.date(),
+  "status": zod.enum(['draft', 'approved']),
+  "createdByUserId": zod.string().min(1).max(approveGrowthQuoteResponseQuoteCreatedByUserIdMax),
+  "approvedByUserId": zod.string().max(approveGrowthQuoteResponseQuoteApprovedByUserIdMax).nullable(),
+  "approvedAt": zod.coerce.date().nullable(),
+  "version": zod.number().min(1),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "authorityNote": zod.literal("Every assignment, qualification, conversion proposal, quote term and quote approval is a named human action. This surface sends no email, creates no CRM record, converts no pursuit, submits no bid, calculates no price and collects no payment.").describe('Closed authority boundary returned by every growth-suite success response.')
+})
+
+
+/**
+ * Returns a bounded named-human go/no-go recommendation. It never authorises deployment.
+ * @summary Read release-bound production acceptance evidence
+ */
+export const getProductionAcceptanceSnapshotResponseExpectedReleaseSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+export const getProductionAcceptanceSnapshotResponseCategoriesItemLatestEvidenceOneReleaseSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getProductionAcceptanceSnapshotResponseCategoriesItemLatestEvidenceOneEvidenceReferenceMax = 256;
+
+export const getProductionAcceptanceSnapshotResponseCategoriesItemLatestEvidenceOneArtifactSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getProductionAcceptanceSnapshotResponseCategoriesItemLatestEvidenceOneSummaryMax = 1000;
+
+export const getProductionAcceptanceSnapshotResponseCategoriesItemLatestEvidenceOneEvidenceDigestRegExp = new RegExp('^[a-f0-9]{64}$');
+export const getProductionAcceptanceSnapshotResponseCategoriesMax = 7;
+
+
+
+export const getProductionAcceptanceSnapshotResponseBlockersMax = 500;
+
+
+
+
+export const GetProductionAcceptanceSnapshotResponse = zod.object({
+  "generatedAt": zod.date(),
+  "organisationId": zod.string().uuid(),
+  "expectedReleaseSha256": zod.string().regex(getProductionAcceptanceSnapshotResponseExpectedReleaseSha256RegExp).nullable(),
+  "recommendedDecision": zod.enum(['go', 'no_go']),
+  "deploymentAuthorized": zod.literal(false),
+  "requiresNamedHumanApproval": zod.literal(true),
+  "categories": zod.array(zod.object({
+  "category": zod.enum(['migration', 'rls', 'tenant_isolation', 'browser_accessibility', 'backup', 'restore', 'rollback']),
+  "label": zod.string().min(1),
+  "state": zod.enum(['passed', 'failed', 'missing', 'expired', 'release_mismatch', 'integrity_failed']),
+  "required": zod.literal(true),
+  "latestEvidence": zod.union([zod.object({
+  "schema": zod.literal("valo.production-acceptance-evidence/v1"),
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "category": zod.enum(['migration', 'rls', 'tenant_isolation', 'browser_accessibility', 'backup', 'restore', 'rollback']),
+  "outcome": zod.enum(['passed', 'failed']),
+  "environment": zod.enum(['staging', 'production', 'recovery_rehearsal']),
+  "releaseSha256": zod.string().regex(getProductionAcceptanceSnapshotResponseCategoriesItemLatestEvidenceOneReleaseSha256RegExp),
+  "ownerUserId": zod.string().uuid(),
+  "verifiedByUserId": zod.string().uuid(),
+  "observedAt": zod.date(),
+  "expiresAt": zod.date(),
+  "evidenceReference": zod.string().min(1).max(getProductionAcceptanceSnapshotResponseCategoriesItemLatestEvidenceOneEvidenceReferenceMax),
+  "artifactSha256": zod.string().regex(getProductionAcceptanceSnapshotResponseCategoriesItemLatestEvidenceOneArtifactSha256RegExp),
+  "summary": zod.string().min(1).max(getProductionAcceptanceSnapshotResponseCategoriesItemLatestEvidenceOneSummaryMax),
+  "recordedAt": zod.date(),
+  "evidenceDigest": zod.string().regex(getProductionAcceptanceSnapshotResponseCategoriesItemLatestEvidenceOneEvidenceDigestRegExp)
+}).strict(),zod.null()])
+}).strict()).max(getProductionAcceptanceSnapshotResponseCategoriesMax),
+  "blockers": zod.array(zod.object({
+  "code": zod.string().min(1),
+  "category": zod.union([zod.literal('migration'),zod.literal('rls'),zod.literal('tenant_isolation'),zod.literal('browser_accessibility'),zod.literal('backup'),zod.literal('restore'),zod.literal('rollback'),zod.literal(null)]).nullable(),
+  "message": zod.string().min(1)
+}).strict()).max(getProductionAcceptanceSnapshotResponseBlockersMax),
+  "authorityNote": zod.string().min(1)
+}).strict()
+
+
+/**
+ * Recorder-only, bounded authority lookup. This endpoint is not a general user directory.
+ * @summary List named operators eligible to own acceptance evidence
+ */
+export const listProductionAcceptanceAuthoritiesResponseItemsItemNameMax = 512;
+
+export const listProductionAcceptanceAuthoritiesResponseItemsMax = 100;
+
+
+
+export const ListProductionAcceptanceAuthoritiesResponse = zod.object({
+  "organisationId": zod.string().uuid(),
+  "items": zod.array(zod.object({
+  "userId": zod.string().uuid(),
+  "name": zod.string().min(1).max(listProductionAcceptanceAuthoritiesResponseItemsItemNameMax)
+}).strict()).max(listProductionAcceptanceAuthoritiesResponseItemsMax),
+  "limit": zod.literal(100),
+  "truncated": zod.literal(false)
+}).strict()
+
+
+/**
+ * A named human records evidence; replay is idempotent and the response never grants deployment authority.
+ * @summary Record release-bound acceptance evidence
+ */
+export const recordProductionAcceptanceEvidenceBodyReleaseSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const recordProductionAcceptanceEvidenceBodyEvidenceReferenceMax = 256;
+
+export const recordProductionAcceptanceEvidenceBodyArtifactSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const recordProductionAcceptanceEvidenceBodySummaryMax = 1000;
+
+export const recordProductionAcceptanceEvidenceBodyIdempotencyKeyMin = 16;
+export const recordProductionAcceptanceEvidenceBodyIdempotencyKeyMax = 128;
+
+
+export const recordProductionAcceptanceEvidenceBodyIdempotencyKeyRegExp = new RegExp('^[a-zA-Z0-9][a-zA-Z0-9._:-]{15,127}$');
+
+
+export const RecordProductionAcceptanceEvidenceBody = zod.object({
+  "category": zod.enum(['migration', 'rls', 'tenant_isolation', 'browser_accessibility', 'backup', 'restore', 'rollback']),
+  "outcome": zod.enum(['passed', 'failed']),
+  "environment": zod.enum(['staging', 'production', 'recovery_rehearsal']),
+  "releaseSha256": zod.string().regex(recordProductionAcceptanceEvidenceBodyReleaseSha256RegExp),
+  "ownerUserId": zod.string().uuid(),
+  "observedAt": zod.date(),
+  "expiresAt": zod.date(),
+  "evidenceReference": zod.string().min(1).max(recordProductionAcceptanceEvidenceBodyEvidenceReferenceMax),
+  "artifactSha256": zod.string().regex(recordProductionAcceptanceEvidenceBodyArtifactSha256RegExp),
+  "summary": zod.string().min(1).max(recordProductionAcceptanceEvidenceBodySummaryMax),
+  "idempotencyKey": zod.string().min(recordProductionAcceptanceEvidenceBodyIdempotencyKeyMin).max(recordProductionAcceptanceEvidenceBodyIdempotencyKeyMax).regex(recordProductionAcceptanceEvidenceBodyIdempotencyKeyRegExp)
+}).strict()
+
+export const recordProductionAcceptanceEvidenceResponseRecordReleaseSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const recordProductionAcceptanceEvidenceResponseRecordEvidenceReferenceMax = 256;
+
+export const recordProductionAcceptanceEvidenceResponseRecordArtifactSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const recordProductionAcceptanceEvidenceResponseRecordSummaryMax = 1000;
+
+export const recordProductionAcceptanceEvidenceResponseRecordEvidenceDigestRegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+
+export const RecordProductionAcceptanceEvidenceResponse = zod.object({
+  "record": zod.object({
+  "schema": zod.literal("valo.production-acceptance-evidence/v1"),
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "category": zod.enum(['migration', 'rls', 'tenant_isolation', 'browser_accessibility', 'backup', 'restore', 'rollback']),
+  "outcome": zod.enum(['passed', 'failed']),
+  "environment": zod.enum(['staging', 'production', 'recovery_rehearsal']),
+  "releaseSha256": zod.string().regex(recordProductionAcceptanceEvidenceResponseRecordReleaseSha256RegExp),
+  "ownerUserId": zod.string().uuid(),
+  "verifiedByUserId": zod.string().uuid(),
+  "observedAt": zod.date(),
+  "expiresAt": zod.date(),
+  "evidenceReference": zod.string().min(1).max(recordProductionAcceptanceEvidenceResponseRecordEvidenceReferenceMax),
+  "artifactSha256": zod.string().regex(recordProductionAcceptanceEvidenceResponseRecordArtifactSha256RegExp),
+  "summary": zod.string().min(1).max(recordProductionAcceptanceEvidenceResponseRecordSummaryMax),
+  "recordedAt": zod.date(),
+  "evidenceDigest": zod.string().regex(recordProductionAcceptanceEvidenceResponseRecordEvidenceDigestRegExp)
+}).strict(),
+  "replayed": zod.boolean(),
+  "deploymentAuthorized": zod.literal(false),
+  "authorityNote": zod.string().min(1)
+}).strict()
+
+
+/**
+ * Returns only records visible to the named caller within the exact direct-member tenant and project scope.
+ * @summary Read purpose-bound client action records
+ */
+export const GetClientActionSnapshotParams = zod.object({
+  "id": zod.string().uuid()
+})
+
+
+export const getClientActionSnapshotResponseRecordsItemOnePurposeStatementMax = 1000;
+
+export const getClientActionSnapshotResponseRecordsItemOneRequestAcknowledgementOneStatementMax = 1000;
+
+export const getClientActionSnapshotResponseRecordsItemOneSlotsItemLabelMax = 160;
+
+export const getClientActionSnapshotResponseRecordsItemOneSlotsItemAcceptedContentTypesItemMax = 160;
+
+export const getClientActionSnapshotResponseRecordsItemOneSlotsItemAcceptedContentTypesMax = 8;
+
+export const getClientActionSnapshotResponseRecordsItemOneSlotsItemAttemptsItemIntentFilenameMax = 255;
+
+export const getClientActionSnapshotResponseRecordsItemOneSlotsItemAttemptsItemIntentContentTypeMax = 160;
+
+export const getClientActionSnapshotResponseRecordsItemOneSlotsItemAttemptsItemIntentSizeBytesMax = 52428800;
+
+export const getClientActionSnapshotResponseRecordsItemOneSlotsItemAttemptsItemIntentDeclaredSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getClientActionSnapshotResponseRecordsItemOneSlotsItemAttemptsItemDocumentOneSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getClientActionSnapshotResponseRecordsItemOneSlotsItemAttemptsItemReviewOneReasonMax = 1000;
+
+export const getClientActionSnapshotResponseRecordsItemOneSlotsItemAttemptsItemCorrectionAcknowledgementOneStatementMax = 1000;
+
+export const getClientActionSnapshotResponseRecordsItemOneSlotsItemAttemptsMax = 10;
+
+export const getClientActionSnapshotResponseRecordsItemOneSlotsMax = 20;
+
+export const getClientActionSnapshotResponseRecordsItemOneCompletionReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+export const getClientActionSnapshotResponseRecordsItemTwoManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getClientActionSnapshotResponseRecordsItemTwoReleaseReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getClientActionSnapshotResponseRecordsItemTwoAcknowledgementOneStatementMax = 1000;
+
+export const getClientActionSnapshotResponseRecordsItemTwoAcknowledgementOneReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getClientActionSnapshotResponseRecordsMax = 200;
+
+
+
+export const GetClientActionSnapshotResponse = zod.object({
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "records": zod.array(zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.literal("evidence_request"),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedByUserId": zod.string().uuid(),
+  "updatedAt": zod.date(),
+  "purpose": zod.enum(['tender_evidence', 'credential_refresh', 'clarification_support', 'delivery_evidence']),
+  "purposeStatement": zod.string().min(1).max(getClientActionSnapshotResponseRecordsItemOnePurposeStatementMax),
+  "recipientUserId": zod.string().uuid(),
+  "dueAt": zod.date().nullable(),
+  "status": zod.enum(['open', 'acknowledged', 'in_progress', 'submitted', 'changes_required', 'completed']),
+  "requestAcknowledgement": zod.union([zod.object({
+  "statement": zod.string().min(1).max(getClientActionSnapshotResponseRecordsItemOneRequestAcknowledgementOneStatementMax),
+  "acknowledgedByUserId": zod.string().uuid(),
+  "acknowledgedAt": zod.date()
+}).strict(),zod.null()]),
+  "slots": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(getClientActionSnapshotResponseRecordsItemOneSlotsItemLabelMax),
+  "required": zod.boolean(),
+  "acceptedContentTypes": zod.array(zod.string().min(1).max(getClientActionSnapshotResponseRecordsItemOneSlotsItemAcceptedContentTypesItemMax)).max(getClientActionSnapshotResponseRecordsItemOneSlotsItemAcceptedContentTypesMax),
+  "attempts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "intent": zod.object({
+  "id": zod.string().uuid(),
+  "filename": zod.string().min(1).max(getClientActionSnapshotResponseRecordsItemOneSlotsItemAttemptsItemIntentFilenameMax),
+  "contentType": zod.string().min(1).max(getClientActionSnapshotResponseRecordsItemOneSlotsItemAttemptsItemIntentContentTypeMax),
+  "sizeBytes": zod.number().min(1).max(getClientActionSnapshotResponseRecordsItemOneSlotsItemAttemptsItemIntentSizeBytesMax),
+  "declaredSha256": zod.string().regex(getClientActionSnapshotResponseRecordsItemOneSlotsItemAttemptsItemIntentDeclaredSha256RegExp),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.date()
+}).strict(),
+  "document": zod.union([zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(getClientActionSnapshotResponseRecordsItemOneSlotsItemAttemptsItemDocumentOneSha256RegExp),
+  "attachedByUserId": zod.string().uuid(),
+  "attachedAt": zod.date()
+}).strict(),zod.null()]),
+  "review": zod.union([zod.object({
+  "decision": zod.enum(['accepted', 'correction_required']),
+  "reason": zod.string().min(1).max(getClientActionSnapshotResponseRecordsItemOneSlotsItemAttemptsItemReviewOneReasonMax),
+  "reviewedByUserId": zod.string().uuid(),
+  "reviewedAt": zod.date()
+}).strict(),zod.null()]),
+  "correctionAcknowledgement": zod.union([zod.object({
+  "statement": zod.string().min(1).max(getClientActionSnapshotResponseRecordsItemOneSlotsItemAttemptsItemCorrectionAcknowledgementOneStatementMax),
+  "acknowledgedByUserId": zod.string().uuid(),
+  "acknowledgedAt": zod.date()
+}).strict(),zod.null()])
+}).strict()).max(getClientActionSnapshotResponseRecordsItemOneSlotsItemAttemptsMax)
+}).strict()).max(getClientActionSnapshotResponseRecordsItemOneSlotsMax),
+  "completionReceiptSha256": zod.string().regex(getClientActionSnapshotResponseRecordsItemOneCompletionReceiptSha256RegExp).nullable(),
+  "externalMessageSentByValo": zod.literal(false)
+}).strict(),zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.literal("package_delivery"),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedByUserId": zod.string().uuid(),
+  "updatedAt": zod.date(),
+  "recipientUserId": zod.string().uuid(),
+  "packageVersionId": zod.string().uuid(),
+  "manifestSha256": zod.string().regex(getClientActionSnapshotResponseRecordsItemTwoManifestSha256RegExp),
+  "releaseReceiptSha256": zod.string().regex(getClientActionSnapshotResponseRecordsItemTwoReleaseReceiptSha256RegExp),
+  "status": zod.enum(['available_for_acknowledgement', 'acknowledged']),
+  "deliveryMode": zod.literal("metadata_record_only"),
+  "acknowledgement": zod.union([zod.object({
+  "statement": zod.string().min(1).max(getClientActionSnapshotResponseRecordsItemTwoAcknowledgementOneStatementMax),
+  "acknowledgedByUserId": zod.string().uuid(),
+  "acknowledgedAt": zod.date(),
+  "receiptSha256": zod.string().regex(getClientActionSnapshotResponseRecordsItemTwoAcknowledgementOneReceiptSha256RegExp)
+}).strict(),zod.null()]),
+  "externalDeliveryPerformedByValo": zod.literal(false)
+}).strict()])).max(getClientActionSnapshotResponseRecordsMax),
+  "authority": zod.object({
+  "externalMessaging": zod.literal(false),
+  "rawUpload": zod.literal(false),
+  "packageTransfer": zod.literal(false),
+  "uploadIntentOnly": zod.literal(true)
+}).strict()
+}).strict()
+
+
+/**
+ * Returns only other current direct members with document-intake authority in the exact project organisation; the current maker is excluded.
+ * @summary List eligible named client-action recipients
+ */
+export const ListClientActionAuthoritiesParams = zod.object({
+  "id": zod.string().uuid()
+})
+
+export const listClientActionAuthoritiesResponseItemsItemNameMax = 512;
+
+export const listClientActionAuthoritiesResponseItemsMax = 100;
+
+
+
+export const ListClientActionAuthoritiesResponse = zod.object({
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "items": zod.array(zod.object({
+  "userId": zod.string().uuid(),
+  "name": zod.string().min(1).max(listClientActionAuthoritiesResponseItemsItemNameMax)
+}).strict()).max(listClientActionAuthoritiesResponseItemsMax),
+  "limit": zod.literal(100),
+  "truncated": zod.literal(false)
+}).strict()
+
+
+/**
+ * @summary Create a purpose-bound client evidence request
+ */
+export const CreateClientEvidenceRequestParams = zod.object({
+  "id": zod.string().uuid()
+})
+
+export const createClientEvidenceRequestBodyPurposeStatementMax = 1000;
+
+export const createClientEvidenceRequestBodySlotsItemLabelMax = 160;
+
+export const createClientEvidenceRequestBodySlotsItemAcceptedContentTypesItemMax = 160;
+
+export const createClientEvidenceRequestBodySlotsItemAcceptedContentTypesMax = 8;
+
+export const createClientEvidenceRequestBodySlotsMax = 20;
+
+
+
+export const CreateClientEvidenceRequestBody = zod.object({
+  "purpose": zod.enum(['tender_evidence', 'credential_refresh', 'clarification_support', 'delivery_evidence']),
+  "purposeStatement": zod.string().min(1).max(createClientEvidenceRequestBodyPurposeStatementMax),
+  "recipientUserId": zod.string().uuid(),
+  "dueAt": zod.date().nullish(),
+  "slots": zod.array(zod.object({
+  "label": zod.string().min(1).max(createClientEvidenceRequestBodySlotsItemLabelMax),
+  "required": zod.boolean(),
+  "acceptedContentTypes": zod.array(zod.string().min(1).max(createClientEvidenceRequestBodySlotsItemAcceptedContentTypesItemMax)).max(createClientEvidenceRequestBodySlotsItemAcceptedContentTypesMax).optional()
+}).strict()).min(1).max(createClientEvidenceRequestBodySlotsMax)
+}).strict()
+
+
+export const createClientEvidenceRequestResponsePurposeStatementMax = 1000;
+
+export const createClientEvidenceRequestResponseRequestAcknowledgementOneStatementMax = 1000;
+
+export const createClientEvidenceRequestResponseSlotsItemLabelMax = 160;
+
+export const createClientEvidenceRequestResponseSlotsItemAcceptedContentTypesItemMax = 160;
+
+export const createClientEvidenceRequestResponseSlotsItemAcceptedContentTypesMax = 8;
+
+export const createClientEvidenceRequestResponseSlotsItemAttemptsItemIntentFilenameMax = 255;
+
+export const createClientEvidenceRequestResponseSlotsItemAttemptsItemIntentContentTypeMax = 160;
+
+export const createClientEvidenceRequestResponseSlotsItemAttemptsItemIntentSizeBytesMax = 52428800;
+
+export const createClientEvidenceRequestResponseSlotsItemAttemptsItemIntentDeclaredSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createClientEvidenceRequestResponseSlotsItemAttemptsItemDocumentOneSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createClientEvidenceRequestResponseSlotsItemAttemptsItemReviewOneReasonMax = 1000;
+
+export const createClientEvidenceRequestResponseSlotsItemAttemptsItemCorrectionAcknowledgementOneStatementMax = 1000;
+
+export const createClientEvidenceRequestResponseSlotsItemAttemptsMax = 10;
+
+export const createClientEvidenceRequestResponseSlotsMax = 20;
+
+export const createClientEvidenceRequestResponseCompletionReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const CreateClientEvidenceRequestResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.literal("evidence_request"),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedByUserId": zod.string().uuid(),
+  "updatedAt": zod.date(),
+  "purpose": zod.enum(['tender_evidence', 'credential_refresh', 'clarification_support', 'delivery_evidence']),
+  "purposeStatement": zod.string().min(1).max(createClientEvidenceRequestResponsePurposeStatementMax),
+  "recipientUserId": zod.string().uuid(),
+  "dueAt": zod.date().nullable(),
+  "status": zod.enum(['open', 'acknowledged', 'in_progress', 'submitted', 'changes_required', 'completed']),
+  "requestAcknowledgement": zod.union([zod.object({
+  "statement": zod.string().min(1).max(createClientEvidenceRequestResponseRequestAcknowledgementOneStatementMax),
+  "acknowledgedByUserId": zod.string().uuid(),
+  "acknowledgedAt": zod.date()
+}).strict(),zod.null()]),
+  "slots": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(createClientEvidenceRequestResponseSlotsItemLabelMax),
+  "required": zod.boolean(),
+  "acceptedContentTypes": zod.array(zod.string().min(1).max(createClientEvidenceRequestResponseSlotsItemAcceptedContentTypesItemMax)).max(createClientEvidenceRequestResponseSlotsItemAcceptedContentTypesMax),
+  "attempts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "intent": zod.object({
+  "id": zod.string().uuid(),
+  "filename": zod.string().min(1).max(createClientEvidenceRequestResponseSlotsItemAttemptsItemIntentFilenameMax),
+  "contentType": zod.string().min(1).max(createClientEvidenceRequestResponseSlotsItemAttemptsItemIntentContentTypeMax),
+  "sizeBytes": zod.number().min(1).max(createClientEvidenceRequestResponseSlotsItemAttemptsItemIntentSizeBytesMax),
+  "declaredSha256": zod.string().regex(createClientEvidenceRequestResponseSlotsItemAttemptsItemIntentDeclaredSha256RegExp),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.date()
+}).strict(),
+  "document": zod.union([zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(createClientEvidenceRequestResponseSlotsItemAttemptsItemDocumentOneSha256RegExp),
+  "attachedByUserId": zod.string().uuid(),
+  "attachedAt": zod.date()
+}).strict(),zod.null()]),
+  "review": zod.union([zod.object({
+  "decision": zod.enum(['accepted', 'correction_required']),
+  "reason": zod.string().min(1).max(createClientEvidenceRequestResponseSlotsItemAttemptsItemReviewOneReasonMax),
+  "reviewedByUserId": zod.string().uuid(),
+  "reviewedAt": zod.date()
+}).strict(),zod.null()]),
+  "correctionAcknowledgement": zod.union([zod.object({
+  "statement": zod.string().min(1).max(createClientEvidenceRequestResponseSlotsItemAttemptsItemCorrectionAcknowledgementOneStatementMax),
+  "acknowledgedByUserId": zod.string().uuid(),
+  "acknowledgedAt": zod.date()
+}).strict(),zod.null()])
+}).strict()).max(createClientEvidenceRequestResponseSlotsItemAttemptsMax)
+}).strict()).max(createClientEvidenceRequestResponseSlotsMax),
+  "completionReceiptSha256": zod.string().regex(createClientEvidenceRequestResponseCompletionReceiptSha256RegExp).nullable(),
+  "externalMessageSentByValo": zod.literal(false)
+}).strict()
+
+
+/**
+ * @summary Record the named recipient's request acknowledgement
+ */
+export const AcknowledgeClientEvidenceRequestParams = zod.object({
+  "id": zod.string().uuid(),
+  "recordId": zod.string().uuid().describe('Operations record UUID within the active tenant and project.')
+})
+
+
+export const acknowledgeClientEvidenceRequestBodyStatementMax = 1000;
+
+
+
+export const AcknowledgeClientEvidenceRequestBody = zod.object({
+  "expectedVersion": zod.number().min(1),
+  "statement": zod.string().min(1).max(acknowledgeClientEvidenceRequestBodyStatementMax)
+}).strict()
+
+
+export const acknowledgeClientEvidenceRequestResponsePurposeStatementMax = 1000;
+
+export const acknowledgeClientEvidenceRequestResponseRequestAcknowledgementOneStatementMax = 1000;
+
+export const acknowledgeClientEvidenceRequestResponseSlotsItemLabelMax = 160;
+
+export const acknowledgeClientEvidenceRequestResponseSlotsItemAcceptedContentTypesItemMax = 160;
+
+export const acknowledgeClientEvidenceRequestResponseSlotsItemAcceptedContentTypesMax = 8;
+
+export const acknowledgeClientEvidenceRequestResponseSlotsItemAttemptsItemIntentFilenameMax = 255;
+
+export const acknowledgeClientEvidenceRequestResponseSlotsItemAttemptsItemIntentContentTypeMax = 160;
+
+export const acknowledgeClientEvidenceRequestResponseSlotsItemAttemptsItemIntentSizeBytesMax = 52428800;
+
+export const acknowledgeClientEvidenceRequestResponseSlotsItemAttemptsItemIntentDeclaredSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const acknowledgeClientEvidenceRequestResponseSlotsItemAttemptsItemDocumentOneSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const acknowledgeClientEvidenceRequestResponseSlotsItemAttemptsItemReviewOneReasonMax = 1000;
+
+export const acknowledgeClientEvidenceRequestResponseSlotsItemAttemptsItemCorrectionAcknowledgementOneStatementMax = 1000;
+
+export const acknowledgeClientEvidenceRequestResponseSlotsItemAttemptsMax = 10;
+
+export const acknowledgeClientEvidenceRequestResponseSlotsMax = 20;
+
+export const acknowledgeClientEvidenceRequestResponseCompletionReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const AcknowledgeClientEvidenceRequestResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.literal("evidence_request"),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedByUserId": zod.string().uuid(),
+  "updatedAt": zod.date(),
+  "purpose": zod.enum(['tender_evidence', 'credential_refresh', 'clarification_support', 'delivery_evidence']),
+  "purposeStatement": zod.string().min(1).max(acknowledgeClientEvidenceRequestResponsePurposeStatementMax),
+  "recipientUserId": zod.string().uuid(),
+  "dueAt": zod.date().nullable(),
+  "status": zod.enum(['open', 'acknowledged', 'in_progress', 'submitted', 'changes_required', 'completed']),
+  "requestAcknowledgement": zod.union([zod.object({
+  "statement": zod.string().min(1).max(acknowledgeClientEvidenceRequestResponseRequestAcknowledgementOneStatementMax),
+  "acknowledgedByUserId": zod.string().uuid(),
+  "acknowledgedAt": zod.date()
+}).strict(),zod.null()]),
+  "slots": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(acknowledgeClientEvidenceRequestResponseSlotsItemLabelMax),
+  "required": zod.boolean(),
+  "acceptedContentTypes": zod.array(zod.string().min(1).max(acknowledgeClientEvidenceRequestResponseSlotsItemAcceptedContentTypesItemMax)).max(acknowledgeClientEvidenceRequestResponseSlotsItemAcceptedContentTypesMax),
+  "attempts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "intent": zod.object({
+  "id": zod.string().uuid(),
+  "filename": zod.string().min(1).max(acknowledgeClientEvidenceRequestResponseSlotsItemAttemptsItemIntentFilenameMax),
+  "contentType": zod.string().min(1).max(acknowledgeClientEvidenceRequestResponseSlotsItemAttemptsItemIntentContentTypeMax),
+  "sizeBytes": zod.number().min(1).max(acknowledgeClientEvidenceRequestResponseSlotsItemAttemptsItemIntentSizeBytesMax),
+  "declaredSha256": zod.string().regex(acknowledgeClientEvidenceRequestResponseSlotsItemAttemptsItemIntentDeclaredSha256RegExp),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.date()
+}).strict(),
+  "document": zod.union([zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(acknowledgeClientEvidenceRequestResponseSlotsItemAttemptsItemDocumentOneSha256RegExp),
+  "attachedByUserId": zod.string().uuid(),
+  "attachedAt": zod.date()
+}).strict(),zod.null()]),
+  "review": zod.union([zod.object({
+  "decision": zod.enum(['accepted', 'correction_required']),
+  "reason": zod.string().min(1).max(acknowledgeClientEvidenceRequestResponseSlotsItemAttemptsItemReviewOneReasonMax),
+  "reviewedByUserId": zod.string().uuid(),
+  "reviewedAt": zod.date()
+}).strict(),zod.null()]),
+  "correctionAcknowledgement": zod.union([zod.object({
+  "statement": zod.string().min(1).max(acknowledgeClientEvidenceRequestResponseSlotsItemAttemptsItemCorrectionAcknowledgementOneStatementMax),
+  "acknowledgedByUserId": zod.string().uuid(),
+  "acknowledgedAt": zod.date()
+}).strict(),zod.null()])
+}).strict()).max(acknowledgeClientEvidenceRequestResponseSlotsItemAttemptsMax)
+}).strict()).max(acknowledgeClientEvidenceRequestResponseSlotsMax),
+  "completionReceiptSha256": zod.string().regex(acknowledgeClientEvidenceRequestResponseCompletionReceiptSha256RegExp).nullable(),
+  "externalMessageSentByValo": zod.literal(false)
+}).strict()
+
+
+/**
+ * Records metadata intent only; this operation neither accepts raw bytes nor bypasses canonical document registration.
+ * @summary Record a controlled upload-slot intent
+ */
+export const CreateClientUploadIntentParams = zod.object({
+  "id": zod.string().uuid(),
+  "recordId": zod.string().uuid().describe('Operations record UUID within the active tenant and project.'),
+  "slotId": zod.string().uuid()
+})
+
+
+export const createClientUploadIntentBodyFilenameMax = 255;
+
+export const createClientUploadIntentBodyContentTypeMax = 160;
+
+export const createClientUploadIntentBodySizeBytesMax = 52428800;
+
+export const createClientUploadIntentBodyDeclaredSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const CreateClientUploadIntentBody = zod.object({
+  "expectedVersion": zod.number().min(1),
+  "filename": zod.string().min(1).max(createClientUploadIntentBodyFilenameMax),
+  "contentType": zod.string().min(1).max(createClientUploadIntentBodyContentTypeMax),
+  "sizeBytes": zod.number().min(1).max(createClientUploadIntentBodySizeBytesMax),
+  "declaredSha256": zod.string().regex(createClientUploadIntentBodyDeclaredSha256RegExp)
+}).strict()
+
+
+export const createClientUploadIntentResponsePurposeStatementMax = 1000;
+
+export const createClientUploadIntentResponseRequestAcknowledgementOneStatementMax = 1000;
+
+export const createClientUploadIntentResponseSlotsItemLabelMax = 160;
+
+export const createClientUploadIntentResponseSlotsItemAcceptedContentTypesItemMax = 160;
+
+export const createClientUploadIntentResponseSlotsItemAcceptedContentTypesMax = 8;
+
+export const createClientUploadIntentResponseSlotsItemAttemptsItemIntentFilenameMax = 255;
+
+export const createClientUploadIntentResponseSlotsItemAttemptsItemIntentContentTypeMax = 160;
+
+export const createClientUploadIntentResponseSlotsItemAttemptsItemIntentSizeBytesMax = 52428800;
+
+export const createClientUploadIntentResponseSlotsItemAttemptsItemIntentDeclaredSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createClientUploadIntentResponseSlotsItemAttemptsItemDocumentOneSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createClientUploadIntentResponseSlotsItemAttemptsItemReviewOneReasonMax = 1000;
+
+export const createClientUploadIntentResponseSlotsItemAttemptsItemCorrectionAcknowledgementOneStatementMax = 1000;
+
+export const createClientUploadIntentResponseSlotsItemAttemptsMax = 10;
+
+export const createClientUploadIntentResponseSlotsMax = 20;
+
+export const createClientUploadIntentResponseCompletionReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const CreateClientUploadIntentResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.literal("evidence_request"),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedByUserId": zod.string().uuid(),
+  "updatedAt": zod.date(),
+  "purpose": zod.enum(['tender_evidence', 'credential_refresh', 'clarification_support', 'delivery_evidence']),
+  "purposeStatement": zod.string().min(1).max(createClientUploadIntentResponsePurposeStatementMax),
+  "recipientUserId": zod.string().uuid(),
+  "dueAt": zod.date().nullable(),
+  "status": zod.enum(['open', 'acknowledged', 'in_progress', 'submitted', 'changes_required', 'completed']),
+  "requestAcknowledgement": zod.union([zod.object({
+  "statement": zod.string().min(1).max(createClientUploadIntentResponseRequestAcknowledgementOneStatementMax),
+  "acknowledgedByUserId": zod.string().uuid(),
+  "acknowledgedAt": zod.date()
+}).strict(),zod.null()]),
+  "slots": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(createClientUploadIntentResponseSlotsItemLabelMax),
+  "required": zod.boolean(),
+  "acceptedContentTypes": zod.array(zod.string().min(1).max(createClientUploadIntentResponseSlotsItemAcceptedContentTypesItemMax)).max(createClientUploadIntentResponseSlotsItemAcceptedContentTypesMax),
+  "attempts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "intent": zod.object({
+  "id": zod.string().uuid(),
+  "filename": zod.string().min(1).max(createClientUploadIntentResponseSlotsItemAttemptsItemIntentFilenameMax),
+  "contentType": zod.string().min(1).max(createClientUploadIntentResponseSlotsItemAttemptsItemIntentContentTypeMax),
+  "sizeBytes": zod.number().min(1).max(createClientUploadIntentResponseSlotsItemAttemptsItemIntentSizeBytesMax),
+  "declaredSha256": zod.string().regex(createClientUploadIntentResponseSlotsItemAttemptsItemIntentDeclaredSha256RegExp),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.date()
+}).strict(),
+  "document": zod.union([zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(createClientUploadIntentResponseSlotsItemAttemptsItemDocumentOneSha256RegExp),
+  "attachedByUserId": zod.string().uuid(),
+  "attachedAt": zod.date()
+}).strict(),zod.null()]),
+  "review": zod.union([zod.object({
+  "decision": zod.enum(['accepted', 'correction_required']),
+  "reason": zod.string().min(1).max(createClientUploadIntentResponseSlotsItemAttemptsItemReviewOneReasonMax),
+  "reviewedByUserId": zod.string().uuid(),
+  "reviewedAt": zod.date()
+}).strict(),zod.null()]),
+  "correctionAcknowledgement": zod.union([zod.object({
+  "statement": zod.string().min(1).max(createClientUploadIntentResponseSlotsItemAttemptsItemCorrectionAcknowledgementOneStatementMax),
+  "acknowledgedByUserId": zod.string().uuid(),
+  "acknowledgedAt": zod.date()
+}).strict(),zod.null()])
+}).strict()).max(createClientUploadIntentResponseSlotsItemAttemptsMax)
+}).strict()).max(createClientUploadIntentResponseSlotsMax),
+  "completionReceiptSha256": zod.string().regex(createClientUploadIntentResponseCompletionReceiptSha256RegExp).nullable(),
+  "externalMessageSentByValo": zod.literal(false)
+}).strict()
+
+
+/**
+ * @summary Bind a canonical document to a recorded upload intent
+ */
+export const AttachClientEvidenceDocumentParams = zod.object({
+  "id": zod.string().uuid(),
+  "recordId": zod.string().uuid().describe('Operations record UUID within the active tenant and project.'),
+  "slotId": zod.string().uuid()
+})
+
+
+export const attachClientEvidenceDocumentBodySha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const AttachClientEvidenceDocumentBody = zod.object({
+  "expectedVersion": zod.number().min(1),
+  "intentId": zod.string().uuid(),
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(attachClientEvidenceDocumentBodySha256RegExp)
+}).strict()
+
+
+export const attachClientEvidenceDocumentResponsePurposeStatementMax = 1000;
+
+export const attachClientEvidenceDocumentResponseRequestAcknowledgementOneStatementMax = 1000;
+
+export const attachClientEvidenceDocumentResponseSlotsItemLabelMax = 160;
+
+export const attachClientEvidenceDocumentResponseSlotsItemAcceptedContentTypesItemMax = 160;
+
+export const attachClientEvidenceDocumentResponseSlotsItemAcceptedContentTypesMax = 8;
+
+export const attachClientEvidenceDocumentResponseSlotsItemAttemptsItemIntentFilenameMax = 255;
+
+export const attachClientEvidenceDocumentResponseSlotsItemAttemptsItemIntentContentTypeMax = 160;
+
+export const attachClientEvidenceDocumentResponseSlotsItemAttemptsItemIntentSizeBytesMax = 52428800;
+
+export const attachClientEvidenceDocumentResponseSlotsItemAttemptsItemIntentDeclaredSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const attachClientEvidenceDocumentResponseSlotsItemAttemptsItemDocumentOneSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const attachClientEvidenceDocumentResponseSlotsItemAttemptsItemReviewOneReasonMax = 1000;
+
+export const attachClientEvidenceDocumentResponseSlotsItemAttemptsItemCorrectionAcknowledgementOneStatementMax = 1000;
+
+export const attachClientEvidenceDocumentResponseSlotsItemAttemptsMax = 10;
+
+export const attachClientEvidenceDocumentResponseSlotsMax = 20;
+
+export const attachClientEvidenceDocumentResponseCompletionReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const AttachClientEvidenceDocumentResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.literal("evidence_request"),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedByUserId": zod.string().uuid(),
+  "updatedAt": zod.date(),
+  "purpose": zod.enum(['tender_evidence', 'credential_refresh', 'clarification_support', 'delivery_evidence']),
+  "purposeStatement": zod.string().min(1).max(attachClientEvidenceDocumentResponsePurposeStatementMax),
+  "recipientUserId": zod.string().uuid(),
+  "dueAt": zod.date().nullable(),
+  "status": zod.enum(['open', 'acknowledged', 'in_progress', 'submitted', 'changes_required', 'completed']),
+  "requestAcknowledgement": zod.union([zod.object({
+  "statement": zod.string().min(1).max(attachClientEvidenceDocumentResponseRequestAcknowledgementOneStatementMax),
+  "acknowledgedByUserId": zod.string().uuid(),
+  "acknowledgedAt": zod.date()
+}).strict(),zod.null()]),
+  "slots": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(attachClientEvidenceDocumentResponseSlotsItemLabelMax),
+  "required": zod.boolean(),
+  "acceptedContentTypes": zod.array(zod.string().min(1).max(attachClientEvidenceDocumentResponseSlotsItemAcceptedContentTypesItemMax)).max(attachClientEvidenceDocumentResponseSlotsItemAcceptedContentTypesMax),
+  "attempts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "intent": zod.object({
+  "id": zod.string().uuid(),
+  "filename": zod.string().min(1).max(attachClientEvidenceDocumentResponseSlotsItemAttemptsItemIntentFilenameMax),
+  "contentType": zod.string().min(1).max(attachClientEvidenceDocumentResponseSlotsItemAttemptsItemIntentContentTypeMax),
+  "sizeBytes": zod.number().min(1).max(attachClientEvidenceDocumentResponseSlotsItemAttemptsItemIntentSizeBytesMax),
+  "declaredSha256": zod.string().regex(attachClientEvidenceDocumentResponseSlotsItemAttemptsItemIntentDeclaredSha256RegExp),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.date()
+}).strict(),
+  "document": zod.union([zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(attachClientEvidenceDocumentResponseSlotsItemAttemptsItemDocumentOneSha256RegExp),
+  "attachedByUserId": zod.string().uuid(),
+  "attachedAt": zod.date()
+}).strict(),zod.null()]),
+  "review": zod.union([zod.object({
+  "decision": zod.enum(['accepted', 'correction_required']),
+  "reason": zod.string().min(1).max(attachClientEvidenceDocumentResponseSlotsItemAttemptsItemReviewOneReasonMax),
+  "reviewedByUserId": zod.string().uuid(),
+  "reviewedAt": zod.date()
+}).strict(),zod.null()]),
+  "correctionAcknowledgement": zod.union([zod.object({
+  "statement": zod.string().min(1).max(attachClientEvidenceDocumentResponseSlotsItemAttemptsItemCorrectionAcknowledgementOneStatementMax),
+  "acknowledgedByUserId": zod.string().uuid(),
+  "acknowledgedAt": zod.date()
+}).strict(),zod.null()])
+}).strict()).max(attachClientEvidenceDocumentResponseSlotsItemAttemptsMax)
+}).strict()).max(attachClientEvidenceDocumentResponseSlotsMax),
+  "completionReceiptSha256": zod.string().regex(attachClientEvidenceDocumentResponseCompletionReceiptSha256RegExp).nullable(),
+  "externalMessageSentByValo": zod.literal(false)
+}).strict()
+
+
+/**
+ * @summary Record a human evidence-slot review
+ */
+export const ReviewClientEvidenceSlotParams = zod.object({
+  "id": zod.string().uuid(),
+  "recordId": zod.string().uuid().describe('Operations record UUID within the active tenant and project.'),
+  "slotId": zod.string().uuid()
+})
+
+
+export const reviewClientEvidenceSlotBodyReasonMax = 1000;
+
+
+
+export const ReviewClientEvidenceSlotBody = zod.object({
+  "expectedVersion": zod.number().min(1),
+  "decision": zod.enum(['accepted', 'correction_required']),
+  "reason": zod.string().min(1).max(reviewClientEvidenceSlotBodyReasonMax)
+}).strict()
+
+
+export const reviewClientEvidenceSlotResponsePurposeStatementMax = 1000;
+
+export const reviewClientEvidenceSlotResponseRequestAcknowledgementOneStatementMax = 1000;
+
+export const reviewClientEvidenceSlotResponseSlotsItemLabelMax = 160;
+
+export const reviewClientEvidenceSlotResponseSlotsItemAcceptedContentTypesItemMax = 160;
+
+export const reviewClientEvidenceSlotResponseSlotsItemAcceptedContentTypesMax = 8;
+
+export const reviewClientEvidenceSlotResponseSlotsItemAttemptsItemIntentFilenameMax = 255;
+
+export const reviewClientEvidenceSlotResponseSlotsItemAttemptsItemIntentContentTypeMax = 160;
+
+export const reviewClientEvidenceSlotResponseSlotsItemAttemptsItemIntentSizeBytesMax = 52428800;
+
+export const reviewClientEvidenceSlotResponseSlotsItemAttemptsItemIntentDeclaredSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const reviewClientEvidenceSlotResponseSlotsItemAttemptsItemDocumentOneSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const reviewClientEvidenceSlotResponseSlotsItemAttemptsItemReviewOneReasonMax = 1000;
+
+export const reviewClientEvidenceSlotResponseSlotsItemAttemptsItemCorrectionAcknowledgementOneStatementMax = 1000;
+
+export const reviewClientEvidenceSlotResponseSlotsItemAttemptsMax = 10;
+
+export const reviewClientEvidenceSlotResponseSlotsMax = 20;
+
+export const reviewClientEvidenceSlotResponseCompletionReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const ReviewClientEvidenceSlotResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.literal("evidence_request"),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedByUserId": zod.string().uuid(),
+  "updatedAt": zod.date(),
+  "purpose": zod.enum(['tender_evidence', 'credential_refresh', 'clarification_support', 'delivery_evidence']),
+  "purposeStatement": zod.string().min(1).max(reviewClientEvidenceSlotResponsePurposeStatementMax),
+  "recipientUserId": zod.string().uuid(),
+  "dueAt": zod.date().nullable(),
+  "status": zod.enum(['open', 'acknowledged', 'in_progress', 'submitted', 'changes_required', 'completed']),
+  "requestAcknowledgement": zod.union([zod.object({
+  "statement": zod.string().min(1).max(reviewClientEvidenceSlotResponseRequestAcknowledgementOneStatementMax),
+  "acknowledgedByUserId": zod.string().uuid(),
+  "acknowledgedAt": zod.date()
+}).strict(),zod.null()]),
+  "slots": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(reviewClientEvidenceSlotResponseSlotsItemLabelMax),
+  "required": zod.boolean(),
+  "acceptedContentTypes": zod.array(zod.string().min(1).max(reviewClientEvidenceSlotResponseSlotsItemAcceptedContentTypesItemMax)).max(reviewClientEvidenceSlotResponseSlotsItemAcceptedContentTypesMax),
+  "attempts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "intent": zod.object({
+  "id": zod.string().uuid(),
+  "filename": zod.string().min(1).max(reviewClientEvidenceSlotResponseSlotsItemAttemptsItemIntentFilenameMax),
+  "contentType": zod.string().min(1).max(reviewClientEvidenceSlotResponseSlotsItemAttemptsItemIntentContentTypeMax),
+  "sizeBytes": zod.number().min(1).max(reviewClientEvidenceSlotResponseSlotsItemAttemptsItemIntentSizeBytesMax),
+  "declaredSha256": zod.string().regex(reviewClientEvidenceSlotResponseSlotsItemAttemptsItemIntentDeclaredSha256RegExp),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.date()
+}).strict(),
+  "document": zod.union([zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(reviewClientEvidenceSlotResponseSlotsItemAttemptsItemDocumentOneSha256RegExp),
+  "attachedByUserId": zod.string().uuid(),
+  "attachedAt": zod.date()
+}).strict(),zod.null()]),
+  "review": zod.union([zod.object({
+  "decision": zod.enum(['accepted', 'correction_required']),
+  "reason": zod.string().min(1).max(reviewClientEvidenceSlotResponseSlotsItemAttemptsItemReviewOneReasonMax),
+  "reviewedByUserId": zod.string().uuid(),
+  "reviewedAt": zod.date()
+}).strict(),zod.null()]),
+  "correctionAcknowledgement": zod.union([zod.object({
+  "statement": zod.string().min(1).max(reviewClientEvidenceSlotResponseSlotsItemAttemptsItemCorrectionAcknowledgementOneStatementMax),
+  "acknowledgedByUserId": zod.string().uuid(),
+  "acknowledgedAt": zod.date()
+}).strict(),zod.null()])
+}).strict()).max(reviewClientEvidenceSlotResponseSlotsItemAttemptsMax)
+}).strict()).max(reviewClientEvidenceSlotResponseSlotsMax),
+  "completionReceiptSha256": zod.string().regex(reviewClientEvidenceSlotResponseCompletionReceiptSha256RegExp).nullable(),
+  "externalMessageSentByValo": zod.literal(false)
+}).strict()
+
+
+/**
+ * @summary Acknowledge a requested evidence correction
+ */
+export const AcknowledgeClientEvidenceCorrectionParams = zod.object({
+  "id": zod.string().uuid(),
+  "recordId": zod.string().uuid().describe('Operations record UUID within the active tenant and project.'),
+  "slotId": zod.string().uuid()
+})
+
+
+export const acknowledgeClientEvidenceCorrectionBodyStatementMax = 1000;
+
+
+
+export const AcknowledgeClientEvidenceCorrectionBody = zod.object({
+  "expectedVersion": zod.number().min(1),
+  "statement": zod.string().min(1).max(acknowledgeClientEvidenceCorrectionBodyStatementMax)
+}).strict()
+
+
+export const acknowledgeClientEvidenceCorrectionResponsePurposeStatementMax = 1000;
+
+export const acknowledgeClientEvidenceCorrectionResponseRequestAcknowledgementOneStatementMax = 1000;
+
+export const acknowledgeClientEvidenceCorrectionResponseSlotsItemLabelMax = 160;
+
+export const acknowledgeClientEvidenceCorrectionResponseSlotsItemAcceptedContentTypesItemMax = 160;
+
+export const acknowledgeClientEvidenceCorrectionResponseSlotsItemAcceptedContentTypesMax = 8;
+
+export const acknowledgeClientEvidenceCorrectionResponseSlotsItemAttemptsItemIntentFilenameMax = 255;
+
+export const acknowledgeClientEvidenceCorrectionResponseSlotsItemAttemptsItemIntentContentTypeMax = 160;
+
+export const acknowledgeClientEvidenceCorrectionResponseSlotsItemAttemptsItemIntentSizeBytesMax = 52428800;
+
+export const acknowledgeClientEvidenceCorrectionResponseSlotsItemAttemptsItemIntentDeclaredSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const acknowledgeClientEvidenceCorrectionResponseSlotsItemAttemptsItemDocumentOneSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const acknowledgeClientEvidenceCorrectionResponseSlotsItemAttemptsItemReviewOneReasonMax = 1000;
+
+export const acknowledgeClientEvidenceCorrectionResponseSlotsItemAttemptsItemCorrectionAcknowledgementOneStatementMax = 1000;
+
+export const acknowledgeClientEvidenceCorrectionResponseSlotsItemAttemptsMax = 10;
+
+export const acknowledgeClientEvidenceCorrectionResponseSlotsMax = 20;
+
+export const acknowledgeClientEvidenceCorrectionResponseCompletionReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const AcknowledgeClientEvidenceCorrectionResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.literal("evidence_request"),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedByUserId": zod.string().uuid(),
+  "updatedAt": zod.date(),
+  "purpose": zod.enum(['tender_evidence', 'credential_refresh', 'clarification_support', 'delivery_evidence']),
+  "purposeStatement": zod.string().min(1).max(acknowledgeClientEvidenceCorrectionResponsePurposeStatementMax),
+  "recipientUserId": zod.string().uuid(),
+  "dueAt": zod.date().nullable(),
+  "status": zod.enum(['open', 'acknowledged', 'in_progress', 'submitted', 'changes_required', 'completed']),
+  "requestAcknowledgement": zod.union([zod.object({
+  "statement": zod.string().min(1).max(acknowledgeClientEvidenceCorrectionResponseRequestAcknowledgementOneStatementMax),
+  "acknowledgedByUserId": zod.string().uuid(),
+  "acknowledgedAt": zod.date()
+}).strict(),zod.null()]),
+  "slots": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "label": zod.string().min(1).max(acknowledgeClientEvidenceCorrectionResponseSlotsItemLabelMax),
+  "required": zod.boolean(),
+  "acceptedContentTypes": zod.array(zod.string().min(1).max(acknowledgeClientEvidenceCorrectionResponseSlotsItemAcceptedContentTypesItemMax)).max(acknowledgeClientEvidenceCorrectionResponseSlotsItemAcceptedContentTypesMax),
+  "attempts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "intent": zod.object({
+  "id": zod.string().uuid(),
+  "filename": zod.string().min(1).max(acknowledgeClientEvidenceCorrectionResponseSlotsItemAttemptsItemIntentFilenameMax),
+  "contentType": zod.string().min(1).max(acknowledgeClientEvidenceCorrectionResponseSlotsItemAttemptsItemIntentContentTypeMax),
+  "sizeBytes": zod.number().min(1).max(acknowledgeClientEvidenceCorrectionResponseSlotsItemAttemptsItemIntentSizeBytesMax),
+  "declaredSha256": zod.string().regex(acknowledgeClientEvidenceCorrectionResponseSlotsItemAttemptsItemIntentDeclaredSha256RegExp),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.date()
+}).strict(),
+  "document": zod.union([zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(acknowledgeClientEvidenceCorrectionResponseSlotsItemAttemptsItemDocumentOneSha256RegExp),
+  "attachedByUserId": zod.string().uuid(),
+  "attachedAt": zod.date()
+}).strict(),zod.null()]),
+  "review": zod.union([zod.object({
+  "decision": zod.enum(['accepted', 'correction_required']),
+  "reason": zod.string().min(1).max(acknowledgeClientEvidenceCorrectionResponseSlotsItemAttemptsItemReviewOneReasonMax),
+  "reviewedByUserId": zod.string().uuid(),
+  "reviewedAt": zod.date()
+}).strict(),zod.null()]),
+  "correctionAcknowledgement": zod.union([zod.object({
+  "statement": zod.string().min(1).max(acknowledgeClientEvidenceCorrectionResponseSlotsItemAttemptsItemCorrectionAcknowledgementOneStatementMax),
+  "acknowledgedByUserId": zod.string().uuid(),
+  "acknowledgedAt": zod.date()
+}).strict(),zod.null()])
+}).strict()).max(acknowledgeClientEvidenceCorrectionResponseSlotsItemAttemptsMax)
+}).strict()).max(acknowledgeClientEvidenceCorrectionResponseSlotsMax),
+  "completionReceiptSha256": zod.string().regex(acknowledgeClientEvidenceCorrectionResponseCompletionReceiptSha256RegExp).nullable(),
+  "externalMessageSentByValo": zod.literal(false)
+}).strict()
+
+
+/**
+ * Records package metadata only and performs no external delivery.
+ * @summary Record a released-package availability intent
+ */
+export const CreateClientPackageDeliveryParams = zod.object({
+  "id": zod.string().uuid()
+})
+
+export const createClientPackageDeliveryBodyManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createClientPackageDeliveryBodyReleaseReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const CreateClientPackageDeliveryBody = zod.object({
+  "recipientUserId": zod.string().uuid(),
+  "packageVersionId": zod.string().uuid(),
+  "manifestSha256": zod.string().regex(createClientPackageDeliveryBodyManifestSha256RegExp),
+  "releaseReceiptSha256": zod.string().regex(createClientPackageDeliveryBodyReleaseReceiptSha256RegExp)
+}).strict()
+
+
+export const createClientPackageDeliveryResponseManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createClientPackageDeliveryResponseReleaseReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createClientPackageDeliveryResponseAcknowledgementOneStatementMax = 1000;
+
+export const createClientPackageDeliveryResponseAcknowledgementOneReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const CreateClientPackageDeliveryResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.literal("package_delivery"),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedByUserId": zod.string().uuid(),
+  "updatedAt": zod.date(),
+  "recipientUserId": zod.string().uuid(),
+  "packageVersionId": zod.string().uuid(),
+  "manifestSha256": zod.string().regex(createClientPackageDeliveryResponseManifestSha256RegExp),
+  "releaseReceiptSha256": zod.string().regex(createClientPackageDeliveryResponseReleaseReceiptSha256RegExp),
+  "status": zod.enum(['available_for_acknowledgement', 'acknowledged']),
+  "deliveryMode": zod.literal("metadata_record_only"),
+  "acknowledgement": zod.union([zod.object({
+  "statement": zod.string().min(1).max(createClientPackageDeliveryResponseAcknowledgementOneStatementMax),
+  "acknowledgedByUserId": zod.string().uuid(),
+  "acknowledgedAt": zod.date(),
+  "receiptSha256": zod.string().regex(createClientPackageDeliveryResponseAcknowledgementOneReceiptSha256RegExp)
+}).strict(),zod.null()]),
+  "externalDeliveryPerformedByValo": zod.literal(false)
+}).strict()
+
+
+/**
+ * @summary Record the named recipient's package-delivery acknowledgement
+ */
+export const AcknowledgeClientPackageDeliveryParams = zod.object({
+  "id": zod.string().uuid(),
+  "recordId": zod.string().uuid().describe('Operations record UUID within the active tenant and project.')
+})
+
+
+export const acknowledgeClientPackageDeliveryBodyStatementMax = 1000;
+
+
+
+export const AcknowledgeClientPackageDeliveryBody = zod.object({
+  "expectedVersion": zod.number().min(1),
+  "statement": zod.string().min(1).max(acknowledgeClientPackageDeliveryBodyStatementMax)
+}).strict()
+
+
+export const acknowledgeClientPackageDeliveryResponseManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const acknowledgeClientPackageDeliveryResponseReleaseReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const acknowledgeClientPackageDeliveryResponseAcknowledgementOneStatementMax = 1000;
+
+export const acknowledgeClientPackageDeliveryResponseAcknowledgementOneReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const AcknowledgeClientPackageDeliveryResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.literal("package_delivery"),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedByUserId": zod.string().uuid(),
+  "updatedAt": zod.date(),
+  "recipientUserId": zod.string().uuid(),
+  "packageVersionId": zod.string().uuid(),
+  "manifestSha256": zod.string().regex(acknowledgeClientPackageDeliveryResponseManifestSha256RegExp),
+  "releaseReceiptSha256": zod.string().regex(acknowledgeClientPackageDeliveryResponseReleaseReceiptSha256RegExp),
+  "status": zod.enum(['available_for_acknowledgement', 'acknowledged']),
+  "deliveryMode": zod.literal("metadata_record_only"),
+  "acknowledgement": zod.union([zod.object({
+  "statement": zod.string().min(1).max(acknowledgeClientPackageDeliveryResponseAcknowledgementOneStatementMax),
+  "acknowledgedByUserId": zod.string().uuid(),
+  "acknowledgedAt": zod.date(),
+  "receiptSha256": zod.string().regex(acknowledgeClientPackageDeliveryResponseAcknowledgementOneReceiptSha256RegExp)
+}).strict(),zod.null()]),
+  "externalDeliveryPerformedByValo": zod.literal(false)
+}).strict()
+
+
+/**
+ * This manual metadata-only pilot is capped at 250 lifetime source receipts per organisation and has no in-app archive. Intake must stop before capacity until a reviewed retention/storage migration is approved; audit events must never be deleted merely to recover capacity.
+ * @summary List provenance-preserving opportunity candidates
+ */
+export const listOpportunitySourceCandidatesResponseItemsItemSourceSystemMax = 128;
+
+export const listOpportunitySourceCandidatesResponseItemsItemSourceAuthorityMax = 512;
+
+export const listOpportunitySourceCandidatesResponseItemsItemSourceLocatorMax = 2048;
+
+export const listOpportunitySourceCandidatesResponseItemsItemSourceLicenceReferenceMax = 1024;
+
+export const listOpportunitySourceCandidatesResponseItemsItemExternalReferenceMax = 128;
+
+export const listOpportunitySourceCandidatesResponseItemsItemTitleMax = 512;
+
+export const listOpportunitySourceCandidatesResponseItemsItemProcuringEntityMax = 512;
+
+export const listOpportunitySourceCandidatesResponseItemsItemJurisdictionMax = 512;
+
+export const listOpportunitySourceCandidatesResponseItemsItemFundingSourceMax = 512;
+
+export const listOpportunitySourceCandidatesResponseItemsItemProcurementCategoryMax = 512;
+
+export const listOpportunitySourceCandidatesResponseItemsItemSourceContentSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const listOpportunitySourceCandidatesResponseItemsItemSourceLocatorSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const listOpportunitySourceCandidatesResponseItemsItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const listOpportunitySourceCandidatesResponseItemsItemDedupeKeyMax = 256;
+
+
+export const listOpportunitySourceCandidatesResponseItemsItemRecordedByNameMax = 512;
+
+export const listOpportunitySourceCandidatesResponseItemsItemReviewedByNameMax = 512;
+
+export const listOpportunitySourceCandidatesResponseItemsItemDecisionReasonMax = 1024;
+
+export const listOpportunitySourceCandidatesResponseItemsMax = 250;
+
+export const listOpportunitySourceCandidatesResponseLimitMax = 250;
+
+
+
+export const ListOpportunitySourceCandidatesResponse = zod.object({
+  "items": zod.array(zod.object({
+  "sourceKind": zod.enum(['manual_url', 'ocds', 'licensed_feed', 'forwarded_notice', 'csv']),
+  "sourceSystem": zod.string().min(1).max(listOpportunitySourceCandidatesResponseItemsItemSourceSystemMax),
+  "sourceAuthority": zod.string().min(1).max(listOpportunitySourceCandidatesResponseItemsItemSourceAuthorityMax),
+  "sourceLocator": zod.string().min(1).max(listOpportunitySourceCandidatesResponseItemsItemSourceLocatorMax),
+  "sourceLicenceReference": zod.string().max(listOpportunitySourceCandidatesResponseItemsItemSourceLicenceReferenceMax).nullable(),
+  "externalReference": zod.string().min(1).max(listOpportunitySourceCandidatesResponseItemsItemExternalReferenceMax),
+  "title": zod.string().min(1).max(listOpportunitySourceCandidatesResponseItemsItemTitleMax),
+  "procuringEntity": zod.string().min(1).max(listOpportunitySourceCandidatesResponseItemsItemProcuringEntityMax),
+  "jurisdiction": zod.string().min(1).max(listOpportunitySourceCandidatesResponseItemsItemJurisdictionMax),
+  "fundingSource": zod.string().max(listOpportunitySourceCandidatesResponseItemsItemFundingSourceMax).nullable(),
+  "procurementCategory": zod.string().max(listOpportunitySourceCandidatesResponseItemsItemProcurementCategoryMax).nullable(),
+  "publishedAt": zod.date().nullable(),
+  "submissionDeadline": zod.date().nullable(),
+  "observedAt": zod.date(),
+  "sourceContentSha256": zod.string().regex(listOpportunitySourceCandidatesResponseItemsItemSourceContentSha256RegExp).nullable(),
+  "provenance": zod.enum(['operator_recorded', 'adapter_verified']),
+  "sourceLocatorSha256": zod.string().regex(listOpportunitySourceCandidatesResponseItemsItemSourceLocatorSha256RegExp),
+  "receiptSha256": zod.string().regex(listOpportunitySourceCandidatesResponseItemsItemReceiptSha256RegExp),
+  "dedupeKey": zod.string().min(1).max(listOpportunitySourceCandidatesResponseItemsItemDedupeKeyMax),
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "status": zod.enum(['pending_review', 'accepted', 'rejected']),
+  "version": zod.number().min(1),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedByName": zod.string().min(1).max(listOpportunitySourceCandidatesResponseItemsItemRecordedByNameMax),
+  "reviewedByUserId": zod.string().uuid().nullable(),
+  "reviewedByName": zod.string().max(listOpportunitySourceCandidatesResponseItemsItemReviewedByNameMax).nullable(),
+  "reviewedAt": zod.date().nullable(),
+  "decisionReason": zod.string().max(listOpportunitySourceCandidatesResponseItemsItemDecisionReasonMax).nullable(),
+  "tenderId": zod.string().uuid().nullable()
+}).strict()).max(listOpportunitySourceCandidatesResponseItemsMax),
+  "limit": zod.number().min(1).max(listOpportunitySourceCandidatesResponseLimitMax),
+  "truncated": zod.literal(false),
+  "authority": zod.object({
+  "runtimeConnected": zod.literal(true),
+  "externalAcquisitionConnected": zod.literal(false),
+  "autonomousScrapingAllowed": zod.literal(false),
+  "autonomousPursuitActivationAllowed": zod.literal(false),
+  "authority": zod.literal("named_human_confirmation_required")
+}).strict()
+}).strict()
+
+
+/**
+ * This manual metadata-only pilot is capped at 250 lifetime source receipts per organisation and has no in-app archive. Intake must stop before capacity until a reviewed retention/storage migration is approved; audit events must never be deleted merely to recover capacity.
+ * @summary Read one exact-tenant source candidate
+ */
+export const getOpportunitySourceCandidatePathCandidateIdMax = 128;
+
+
+
+export const GetOpportunitySourceCandidateParams = zod.object({
+  "candidateId": zod.string().min(1).max(getOpportunitySourceCandidatePathCandidateIdMax)
+})
+
+export const getOpportunitySourceCandidateResponseSourceSystemMax = 128;
+
+export const getOpportunitySourceCandidateResponseSourceAuthorityMax = 512;
+
+export const getOpportunitySourceCandidateResponseSourceLocatorMax = 2048;
+
+export const getOpportunitySourceCandidateResponseSourceLicenceReferenceMax = 1024;
+
+export const getOpportunitySourceCandidateResponseExternalReferenceMax = 128;
+
+export const getOpportunitySourceCandidateResponseTitleMax = 512;
+
+export const getOpportunitySourceCandidateResponseProcuringEntityMax = 512;
+
+export const getOpportunitySourceCandidateResponseJurisdictionMax = 512;
+
+export const getOpportunitySourceCandidateResponseFundingSourceMax = 512;
+
+export const getOpportunitySourceCandidateResponseProcurementCategoryMax = 512;
+
+export const getOpportunitySourceCandidateResponseSourceContentSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOpportunitySourceCandidateResponseSourceLocatorSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOpportunitySourceCandidateResponseReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOpportunitySourceCandidateResponseDedupeKeyMax = 256;
+
+
+export const getOpportunitySourceCandidateResponseRecordedByNameMax = 512;
+
+export const getOpportunitySourceCandidateResponseReviewedByNameMax = 512;
+
+export const getOpportunitySourceCandidateResponseDecisionReasonMax = 1024;
+
+
+
+export const GetOpportunitySourceCandidateResponse = zod.object({
+  "sourceKind": zod.enum(['manual_url', 'ocds', 'licensed_feed', 'forwarded_notice', 'csv']),
+  "sourceSystem": zod.string().min(1).max(getOpportunitySourceCandidateResponseSourceSystemMax),
+  "sourceAuthority": zod.string().min(1).max(getOpportunitySourceCandidateResponseSourceAuthorityMax),
+  "sourceLocator": zod.string().min(1).max(getOpportunitySourceCandidateResponseSourceLocatorMax),
+  "sourceLicenceReference": zod.string().max(getOpportunitySourceCandidateResponseSourceLicenceReferenceMax).nullable(),
+  "externalReference": zod.string().min(1).max(getOpportunitySourceCandidateResponseExternalReferenceMax),
+  "title": zod.string().min(1).max(getOpportunitySourceCandidateResponseTitleMax),
+  "procuringEntity": zod.string().min(1).max(getOpportunitySourceCandidateResponseProcuringEntityMax),
+  "jurisdiction": zod.string().min(1).max(getOpportunitySourceCandidateResponseJurisdictionMax),
+  "fundingSource": zod.string().max(getOpportunitySourceCandidateResponseFundingSourceMax).nullable(),
+  "procurementCategory": zod.string().max(getOpportunitySourceCandidateResponseProcurementCategoryMax).nullable(),
+  "publishedAt": zod.date().nullable(),
+  "submissionDeadline": zod.date().nullable(),
+  "observedAt": zod.date(),
+  "sourceContentSha256": zod.string().regex(getOpportunitySourceCandidateResponseSourceContentSha256RegExp).nullable(),
+  "provenance": zod.enum(['operator_recorded', 'adapter_verified']),
+  "sourceLocatorSha256": zod.string().regex(getOpportunitySourceCandidateResponseSourceLocatorSha256RegExp),
+  "receiptSha256": zod.string().regex(getOpportunitySourceCandidateResponseReceiptSha256RegExp),
+  "dedupeKey": zod.string().min(1).max(getOpportunitySourceCandidateResponseDedupeKeyMax),
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "status": zod.enum(['pending_review', 'accepted', 'rejected']),
+  "version": zod.number().min(1),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedByName": zod.string().min(1).max(getOpportunitySourceCandidateResponseRecordedByNameMax),
+  "reviewedByUserId": zod.string().uuid().nullable(),
+  "reviewedByName": zod.string().max(getOpportunitySourceCandidateResponseReviewedByNameMax).nullable(),
+  "reviewedAt": zod.date().nullable(),
+  "decisionReason": zod.string().max(getOpportunitySourceCandidateResponseDecisionReasonMax).nullable(),
+  "tenderId": zod.string().uuid().nullable()
+}).strict()
+
+
+/**
+ * Creates a metadata-only pending candidate and never activates pursuit automatically. This pilot is capped at 250 lifetime source receipts per organisation and has no in-app archive. Intake must stop before capacity until a reviewed retention/storage migration is approved; audit events must never be deleted merely to recover capacity.
+ * @summary Record a manually supplied opportunity source
+ */
+export const recordManualOpportunitySourceBodySourceSystemMax = 128;
+
+export const recordManualOpportunitySourceBodySourceAuthorityMax = 512;
+
+export const recordManualOpportunitySourceBodySourceLocatorMax = 2048;
+
+export const recordManualOpportunitySourceBodySourceLicenceReferenceMax = 1024;
+
+export const recordManualOpportunitySourceBodyExternalReferenceMax = 128;
+
+export const recordManualOpportunitySourceBodyTitleMax = 512;
+
+export const recordManualOpportunitySourceBodyProcuringEntityMax = 512;
+
+export const recordManualOpportunitySourceBodyJurisdictionMin = 2;
+export const recordManualOpportunitySourceBodyJurisdictionMax = 2;
+
+
+export const recordManualOpportunitySourceBodyJurisdictionRegExp = new RegExp('^[A-Z]{2}$');
+export const recordManualOpportunitySourceBodyFundingSourceMax = 512;
+
+export const recordManualOpportunitySourceBodyProcurementCategoryMax = 512;
+
+export const recordManualOpportunitySourceBodySourceContentSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const RecordManualOpportunitySourceBody = zod.object({
+  "sourceKind": zod.literal("manual_url"),
+  "sourceSystem": zod.string().min(1).max(recordManualOpportunitySourceBodySourceSystemMax),
+  "sourceAuthority": zod.string().min(1).max(recordManualOpportunitySourceBodySourceAuthorityMax),
+  "sourceLocator": zod.string().min(1).max(recordManualOpportunitySourceBodySourceLocatorMax),
+  "sourceLicenceReference": zod.string().min(1).max(recordManualOpportunitySourceBodySourceLicenceReferenceMax).nullable(),
+  "externalReference": zod.string().min(1).max(recordManualOpportunitySourceBodyExternalReferenceMax),
+  "title": zod.string().min(1).max(recordManualOpportunitySourceBodyTitleMax),
+  "procuringEntity": zod.string().min(1).max(recordManualOpportunitySourceBodyProcuringEntityMax),
+  "jurisdiction": zod.string().min(recordManualOpportunitySourceBodyJurisdictionMin).max(recordManualOpportunitySourceBodyJurisdictionMax).regex(recordManualOpportunitySourceBodyJurisdictionRegExp),
+  "fundingSource": zod.string().min(1).max(recordManualOpportunitySourceBodyFundingSourceMax).nullable(),
+  "procurementCategory": zod.string().min(1).max(recordManualOpportunitySourceBodyProcurementCategoryMax).nullable(),
+  "publishedAt": zod.date().nullable(),
+  "submissionDeadline": zod.date().nullable(),
+  "observedAt": zod.date(),
+  "sourceContentSha256": zod.string().regex(recordManualOpportunitySourceBodySourceContentSha256RegExp).nullable()
+}).strict()
+
+export const recordManualOpportunitySourceResponseSourceSystemMax = 128;
+
+export const recordManualOpportunitySourceResponseSourceAuthorityMax = 512;
+
+export const recordManualOpportunitySourceResponseSourceLocatorMax = 2048;
+
+export const recordManualOpportunitySourceResponseSourceLicenceReferenceMax = 1024;
+
+export const recordManualOpportunitySourceResponseExternalReferenceMax = 128;
+
+export const recordManualOpportunitySourceResponseTitleMax = 512;
+
+export const recordManualOpportunitySourceResponseProcuringEntityMax = 512;
+
+export const recordManualOpportunitySourceResponseJurisdictionMax = 512;
+
+export const recordManualOpportunitySourceResponseFundingSourceMax = 512;
+
+export const recordManualOpportunitySourceResponseProcurementCategoryMax = 512;
+
+export const recordManualOpportunitySourceResponseSourceContentSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const recordManualOpportunitySourceResponseSourceLocatorSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const recordManualOpportunitySourceResponseReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const recordManualOpportunitySourceResponseDedupeKeyMax = 256;
+
+
+export const recordManualOpportunitySourceResponseRecordedByNameMax = 512;
+
+export const recordManualOpportunitySourceResponseReviewedByNameMax = 512;
+
+export const recordManualOpportunitySourceResponseDecisionReasonMax = 1024;
+
+
+
+export const RecordManualOpportunitySourceResponse = zod.object({
+  "sourceKind": zod.enum(['manual_url', 'ocds', 'licensed_feed', 'forwarded_notice', 'csv']),
+  "sourceSystem": zod.string().min(1).max(recordManualOpportunitySourceResponseSourceSystemMax),
+  "sourceAuthority": zod.string().min(1).max(recordManualOpportunitySourceResponseSourceAuthorityMax),
+  "sourceLocator": zod.string().min(1).max(recordManualOpportunitySourceResponseSourceLocatorMax),
+  "sourceLicenceReference": zod.string().max(recordManualOpportunitySourceResponseSourceLicenceReferenceMax).nullable(),
+  "externalReference": zod.string().min(1).max(recordManualOpportunitySourceResponseExternalReferenceMax),
+  "title": zod.string().min(1).max(recordManualOpportunitySourceResponseTitleMax),
+  "procuringEntity": zod.string().min(1).max(recordManualOpportunitySourceResponseProcuringEntityMax),
+  "jurisdiction": zod.string().min(1).max(recordManualOpportunitySourceResponseJurisdictionMax),
+  "fundingSource": zod.string().max(recordManualOpportunitySourceResponseFundingSourceMax).nullable(),
+  "procurementCategory": zod.string().max(recordManualOpportunitySourceResponseProcurementCategoryMax).nullable(),
+  "publishedAt": zod.date().nullable(),
+  "submissionDeadline": zod.date().nullable(),
+  "observedAt": zod.date(),
+  "sourceContentSha256": zod.string().regex(recordManualOpportunitySourceResponseSourceContentSha256RegExp).nullable(),
+  "provenance": zod.enum(['operator_recorded', 'adapter_verified']),
+  "sourceLocatorSha256": zod.string().regex(recordManualOpportunitySourceResponseSourceLocatorSha256RegExp),
+  "receiptSha256": zod.string().regex(recordManualOpportunitySourceResponseReceiptSha256RegExp),
+  "dedupeKey": zod.string().min(1).max(recordManualOpportunitySourceResponseDedupeKeyMax),
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "status": zod.enum(['pending_review', 'accepted', 'rejected']),
+  "version": zod.number().min(1),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedByName": zod.string().min(1).max(recordManualOpportunitySourceResponseRecordedByNameMax),
+  "reviewedByUserId": zod.string().uuid().nullable(),
+  "reviewedByName": zod.string().max(recordManualOpportunitySourceResponseReviewedByNameMax).nullable(),
+  "reviewedAt": zod.date().nullable(),
+  "decisionReason": zod.string().max(recordManualOpportunitySourceResponseDecisionReasonMax).nullable(),
+  "tenderId": zod.string().uuid().nullable()
+}).strict()
+
+
+/**
+ * This manual metadata-only pilot is capped at 250 lifetime source receipts per organisation and has no in-app archive. Intake must stop before capacity until a reviewed retention/storage migration is approved; audit events must never be deleted merely to recover capacity.
+ * @summary Record a named-human accept or reject decision
+ */
+export const decideOpportunitySourceCandidatePathCandidateIdMax = 128;
+
+
+
+export const DecideOpportunitySourceCandidateParams = zod.object({
+  "candidateId": zod.string().min(1).max(decideOpportunitySourceCandidatePathCandidateIdMax)
+})
+
+
+export const decideOpportunitySourceCandidateBodyReasonMax = 1024;
+
+
+
+export const DecideOpportunitySourceCandidateBody = zod.object({
+  "expectedVersion": zod.number().min(1),
+  "decision": zod.enum(['accept', 'reject']),
+  "reason": zod.string().min(1).max(decideOpportunitySourceCandidateBodyReasonMax)
+}).strict()
+
+export const decideOpportunitySourceCandidateResponseSourceSystemMax = 128;
+
+export const decideOpportunitySourceCandidateResponseSourceAuthorityMax = 512;
+
+export const decideOpportunitySourceCandidateResponseSourceLocatorMax = 2048;
+
+export const decideOpportunitySourceCandidateResponseSourceLicenceReferenceMax = 1024;
+
+export const decideOpportunitySourceCandidateResponseExternalReferenceMax = 128;
+
+export const decideOpportunitySourceCandidateResponseTitleMax = 512;
+
+export const decideOpportunitySourceCandidateResponseProcuringEntityMax = 512;
+
+export const decideOpportunitySourceCandidateResponseJurisdictionMax = 512;
+
+export const decideOpportunitySourceCandidateResponseFundingSourceMax = 512;
+
+export const decideOpportunitySourceCandidateResponseProcurementCategoryMax = 512;
+
+export const decideOpportunitySourceCandidateResponseSourceContentSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const decideOpportunitySourceCandidateResponseSourceLocatorSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const decideOpportunitySourceCandidateResponseReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const decideOpportunitySourceCandidateResponseDedupeKeyMax = 256;
+
+
+export const decideOpportunitySourceCandidateResponseRecordedByNameMax = 512;
+
+export const decideOpportunitySourceCandidateResponseReviewedByNameMax = 512;
+
+export const decideOpportunitySourceCandidateResponseDecisionReasonMax = 1024;
+
+
+
+export const DecideOpportunitySourceCandidateResponse = zod.object({
+  "sourceKind": zod.enum(['manual_url', 'ocds', 'licensed_feed', 'forwarded_notice', 'csv']),
+  "sourceSystem": zod.string().min(1).max(decideOpportunitySourceCandidateResponseSourceSystemMax),
+  "sourceAuthority": zod.string().min(1).max(decideOpportunitySourceCandidateResponseSourceAuthorityMax),
+  "sourceLocator": zod.string().min(1).max(decideOpportunitySourceCandidateResponseSourceLocatorMax),
+  "sourceLicenceReference": zod.string().max(decideOpportunitySourceCandidateResponseSourceLicenceReferenceMax).nullable(),
+  "externalReference": zod.string().min(1).max(decideOpportunitySourceCandidateResponseExternalReferenceMax),
+  "title": zod.string().min(1).max(decideOpportunitySourceCandidateResponseTitleMax),
+  "procuringEntity": zod.string().min(1).max(decideOpportunitySourceCandidateResponseProcuringEntityMax),
+  "jurisdiction": zod.string().min(1).max(decideOpportunitySourceCandidateResponseJurisdictionMax),
+  "fundingSource": zod.string().max(decideOpportunitySourceCandidateResponseFundingSourceMax).nullable(),
+  "procurementCategory": zod.string().max(decideOpportunitySourceCandidateResponseProcurementCategoryMax).nullable(),
+  "publishedAt": zod.date().nullable(),
+  "submissionDeadline": zod.date().nullable(),
+  "observedAt": zod.date(),
+  "sourceContentSha256": zod.string().regex(decideOpportunitySourceCandidateResponseSourceContentSha256RegExp).nullable(),
+  "provenance": zod.enum(['operator_recorded', 'adapter_verified']),
+  "sourceLocatorSha256": zod.string().regex(decideOpportunitySourceCandidateResponseSourceLocatorSha256RegExp),
+  "receiptSha256": zod.string().regex(decideOpportunitySourceCandidateResponseReceiptSha256RegExp),
+  "dedupeKey": zod.string().min(1).max(decideOpportunitySourceCandidateResponseDedupeKeyMax),
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "status": zod.enum(['pending_review', 'accepted', 'rejected']),
+  "version": zod.number().min(1),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedByName": zod.string().min(1).max(decideOpportunitySourceCandidateResponseRecordedByNameMax),
+  "reviewedByUserId": zod.string().uuid().nullable(),
+  "reviewedByName": zod.string().max(decideOpportunitySourceCandidateResponseReviewedByNameMax).nullable(),
+  "reviewedAt": zod.date().nullable(),
+  "decisionReason": zod.string().max(decideOpportunitySourceCandidateResponseDecisionReasonMax).nullable(),
+  "tenderId": zod.string().uuid().nullable()
+}).strict()
+
+
+/**
+ * Delivery is represented only when a provider receipt has been independently verified.
+ * @summary Read the content-minimised communication ledger
+ */
+export const GetReconciledCommunicationsParams = zod.object({
+  "id": zod.string().uuid()
+})
+
+export const getReconciledCommunicationsResponseEventsItemConsentEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getReconciledCommunicationsResponseEventsItemContextThreeCorrectionSequenceMax = 5;
+
+export const getReconciledCommunicationsResponseEventsItemContextFourManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getReconciledCommunicationsResponseEventsItemMaxAttemptsMax = 5;
+
+
+export const getReconciledCommunicationsResponseEventsItemAttemptsItemAttemptNumberMax = 5;
+
+export const getReconciledCommunicationsResponseEventsItemAttemptsItemProviderMax = 256;
+
+export const getReconciledCommunicationsResponseEventsItemAttemptsItemIdempotencyKeyMax = 160;
+
+export const getReconciledCommunicationsResponseEventsItemAttemptsItemProviderMessageIdMax = 256;
+
+export const getReconciledCommunicationsResponseEventsItemAttemptsItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getReconciledCommunicationsResponseEventsItemAttemptsItemResponseCodeMax = 96;
+
+export const getReconciledCommunicationsResponseEventsItemAttemptsMax = 5;
+
+export const getReconciledCommunicationsResponseEventsMax = 250;
+
+
+
+export const GetReconciledCommunicationsResponse = zod.object({
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "events": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "channel": zod.enum(['email', 'whatsapp_business']),
+  "templateId": zod.enum(['deadline_reminder_v1', 'evidence_request_ready_v1', 'evidence_correction_required_v1', 'package_ready_v1']),
+  "recipientUserId": zod.string().uuid(),
+  "consentEvidenceSha256": zod.string().regex(getReconciledCommunicationsResponseEventsItemConsentEvidenceSha256RegExp),
+  "context": zod.union([zod.object({
+  "kind": zod.literal("deadline"),
+  "deadlineAt": zod.date()
+}).strict(),zod.object({
+  "kind": zod.literal("evidence_request"),
+  "requestId": zod.string().uuid(),
+  "dueAt": zod.date().nullable()
+}).strict(),zod.object({
+  "kind": zod.literal("evidence_correction"),
+  "requestId": zod.string().uuid(),
+  "correctionSequence": zod.number().min(1).max(getReconciledCommunicationsResponseEventsItemContextThreeCorrectionSequenceMax)
+}).strict(),zod.object({
+  "kind": zod.literal("released_package"),
+  "packageVersionId": zod.string().uuid(),
+  "manifestSha256": zod.string().regex(getReconciledCommunicationsResponseEventsItemContextFourManifestSha256RegExp)
+}).strict()]),
+  "status": zod.enum(['queued', 'prepared', 'accepted_pending_receipt', 'retry_wait', 'reconciliation_required', 'delivered', 'dead_letter']),
+  "requestedByUserId": zod.string().uuid(),
+  "requestedAt": zod.date(),
+  "deadlineAt": zod.date(),
+  "maxAttempts": zod.number().min(1).max(getReconciledCommunicationsResponseEventsItemMaxAttemptsMax),
+  "version": zod.number().min(1),
+  "attempts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "attemptNumber": zod.number().min(1).max(getReconciledCommunicationsResponseEventsItemAttemptsItemAttemptNumberMax),
+  "provider": zod.string().min(1).max(getReconciledCommunicationsResponseEventsItemAttemptsItemProviderMax),
+  "idempotencyKey": zod.string().min(1).max(getReconciledCommunicationsResponseEventsItemAttemptsItemIdempotencyKeyMax),
+  "status": zod.enum(['prepared', 'provider_disconnected', 'policy_blocked', 'provider_rejected', 'outcome_unknown', 'accepted_pending_receipt', 'receipt_verified_delivered', 'receipt_verified_failed']),
+  "providerMessageId": zod.string().max(getReconciledCommunicationsResponseEventsItemAttemptsItemProviderMessageIdMax).nullable(),
+  "receiptSha256": zod.string().regex(getReconciledCommunicationsResponseEventsItemAttemptsItemReceiptSha256RegExp).nullable(),
+  "responseCode": zod.string().max(getReconciledCommunicationsResponseEventsItemAttemptsItemResponseCodeMax).nullable(),
+  "attemptedAt": zod.date(),
+  "nextAttemptAt": zod.date().nullable()
+}).strict()).max(getReconciledCommunicationsResponseEventsItemAttemptsMax),
+  "deliveryAuthority": zod.literal("verified_provider_receipt_only"),
+  "arbitraryBodyAccepted": zod.literal(false),
+  "rawRecipientPersisted": zod.literal(false)
+}).strict()).max(getReconciledCommunicationsResponseEventsMax),
+  "policy": zod.object({
+  "approvedTemplatesOnly": zod.literal(true),
+  "arbitraryBodyAccepted": zod.literal(false),
+  "arbitraryRecipientAccepted": zod.literal(false),
+  "deliveryRequiresVerifiedProviderReceipt": zod.literal(true),
+  "autonomousDispatch": zod.literal(false),
+  "providersConnected": zod.boolean()
+}).strict()
+}).strict()
+
+
+/**
+ * Returns named member and canonical project-context selectors without raw addresses, contact details or arbitrary message content.
+ * @summary List bounded, consent-verified communication references
+ */
+export const ListProjectCommunicationReferencesParams = zod.object({
+  "id": zod.string().uuid()
+})
+
+export const listProjectCommunicationReferencesResponseRecipientsItemNameMax = 512;
+
+export const listProjectCommunicationReferencesResponseRecipientsItemConsentEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const listProjectCommunicationReferencesResponseRecipientsMax = 100;
+
+export const listProjectCommunicationReferencesResponseContextsItemIdMax = 160;
+
+
+export const listProjectCommunicationReferencesResponseContextsItemIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:/-]*$');
+export const listProjectCommunicationReferencesResponseContextsItemLabelMax = 160;
+
+export const listProjectCommunicationReferencesResponseContextsItemContextThreeCorrectionSequenceMax = 5;
+
+export const listProjectCommunicationReferencesResponseContextsItemContextFourManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const listProjectCommunicationReferencesResponseContextsMax = 100;
+
+
+
+export const ListProjectCommunicationReferencesResponse = zod.object({
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "recipients": zod.array(zod.object({
+  "userId": zod.string().uuid(),
+  "name": zod.string().min(1).max(listProjectCommunicationReferencesResponseRecipientsItemNameMax),
+  "channel": zod.literal("email"),
+  "consentEvidenceSha256": zod.string().regex(listProjectCommunicationReferencesResponseRecipientsItemConsentEvidenceSha256RegExp)
+}).strict()).max(listProjectCommunicationReferencesResponseRecipientsMax),
+  "contexts": zod.array(zod.object({
+  "id": zod.string().min(1).max(listProjectCommunicationReferencesResponseContextsItemIdMax).regex(listProjectCommunicationReferencesResponseContextsItemIdRegExp),
+  "recipientUserId": zod.string().uuid().nullable(),
+  "label": zod.string().min(1).max(listProjectCommunicationReferencesResponseContextsItemLabelMax),
+  "templateId": zod.enum(['deadline_reminder_v1', 'evidence_request_ready_v1', 'evidence_correction_required_v1', 'package_ready_v1']),
+  "context": zod.union([zod.object({
+  "kind": zod.literal("deadline"),
+  "deadlineAt": zod.date()
+}).strict(),zod.object({
+  "kind": zod.literal("evidence_request"),
+  "requestId": zod.string().uuid(),
+  "dueAt": zod.date().nullable()
+}).strict(),zod.object({
+  "kind": zod.literal("evidence_correction"),
+  "requestId": zod.string().uuid(),
+  "correctionSequence": zod.number().min(1).max(listProjectCommunicationReferencesResponseContextsItemContextThreeCorrectionSequenceMax)
+}).strict(),zod.object({
+  "kind": zod.literal("released_package"),
+  "packageVersionId": zod.string().uuid(),
+  "manifestSha256": zod.string().regex(listProjectCommunicationReferencesResponseContextsItemContextFourManifestSha256RegExp)
+}).strict()])
+}).strict()).max(listProjectCommunicationReferencesResponseContextsMax),
+  "limit": zod.literal(100),
+  "truncated": zod.boolean()
+}).strict()
+
+
+/**
+ * A named human queues an intent; the disconnected default performs no external send.
+ * @summary Queue an approved-template communication intent
+ */
+export const QueueCommunicationIntentParams = zod.object({
+  "id": zod.string().uuid()
+})
+
+export const queueCommunicationIntentBodyIdempotencyKeyMax = 160;
+
+export const queueCommunicationIntentBodyConsentEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const queueCommunicationIntentBodyContextThreeCorrectionSequenceMax = 5;
+
+export const queueCommunicationIntentBodyContextFourManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const queueCommunicationIntentBodyMaxAttemptsDefault = 3;
+export const queueCommunicationIntentBodyMaxAttemptsMax = 5;
+
+
+
+export const QueueCommunicationIntentBody = zod.object({
+  "idempotencyKey": zod.string().min(1).max(queueCommunicationIntentBodyIdempotencyKeyMax),
+  "channel": zod.enum(['email', 'whatsapp_business']),
+  "templateId": zod.enum(['deadline_reminder_v1', 'evidence_request_ready_v1', 'evidence_correction_required_v1', 'package_ready_v1']),
+  "recipientUserId": zod.string().uuid(),
+  "consentEvidenceSha256": zod.string().regex(queueCommunicationIntentBodyConsentEvidenceSha256RegExp),
+  "context": zod.union([zod.object({
+  "kind": zod.literal("deadline"),
+  "deadlineAt": zod.date()
+}).strict(),zod.object({
+  "kind": zod.literal("evidence_request"),
+  "requestId": zod.string().uuid(),
+  "dueAt": zod.date().nullable()
+}).strict(),zod.object({
+  "kind": zod.literal("evidence_correction"),
+  "requestId": zod.string().uuid(),
+  "correctionSequence": zod.number().min(1).max(queueCommunicationIntentBodyContextThreeCorrectionSequenceMax)
+}).strict(),zod.object({
+  "kind": zod.literal("released_package"),
+  "packageVersionId": zod.string().uuid(),
+  "manifestSha256": zod.string().regex(queueCommunicationIntentBodyContextFourManifestSha256RegExp)
+}).strict()]),
+  "deadlineAt": zod.date(),
+  "maxAttempts": zod.number().min(1).max(queueCommunicationIntentBodyMaxAttemptsMax).default(queueCommunicationIntentBodyMaxAttemptsDefault)
+}).strict()
+
+export const queueCommunicationIntentResponseConsentEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const queueCommunicationIntentResponseContextThreeCorrectionSequenceMax = 5;
+
+export const queueCommunicationIntentResponseContextFourManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const queueCommunicationIntentResponseMaxAttemptsMax = 5;
+
+
+export const queueCommunicationIntentResponseAttemptsItemAttemptNumberMax = 5;
+
+export const queueCommunicationIntentResponseAttemptsItemProviderMax = 256;
+
+export const queueCommunicationIntentResponseAttemptsItemIdempotencyKeyMax = 160;
+
+export const queueCommunicationIntentResponseAttemptsItemProviderMessageIdMax = 256;
+
+export const queueCommunicationIntentResponseAttemptsItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const queueCommunicationIntentResponseAttemptsItemResponseCodeMax = 96;
+
+export const queueCommunicationIntentResponseAttemptsMax = 5;
+
+
+
+export const QueueCommunicationIntentResponse = zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "channel": zod.enum(['email', 'whatsapp_business']),
+  "templateId": zod.enum(['deadline_reminder_v1', 'evidence_request_ready_v1', 'evidence_correction_required_v1', 'package_ready_v1']),
+  "recipientUserId": zod.string().uuid(),
+  "consentEvidenceSha256": zod.string().regex(queueCommunicationIntentResponseConsentEvidenceSha256RegExp),
+  "context": zod.union([zod.object({
+  "kind": zod.literal("deadline"),
+  "deadlineAt": zod.date()
+}).strict(),zod.object({
+  "kind": zod.literal("evidence_request"),
+  "requestId": zod.string().uuid(),
+  "dueAt": zod.date().nullable()
+}).strict(),zod.object({
+  "kind": zod.literal("evidence_correction"),
+  "requestId": zod.string().uuid(),
+  "correctionSequence": zod.number().min(1).max(queueCommunicationIntentResponseContextThreeCorrectionSequenceMax)
+}).strict(),zod.object({
+  "kind": zod.literal("released_package"),
+  "packageVersionId": zod.string().uuid(),
+  "manifestSha256": zod.string().regex(queueCommunicationIntentResponseContextFourManifestSha256RegExp)
+}).strict()]),
+  "status": zod.enum(['queued', 'prepared', 'accepted_pending_receipt', 'retry_wait', 'reconciliation_required', 'delivered', 'dead_letter']),
+  "requestedByUserId": zod.string().uuid(),
+  "requestedAt": zod.date(),
+  "deadlineAt": zod.date(),
+  "maxAttempts": zod.number().min(1).max(queueCommunicationIntentResponseMaxAttemptsMax),
+  "version": zod.number().min(1),
+  "attempts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "attemptNumber": zod.number().min(1).max(queueCommunicationIntentResponseAttemptsItemAttemptNumberMax),
+  "provider": zod.string().min(1).max(queueCommunicationIntentResponseAttemptsItemProviderMax),
+  "idempotencyKey": zod.string().min(1).max(queueCommunicationIntentResponseAttemptsItemIdempotencyKeyMax),
+  "status": zod.enum(['prepared', 'provider_disconnected', 'policy_blocked', 'provider_rejected', 'outcome_unknown', 'accepted_pending_receipt', 'receipt_verified_delivered', 'receipt_verified_failed']),
+  "providerMessageId": zod.string().max(queueCommunicationIntentResponseAttemptsItemProviderMessageIdMax).nullable(),
+  "receiptSha256": zod.string().regex(queueCommunicationIntentResponseAttemptsItemReceiptSha256RegExp).nullable(),
+  "responseCode": zod.string().max(queueCommunicationIntentResponseAttemptsItemResponseCodeMax).nullable(),
+  "attemptedAt": zod.date(),
+  "nextAttemptAt": zod.date().nullable()
+}).strict()).max(queueCommunicationIntentResponseAttemptsMax),
+  "deliveryAuthority": zod.literal("verified_provider_receipt_only"),
+  "arbitraryBodyAccepted": zod.literal(false),
+  "rawRecipientPersisted": zod.literal(false)
+}).strict()
+
+
+/**
+ * @summary Record a pre-effect provider attempt under compare-and-swap
+ */
+export const RecordCommunicationAttemptParams = zod.object({
+  "id": zod.string().uuid(),
+  "eventId": zod.string().uuid()
+})
+
+
+
+
+export const RecordCommunicationAttemptBody = zod.object({
+  "expectedVersion": zod.number().min(1)
+}).strict()
+
+export const recordCommunicationAttemptResponseConsentEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const recordCommunicationAttemptResponseContextThreeCorrectionSequenceMax = 5;
+
+export const recordCommunicationAttemptResponseContextFourManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const recordCommunicationAttemptResponseMaxAttemptsMax = 5;
+
+
+export const recordCommunicationAttemptResponseAttemptsItemAttemptNumberMax = 5;
+
+export const recordCommunicationAttemptResponseAttemptsItemProviderMax = 256;
+
+export const recordCommunicationAttemptResponseAttemptsItemIdempotencyKeyMax = 160;
+
+export const recordCommunicationAttemptResponseAttemptsItemProviderMessageIdMax = 256;
+
+export const recordCommunicationAttemptResponseAttemptsItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const recordCommunicationAttemptResponseAttemptsItemResponseCodeMax = 96;
+
+export const recordCommunicationAttemptResponseAttemptsMax = 5;
+
+
+
+export const RecordCommunicationAttemptResponse = zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "channel": zod.enum(['email', 'whatsapp_business']),
+  "templateId": zod.enum(['deadline_reminder_v1', 'evidence_request_ready_v1', 'evidence_correction_required_v1', 'package_ready_v1']),
+  "recipientUserId": zod.string().uuid(),
+  "consentEvidenceSha256": zod.string().regex(recordCommunicationAttemptResponseConsentEvidenceSha256RegExp),
+  "context": zod.union([zod.object({
+  "kind": zod.literal("deadline"),
+  "deadlineAt": zod.date()
+}).strict(),zod.object({
+  "kind": zod.literal("evidence_request"),
+  "requestId": zod.string().uuid(),
+  "dueAt": zod.date().nullable()
+}).strict(),zod.object({
+  "kind": zod.literal("evidence_correction"),
+  "requestId": zod.string().uuid(),
+  "correctionSequence": zod.number().min(1).max(recordCommunicationAttemptResponseContextThreeCorrectionSequenceMax)
+}).strict(),zod.object({
+  "kind": zod.literal("released_package"),
+  "packageVersionId": zod.string().uuid(),
+  "manifestSha256": zod.string().regex(recordCommunicationAttemptResponseContextFourManifestSha256RegExp)
+}).strict()]),
+  "status": zod.enum(['queued', 'prepared', 'accepted_pending_receipt', 'retry_wait', 'reconciliation_required', 'delivered', 'dead_letter']),
+  "requestedByUserId": zod.string().uuid(),
+  "requestedAt": zod.date(),
+  "deadlineAt": zod.date(),
+  "maxAttempts": zod.number().min(1).max(recordCommunicationAttemptResponseMaxAttemptsMax),
+  "version": zod.number().min(1),
+  "attempts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "attemptNumber": zod.number().min(1).max(recordCommunicationAttemptResponseAttemptsItemAttemptNumberMax),
+  "provider": zod.string().min(1).max(recordCommunicationAttemptResponseAttemptsItemProviderMax),
+  "idempotencyKey": zod.string().min(1).max(recordCommunicationAttemptResponseAttemptsItemIdempotencyKeyMax),
+  "status": zod.enum(['prepared', 'provider_disconnected', 'policy_blocked', 'provider_rejected', 'outcome_unknown', 'accepted_pending_receipt', 'receipt_verified_delivered', 'receipt_verified_failed']),
+  "providerMessageId": zod.string().max(recordCommunicationAttemptResponseAttemptsItemProviderMessageIdMax).nullable(),
+  "receiptSha256": zod.string().regex(recordCommunicationAttemptResponseAttemptsItemReceiptSha256RegExp).nullable(),
+  "responseCode": zod.string().max(recordCommunicationAttemptResponseAttemptsItemResponseCodeMax).nullable(),
+  "attemptedAt": zod.date(),
+  "nextAttemptAt": zod.date().nullable()
+}).strict()).max(recordCommunicationAttemptResponseAttemptsMax),
+  "deliveryAuthority": zod.literal("verified_provider_receipt_only"),
+  "arbitraryBodyAccepted": zod.literal(false),
+  "rawRecipientPersisted": zod.literal(false)
+}).strict()
+
+
+/**
+ * @summary Reconcile a provider receipt into the durable event state
+ */
+export const ReconcileCommunicationReceiptParams = zod.object({
+  "id": zod.string().uuid(),
+  "eventId": zod.string().uuid()
+})
+
+
+export const reconcileCommunicationReceiptBodyReceiptReferenceMax = 256;
+
+
+
+export const ReconcileCommunicationReceiptBody = zod.object({
+  "expectedVersion": zod.number().min(1),
+  "attemptId": zod.string().uuid(),
+  "receiptReference": zod.string().min(1).max(reconcileCommunicationReceiptBodyReceiptReferenceMax)
+}).strict()
+
+export const reconcileCommunicationReceiptResponseConsentEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const reconcileCommunicationReceiptResponseContextThreeCorrectionSequenceMax = 5;
+
+export const reconcileCommunicationReceiptResponseContextFourManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const reconcileCommunicationReceiptResponseMaxAttemptsMax = 5;
+
+
+export const reconcileCommunicationReceiptResponseAttemptsItemAttemptNumberMax = 5;
+
+export const reconcileCommunicationReceiptResponseAttemptsItemProviderMax = 256;
+
+export const reconcileCommunicationReceiptResponseAttemptsItemIdempotencyKeyMax = 160;
+
+export const reconcileCommunicationReceiptResponseAttemptsItemProviderMessageIdMax = 256;
+
+export const reconcileCommunicationReceiptResponseAttemptsItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const reconcileCommunicationReceiptResponseAttemptsItemResponseCodeMax = 96;
+
+export const reconcileCommunicationReceiptResponseAttemptsMax = 5;
+
+
+
+export const ReconcileCommunicationReceiptResponse = zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "channel": zod.enum(['email', 'whatsapp_business']),
+  "templateId": zod.enum(['deadline_reminder_v1', 'evidence_request_ready_v1', 'evidence_correction_required_v1', 'package_ready_v1']),
+  "recipientUserId": zod.string().uuid(),
+  "consentEvidenceSha256": zod.string().regex(reconcileCommunicationReceiptResponseConsentEvidenceSha256RegExp),
+  "context": zod.union([zod.object({
+  "kind": zod.literal("deadline"),
+  "deadlineAt": zod.date()
+}).strict(),zod.object({
+  "kind": zod.literal("evidence_request"),
+  "requestId": zod.string().uuid(),
+  "dueAt": zod.date().nullable()
+}).strict(),zod.object({
+  "kind": zod.literal("evidence_correction"),
+  "requestId": zod.string().uuid(),
+  "correctionSequence": zod.number().min(1).max(reconcileCommunicationReceiptResponseContextThreeCorrectionSequenceMax)
+}).strict(),zod.object({
+  "kind": zod.literal("released_package"),
+  "packageVersionId": zod.string().uuid(),
+  "manifestSha256": zod.string().regex(reconcileCommunicationReceiptResponseContextFourManifestSha256RegExp)
+}).strict()]),
+  "status": zod.enum(['queued', 'prepared', 'accepted_pending_receipt', 'retry_wait', 'reconciliation_required', 'delivered', 'dead_letter']),
+  "requestedByUserId": zod.string().uuid(),
+  "requestedAt": zod.date(),
+  "deadlineAt": zod.date(),
+  "maxAttempts": zod.number().min(1).max(reconcileCommunicationReceiptResponseMaxAttemptsMax),
+  "version": zod.number().min(1),
+  "attempts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "attemptNumber": zod.number().min(1).max(reconcileCommunicationReceiptResponseAttemptsItemAttemptNumberMax),
+  "provider": zod.string().min(1).max(reconcileCommunicationReceiptResponseAttemptsItemProviderMax),
+  "idempotencyKey": zod.string().min(1).max(reconcileCommunicationReceiptResponseAttemptsItemIdempotencyKeyMax),
+  "status": zod.enum(['prepared', 'provider_disconnected', 'policy_blocked', 'provider_rejected', 'outcome_unknown', 'accepted_pending_receipt', 'receipt_verified_delivered', 'receipt_verified_failed']),
+  "providerMessageId": zod.string().max(reconcileCommunicationReceiptResponseAttemptsItemProviderMessageIdMax).nullable(),
+  "receiptSha256": zod.string().regex(reconcileCommunicationReceiptResponseAttemptsItemReceiptSha256RegExp).nullable(),
+  "responseCode": zod.string().max(reconcileCommunicationReceiptResponseAttemptsItemResponseCodeMax).nullable(),
+  "attemptedAt": zod.date(),
+  "nextAttemptAt": zod.date().nullable()
+}).strict()).max(reconcileCommunicationReceiptResponseAttemptsMax),
+  "deliveryAuthority": zod.literal("verified_provider_receipt_only"),
+  "arbitraryBodyAccepted": zod.literal(false),
+  "rawRecipientPersisted": zod.literal(false)
+}).strict()
+
+
+/**
+ * @summary Read the closed commercial authority manifest
+ */
+export const GetCommercialRetainerManifestResponse = zod.object({
+  "manifest": zod.object({
+  "moduleVersion": zod.literal("valo.commercial-retainer@v1"),
+  "routeMounted": zod.literal(true),
+  "navigationMounted": zod.literal(true),
+  "openApiPublished": zod.literal(true),
+  "fixedCatalogueOnly": zod.literal(true),
+  "approvedPriceBookSeedRequired": zod.literal(true),
+  "automaticPricingAllowed": zod.literal(false),
+  "paymentProviderConnected": zod.literal(false),
+  "externalMessagingConnected": zod.literal(false),
+  "autonomousWorkAllowed": zod.literal(false),
+  "manualPaymentEvidenceOnly": zod.literal(true),
+  "makerCheckerRequired": zod.literal(true),
+  "directMembershipRequired": zod.literal(true),
+  "privateNoStoreRequired": zod.literal(true)
+}).strict()
+}).strict()
+
+
+/**
+ * @summary Read the bounded fixed-catalogue commercial ledger
+ */
+export const GetCommercialRetainerSnapshotQueryParams = zod.object({
+  "projectId": zod.string().uuid().optional()
+})
+
+export const getCommercialRetainerSnapshotResponseSnapshotOffersItemTitleMax = 160;
+
+export const getCommercialRetainerSnapshotResponseSnapshotOffersItemSummaryMax = 1000;
+
+export const getCommercialRetainerSnapshotResponseSnapshotOffersItemFixedScopeItemMax = 1000;
+
+export const getCommercialRetainerSnapshotResponseSnapshotOffersItemFixedScopeMax = 20;
+
+export const getCommercialRetainerSnapshotResponseSnapshotOffersItemExcludedActionsItemMax = 1000;
+
+export const getCommercialRetainerSnapshotResponseSnapshotOffersItemExcludedActionsMax = 20;
+
+export const getCommercialRetainerSnapshotResponseSnapshotOffersMax = 3;
+
+export const getCommercialRetainerSnapshotResponseSnapshotQuotesItemCustomerReferenceMax = 160;
+
+export const getCommercialRetainerSnapshotResponseSnapshotQuotesItemScopeSummaryMax = 1000;
+
+export const getCommercialRetainerSnapshotResponseSnapshotQuotesItemCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const getCommercialRetainerSnapshotResponseSnapshotQuotesItemAmountMinorMax = 1000000000000000;
+
+export const getCommercialRetainerSnapshotResponseSnapshotQuotesItemServiceUnitsMax = 100;
+
+
+export const getCommercialRetainerSnapshotResponseSnapshotQuotesMax = 50;
+
+export const getCommercialRetainerSnapshotResponseSnapshotInvoicesItemInvoiceNumberMax = 160;
+
+export const getCommercialRetainerSnapshotResponseSnapshotInvoicesItemCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+
+export const getCommercialRetainerSnapshotResponseSnapshotInvoicesItemVatAmountMinorMin = 0;
+
+
+export const getCommercialRetainerSnapshotResponseSnapshotInvoicesItemWhtAmountMinorMin = 0;
+
+
+
+export const getCommercialRetainerSnapshotResponseSnapshotInvoicesMax = 50;
+
+
+export const getCommercialRetainerSnapshotResponseSnapshotPaymentsItemCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const getCommercialRetainerSnapshotResponseSnapshotPaymentsItemEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+export const getCommercialRetainerSnapshotResponseSnapshotPaymentsMax = 50;
+
+
+export const getCommercialRetainerSnapshotResponseSnapshotEntitlementsItemUsageConsumedMin = 0;
+
+
+export const getCommercialRetainerSnapshotResponseSnapshotEntitlementsMax = 50;
+
+export const getCommercialRetainerSnapshotResponseSnapshotServiceRequestsItemSummaryMax = 1000;
+
+export const getCommercialRetainerSnapshotResponseSnapshotServiceRequestsItemCommentsItemBodyMax = 1000;
+
+export const getCommercialRetainerSnapshotResponseSnapshotServiceRequestsItemCommentsMax = 20;
+
+export const getCommercialRetainerSnapshotResponseSnapshotServiceRequestsItemEvidenceReceiptsItemReferenceMax = 160;
+
+export const getCommercialRetainerSnapshotResponseSnapshotServiceRequestsItemEvidenceReceiptsItemSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getCommercialRetainerSnapshotResponseSnapshotServiceRequestsItemEvidenceReceiptsMax = 10;
+
+export const getCommercialRetainerSnapshotResponseSnapshotServiceRequestsItemHistoryMax = 50;
+
+
+export const getCommercialRetainerSnapshotResponseSnapshotServiceRequestsMax = 50;
+
+
+
+export const GetCommercialRetainerSnapshotResponse = zod.object({
+  "snapshot": zod.object({
+  "organisationId": zod.string().uuid(),
+  "manifest": zod.object({
+  "moduleVersion": zod.literal("valo.commercial-retainer@v1"),
+  "routeMounted": zod.literal(true),
+  "navigationMounted": zod.literal(true),
+  "openApiPublished": zod.literal(true),
+  "fixedCatalogueOnly": zod.literal(true),
+  "approvedPriceBookSeedRequired": zod.literal(true),
+  "automaticPricingAllowed": zod.literal(false),
+  "paymentProviderConnected": zod.literal(false),
+  "externalMessagingConnected": zod.literal(false),
+  "autonomousWorkAllowed": zod.literal(false),
+  "manualPaymentEvidenceOnly": zod.literal(true),
+  "makerCheckerRequired": zod.literal(true),
+  "directMembershipRequired": zod.literal(true),
+  "privateNoStoreRequired": zod.literal(true)
+}).strict(),
+  "activation": zod.object({
+  "fixedPriceBookReady": zod.boolean(),
+  "providerConnected": zod.literal(false),
+  "manualReconciliationReady": zod.boolean(),
+  "retainerDeskReady": zod.boolean()
+}).strict(),
+  "offers": zod.array(zod.object({
+  "versionId": zod.enum(['bid_autopsy@1', 'assisted_bid@1', 'evidence_readiness_retainer@1']),
+  "sku": zod.enum(['bid_autopsy', 'assisted_bid', 'evidence_readiness_retainer']),
+  "title": zod.string().min(1).max(getCommercialRetainerSnapshotResponseSnapshotOffersItemTitleMax),
+  "summary": zod.string().min(1).max(getCommercialRetainerSnapshotResponseSnapshotOffersItemSummaryMax),
+  "cadence": zod.enum(['one_off', 'manual_monthly']),
+  "fixedScope": zod.array(zod.string().min(1).max(getCommercialRetainerSnapshotResponseSnapshotOffersItemFixedScopeItemMax)).max(getCommercialRetainerSnapshotResponseSnapshotOffersItemFixedScopeMax),
+  "excludedActions": zod.array(zod.string().min(1).max(getCommercialRetainerSnapshotResponseSnapshotOffersItemExcludedActionsItemMax)).max(getCommercialRetainerSnapshotResponseSnapshotOffersItemExcludedActionsMax),
+  "humanQuoteRequired": zod.literal(true),
+  "orderable": zod.boolean()
+}).strict()).max(getCommercialRetainerSnapshotResponseSnapshotOffersMax),
+  "quotes": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid().nullable(),
+  "offerVersionId": zod.enum(['bid_autopsy@1', 'assisted_bid@1', 'evidence_readiness_retainer@1']),
+  "customerReference": zod.string().min(1).max(getCommercialRetainerSnapshotResponseSnapshotQuotesItemCustomerReferenceMax).describe('Opaque customer token; plaintext customer identity is never returned.'),
+  "scopeSummary": zod.string().min(1).max(getCommercialRetainerSnapshotResponseSnapshotQuotesItemScopeSummaryMax).describe('Opaque scope token; plaintext commercial scope is never returned.'),
+  "currency": zod.string().regex(getCommercialRetainerSnapshotResponseSnapshotQuotesItemCurrencyRegExp),
+  "amountMinor": zod.number().min(1).max(getCommercialRetainerSnapshotResponseSnapshotQuotesItemAmountMinorMax),
+  "validUntil": zod.date(),
+  "serviceStartsOn": zod.date(),
+  "serviceEndsOn": zod.date(),
+  "serviceUnits": zod.number().min(1).max(getCommercialRetainerSnapshotResponseSnapshotQuotesItemServiceUnitsMax),
+  "status": zod.enum(['pending_checker', 'approved', 'invoiced', 'paid']),
+  "createdByUserId": zod.string().uuid(),
+  "approvedByUserId": zod.string().uuid().nullable(),
+  "version": zod.number().min(1),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date()
+}).strict()).max(getCommercialRetainerSnapshotResponseSnapshotQuotesMax),
+  "invoices": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "orderId": zod.string().uuid(),
+  "invoiceNumber": zod.string().min(1).max(getCommercialRetainerSnapshotResponseSnapshotInvoicesItemInvoiceNumberMax),
+  "currency": zod.string().regex(getCommercialRetainerSnapshotResponseSnapshotInvoicesItemCurrencyRegExp),
+  "netAmountMinor": zod.number().min(1),
+  "vatAmountMinor": zod.number().min(getCommercialRetainerSnapshotResponseSnapshotInvoicesItemVatAmountMinorMin),
+  "grossAmountMinor": zod.number().min(1),
+  "whtAmountMinor": zod.number().min(getCommercialRetainerSnapshotResponseSnapshotInvoicesItemWhtAmountMinorMin).nullable(),
+  "netPayableMinor": zod.number().min(1),
+  "status": zod.enum(['issued_manual', 'paid_manual']),
+  "version": zod.number().min(1),
+  "createdAt": zod.date()
+}).strict()).max(getCommercialRetainerSnapshotResponseSnapshotInvoicesMax),
+  "payments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "invoiceId": zod.string().uuid(),
+  "amountMinor": zod.number().min(1),
+  "currency": zod.string().regex(getCommercialRetainerSnapshotResponseSnapshotPaymentsItemCurrencyRegExp),
+  "status": zod.enum(['evidence_recorded', 'settled']),
+  "reconciliationStatus": zod.enum(['pending_checker', 'verified_manual']),
+  "evidenceSha256": zod.string().regex(getCommercialRetainerSnapshotResponseSnapshotPaymentsItemEvidenceSha256RegExp),
+  "recordedByUserId": zod.string().uuid(),
+  "verifiedByUserId": zod.string().uuid().nullable(),
+  "settledAt": zod.date(),
+  "version": zod.number().min(1),
+  "createdAt": zod.date()
+}).strict()).max(getCommercialRetainerSnapshotResponseSnapshotPaymentsMax),
+  "entitlements": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "orderId": zod.string().uuid(),
+  "subscriptionId": zod.string().uuid().nullable(),
+  "productKind": zod.enum(['bid_autopsy', 'assisted_bid', 'evidence_readiness_retainer']),
+  "status": zod.enum(['active', 'scheduled']),
+  "paymentState": zod.literal("verified_manual"),
+  "startsAt": zod.date(),
+  "endsAt": zod.date(),
+  "usageLimit": zod.number().min(1),
+  "usageConsumed": zod.number().min(getCommercialRetainerSnapshotResponseSnapshotEntitlementsItemUsageConsumedMin),
+  "rulesVersion": zod.literal("valo.commercial-retainer@v1"),
+  "version": zod.number().min(1)
+}).strict()).max(getCommercialRetainerSnapshotResponseSnapshotEntitlementsMax),
+  "serviceRequests": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "entitlementId": zod.string().uuid(),
+  "purpose": zod.enum(['evidence_review', 'renewal_readiness', 'bid_evidence_pack']),
+  "summary": zod.string().min(1).max(getCommercialRetainerSnapshotResponseSnapshotServiceRequestsItemSummaryMax),
+  "ownerMembershipId": zod.string().uuid(),
+  "sla": zod.enum(['standard', 'priority']),
+  "slaPolicyVersion": zod.literal("valo.retainer-sla@v1"),
+  "dueAt": zod.date(),
+  "status": zod.enum(['open', 'in_progress', 'awaiting_evidence', 'completed', 'cancelled']),
+  "comments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "body": zod.string().min(1).max(getCommercialRetainerSnapshotResponseSnapshotServiceRequestsItemCommentsItemBodyMax),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date()
+}).strict()).max(getCommercialRetainerSnapshotResponseSnapshotServiceRequestsItemCommentsMax),
+  "evidenceReceipts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "reference": zod.string().min(1).max(getCommercialRetainerSnapshotResponseSnapshotServiceRequestsItemEvidenceReceiptsItemReferenceMax),
+  "sha256": zod.string().regex(getCommercialRetainerSnapshotResponseSnapshotServiceRequestsItemEvidenceReceiptsItemSha256RegExp),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.date()
+}).strict()).max(getCommercialRetainerSnapshotResponseSnapshotServiceRequestsItemEvidenceReceiptsMax),
+  "history": zod.array(zod.object({
+  "action": zod.enum(['created', 'commented', 'evidence_recorded', 'status_changed', 'reassigned']),
+  "actorUserId": zod.string().uuid(),
+  "at": zod.date(),
+  "from": zod.string().optional(),
+  "to": zod.string().optional()
+}).strict()).max(getCommercialRetainerSnapshotResponseSnapshotServiceRequestsItemHistoryMax),
+  "version": zod.number().min(1),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date()
+}).strict()).max(getCommercialRetainerSnapshotResponseSnapshotServiceRequestsMax)
+}).strict()
+}).strict()
+
+
+/**
+ * Performs no automatic pricing, external messaging or payment collection.
+ * @summary Create a human-authored fixed-catalogue quote draft
+ */
+export const createCommercialQuoteBodyCustomerReferenceMax = 160;
+
+export const createCommercialQuoteBodyScopeSummaryMax = 1000;
+
+export const createCommercialQuoteBodyCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const createCommercialQuoteBodyAmountMinorMax = 1000000000000000;
+
+export const createCommercialQuoteBodyServiceUnitsMax = 100;
+
+export const createCommercialQuoteBodyIdempotencyDigestRegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const CreateCommercialQuoteBody = zod.object({
+  "projectId": zod.string().uuid().nullable(),
+  "customerReference": zod.string().min(1).max(createCommercialQuoteBodyCustomerReferenceMax).describe('Opaque customer token; plaintext customer identity is not accepted.'),
+  "offerVersionId": zod.enum(['bid_autopsy@1', 'assisted_bid@1', 'evidence_readiness_retainer@1']),
+  "scopeSummary": zod.string().min(1).max(createCommercialQuoteBodyScopeSummaryMax).describe('Opaque scope token; plaintext commercial scope is not accepted.'),
+  "currency": zod.string().regex(createCommercialQuoteBodyCurrencyRegExp),
+  "amountMinor": zod.number().min(1).max(createCommercialQuoteBodyAmountMinorMax),
+  "validUntil": zod.date(),
+  "serviceStartsOn": zod.date(),
+  "serviceEndsOn": zod.date(),
+  "serviceUnits": zod.number().min(1).max(createCommercialQuoteBodyServiceUnitsMax),
+  "idempotencyDigest": zod.string().regex(createCommercialQuoteBodyIdempotencyDigestRegExp)
+}).strict()
+
+export const createCommercialQuoteResponseQuoteCustomerReferenceMax = 160;
+
+export const createCommercialQuoteResponseQuoteScopeSummaryMax = 1000;
+
+export const createCommercialQuoteResponseQuoteCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const createCommercialQuoteResponseQuoteAmountMinorMax = 1000000000000000;
+
+export const createCommercialQuoteResponseQuoteServiceUnitsMax = 100;
+
+
+
+
+export const CreateCommercialQuoteResponse = zod.object({
+  "quote": zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid().nullable(),
+  "offerVersionId": zod.enum(['bid_autopsy@1', 'assisted_bid@1', 'evidence_readiness_retainer@1']),
+  "customerReference": zod.string().min(1).max(createCommercialQuoteResponseQuoteCustomerReferenceMax).describe('Opaque customer token; plaintext customer identity is never returned.'),
+  "scopeSummary": zod.string().min(1).max(createCommercialQuoteResponseQuoteScopeSummaryMax).describe('Opaque scope token; plaintext commercial scope is never returned.'),
+  "currency": zod.string().regex(createCommercialQuoteResponseQuoteCurrencyRegExp),
+  "amountMinor": zod.number().min(1).max(createCommercialQuoteResponseQuoteAmountMinorMax),
+  "validUntil": zod.date(),
+  "serviceStartsOn": zod.date(),
+  "serviceEndsOn": zod.date(),
+  "serviceUnits": zod.number().min(1).max(createCommercialQuoteResponseQuoteServiceUnitsMax),
+  "status": zod.enum(['pending_checker', 'approved', 'invoiced', 'paid']),
+  "createdByUserId": zod.string().uuid(),
+  "approvedByUserId": zod.string().uuid().nullable(),
+  "version": zod.number().min(1),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date()
+}).strict()
+}).strict()
+
+
+/**
+ * @summary Approve a quote as a distinct named checker
+ */
+export const ApproveCommercialQuoteParams = zod.object({
+  "orderId": zod.string().uuid()
+})
+
+
+
+
+export const ApproveCommercialQuoteBody = zod.object({
+  "expectedVersion": zod.number().min(1)
+}).strict()
+
+export const approveCommercialQuoteResponseRecordCustomerReferenceMax = 160;
+
+export const approveCommercialQuoteResponseRecordScopeSummaryMax = 1000;
+
+export const approveCommercialQuoteResponseRecordCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const approveCommercialQuoteResponseRecordAmountMinorMax = 1000000000000000;
+
+export const approveCommercialQuoteResponseRecordServiceUnitsMax = 100;
+
+
+
+
+export const ApproveCommercialQuoteResponse = zod.object({
+  "outcome": zod.literal("updated"),
+  "record": zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid().nullable(),
+  "offerVersionId": zod.enum(['bid_autopsy@1', 'assisted_bid@1', 'evidence_readiness_retainer@1']),
+  "customerReference": zod.string().min(1).max(approveCommercialQuoteResponseRecordCustomerReferenceMax).describe('Opaque customer token; plaintext customer identity is never returned.'),
+  "scopeSummary": zod.string().min(1).max(approveCommercialQuoteResponseRecordScopeSummaryMax).describe('Opaque scope token; plaintext commercial scope is never returned.'),
+  "currency": zod.string().regex(approveCommercialQuoteResponseRecordCurrencyRegExp),
+  "amountMinor": zod.number().min(1).max(approveCommercialQuoteResponseRecordAmountMinorMax),
+  "validUntil": zod.date(),
+  "serviceStartsOn": zod.date(),
+  "serviceEndsOn": zod.date(),
+  "serviceUnits": zod.number().min(1).max(approveCommercialQuoteResponseRecordServiceUnitsMax),
+  "status": zod.enum(['pending_checker', 'approved', 'invoiced', 'paid']),
+  "createdByUserId": zod.string().uuid(),
+  "approvedByUserId": zod.string().uuid().nullable(),
+  "version": zod.number().min(1),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date()
+}).strict()
+}).strict()
+
+
+/**
+ * @summary Record a manually issued invoice for an approved quote
+ */
+export const CreateCommercialInvoiceParams = zod.object({
+  "orderId": zod.string().uuid()
+})
+
+
+export const createCommercialInvoiceBodyInvoiceNumberMax = 160;
+
+export const createCommercialInvoiceBodyNetAmountMinorMax = 1000000000000000;
+
+export const createCommercialInvoiceBodyVatRateBasisPointsMin = 0;
+export const createCommercialInvoiceBodyVatRateBasisPointsMax = 100000;
+
+export const createCommercialInvoiceBodyVatAmountMinorMin = 0;
+export const createCommercialInvoiceBodyVatAmountMinorMax = 1000000000000000;
+
+export const createCommercialInvoiceBodyGrossAmountMinorMax = 1000000000000000;
+
+export const createCommercialInvoiceBodyWhtRateBasisPointsMin = 0;
+export const createCommercialInvoiceBodyWhtRateBasisPointsMax = 100000;
+
+export const createCommercialInvoiceBodyWhtAmountMinorMin = 0;
+export const createCommercialInvoiceBodyWhtAmountMinorMax = 1000000000000000;
+
+export const createCommercialInvoiceBodyNetPayableMinorMax = 1000000000000000;
+
+export const createCommercialInvoiceBodyTaxRuleIdMax = 160;
+
+
+
+export const CreateCommercialInvoiceBody = zod.object({
+  "expectedOrderVersion": zod.number().min(1),
+  "invoiceNumber": zod.string().min(1).max(createCommercialInvoiceBodyInvoiceNumberMax),
+  "netAmountMinor": zod.number().min(1).max(createCommercialInvoiceBodyNetAmountMinorMax),
+  "vatRateBasisPoints": zod.number().min(createCommercialInvoiceBodyVatRateBasisPointsMin).max(createCommercialInvoiceBodyVatRateBasisPointsMax),
+  "vatAmountMinor": zod.number().min(createCommercialInvoiceBodyVatAmountMinorMin).max(createCommercialInvoiceBodyVatAmountMinorMax),
+  "grossAmountMinor": zod.number().min(1).max(createCommercialInvoiceBodyGrossAmountMinorMax),
+  "whtRateBasisPoints": zod.number().min(createCommercialInvoiceBodyWhtRateBasisPointsMin).max(createCommercialInvoiceBodyWhtRateBasisPointsMax).nullable(),
+  "whtAmountMinor": zod.number().min(createCommercialInvoiceBodyWhtAmountMinorMin).max(createCommercialInvoiceBodyWhtAmountMinorMax).nullable(),
+  "netPayableMinor": zod.number().min(1).max(createCommercialInvoiceBodyNetPayableMinorMax),
+  "taxRuleId": zod.string().min(1).max(createCommercialInvoiceBodyTaxRuleIdMax),
+  "taxPointAt": zod.date(),
+  "dueAt": zod.date().nullable()
+}).strict()
+
+export const createCommercialInvoiceResponseRecordInvoiceNumberMax = 160;
+
+export const createCommercialInvoiceResponseRecordCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+
+export const createCommercialInvoiceResponseRecordVatAmountMinorMin = 0;
+
+
+export const createCommercialInvoiceResponseRecordWhtAmountMinorMin = 0;
+
+
+
+
+
+export const CreateCommercialInvoiceResponse = zod.object({
+  "outcome": zod.literal("updated"),
+  "record": zod.object({
+  "id": zod.string().uuid(),
+  "orderId": zod.string().uuid(),
+  "invoiceNumber": zod.string().min(1).max(createCommercialInvoiceResponseRecordInvoiceNumberMax),
+  "currency": zod.string().regex(createCommercialInvoiceResponseRecordCurrencyRegExp),
+  "netAmountMinor": zod.number().min(1),
+  "vatAmountMinor": zod.number().min(createCommercialInvoiceResponseRecordVatAmountMinorMin),
+  "grossAmountMinor": zod.number().min(1),
+  "whtAmountMinor": zod.number().min(createCommercialInvoiceResponseRecordWhtAmountMinorMin).nullable(),
+  "netPayableMinor": zod.number().min(1),
+  "status": zod.enum(['issued_manual', 'paid_manual']),
+  "version": zod.number().min(1),
+  "createdAt": zod.date()
+}).strict()
+}).strict()
+
+
+/**
+ * Records evidence only; no payment provider is connected.
+ * @summary Record manual payment evidence
+ */
+export const RecordCommercialPaymentParams = zod.object({
+  "invoiceId": zod.string().uuid()
+})
+
+
+export const recordCommercialPaymentBodyEvidenceReferenceMax = 160;
+
+export const recordCommercialPaymentBodyEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const recordCommercialPaymentBodyAmountMinorMax = 1000000000000000;
+
+export const recordCommercialPaymentBodyCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const recordCommercialPaymentBodyIdempotencyDigestRegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const RecordCommercialPaymentBody = zod.object({
+  "expectedInvoiceVersion": zod.number().min(1),
+  "evidenceReference": zod.string().min(1).max(recordCommercialPaymentBodyEvidenceReferenceMax),
+  "evidenceSha256": zod.string().regex(recordCommercialPaymentBodyEvidenceSha256RegExp),
+  "amountMinor": zod.number().min(1).max(recordCommercialPaymentBodyAmountMinorMax),
+  "currency": zod.string().regex(recordCommercialPaymentBodyCurrencyRegExp),
+  "settledAt": zod.date(),
+  "idempotencyDigest": zod.string().regex(recordCommercialPaymentBodyIdempotencyDigestRegExp)
+}).strict()
+
+
+export const recordCommercialPaymentResponseRecordCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const recordCommercialPaymentResponseRecordEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+
+export const RecordCommercialPaymentResponse = zod.object({
+  "outcome": zod.literal("updated"),
+  "record": zod.object({
+  "id": zod.string().uuid(),
+  "invoiceId": zod.string().uuid(),
+  "amountMinor": zod.number().min(1),
+  "currency": zod.string().regex(recordCommercialPaymentResponseRecordCurrencyRegExp),
+  "status": zod.enum(['evidence_recorded', 'settled']),
+  "reconciliationStatus": zod.enum(['pending_checker', 'verified_manual']),
+  "evidenceSha256": zod.string().regex(recordCommercialPaymentResponseRecordEvidenceSha256RegExp),
+  "recordedByUserId": zod.string().uuid(),
+  "verifiedByUserId": zod.string().uuid().nullable(),
+  "settledAt": zod.date(),
+  "version": zod.number().min(1),
+  "createdAt": zod.date()
+}).strict()
+}).strict()
+
+
+/**
+ * @summary Verify manual payment evidence as a distinct checker
+ */
+export const VerifyCommercialPaymentParams = zod.object({
+  "paymentId": zod.string().uuid()
+})
+
+
+
+
+
+export const VerifyCommercialPaymentBody = zod.object({
+  "expectedPaymentVersion": zod.number().min(1),
+  "expectedInvoiceVersion": zod.number().min(1)
+}).strict()
+
+
+export const verifyCommercialPaymentResponseRecordPaymentCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const verifyCommercialPaymentResponseRecordPaymentEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const verifyCommercialPaymentResponseRecordEntitlementUsageConsumedMin = 0;
+
+
+
+
+export const VerifyCommercialPaymentResponse = zod.object({
+  "outcome": zod.literal("updated"),
+  "record": zod.object({
+  "payment": zod.object({
+  "id": zod.string().uuid(),
+  "invoiceId": zod.string().uuid(),
+  "amountMinor": zod.number().min(1),
+  "currency": zod.string().regex(verifyCommercialPaymentResponseRecordPaymentCurrencyRegExp),
+  "status": zod.enum(['evidence_recorded', 'settled']),
+  "reconciliationStatus": zod.enum(['pending_checker', 'verified_manual']),
+  "evidenceSha256": zod.string().regex(verifyCommercialPaymentResponseRecordPaymentEvidenceSha256RegExp),
+  "recordedByUserId": zod.string().uuid(),
+  "verifiedByUserId": zod.string().uuid().nullable(),
+  "settledAt": zod.date(),
+  "version": zod.number().min(1),
+  "createdAt": zod.date()
+}).strict(),
+  "entitlement": zod.object({
+  "id": zod.string().uuid(),
+  "orderId": zod.string().uuid(),
+  "subscriptionId": zod.string().uuid().nullable(),
+  "productKind": zod.enum(['bid_autopsy', 'assisted_bid', 'evidence_readiness_retainer']),
+  "status": zod.enum(['active', 'scheduled']),
+  "paymentState": zod.literal("verified_manual"),
+  "startsAt": zod.date(),
+  "endsAt": zod.date(),
+  "usageLimit": zod.number().min(1),
+  "usageConsumed": zod.number().min(verifyCommercialPaymentResponseRecordEntitlementUsageConsumedMin),
+  "rulesVersion": zod.literal("valo.commercial-retainer@v1"),
+  "version": zod.number().min(1)
+}).strict()
+}).strict()
+}).strict()
+
+
+/**
+ * @summary Create a bounded human-operated retainer request
+ */
+export const createRetainerRequestBodySummaryMax = 1000;
+
+export const createRetainerRequestBodyIdempotencyDigestRegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const CreateRetainerRequestBody = zod.object({
+  "projectId": zod.string().uuid(),
+  "entitlementId": zod.string().uuid(),
+  "purpose": zod.enum(['evidence_review', 'renewal_readiness', 'bid_evidence_pack']),
+  "summary": zod.string().min(1).max(createRetainerRequestBodySummaryMax),
+  "ownerMembershipId": zod.string().uuid(),
+  "sla": zod.enum(['standard', 'priority']),
+  "idempotencyDigest": zod.string().regex(createRetainerRequestBodyIdempotencyDigestRegExp)
+}).strict()
+
+export const createRetainerRequestResponseRecordSummaryMax = 1000;
+
+export const createRetainerRequestResponseRecordCommentsItemBodyMax = 1000;
+
+export const createRetainerRequestResponseRecordCommentsMax = 20;
+
+export const createRetainerRequestResponseRecordEvidenceReceiptsItemReferenceMax = 160;
+
+export const createRetainerRequestResponseRecordEvidenceReceiptsItemSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createRetainerRequestResponseRecordEvidenceReceiptsMax = 10;
+
+export const createRetainerRequestResponseRecordHistoryMax = 50;
+
+
+
+
+export const CreateRetainerRequestResponse = zod.object({
+  "outcome": zod.literal("updated"),
+  "record": zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "entitlementId": zod.string().uuid(),
+  "purpose": zod.enum(['evidence_review', 'renewal_readiness', 'bid_evidence_pack']),
+  "summary": zod.string().min(1).max(createRetainerRequestResponseRecordSummaryMax),
+  "ownerMembershipId": zod.string().uuid(),
+  "sla": zod.enum(['standard', 'priority']),
+  "slaPolicyVersion": zod.literal("valo.retainer-sla@v1"),
+  "dueAt": zod.date(),
+  "status": zod.enum(['open', 'in_progress', 'awaiting_evidence', 'completed', 'cancelled']),
+  "comments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "body": zod.string().min(1).max(createRetainerRequestResponseRecordCommentsItemBodyMax),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date()
+}).strict()).max(createRetainerRequestResponseRecordCommentsMax),
+  "evidenceReceipts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "reference": zod.string().min(1).max(createRetainerRequestResponseRecordEvidenceReceiptsItemReferenceMax),
+  "sha256": zod.string().regex(createRetainerRequestResponseRecordEvidenceReceiptsItemSha256RegExp),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.date()
+}).strict()).max(createRetainerRequestResponseRecordEvidenceReceiptsMax),
+  "history": zod.array(zod.object({
+  "action": zod.enum(['created', 'commented', 'evidence_recorded', 'status_changed', 'reassigned']),
+  "actorUserId": zod.string().uuid(),
+  "at": zod.date(),
+  "from": zod.string().optional(),
+  "to": zod.string().optional()
+}).strict()).max(createRetainerRequestResponseRecordHistoryMax),
+  "version": zod.number().min(1),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date()
+}).strict()
+}).strict()
+
+
+/**
+ * @summary Record a bounded retainer comment, evidence receipt, status or reassignment
+ */
+export const MutateRetainerRequestParams = zod.object({
+  "requestId": zod.string().uuid()
+})
+
+
+export const mutateRetainerRequestBodyOneBodyMax = 1000;
+
+
+export const mutateRetainerRequestBodyTwoReferenceMax = 160;
+
+export const mutateRetainerRequestBodyTwoSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+
+
+export const MutateRetainerRequestBody = zod.union([zod.object({
+  "action": zod.literal("comment"),
+  "expectedVersion": zod.number().min(1),
+  "body": zod.string().min(1).max(mutateRetainerRequestBodyOneBodyMax)
+}).strict(),zod.object({
+  "action": zod.literal("record_evidence"),
+  "expectedVersion": zod.number().min(1),
+  "reference": zod.string().min(1).max(mutateRetainerRequestBodyTwoReferenceMax),
+  "sha256": zod.string().regex(mutateRetainerRequestBodyTwoSha256RegExp)
+}).strict(),zod.object({
+  "action": zod.literal("set_status"),
+  "expectedVersion": zod.number().min(1),
+  "status": zod.enum(['in_progress', 'awaiting_evidence', 'completed', 'cancelled'])
+}).strict(),zod.object({
+  "action": zod.literal("reassign"),
+  "expectedVersion": zod.number().min(1),
+  "ownerMembershipId": zod.string().uuid()
+}).strict()])
+
+export const mutateRetainerRequestResponseRecordSummaryMax = 1000;
+
+export const mutateRetainerRequestResponseRecordCommentsItemBodyMax = 1000;
+
+export const mutateRetainerRequestResponseRecordCommentsMax = 20;
+
+export const mutateRetainerRequestResponseRecordEvidenceReceiptsItemReferenceMax = 160;
+
+export const mutateRetainerRequestResponseRecordEvidenceReceiptsItemSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const mutateRetainerRequestResponseRecordEvidenceReceiptsMax = 10;
+
+export const mutateRetainerRequestResponseRecordHistoryMax = 50;
+
+
+
+
+export const MutateRetainerRequestResponse = zod.object({
+  "outcome": zod.literal("updated"),
+  "record": zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "entitlementId": zod.string().uuid(),
+  "purpose": zod.enum(['evidence_review', 'renewal_readiness', 'bid_evidence_pack']),
+  "summary": zod.string().min(1).max(mutateRetainerRequestResponseRecordSummaryMax),
+  "ownerMembershipId": zod.string().uuid(),
+  "sla": zod.enum(['standard', 'priority']),
+  "slaPolicyVersion": zod.literal("valo.retainer-sla@v1"),
+  "dueAt": zod.date(),
+  "status": zod.enum(['open', 'in_progress', 'awaiting_evidence', 'completed', 'cancelled']),
+  "comments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "body": zod.string().min(1).max(mutateRetainerRequestResponseRecordCommentsItemBodyMax),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date()
+}).strict()).max(mutateRetainerRequestResponseRecordCommentsMax),
+  "evidenceReceipts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "reference": zod.string().min(1).max(mutateRetainerRequestResponseRecordEvidenceReceiptsItemReferenceMax),
+  "sha256": zod.string().regex(mutateRetainerRequestResponseRecordEvidenceReceiptsItemSha256RegExp),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedAt": zod.date()
+}).strict()).max(mutateRetainerRequestResponseRecordEvidenceReceiptsMax),
+  "history": zod.array(zod.object({
+  "action": zod.enum(['created', 'commented', 'evidence_recorded', 'status_changed', 'reassigned']),
+  "actorUserId": zod.string().uuid(),
+  "at": zod.date(),
+  "from": zod.string().optional(),
+  "to": zod.string().optional()
+}).strict()).max(mutateRetainerRequestResponseRecordHistoryMax),
+  "version": zod.number().min(1),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date()
+}).strict()
+}).strict()
+
+
+/**
+ * Requires the active exact relationship and a direct or partner-authorised tenant context on every access.
+ * @summary Read the exact-relationship project consortium room
+ */
+export const GetPartnerConsortiumRoomParams = zod.object({
+  "id": zod.string().uuid(),
+  "relationshipId": zod.string().uuid()
+})
+
+
+
+export const getPartnerConsortiumRoomResponseRoomResponsibilitiesItemWorkstreamLabelMax = 160;
+
+export const getPartnerConsortiumRoomResponseRoomResponsibilitiesMax = 40;
+
+export const getPartnerConsortiumRoomResponseRoomQaChecklistItemEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getPartnerConsortiumRoomResponseRoomQaChecklistMax = 4;
+
+
+export const getPartnerConsortiumRoomResponseRoomAuditReceiptsItemPriorVersionMin = 0;
+
+
+export const getPartnerConsortiumRoomResponseRoomAuditReceiptsItemFactsSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getPartnerConsortiumRoomResponseRoomAuditReceiptsItemPreviousReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getPartnerConsortiumRoomResponseRoomAuditReceiptsItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getPartnerConsortiumRoomResponseRoomAuditReceiptsMax = 500;
+
+export const getPartnerConsortiumRoomResponseRoomIdempotencyDigestRegExp = new RegExp('^[a-f0-9]{64}$');
+
+export const getPartnerConsortiumRoomResponseRelationshipQaResponsibilitySha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const GetPartnerConsortiumRoomResponse = zod.object({
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "relationshipId": zod.string().uuid(),
+  "actorParty": zod.enum(['client', 'partner']),
+  "room": zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "relationshipId": zod.string().uuid(),
+  "clientOrganisationId": zod.string().uuid(),
+  "partnerOrganisationId": zod.string().uuid(),
+  "clientCoordinatorUserId": zod.string().uuid(),
+  "partnerCoordinatorUserId": zod.string().uuid(),
+  "coSigningRequired": zod.boolean(),
+  "status": zod.enum(['draft', 'active', 'qa_in_progress', 'ready_for_client_release']),
+  "version": zod.number().min(1),
+  "responsibilities": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "iteration": zod.number().min(1),
+  "workstreamLabel": zod.string().min(1).max(getPartnerConsortiumRoomResponseRoomResponsibilitiesItemWorkstreamLabelMax),
+  "responsibleParty": zod.enum(['client', 'partner']),
+  "accountableParty": zod.enum(['client', 'partner']),
+  "ownerUserId": zod.string().uuid(),
+  "dueAt": zod.date().nullable(),
+  "status": zod.enum(['proposed', 'changes_requested', 'active']),
+  "requiredAcceptance": zod.literal("both_parties"),
+  "acceptances": zod.object({
+  "client": zod.union([zod.object({
+  "party": zod.enum(['client', 'partner']),
+  "decision": zod.enum(['accepted', 'changes_requested']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullable(),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.date()
+}).strict(),zod.null()]),
+  "partner": zod.union([zod.object({
+  "party": zod.enum(['client', 'partner']),
+  "decision": zod.enum(['accepted', 'changes_requested']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullable(),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.date()
+}).strict(),zod.null()])
+}).strict(),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedByUserId": zod.string().uuid(),
+  "updatedAt": zod.date()
+}).strict()).max(getPartnerConsortiumRoomResponseRoomResponsibilitiesMax),
+  "qaChecklist": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "code": zod.enum(['evidence_quality_review', 'requirement_coverage_review', 'client_release_readiness', 'partner_cosign']),
+  "required": zod.boolean(),
+  "preparerParty": zod.enum(['client', 'partner']),
+  "checkerParty": zod.enum(['client', 'partner']),
+  "ownerUserId": zod.string().uuid(),
+  "status": zod.enum(['open', 'ready_for_check', 'checked']),
+  "evidenceSha256": zod.string().regex(getPartnerConsortiumRoomResponseRoomQaChecklistItemEvidenceSha256RegExp).nullable(),
+  "preparedByUserId": zod.string().uuid().nullable(),
+  "preparedAt": zod.date().nullable(),
+  "lastDecision": zod.union([zod.object({
+  "decision": zod.enum(['checked', 'rejected']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullable(),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.date()
+}).strict(),zod.null()])
+}).strict()).max(getPartnerConsortiumRoomResponseRoomQaChecklistMax),
+  "auditReceipts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "sequence": zod.number().min(1),
+  "action": zod.enum(['room_created', 'responsibility_added', 'responsibility_revised', 'responsibility_decided', 'qa_prepared', 'qa_decided']),
+  "objectId": zod.string().uuid(),
+  "actorUserId": zod.string().uuid(),
+  "actorParty": zod.enum(['client', 'partner']),
+  "priorVersion": zod.number().min(getPartnerConsortiumRoomResponseRoomAuditReceiptsItemPriorVersionMin),
+  "nextVersion": zod.number().min(1),
+  "factsSha256": zod.string().regex(getPartnerConsortiumRoomResponseRoomAuditReceiptsItemFactsSha256RegExp),
+  "previousReceiptSha256": zod.string().regex(getPartnerConsortiumRoomResponseRoomAuditReceiptsItemPreviousReceiptSha256RegExp).nullable(),
+  "receiptSha256": zod.string().regex(getPartnerConsortiumRoomResponseRoomAuditReceiptsItemReceiptSha256RegExp),
+  "occurredAt": zod.date()
+}).strict()).max(getPartnerConsortiumRoomResponseRoomAuditReceiptsMax),
+  "idempotencyDigest": zod.string().regex(getPartnerConsortiumRoomResponseRoomIdempotencyDigestRegExp),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date(),
+  "retention": zod.object({
+  "namespace": zod.literal("valo.partner-consortium-room/v1"),
+  "class": zod.literal("project_coordination"),
+  "owner": zod.literal("client_organisation"),
+  "trigger": zod.literal("owning_project_retention_policy"),
+  "independentDeletionAllowed": zod.literal(false)
+}).strict(),
+  "authorityBoundaries": zod.object({
+  "legalAgreementGeneration": zod.literal(false),
+  "revenueSettlement": zod.literal(false),
+  "messaging": zod.literal(false),
+  "crossClientLearning": zod.literal(false),
+  "autonomousExternalAction": zod.literal(false)
+}).strict()
+}).strict(),
+  "relationship": zod.object({
+  "version": zod.number().min(1),
+  "coSigningRequired": zod.boolean(),
+  "qaResponsibilitySha256": zod.string().regex(getPartnerConsortiumRoomResponseRelationshipQaResponsibilitySha256RegExp).nullable()
+}).strict()
+}).strict()
+
+
+/**
+ * @summary Initialise a governed room with named coordinators
+ */
+export const InitializePartnerConsortiumRoomParams = zod.object({
+  "id": zod.string().uuid(),
+  "relationshipId": zod.string().uuid()
+})
+
+export const initializePartnerConsortiumRoomBodyIdempotencyKeyMax = 160;
+
+
+
+export const InitializePartnerConsortiumRoomBody = zod.object({
+  "idempotencyKey": zod.string().min(1).max(initializePartnerConsortiumRoomBodyIdempotencyKeyMax),
+  "clientCoordinatorUserId": zod.string().uuid(),
+  "partnerCoordinatorUserId": zod.string().uuid()
+}).strict()
+
+
+
+export const initializePartnerConsortiumRoomResponseResponsibilitiesItemWorkstreamLabelMax = 160;
+
+export const initializePartnerConsortiumRoomResponseResponsibilitiesMax = 40;
+
+export const initializePartnerConsortiumRoomResponseQaChecklistItemEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const initializePartnerConsortiumRoomResponseQaChecklistMax = 4;
+
+
+export const initializePartnerConsortiumRoomResponseAuditReceiptsItemPriorVersionMin = 0;
+
+
+export const initializePartnerConsortiumRoomResponseAuditReceiptsItemFactsSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const initializePartnerConsortiumRoomResponseAuditReceiptsItemPreviousReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const initializePartnerConsortiumRoomResponseAuditReceiptsItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const initializePartnerConsortiumRoomResponseAuditReceiptsMax = 500;
+
+export const initializePartnerConsortiumRoomResponseIdempotencyDigestRegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const InitializePartnerConsortiumRoomResponse = zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "relationshipId": zod.string().uuid(),
+  "clientOrganisationId": zod.string().uuid(),
+  "partnerOrganisationId": zod.string().uuid(),
+  "clientCoordinatorUserId": zod.string().uuid(),
+  "partnerCoordinatorUserId": zod.string().uuid(),
+  "coSigningRequired": zod.boolean(),
+  "status": zod.enum(['draft', 'active', 'qa_in_progress', 'ready_for_client_release']),
+  "version": zod.number().min(1),
+  "responsibilities": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "iteration": zod.number().min(1),
+  "workstreamLabel": zod.string().min(1).max(initializePartnerConsortiumRoomResponseResponsibilitiesItemWorkstreamLabelMax),
+  "responsibleParty": zod.enum(['client', 'partner']),
+  "accountableParty": zod.enum(['client', 'partner']),
+  "ownerUserId": zod.string().uuid(),
+  "dueAt": zod.date().nullable(),
+  "status": zod.enum(['proposed', 'changes_requested', 'active']),
+  "requiredAcceptance": zod.literal("both_parties"),
+  "acceptances": zod.object({
+  "client": zod.union([zod.object({
+  "party": zod.enum(['client', 'partner']),
+  "decision": zod.enum(['accepted', 'changes_requested']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullable(),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.date()
+}).strict(),zod.null()]),
+  "partner": zod.union([zod.object({
+  "party": zod.enum(['client', 'partner']),
+  "decision": zod.enum(['accepted', 'changes_requested']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullable(),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.date()
+}).strict(),zod.null()])
+}).strict(),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedByUserId": zod.string().uuid(),
+  "updatedAt": zod.date()
+}).strict()).max(initializePartnerConsortiumRoomResponseResponsibilitiesMax),
+  "qaChecklist": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "code": zod.enum(['evidence_quality_review', 'requirement_coverage_review', 'client_release_readiness', 'partner_cosign']),
+  "required": zod.boolean(),
+  "preparerParty": zod.enum(['client', 'partner']),
+  "checkerParty": zod.enum(['client', 'partner']),
+  "ownerUserId": zod.string().uuid(),
+  "status": zod.enum(['open', 'ready_for_check', 'checked']),
+  "evidenceSha256": zod.string().regex(initializePartnerConsortiumRoomResponseQaChecklistItemEvidenceSha256RegExp).nullable(),
+  "preparedByUserId": zod.string().uuid().nullable(),
+  "preparedAt": zod.date().nullable(),
+  "lastDecision": zod.union([zod.object({
+  "decision": zod.enum(['checked', 'rejected']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullable(),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.date()
+}).strict(),zod.null()])
+}).strict()).max(initializePartnerConsortiumRoomResponseQaChecklistMax),
+  "auditReceipts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "sequence": zod.number().min(1),
+  "action": zod.enum(['room_created', 'responsibility_added', 'responsibility_revised', 'responsibility_decided', 'qa_prepared', 'qa_decided']),
+  "objectId": zod.string().uuid(),
+  "actorUserId": zod.string().uuid(),
+  "actorParty": zod.enum(['client', 'partner']),
+  "priorVersion": zod.number().min(initializePartnerConsortiumRoomResponseAuditReceiptsItemPriorVersionMin),
+  "nextVersion": zod.number().min(1),
+  "factsSha256": zod.string().regex(initializePartnerConsortiumRoomResponseAuditReceiptsItemFactsSha256RegExp),
+  "previousReceiptSha256": zod.string().regex(initializePartnerConsortiumRoomResponseAuditReceiptsItemPreviousReceiptSha256RegExp).nullable(),
+  "receiptSha256": zod.string().regex(initializePartnerConsortiumRoomResponseAuditReceiptsItemReceiptSha256RegExp),
+  "occurredAt": zod.date()
+}).strict()).max(initializePartnerConsortiumRoomResponseAuditReceiptsMax),
+  "idempotencyDigest": zod.string().regex(initializePartnerConsortiumRoomResponseIdempotencyDigestRegExp),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date(),
+  "retention": zod.object({
+  "namespace": zod.literal("valo.partner-consortium-room/v1"),
+  "class": zod.literal("project_coordination"),
+  "owner": zod.literal("client_organisation"),
+  "trigger": zod.literal("owning_project_retention_policy"),
+  "independentDeletionAllowed": zod.literal(false)
+}).strict(),
+  "authorityBoundaries": zod.object({
+  "legalAgreementGeneration": zod.literal(false),
+  "revenueSettlement": zod.literal(false),
+  "messaging": zod.literal(false),
+  "crossClientLearning": zod.literal(false),
+  "autonomousExternalAction": zod.literal(false)
+}).strict()
+}).strict()
+
+
+/**
+ * Requires requirement-write authority, the active exact relationship, and the same direct or relationship-authorised project scope as the room.
+ * @summary List named participants for the exact relationship parties
+ */
+export const ListConsortiumRoomParticipantsParams = zod.object({
+  "id": zod.string().uuid(),
+  "relationshipId": zod.string().uuid()
+})
+
+export const listConsortiumRoomParticipantsResponseItemsItemNameMax = 512;
+
+export const listConsortiumRoomParticipantsResponseItemsMax = 100;
+
+
+
+export const ListConsortiumRoomParticipantsResponse = zod.object({
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "relationshipId": zod.string().uuid(),
+  "items": zod.array(zod.object({
+  "userId": zod.string().uuid(),
+  "name": zod.string().min(1).max(listConsortiumRoomParticipantsResponseItemsItemNameMax),
+  "party": zod.enum(['client', 'partner'])
+}).strict()).max(listConsortiumRoomParticipantsResponseItemsMax),
+  "limit": zod.literal(100),
+  "truncated": zod.literal(false)
+}).strict()
+
+
+/**
+ * @summary Add a named-owner responsibility requiring both parties' acceptance
+ */
+export const AddConsortiumResponsibilityParams = zod.object({
+  "id": zod.string().uuid(),
+  "relationshipId": zod.string().uuid()
+})
+
+
+export const addConsortiumResponsibilityBodyWorkstreamLabelMax = 160;
+
+
+
+export const AddConsortiumResponsibilityBody = zod.object({
+  "expectedVersion": zod.number().min(1),
+  "workstreamLabel": zod.string().min(1).max(addConsortiumResponsibilityBodyWorkstreamLabelMax),
+  "responsibleParty": zod.enum(['client', 'partner']),
+  "accountableParty": zod.enum(['client', 'partner']),
+  "ownerUserId": zod.string().uuid(),
+  "dueAt": zod.date().nullish()
+}).strict()
+
+
+
+export const addConsortiumResponsibilityResponseResponsibilitiesItemWorkstreamLabelMax = 160;
+
+export const addConsortiumResponsibilityResponseResponsibilitiesMax = 40;
+
+export const addConsortiumResponsibilityResponseQaChecklistItemEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const addConsortiumResponsibilityResponseQaChecklistMax = 4;
+
+
+export const addConsortiumResponsibilityResponseAuditReceiptsItemPriorVersionMin = 0;
+
+
+export const addConsortiumResponsibilityResponseAuditReceiptsItemFactsSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const addConsortiumResponsibilityResponseAuditReceiptsItemPreviousReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const addConsortiumResponsibilityResponseAuditReceiptsItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const addConsortiumResponsibilityResponseAuditReceiptsMax = 500;
+
+export const addConsortiumResponsibilityResponseIdempotencyDigestRegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const AddConsortiumResponsibilityResponse = zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "relationshipId": zod.string().uuid(),
+  "clientOrganisationId": zod.string().uuid(),
+  "partnerOrganisationId": zod.string().uuid(),
+  "clientCoordinatorUserId": zod.string().uuid(),
+  "partnerCoordinatorUserId": zod.string().uuid(),
+  "coSigningRequired": zod.boolean(),
+  "status": zod.enum(['draft', 'active', 'qa_in_progress', 'ready_for_client_release']),
+  "version": zod.number().min(1),
+  "responsibilities": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "iteration": zod.number().min(1),
+  "workstreamLabel": zod.string().min(1).max(addConsortiumResponsibilityResponseResponsibilitiesItemWorkstreamLabelMax),
+  "responsibleParty": zod.enum(['client', 'partner']),
+  "accountableParty": zod.enum(['client', 'partner']),
+  "ownerUserId": zod.string().uuid(),
+  "dueAt": zod.date().nullable(),
+  "status": zod.enum(['proposed', 'changes_requested', 'active']),
+  "requiredAcceptance": zod.literal("both_parties"),
+  "acceptances": zod.object({
+  "client": zod.union([zod.object({
+  "party": zod.enum(['client', 'partner']),
+  "decision": zod.enum(['accepted', 'changes_requested']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullable(),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.date()
+}).strict(),zod.null()]),
+  "partner": zod.union([zod.object({
+  "party": zod.enum(['client', 'partner']),
+  "decision": zod.enum(['accepted', 'changes_requested']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullable(),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.date()
+}).strict(),zod.null()])
+}).strict(),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedByUserId": zod.string().uuid(),
+  "updatedAt": zod.date()
+}).strict()).max(addConsortiumResponsibilityResponseResponsibilitiesMax),
+  "qaChecklist": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "code": zod.enum(['evidence_quality_review', 'requirement_coverage_review', 'client_release_readiness', 'partner_cosign']),
+  "required": zod.boolean(),
+  "preparerParty": zod.enum(['client', 'partner']),
+  "checkerParty": zod.enum(['client', 'partner']),
+  "ownerUserId": zod.string().uuid(),
+  "status": zod.enum(['open', 'ready_for_check', 'checked']),
+  "evidenceSha256": zod.string().regex(addConsortiumResponsibilityResponseQaChecklistItemEvidenceSha256RegExp).nullable(),
+  "preparedByUserId": zod.string().uuid().nullable(),
+  "preparedAt": zod.date().nullable(),
+  "lastDecision": zod.union([zod.object({
+  "decision": zod.enum(['checked', 'rejected']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullable(),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.date()
+}).strict(),zod.null()])
+}).strict()).max(addConsortiumResponsibilityResponseQaChecklistMax),
+  "auditReceipts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "sequence": zod.number().min(1),
+  "action": zod.enum(['room_created', 'responsibility_added', 'responsibility_revised', 'responsibility_decided', 'qa_prepared', 'qa_decided']),
+  "objectId": zod.string().uuid(),
+  "actorUserId": zod.string().uuid(),
+  "actorParty": zod.enum(['client', 'partner']),
+  "priorVersion": zod.number().min(addConsortiumResponsibilityResponseAuditReceiptsItemPriorVersionMin),
+  "nextVersion": zod.number().min(1),
+  "factsSha256": zod.string().regex(addConsortiumResponsibilityResponseAuditReceiptsItemFactsSha256RegExp),
+  "previousReceiptSha256": zod.string().regex(addConsortiumResponsibilityResponseAuditReceiptsItemPreviousReceiptSha256RegExp).nullable(),
+  "receiptSha256": zod.string().regex(addConsortiumResponsibilityResponseAuditReceiptsItemReceiptSha256RegExp),
+  "occurredAt": zod.date()
+}).strict()).max(addConsortiumResponsibilityResponseAuditReceiptsMax),
+  "idempotencyDigest": zod.string().regex(addConsortiumResponsibilityResponseIdempotencyDigestRegExp),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date(),
+  "retention": zod.object({
+  "namespace": zod.literal("valo.partner-consortium-room/v1"),
+  "class": zod.literal("project_coordination"),
+  "owner": zod.literal("client_organisation"),
+  "trigger": zod.literal("owning_project_retention_policy"),
+  "independentDeletionAllowed": zod.literal(false)
+}).strict(),
+  "authorityBoundaries": zod.object({
+  "legalAgreementGeneration": zod.literal(false),
+  "revenueSettlement": zod.literal(false),
+  "messaging": zod.literal(false),
+  "crossClientLearning": zod.literal(false),
+  "autonomousExternalAction": zod.literal(false)
+}).strict()
+}).strict()
+
+
+/**
+ * @summary Revise an unaccepted responsibility under compare-and-swap
+ */
+export const ReviseConsortiumResponsibilityParams = zod.object({
+  "id": zod.string().uuid(),
+  "relationshipId": zod.string().uuid(),
+  "responsibilityId": zod.string().uuid()
+})
+
+
+export const reviseConsortiumResponsibilityBodyWorkstreamLabelMax = 160;
+
+
+
+export const ReviseConsortiumResponsibilityBody = zod.object({
+  "expectedVersion": zod.number().min(1),
+  "workstreamLabel": zod.string().min(1).max(reviseConsortiumResponsibilityBodyWorkstreamLabelMax),
+  "responsibleParty": zod.enum(['client', 'partner']),
+  "accountableParty": zod.enum(['client', 'partner']),
+  "ownerUserId": zod.string().uuid(),
+  "dueAt": zod.date().nullish()
+}).strict()
+
+
+
+export const reviseConsortiumResponsibilityResponseResponsibilitiesItemWorkstreamLabelMax = 160;
+
+export const reviseConsortiumResponsibilityResponseResponsibilitiesMax = 40;
+
+export const reviseConsortiumResponsibilityResponseQaChecklistItemEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const reviseConsortiumResponsibilityResponseQaChecklistMax = 4;
+
+
+export const reviseConsortiumResponsibilityResponseAuditReceiptsItemPriorVersionMin = 0;
+
+
+export const reviseConsortiumResponsibilityResponseAuditReceiptsItemFactsSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const reviseConsortiumResponsibilityResponseAuditReceiptsItemPreviousReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const reviseConsortiumResponsibilityResponseAuditReceiptsItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const reviseConsortiumResponsibilityResponseAuditReceiptsMax = 500;
+
+export const reviseConsortiumResponsibilityResponseIdempotencyDigestRegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const ReviseConsortiumResponsibilityResponse = zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "relationshipId": zod.string().uuid(),
+  "clientOrganisationId": zod.string().uuid(),
+  "partnerOrganisationId": zod.string().uuid(),
+  "clientCoordinatorUserId": zod.string().uuid(),
+  "partnerCoordinatorUserId": zod.string().uuid(),
+  "coSigningRequired": zod.boolean(),
+  "status": zod.enum(['draft', 'active', 'qa_in_progress', 'ready_for_client_release']),
+  "version": zod.number().min(1),
+  "responsibilities": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "iteration": zod.number().min(1),
+  "workstreamLabel": zod.string().min(1).max(reviseConsortiumResponsibilityResponseResponsibilitiesItemWorkstreamLabelMax),
+  "responsibleParty": zod.enum(['client', 'partner']),
+  "accountableParty": zod.enum(['client', 'partner']),
+  "ownerUserId": zod.string().uuid(),
+  "dueAt": zod.date().nullable(),
+  "status": zod.enum(['proposed', 'changes_requested', 'active']),
+  "requiredAcceptance": zod.literal("both_parties"),
+  "acceptances": zod.object({
+  "client": zod.union([zod.object({
+  "party": zod.enum(['client', 'partner']),
+  "decision": zod.enum(['accepted', 'changes_requested']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullable(),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.date()
+}).strict(),zod.null()]),
+  "partner": zod.union([zod.object({
+  "party": zod.enum(['client', 'partner']),
+  "decision": zod.enum(['accepted', 'changes_requested']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullable(),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.date()
+}).strict(),zod.null()])
+}).strict(),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedByUserId": zod.string().uuid(),
+  "updatedAt": zod.date()
+}).strict()).max(reviseConsortiumResponsibilityResponseResponsibilitiesMax),
+  "qaChecklist": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "code": zod.enum(['evidence_quality_review', 'requirement_coverage_review', 'client_release_readiness', 'partner_cosign']),
+  "required": zod.boolean(),
+  "preparerParty": zod.enum(['client', 'partner']),
+  "checkerParty": zod.enum(['client', 'partner']),
+  "ownerUserId": zod.string().uuid(),
+  "status": zod.enum(['open', 'ready_for_check', 'checked']),
+  "evidenceSha256": zod.string().regex(reviseConsortiumResponsibilityResponseQaChecklistItemEvidenceSha256RegExp).nullable(),
+  "preparedByUserId": zod.string().uuid().nullable(),
+  "preparedAt": zod.date().nullable(),
+  "lastDecision": zod.union([zod.object({
+  "decision": zod.enum(['checked', 'rejected']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullable(),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.date()
+}).strict(),zod.null()])
+}).strict()).max(reviseConsortiumResponsibilityResponseQaChecklistMax),
+  "auditReceipts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "sequence": zod.number().min(1),
+  "action": zod.enum(['room_created', 'responsibility_added', 'responsibility_revised', 'responsibility_decided', 'qa_prepared', 'qa_decided']),
+  "objectId": zod.string().uuid(),
+  "actorUserId": zod.string().uuid(),
+  "actorParty": zod.enum(['client', 'partner']),
+  "priorVersion": zod.number().min(reviseConsortiumResponsibilityResponseAuditReceiptsItemPriorVersionMin),
+  "nextVersion": zod.number().min(1),
+  "factsSha256": zod.string().regex(reviseConsortiumResponsibilityResponseAuditReceiptsItemFactsSha256RegExp),
+  "previousReceiptSha256": zod.string().regex(reviseConsortiumResponsibilityResponseAuditReceiptsItemPreviousReceiptSha256RegExp).nullable(),
+  "receiptSha256": zod.string().regex(reviseConsortiumResponsibilityResponseAuditReceiptsItemReceiptSha256RegExp),
+  "occurredAt": zod.date()
+}).strict()).max(reviseConsortiumResponsibilityResponseAuditReceiptsMax),
+  "idempotencyDigest": zod.string().regex(reviseConsortiumResponsibilityResponseIdempotencyDigestRegExp),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date(),
+  "retention": zod.object({
+  "namespace": zod.literal("valo.partner-consortium-room/v1"),
+  "class": zod.literal("project_coordination"),
+  "owner": zod.literal("client_organisation"),
+  "trigger": zod.literal("owning_project_retention_policy"),
+  "independentDeletionAllowed": zod.literal(false)
+}).strict(),
+  "authorityBoundaries": zod.object({
+  "legalAgreementGeneration": zod.literal(false),
+  "revenueSettlement": zod.literal(false),
+  "messaging": zod.literal(false),
+  "crossClientLearning": zod.literal(false),
+  "autonomousExternalAction": zod.literal(false)
+}).strict()
+}).strict()
+
+
+/**
+ * @summary Record one party's maker-checker responsibility decision
+ */
+export const DecideConsortiumResponsibilityParams = zod.object({
+  "id": zod.string().uuid(),
+  "relationshipId": zod.string().uuid(),
+  "responsibilityId": zod.string().uuid()
+})
+
+
+
+
+export const DecideConsortiumResponsibilityBody = zod.object({
+  "expectedVersion": zod.number().min(1),
+  "decision": zod.enum(['accepted', 'changes_requested']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullish()
+}).strict()
+
+
+
+export const decideConsortiumResponsibilityResponseResponsibilitiesItemWorkstreamLabelMax = 160;
+
+export const decideConsortiumResponsibilityResponseResponsibilitiesMax = 40;
+
+export const decideConsortiumResponsibilityResponseQaChecklistItemEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const decideConsortiumResponsibilityResponseQaChecklistMax = 4;
+
+
+export const decideConsortiumResponsibilityResponseAuditReceiptsItemPriorVersionMin = 0;
+
+
+export const decideConsortiumResponsibilityResponseAuditReceiptsItemFactsSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const decideConsortiumResponsibilityResponseAuditReceiptsItemPreviousReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const decideConsortiumResponsibilityResponseAuditReceiptsItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const decideConsortiumResponsibilityResponseAuditReceiptsMax = 500;
+
+export const decideConsortiumResponsibilityResponseIdempotencyDigestRegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const DecideConsortiumResponsibilityResponse = zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "relationshipId": zod.string().uuid(),
+  "clientOrganisationId": zod.string().uuid(),
+  "partnerOrganisationId": zod.string().uuid(),
+  "clientCoordinatorUserId": zod.string().uuid(),
+  "partnerCoordinatorUserId": zod.string().uuid(),
+  "coSigningRequired": zod.boolean(),
+  "status": zod.enum(['draft', 'active', 'qa_in_progress', 'ready_for_client_release']),
+  "version": zod.number().min(1),
+  "responsibilities": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "iteration": zod.number().min(1),
+  "workstreamLabel": zod.string().min(1).max(decideConsortiumResponsibilityResponseResponsibilitiesItemWorkstreamLabelMax),
+  "responsibleParty": zod.enum(['client', 'partner']),
+  "accountableParty": zod.enum(['client', 'partner']),
+  "ownerUserId": zod.string().uuid(),
+  "dueAt": zod.date().nullable(),
+  "status": zod.enum(['proposed', 'changes_requested', 'active']),
+  "requiredAcceptance": zod.literal("both_parties"),
+  "acceptances": zod.object({
+  "client": zod.union([zod.object({
+  "party": zod.enum(['client', 'partner']),
+  "decision": zod.enum(['accepted', 'changes_requested']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullable(),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.date()
+}).strict(),zod.null()]),
+  "partner": zod.union([zod.object({
+  "party": zod.enum(['client', 'partner']),
+  "decision": zod.enum(['accepted', 'changes_requested']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullable(),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.date()
+}).strict(),zod.null()])
+}).strict(),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedByUserId": zod.string().uuid(),
+  "updatedAt": zod.date()
+}).strict()).max(decideConsortiumResponsibilityResponseResponsibilitiesMax),
+  "qaChecklist": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "code": zod.enum(['evidence_quality_review', 'requirement_coverage_review', 'client_release_readiness', 'partner_cosign']),
+  "required": zod.boolean(),
+  "preparerParty": zod.enum(['client', 'partner']),
+  "checkerParty": zod.enum(['client', 'partner']),
+  "ownerUserId": zod.string().uuid(),
+  "status": zod.enum(['open', 'ready_for_check', 'checked']),
+  "evidenceSha256": zod.string().regex(decideConsortiumResponsibilityResponseQaChecklistItemEvidenceSha256RegExp).nullable(),
+  "preparedByUserId": zod.string().uuid().nullable(),
+  "preparedAt": zod.date().nullable(),
+  "lastDecision": zod.union([zod.object({
+  "decision": zod.enum(['checked', 'rejected']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullable(),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.date()
+}).strict(),zod.null()])
+}).strict()).max(decideConsortiumResponsibilityResponseQaChecklistMax),
+  "auditReceipts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "sequence": zod.number().min(1),
+  "action": zod.enum(['room_created', 'responsibility_added', 'responsibility_revised', 'responsibility_decided', 'qa_prepared', 'qa_decided']),
+  "objectId": zod.string().uuid(),
+  "actorUserId": zod.string().uuid(),
+  "actorParty": zod.enum(['client', 'partner']),
+  "priorVersion": zod.number().min(decideConsortiumResponsibilityResponseAuditReceiptsItemPriorVersionMin),
+  "nextVersion": zod.number().min(1),
+  "factsSha256": zod.string().regex(decideConsortiumResponsibilityResponseAuditReceiptsItemFactsSha256RegExp),
+  "previousReceiptSha256": zod.string().regex(decideConsortiumResponsibilityResponseAuditReceiptsItemPreviousReceiptSha256RegExp).nullable(),
+  "receiptSha256": zod.string().regex(decideConsortiumResponsibilityResponseAuditReceiptsItemReceiptSha256RegExp),
+  "occurredAt": zod.date()
+}).strict()).max(decideConsortiumResponsibilityResponseAuditReceiptsMax),
+  "idempotencyDigest": zod.string().regex(decideConsortiumResponsibilityResponseIdempotencyDigestRegExp),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date(),
+  "retention": zod.object({
+  "namespace": zod.literal("valo.partner-consortium-room/v1"),
+  "class": zod.literal("project_coordination"),
+  "owner": zod.literal("client_organisation"),
+  "trigger": zod.literal("owning_project_retention_policy"),
+  "independentDeletionAllowed": zod.literal(false)
+}).strict(),
+  "authorityBoundaries": zod.object({
+  "legalAgreementGeneration": zod.literal(false),
+  "revenueSettlement": zod.literal(false),
+  "messaging": zod.literal(false),
+  "crossClientLearning": zod.literal(false),
+  "autonomousExternalAction": zod.literal(false)
+}).strict()
+}).strict()
+
+
+/**
+ * @summary Ready a required QA item with evidence digest
+ */
+export const PrepareConsortiumQaItemParams = zod.object({
+  "id": zod.string().uuid(),
+  "relationshipId": zod.string().uuid(),
+  "qaItemId": zod.string().uuid()
+})
+
+
+export const prepareConsortiumQaItemBodyEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const PrepareConsortiumQaItemBody = zod.object({
+  "expectedVersion": zod.number().min(1),
+  "evidenceSha256": zod.string().regex(prepareConsortiumQaItemBodyEvidenceSha256RegExp)
+}).strict()
+
+
+
+export const prepareConsortiumQaItemResponseResponsibilitiesItemWorkstreamLabelMax = 160;
+
+export const prepareConsortiumQaItemResponseResponsibilitiesMax = 40;
+
+export const prepareConsortiumQaItemResponseQaChecklistItemEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const prepareConsortiumQaItemResponseQaChecklistMax = 4;
+
+
+export const prepareConsortiumQaItemResponseAuditReceiptsItemPriorVersionMin = 0;
+
+
+export const prepareConsortiumQaItemResponseAuditReceiptsItemFactsSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const prepareConsortiumQaItemResponseAuditReceiptsItemPreviousReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const prepareConsortiumQaItemResponseAuditReceiptsItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const prepareConsortiumQaItemResponseAuditReceiptsMax = 500;
+
+export const prepareConsortiumQaItemResponseIdempotencyDigestRegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const PrepareConsortiumQaItemResponse = zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "relationshipId": zod.string().uuid(),
+  "clientOrganisationId": zod.string().uuid(),
+  "partnerOrganisationId": zod.string().uuid(),
+  "clientCoordinatorUserId": zod.string().uuid(),
+  "partnerCoordinatorUserId": zod.string().uuid(),
+  "coSigningRequired": zod.boolean(),
+  "status": zod.enum(['draft', 'active', 'qa_in_progress', 'ready_for_client_release']),
+  "version": zod.number().min(1),
+  "responsibilities": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "iteration": zod.number().min(1),
+  "workstreamLabel": zod.string().min(1).max(prepareConsortiumQaItemResponseResponsibilitiesItemWorkstreamLabelMax),
+  "responsibleParty": zod.enum(['client', 'partner']),
+  "accountableParty": zod.enum(['client', 'partner']),
+  "ownerUserId": zod.string().uuid(),
+  "dueAt": zod.date().nullable(),
+  "status": zod.enum(['proposed', 'changes_requested', 'active']),
+  "requiredAcceptance": zod.literal("both_parties"),
+  "acceptances": zod.object({
+  "client": zod.union([zod.object({
+  "party": zod.enum(['client', 'partner']),
+  "decision": zod.enum(['accepted', 'changes_requested']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullable(),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.date()
+}).strict(),zod.null()]),
+  "partner": zod.union([zod.object({
+  "party": zod.enum(['client', 'partner']),
+  "decision": zod.enum(['accepted', 'changes_requested']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullable(),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.date()
+}).strict(),zod.null()])
+}).strict(),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedByUserId": zod.string().uuid(),
+  "updatedAt": zod.date()
+}).strict()).max(prepareConsortiumQaItemResponseResponsibilitiesMax),
+  "qaChecklist": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "code": zod.enum(['evidence_quality_review', 'requirement_coverage_review', 'client_release_readiness', 'partner_cosign']),
+  "required": zod.boolean(),
+  "preparerParty": zod.enum(['client', 'partner']),
+  "checkerParty": zod.enum(['client', 'partner']),
+  "ownerUserId": zod.string().uuid(),
+  "status": zod.enum(['open', 'ready_for_check', 'checked']),
+  "evidenceSha256": zod.string().regex(prepareConsortiumQaItemResponseQaChecklistItemEvidenceSha256RegExp).nullable(),
+  "preparedByUserId": zod.string().uuid().nullable(),
+  "preparedAt": zod.date().nullable(),
+  "lastDecision": zod.union([zod.object({
+  "decision": zod.enum(['checked', 'rejected']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullable(),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.date()
+}).strict(),zod.null()])
+}).strict()).max(prepareConsortiumQaItemResponseQaChecklistMax),
+  "auditReceipts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "sequence": zod.number().min(1),
+  "action": zod.enum(['room_created', 'responsibility_added', 'responsibility_revised', 'responsibility_decided', 'qa_prepared', 'qa_decided']),
+  "objectId": zod.string().uuid(),
+  "actorUserId": zod.string().uuid(),
+  "actorParty": zod.enum(['client', 'partner']),
+  "priorVersion": zod.number().min(prepareConsortiumQaItemResponseAuditReceiptsItemPriorVersionMin),
+  "nextVersion": zod.number().min(1),
+  "factsSha256": zod.string().regex(prepareConsortiumQaItemResponseAuditReceiptsItemFactsSha256RegExp),
+  "previousReceiptSha256": zod.string().regex(prepareConsortiumQaItemResponseAuditReceiptsItemPreviousReceiptSha256RegExp).nullable(),
+  "receiptSha256": zod.string().regex(prepareConsortiumQaItemResponseAuditReceiptsItemReceiptSha256RegExp),
+  "occurredAt": zod.date()
+}).strict()).max(prepareConsortiumQaItemResponseAuditReceiptsMax),
+  "idempotencyDigest": zod.string().regex(prepareConsortiumQaItemResponseIdempotencyDigestRegExp),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date(),
+  "retention": zod.object({
+  "namespace": zod.literal("valo.partner-consortium-room/v1"),
+  "class": zod.literal("project_coordination"),
+  "owner": zod.literal("client_organisation"),
+  "trigger": zod.literal("owning_project_retention_policy"),
+  "independentDeletionAllowed": zod.literal(false)
+}).strict(),
+  "authorityBoundaries": zod.object({
+  "legalAgreementGeneration": zod.literal(false),
+  "revenueSettlement": zod.literal(false),
+  "messaging": zod.literal(false),
+  "crossClientLearning": zod.literal(false),
+  "autonomousExternalAction": zod.literal(false)
+}).strict()
+}).strict()
+
+
+/**
+ * @summary Record an independent QA or co-sign decision
+ */
+export const DecideConsortiumQaItemParams = zod.object({
+  "id": zod.string().uuid(),
+  "relationshipId": zod.string().uuid(),
+  "qaItemId": zod.string().uuid()
+})
+
+
+
+
+export const DecideConsortiumQaItemBody = zod.object({
+  "expectedVersion": zod.number().min(1),
+  "decision": zod.enum(['checked', 'rejected']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullish()
+}).strict()
+
+
+
+export const decideConsortiumQaItemResponseResponsibilitiesItemWorkstreamLabelMax = 160;
+
+export const decideConsortiumQaItemResponseResponsibilitiesMax = 40;
+
+export const decideConsortiumQaItemResponseQaChecklistItemEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const decideConsortiumQaItemResponseQaChecklistMax = 4;
+
+
+export const decideConsortiumQaItemResponseAuditReceiptsItemPriorVersionMin = 0;
+
+
+export const decideConsortiumQaItemResponseAuditReceiptsItemFactsSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const decideConsortiumQaItemResponseAuditReceiptsItemPreviousReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const decideConsortiumQaItemResponseAuditReceiptsItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const decideConsortiumQaItemResponseAuditReceiptsMax = 500;
+
+export const decideConsortiumQaItemResponseIdempotencyDigestRegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const DecideConsortiumQaItemResponse = zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "relationshipId": zod.string().uuid(),
+  "clientOrganisationId": zod.string().uuid(),
+  "partnerOrganisationId": zod.string().uuid(),
+  "clientCoordinatorUserId": zod.string().uuid(),
+  "partnerCoordinatorUserId": zod.string().uuid(),
+  "coSigningRequired": zod.boolean(),
+  "status": zod.enum(['draft', 'active', 'qa_in_progress', 'ready_for_client_release']),
+  "version": zod.number().min(1),
+  "responsibilities": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "iteration": zod.number().min(1),
+  "workstreamLabel": zod.string().min(1).max(decideConsortiumQaItemResponseResponsibilitiesItemWorkstreamLabelMax),
+  "responsibleParty": zod.enum(['client', 'partner']),
+  "accountableParty": zod.enum(['client', 'partner']),
+  "ownerUserId": zod.string().uuid(),
+  "dueAt": zod.date().nullable(),
+  "status": zod.enum(['proposed', 'changes_requested', 'active']),
+  "requiredAcceptance": zod.literal("both_parties"),
+  "acceptances": zod.object({
+  "client": zod.union([zod.object({
+  "party": zod.enum(['client', 'partner']),
+  "decision": zod.enum(['accepted', 'changes_requested']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullable(),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.date()
+}).strict(),zod.null()]),
+  "partner": zod.union([zod.object({
+  "party": zod.enum(['client', 'partner']),
+  "decision": zod.enum(['accepted', 'changes_requested']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullable(),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.date()
+}).strict(),zod.null()])
+}).strict(),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedByUserId": zod.string().uuid(),
+  "updatedAt": zod.date()
+}).strict()).max(decideConsortiumQaItemResponseResponsibilitiesMax),
+  "qaChecklist": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "code": zod.enum(['evidence_quality_review', 'requirement_coverage_review', 'client_release_readiness', 'partner_cosign']),
+  "required": zod.boolean(),
+  "preparerParty": zod.enum(['client', 'partner']),
+  "checkerParty": zod.enum(['client', 'partner']),
+  "ownerUserId": zod.string().uuid(),
+  "status": zod.enum(['open', 'ready_for_check', 'checked']),
+  "evidenceSha256": zod.string().regex(decideConsortiumQaItemResponseQaChecklistItemEvidenceSha256RegExp).nullable(),
+  "preparedByUserId": zod.string().uuid().nullable(),
+  "preparedAt": zod.date().nullable(),
+  "lastDecision": zod.union([zod.object({
+  "decision": zod.enum(['checked', 'rejected']),
+  "reasonCode": zod.union([zod.literal('ownership_mismatch'),zod.literal('scope_unclear'),zod.literal('deadline_unworkable'),zod.literal('quality_control_gap'),zod.literal('evidence_not_sufficient'),zod.literal('offline_discussion_required'),zod.literal(null)]).nullable(),
+  "decidedByUserId": zod.string().uuid(),
+  "decidedAt": zod.date()
+}).strict(),zod.null()])
+}).strict()).max(decideConsortiumQaItemResponseQaChecklistMax),
+  "auditReceipts": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "sequence": zod.number().min(1),
+  "action": zod.enum(['room_created', 'responsibility_added', 'responsibility_revised', 'responsibility_decided', 'qa_prepared', 'qa_decided']),
+  "objectId": zod.string().uuid(),
+  "actorUserId": zod.string().uuid(),
+  "actorParty": zod.enum(['client', 'partner']),
+  "priorVersion": zod.number().min(decideConsortiumQaItemResponseAuditReceiptsItemPriorVersionMin),
+  "nextVersion": zod.number().min(1),
+  "factsSha256": zod.string().regex(decideConsortiumQaItemResponseAuditReceiptsItemFactsSha256RegExp),
+  "previousReceiptSha256": zod.string().regex(decideConsortiumQaItemResponseAuditReceiptsItemPreviousReceiptSha256RegExp).nullable(),
+  "receiptSha256": zod.string().regex(decideConsortiumQaItemResponseAuditReceiptsItemReceiptSha256RegExp),
+  "occurredAt": zod.date()
+}).strict()).max(decideConsortiumQaItemResponseAuditReceiptsMax),
+  "idempotencyDigest": zod.string().regex(decideConsortiumQaItemResponseIdempotencyDigestRegExp),
+  "createdByUserId": zod.string().uuid(),
+  "updatedByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date(),
+  "retention": zod.object({
+  "namespace": zod.literal("valo.partner-consortium-room/v1"),
+  "class": zod.literal("project_coordination"),
+  "owner": zod.literal("client_organisation"),
+  "trigger": zod.literal("owning_project_retention_policy"),
+  "independentDeletionAllowed": zod.literal(false)
+}).strict(),
+  "authorityBoundaries": zod.object({
+  "legalAgreementGeneration": zod.literal(false),
+  "revenueSettlement": zod.literal(false),
+  "messaging": zod.literal(false),
+  "crossClientLearning": zod.literal(false),
+  "autonomousExternalAction": zod.literal(false)
+}).strict()
+}).strict()
+
+
+/**
+ * This no-provider, no-output evidence register is capped at 25 lifetime plans per organisation, has no in-app archive and never grants production activation. Intake must stop before capacity until a reviewed retention/storage migration is approved; audit events must never be deleted merely to recover capacity.
+ * @summary Read provider-free AI shadow evaluation posture
+ */
+export const getAiShadowProgrammeResponsePlansItemPlanTitleMax = 256;
+
+export const getAiShadowProgrammeResponsePlansItemPlanPurposeMax = 1000;
+
+export const getAiShadowProgrammeResponsePlansItemPlanVersionsApplicationReleaseSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getAiShadowProgrammeResponsePlansItemPlanVersionsModelSnapshotSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getAiShadowProgrammeResponsePlansItemPlanVersionsModelConfigurationSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getAiShadowProgrammeResponsePlansItemPlanVersionsPromptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getAiShadowProgrammeResponsePlansItemPlanVersionsSchemaSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getAiShadowProgrammeResponsePlansItemPlanVersionsRetrievalPolicySha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getAiShadowProgrammeResponsePlansItemPlanVersionsCorpusManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getAiShadowProgrammeResponsePlansItemPlanVersionsGovernanceDecisionSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getAiShadowProgrammeResponsePlansItemPlanVersionsExpectedCaseManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getAiShadowProgrammeResponsePlansItemPlanCohortsMin = 7;
+export const getAiShadowProgrammeResponsePlansItemPlanCohortsMax = 7;
+
+export const getAiShadowProgrammeResponsePlansItemPlanExpectedCaseCountMin = 25;
+export const getAiShadowProgrammeResponsePlansItemPlanExpectedCaseCountMax = 500;
+
+
+export const getAiShadowProgrammeResponsePlansItemPlanCreatedByNameMax = 512;
+
+export const getAiShadowProgrammeResponsePlansItemPlanClosedByNameMax = 512;
+
+export const getAiShadowProgrammeResponsePlansItemPlanCloseReasonMax = 1000;
+
+export const getAiShadowProgrammeResponsePlansItemObservationCountMin = 0;
+export const getAiShadowProgrammeResponsePlansItemObservationCountMax = 500;
+
+export const getAiShadowProgrammeResponsePlansItemCoveredCohortsMax = 7;
+
+export const getAiShadowProgrammeResponsePlansItemBlockersItemMax = 1000;
+
+export const getAiShadowProgrammeResponsePlansMax = 25;
+
+
+
+export const GetAiShadowProgrammeResponse = zod.object({
+  "generatedAt": zod.date(),
+  "plans": zod.array(zod.object({
+  "plan": zod.object({
+  "schema": zod.literal("valo.ai-shadow-plan/v1"),
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "capabilityId": zod.enum(['extract_pdf_multimodal', 'extract_requirements', 'map_evidence', 'suggest_defects', 'responsiveness_review']),
+  "title": zod.string().min(1).max(getAiShadowProgrammeResponsePlansItemPlanTitleMax),
+  "purpose": zod.string().min(1).max(getAiShadowProgrammeResponsePlansItemPlanPurposeMax),
+  "versions": zod.object({
+  "applicationReleaseSha256": zod.string().regex(getAiShadowProgrammeResponsePlansItemPlanVersionsApplicationReleaseSha256RegExp),
+  "modelSnapshotSha256": zod.string().regex(getAiShadowProgrammeResponsePlansItemPlanVersionsModelSnapshotSha256RegExp),
+  "modelConfigurationSha256": zod.string().regex(getAiShadowProgrammeResponsePlansItemPlanVersionsModelConfigurationSha256RegExp),
+  "promptSha256": zod.string().regex(getAiShadowProgrammeResponsePlansItemPlanVersionsPromptSha256RegExp),
+  "schemaSha256": zod.string().regex(getAiShadowProgrammeResponsePlansItemPlanVersionsSchemaSha256RegExp),
+  "retrievalPolicySha256": zod.string().regex(getAiShadowProgrammeResponsePlansItemPlanVersionsRetrievalPolicySha256RegExp),
+  "corpusManifestSha256": zod.string().regex(getAiShadowProgrammeResponsePlansItemPlanVersionsCorpusManifestSha256RegExp),
+  "governanceDecisionSha256": zod.string().regex(getAiShadowProgrammeResponsePlansItemPlanVersionsGovernanceDecisionSha256RegExp),
+  "expectedCaseManifestSha256": zod.string().regex(getAiShadowProgrammeResponsePlansItemPlanVersionsExpectedCaseManifestSha256RegExp)
+}).strict(),
+  "cohorts": zod.array(zod.enum(['representative', 'fatal_requirement', 'abstention', 'ocr_table', 'injection', 'tenant_isolation', 'cost_latency'])).min(getAiShadowProgrammeResponsePlansItemPlanCohortsMin).max(getAiShadowProgrammeResponsePlansItemPlanCohortsMax),
+  "expectedCaseCount": zod.number().min(getAiShadowProgrammeResponsePlansItemPlanExpectedCaseCountMin).max(getAiShadowProgrammeResponsePlansItemPlanExpectedCaseCountMax),
+  "expiresAt": zod.date(),
+  "status": zod.enum(['active', 'closed']),
+  "version": zod.number().min(1),
+  "executionMode": zod.literal("no_output_shadow"),
+  "customerVisible": zod.literal(false),
+  "productionActivationGranted": zod.literal(false),
+  "createdByUserId": zod.string().uuid(),
+  "createdByName": zod.string().min(1).max(getAiShadowProgrammeResponsePlansItemPlanCreatedByNameMax),
+  "createdAt": zod.date(),
+  "closedByUserId": zod.string().uuid().nullable(),
+  "closedByName": zod.string().max(getAiShadowProgrammeResponsePlansItemPlanClosedByNameMax).nullable(),
+  "closedAt": zod.date().nullable(),
+  "closeReason": zod.string().max(getAiShadowProgrammeResponsePlansItemPlanCloseReasonMax).nullable(),
+  "evaluationRecommendation": zod.enum(['not_evaluated', 'blocked', 'eligible_for_governance_review'])
+}).strict(),
+  "observationCount": zod.number().min(getAiShadowProgrammeResponsePlansItemObservationCountMin).max(getAiShadowProgrammeResponsePlansItemObservationCountMax),
+  "coveredCohorts": zod.array(zod.enum(['representative', 'fatal_requirement', 'abstention', 'ocr_table', 'injection', 'tenant_isolation', 'cost_latency'])).max(getAiShadowProgrammeResponsePlansItemCoveredCohortsMax),
+  "blockers": zod.array(zod.string().min(1).max(getAiShadowProgrammeResponsePlansItemBlockersItemMax))
+}).strict()).max(getAiShadowProgrammeResponsePlansMax),
+  "authority": zod.object({
+  "runtimeConnected": zod.literal(true),
+  "modelExecutionConnected": zod.literal(false),
+  "providerDisclosureAllowed": zod.literal(false),
+  "rawOutputPersistenceAllowed": zod.literal(false),
+  "customerVisible": zod.literal(false),
+  "productionActivationGranted": zod.literal(false),
+  "authority": zod.literal("named_human_governance_review_required")
+}).strict()
+}).strict()
+
+
+/**
+ * This no-provider, no-output evidence register is capped at 25 lifetime plans per organisation, has no in-app archive and never grants production activation. Intake must stop before capacity until a reviewed retention/storage migration is approved; audit events must never be deleted merely to recover capacity.
+ * @summary Create a version-pinned no-output shadow plan
+ */
+export const createAiShadowPlanBodyTitleMax = 256;
+
+export const createAiShadowPlanBodyPurposeMax = 1000;
+
+export const createAiShadowPlanBodyVersionsApplicationReleaseSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createAiShadowPlanBodyVersionsModelSnapshotSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createAiShadowPlanBodyVersionsModelConfigurationSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createAiShadowPlanBodyVersionsPromptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createAiShadowPlanBodyVersionsSchemaSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createAiShadowPlanBodyVersionsRetrievalPolicySha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createAiShadowPlanBodyVersionsCorpusManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createAiShadowPlanBodyVersionsGovernanceDecisionSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createAiShadowPlanBodyVersionsExpectedCaseManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createAiShadowPlanBodyCohortsMin = 7;
+export const createAiShadowPlanBodyCohortsMax = 7;
+
+export const createAiShadowPlanBodyExpectedCaseCountMin = 25;
+export const createAiShadowPlanBodyExpectedCaseCountMax = 500;
+
+export const createAiShadowPlanBodyIdempotencyKeyMin = 16;
+export const createAiShadowPlanBodyIdempotencyKeyMax = 128;
+
+
+export const createAiShadowPlanBodyIdempotencyKeyRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$');
+
+
+export const CreateAiShadowPlanBody = zod.object({
+  "capabilityId": zod.enum(['extract_pdf_multimodal', 'extract_requirements', 'map_evidence', 'suggest_defects', 'responsiveness_review']),
+  "title": zod.string().min(1).max(createAiShadowPlanBodyTitleMax),
+  "purpose": zod.string().min(1).max(createAiShadowPlanBodyPurposeMax),
+  "versions": zod.object({
+  "applicationReleaseSha256": zod.string().regex(createAiShadowPlanBodyVersionsApplicationReleaseSha256RegExp),
+  "modelSnapshotSha256": zod.string().regex(createAiShadowPlanBodyVersionsModelSnapshotSha256RegExp),
+  "modelConfigurationSha256": zod.string().regex(createAiShadowPlanBodyVersionsModelConfigurationSha256RegExp),
+  "promptSha256": zod.string().regex(createAiShadowPlanBodyVersionsPromptSha256RegExp),
+  "schemaSha256": zod.string().regex(createAiShadowPlanBodyVersionsSchemaSha256RegExp),
+  "retrievalPolicySha256": zod.string().regex(createAiShadowPlanBodyVersionsRetrievalPolicySha256RegExp),
+  "corpusManifestSha256": zod.string().regex(createAiShadowPlanBodyVersionsCorpusManifestSha256RegExp),
+  "governanceDecisionSha256": zod.string().regex(createAiShadowPlanBodyVersionsGovernanceDecisionSha256RegExp),
+  "expectedCaseManifestSha256": zod.string().regex(createAiShadowPlanBodyVersionsExpectedCaseManifestSha256RegExp)
+}).strict(),
+  "cohorts": zod.array(zod.enum(['representative', 'fatal_requirement', 'abstention', 'ocr_table', 'injection', 'tenant_isolation', 'cost_latency'])).min(createAiShadowPlanBodyCohortsMin).max(createAiShadowPlanBodyCohortsMax),
+  "expectedCaseCount": zod.number().min(createAiShadowPlanBodyExpectedCaseCountMin).max(createAiShadowPlanBodyExpectedCaseCountMax),
+  "expiresAt": zod.date(),
+  "idempotencyKey": zod.string().min(createAiShadowPlanBodyIdempotencyKeyMin).max(createAiShadowPlanBodyIdempotencyKeyMax).regex(createAiShadowPlanBodyIdempotencyKeyRegExp)
+}).strict()
+
+export const createAiShadowPlanResponsePlanTitleMax = 256;
+
+export const createAiShadowPlanResponsePlanPurposeMax = 1000;
+
+export const createAiShadowPlanResponsePlanVersionsApplicationReleaseSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createAiShadowPlanResponsePlanVersionsModelSnapshotSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createAiShadowPlanResponsePlanVersionsModelConfigurationSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createAiShadowPlanResponsePlanVersionsPromptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createAiShadowPlanResponsePlanVersionsSchemaSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createAiShadowPlanResponsePlanVersionsRetrievalPolicySha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createAiShadowPlanResponsePlanVersionsCorpusManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createAiShadowPlanResponsePlanVersionsGovernanceDecisionSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createAiShadowPlanResponsePlanVersionsExpectedCaseManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createAiShadowPlanResponsePlanCohortsMin = 7;
+export const createAiShadowPlanResponsePlanCohortsMax = 7;
+
+export const createAiShadowPlanResponsePlanExpectedCaseCountMin = 25;
+export const createAiShadowPlanResponsePlanExpectedCaseCountMax = 500;
+
+
+export const createAiShadowPlanResponsePlanCreatedByNameMax = 512;
+
+export const createAiShadowPlanResponsePlanClosedByNameMax = 512;
+
+export const createAiShadowPlanResponsePlanCloseReasonMax = 1000;
+
+
+
+export const CreateAiShadowPlanResponse = zod.object({
+  "plan": zod.object({
+  "schema": zod.literal("valo.ai-shadow-plan/v1"),
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "capabilityId": zod.enum(['extract_pdf_multimodal', 'extract_requirements', 'map_evidence', 'suggest_defects', 'responsiveness_review']),
+  "title": zod.string().min(1).max(createAiShadowPlanResponsePlanTitleMax),
+  "purpose": zod.string().min(1).max(createAiShadowPlanResponsePlanPurposeMax),
+  "versions": zod.object({
+  "applicationReleaseSha256": zod.string().regex(createAiShadowPlanResponsePlanVersionsApplicationReleaseSha256RegExp),
+  "modelSnapshotSha256": zod.string().regex(createAiShadowPlanResponsePlanVersionsModelSnapshotSha256RegExp),
+  "modelConfigurationSha256": zod.string().regex(createAiShadowPlanResponsePlanVersionsModelConfigurationSha256RegExp),
+  "promptSha256": zod.string().regex(createAiShadowPlanResponsePlanVersionsPromptSha256RegExp),
+  "schemaSha256": zod.string().regex(createAiShadowPlanResponsePlanVersionsSchemaSha256RegExp),
+  "retrievalPolicySha256": zod.string().regex(createAiShadowPlanResponsePlanVersionsRetrievalPolicySha256RegExp),
+  "corpusManifestSha256": zod.string().regex(createAiShadowPlanResponsePlanVersionsCorpusManifestSha256RegExp),
+  "governanceDecisionSha256": zod.string().regex(createAiShadowPlanResponsePlanVersionsGovernanceDecisionSha256RegExp),
+  "expectedCaseManifestSha256": zod.string().regex(createAiShadowPlanResponsePlanVersionsExpectedCaseManifestSha256RegExp)
+}).strict(),
+  "cohorts": zod.array(zod.enum(['representative', 'fatal_requirement', 'abstention', 'ocr_table', 'injection', 'tenant_isolation', 'cost_latency'])).min(createAiShadowPlanResponsePlanCohortsMin).max(createAiShadowPlanResponsePlanCohortsMax),
+  "expectedCaseCount": zod.number().min(createAiShadowPlanResponsePlanExpectedCaseCountMin).max(createAiShadowPlanResponsePlanExpectedCaseCountMax),
+  "expiresAt": zod.date(),
+  "status": zod.enum(['active', 'closed']),
+  "version": zod.number().min(1),
+  "executionMode": zod.literal("no_output_shadow"),
+  "customerVisible": zod.literal(false),
+  "productionActivationGranted": zod.literal(false),
+  "createdByUserId": zod.string().uuid(),
+  "createdByName": zod.string().min(1).max(createAiShadowPlanResponsePlanCreatedByNameMax),
+  "createdAt": zod.date(),
+  "closedByUserId": zod.string().uuid().nullable(),
+  "closedByName": zod.string().max(createAiShadowPlanResponsePlanClosedByNameMax).nullable(),
+  "closedAt": zod.date().nullable(),
+  "closeReason": zod.string().max(createAiShadowPlanResponsePlanCloseReasonMax).nullable(),
+  "evaluationRecommendation": zod.enum(['not_evaluated', 'blocked', 'eligible_for_governance_review'])
+}).strict(),
+  "replayed": zod.boolean(),
+  "authority": zod.object({
+  "runtimeConnected": zod.literal(true),
+  "modelExecutionConnected": zod.literal(false),
+  "providerDisclosureAllowed": zod.literal(false),
+  "rawOutputPersistenceAllowed": zod.literal(false),
+  "customerVisible": zod.literal(false),
+  "productionActivationGranted": zod.literal(false),
+  "authority": zod.literal("named_human_governance_review_required")
+}).strict()
+}).strict()
+
+
+/**
+ * This no-provider, no-output evidence register is capped at 25 lifetime plans per organisation, has no in-app archive and never grants production activation. Intake must stop before capacity until a reviewed retention/storage migration is approved; audit events must never be deleted merely to recover capacity.
+ * @summary Record content-free shadow case metrics
+ */
+export const RecordAiShadowObservationParams = zod.object({
+  "planId": zod.string().uuid()
+})
+
+export const recordAiShadowObservationBodyCaseIdMax = 128;
+
+
+export const recordAiShadowObservationBodyCaseIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const recordAiShadowObservationBodyOutputSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const recordAiShadowObservationBodyFatalMissCountMin = 0;
+export const recordAiShadowObservationBodyFatalMissCountMax = 10000;
+
+export const recordAiShadowObservationBodyUnsupportedMaterialClaimCountMin = 0;
+export const recordAiShadowObservationBodyUnsupportedMaterialClaimCountMax = 10000;
+
+export const recordAiShadowObservationBodyCitationCorrectCountMin = 0;
+export const recordAiShadowObservationBodyCitationCorrectCountMax = 100000;
+
+export const recordAiShadowObservationBodyCitationEvaluatedCountMin = 0;
+export const recordAiShadowObservationBodyCitationEvaluatedCountMax = 100000;
+
+export const recordAiShadowObservationBodyLatencyMsMin = 0;
+export const recordAiShadowObservationBodyLatencyMsMax = 3600000;
+
+export const recordAiShadowObservationBodyCostMinorMin = 0;
+export const recordAiShadowObservationBodyCostMinorMax = 1000000000;
+
+export const recordAiShadowObservationBodyIdempotencyKeyMin = 16;
+export const recordAiShadowObservationBodyIdempotencyKeyMax = 128;
+
+
+export const recordAiShadowObservationBodyIdempotencyKeyRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$');
+
+
+export const RecordAiShadowObservationBody = zod.object({
+  "caseId": zod.string().min(1).max(recordAiShadowObservationBodyCaseIdMax).regex(recordAiShadowObservationBodyCaseIdRegExp),
+  "cohort": zod.enum(['representative', 'fatal_requirement', 'abstention', 'ocr_table', 'injection', 'tenant_isolation', 'cost_latency']),
+  "disposition": zod.enum(['completed', 'abstained', 'safe_failure']),
+  "expectedDisposition": zod.enum(['completed', 'abstained', 'safe_failure']),
+  "passed": zod.boolean(),
+  "outputSha256": zod.string().regex(recordAiShadowObservationBodyOutputSha256RegExp).nullable(),
+  "fatalMissCount": zod.number().min(recordAiShadowObservationBodyFatalMissCountMin).max(recordAiShadowObservationBodyFatalMissCountMax),
+  "unsupportedMaterialClaimCount": zod.number().min(recordAiShadowObservationBodyUnsupportedMaterialClaimCountMin).max(recordAiShadowObservationBodyUnsupportedMaterialClaimCountMax),
+  "tenantLeakDetected": zod.boolean(),
+  "injectionContained": zod.boolean(),
+  "citationCorrectCount": zod.number().min(recordAiShadowObservationBodyCitationCorrectCountMin).max(recordAiShadowObservationBodyCitationCorrectCountMax),
+  "citationEvaluatedCount": zod.number().min(recordAiShadowObservationBodyCitationEvaluatedCountMin).max(recordAiShadowObservationBodyCitationEvaluatedCountMax),
+  "latencyMs": zod.number().min(recordAiShadowObservationBodyLatencyMsMin).max(recordAiShadowObservationBodyLatencyMsMax),
+  "costMinor": zod.number().min(recordAiShadowObservationBodyCostMinorMin).max(recordAiShadowObservationBodyCostMinorMax),
+  "reviewerNoteCode": zod.enum(['fixture_verified', 'fixture_discrepancy', 'safe_failure_verified', 'requires_adjudication']),
+  "observedAt": zod.date(),
+  "idempotencyKey": zod.string().min(recordAiShadowObservationBodyIdempotencyKeyMin).max(recordAiShadowObservationBodyIdempotencyKeyMax).regex(recordAiShadowObservationBodyIdempotencyKeyRegExp)
+}).strict()
+
+export const recordAiShadowObservationResponseObservationCaseIdMax = 128;
+
+export const recordAiShadowObservationResponseObservationOutputSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const recordAiShadowObservationResponseObservationFatalMissCountMin = 0;
+export const recordAiShadowObservationResponseObservationFatalMissCountMax = 10000;
+
+export const recordAiShadowObservationResponseObservationUnsupportedMaterialClaimCountMin = 0;
+export const recordAiShadowObservationResponseObservationUnsupportedMaterialClaimCountMax = 10000;
+
+export const recordAiShadowObservationResponseObservationCitationCorrectCountMin = 0;
+export const recordAiShadowObservationResponseObservationCitationCorrectCountMax = 100000;
+
+export const recordAiShadowObservationResponseObservationCitationEvaluatedCountMin = 0;
+export const recordAiShadowObservationResponseObservationCitationEvaluatedCountMax = 100000;
+
+export const recordAiShadowObservationResponseObservationLatencyMsMin = 0;
+export const recordAiShadowObservationResponseObservationLatencyMsMax = 3600000;
+
+export const recordAiShadowObservationResponseObservationCostMinorMin = 0;
+export const recordAiShadowObservationResponseObservationCostMinorMax = 1000000000;
+
+export const recordAiShadowObservationResponseObservationRecordedByNameMax = 512;
+
+
+
+export const RecordAiShadowObservationResponse = zod.object({
+  "observation": zod.object({
+  "schema": zod.literal("valo.ai-shadow-observation/v1"),
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "planId": zod.string().uuid(),
+  "caseId": zod.string().min(1).max(recordAiShadowObservationResponseObservationCaseIdMax),
+  "cohort": zod.enum(['representative', 'fatal_requirement', 'abstention', 'ocr_table', 'injection', 'tenant_isolation', 'cost_latency']),
+  "disposition": zod.enum(['completed', 'abstained', 'safe_failure']),
+  "expectedDisposition": zod.enum(['completed', 'abstained', 'safe_failure']),
+  "passed": zod.boolean(),
+  "outputSha256": zod.string().regex(recordAiShadowObservationResponseObservationOutputSha256RegExp).nullable(),
+  "fatalMissCount": zod.number().min(recordAiShadowObservationResponseObservationFatalMissCountMin).max(recordAiShadowObservationResponseObservationFatalMissCountMax),
+  "unsupportedMaterialClaimCount": zod.number().min(recordAiShadowObservationResponseObservationUnsupportedMaterialClaimCountMin).max(recordAiShadowObservationResponseObservationUnsupportedMaterialClaimCountMax),
+  "tenantLeakDetected": zod.boolean(),
+  "injectionContained": zod.boolean(),
+  "citationCorrectCount": zod.number().min(recordAiShadowObservationResponseObservationCitationCorrectCountMin).max(recordAiShadowObservationResponseObservationCitationCorrectCountMax),
+  "citationEvaluatedCount": zod.number().min(recordAiShadowObservationResponseObservationCitationEvaluatedCountMin).max(recordAiShadowObservationResponseObservationCitationEvaluatedCountMax),
+  "latencyMs": zod.number().min(recordAiShadowObservationResponseObservationLatencyMsMin).max(recordAiShadowObservationResponseObservationLatencyMsMax),
+  "costMinor": zod.number().min(recordAiShadowObservationResponseObservationCostMinorMin).max(recordAiShadowObservationResponseObservationCostMinorMax),
+  "reviewerNoteCode": zod.enum(['fixture_verified', 'fixture_discrepancy', 'safe_failure_verified', 'requires_adjudication']),
+  "observedAt": zod.date(),
+  "recordedByUserId": zod.string().uuid(),
+  "recordedByName": zod.string().min(1).max(recordAiShadowObservationResponseObservationRecordedByNameMax),
+  "recordedAt": zod.date()
+}).strict(),
+  "replayed": zod.boolean(),
+  "rawOutputPersisted": zod.literal(false),
+  "productionActivationGranted": zod.literal(false)
+}).strict()
+
+
+/**
+ * This no-provider, no-output evidence register is capped at 25 lifetime plans per organisation, has no in-app archive and never grants production activation. Intake must stop before capacity until a reviewed retention/storage migration is approved; audit events must never be deleted merely to recover capacity.
+ * @summary Close a shadow plan for later named-human governance review
+ */
+export const CloseAiShadowPlanParams = zod.object({
+  "planId": zod.string().uuid()
+})
+
+
+export const closeAiShadowPlanBodyExpectedObservationCountMin = 0;
+export const closeAiShadowPlanBodyExpectedObservationCountMax = 500;
+
+export const closeAiShadowPlanBodyReasonMax = 1000;
+
+
+
+export const CloseAiShadowPlanBody = zod.object({
+  "expectedVersion": zod.number().min(1),
+  "expectedObservationCount": zod.number().min(closeAiShadowPlanBodyExpectedObservationCountMin).max(closeAiShadowPlanBodyExpectedObservationCountMax),
+  "reason": zod.string().min(1).max(closeAiShadowPlanBodyReasonMax)
+}).strict()
+
+export const closeAiShadowPlanResponsePlanTitleMax = 256;
+
+export const closeAiShadowPlanResponsePlanPurposeMax = 1000;
+
+export const closeAiShadowPlanResponsePlanVersionsApplicationReleaseSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const closeAiShadowPlanResponsePlanVersionsModelSnapshotSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const closeAiShadowPlanResponsePlanVersionsModelConfigurationSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const closeAiShadowPlanResponsePlanVersionsPromptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const closeAiShadowPlanResponsePlanVersionsSchemaSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const closeAiShadowPlanResponsePlanVersionsRetrievalPolicySha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const closeAiShadowPlanResponsePlanVersionsCorpusManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const closeAiShadowPlanResponsePlanVersionsGovernanceDecisionSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const closeAiShadowPlanResponsePlanVersionsExpectedCaseManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const closeAiShadowPlanResponsePlanCohortsMin = 7;
+export const closeAiShadowPlanResponsePlanCohortsMax = 7;
+
+export const closeAiShadowPlanResponsePlanExpectedCaseCountMin = 25;
+export const closeAiShadowPlanResponsePlanExpectedCaseCountMax = 500;
+
+
+export const closeAiShadowPlanResponsePlanCreatedByNameMax = 512;
+
+export const closeAiShadowPlanResponsePlanClosedByNameMax = 512;
+
+export const closeAiShadowPlanResponsePlanCloseReasonMax = 1000;
+
+
+
+export const CloseAiShadowPlanResponse = zod.object({
+  "plan": zod.object({
+  "schema": zod.literal("valo.ai-shadow-plan/v1"),
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "capabilityId": zod.enum(['extract_pdf_multimodal', 'extract_requirements', 'map_evidence', 'suggest_defects', 'responsiveness_review']),
+  "title": zod.string().min(1).max(closeAiShadowPlanResponsePlanTitleMax),
+  "purpose": zod.string().min(1).max(closeAiShadowPlanResponsePlanPurposeMax),
+  "versions": zod.object({
+  "applicationReleaseSha256": zod.string().regex(closeAiShadowPlanResponsePlanVersionsApplicationReleaseSha256RegExp),
+  "modelSnapshotSha256": zod.string().regex(closeAiShadowPlanResponsePlanVersionsModelSnapshotSha256RegExp),
+  "modelConfigurationSha256": zod.string().regex(closeAiShadowPlanResponsePlanVersionsModelConfigurationSha256RegExp),
+  "promptSha256": zod.string().regex(closeAiShadowPlanResponsePlanVersionsPromptSha256RegExp),
+  "schemaSha256": zod.string().regex(closeAiShadowPlanResponsePlanVersionsSchemaSha256RegExp),
+  "retrievalPolicySha256": zod.string().regex(closeAiShadowPlanResponsePlanVersionsRetrievalPolicySha256RegExp),
+  "corpusManifestSha256": zod.string().regex(closeAiShadowPlanResponsePlanVersionsCorpusManifestSha256RegExp),
+  "governanceDecisionSha256": zod.string().regex(closeAiShadowPlanResponsePlanVersionsGovernanceDecisionSha256RegExp),
+  "expectedCaseManifestSha256": zod.string().regex(closeAiShadowPlanResponsePlanVersionsExpectedCaseManifestSha256RegExp)
+}).strict(),
+  "cohorts": zod.array(zod.enum(['representative', 'fatal_requirement', 'abstention', 'ocr_table', 'injection', 'tenant_isolation', 'cost_latency'])).min(closeAiShadowPlanResponsePlanCohortsMin).max(closeAiShadowPlanResponsePlanCohortsMax),
+  "expectedCaseCount": zod.number().min(closeAiShadowPlanResponsePlanExpectedCaseCountMin).max(closeAiShadowPlanResponsePlanExpectedCaseCountMax),
+  "expiresAt": zod.date(),
+  "status": zod.enum(['active', 'closed']),
+  "version": zod.number().min(1),
+  "executionMode": zod.literal("no_output_shadow"),
+  "customerVisible": zod.literal(false),
+  "productionActivationGranted": zod.literal(false),
+  "createdByUserId": zod.string().uuid(),
+  "createdByName": zod.string().min(1).max(closeAiShadowPlanResponsePlanCreatedByNameMax),
+  "createdAt": zod.date(),
+  "closedByUserId": zod.string().uuid().nullable(),
+  "closedByName": zod.string().max(closeAiShadowPlanResponsePlanClosedByNameMax).nullable(),
+  "closedAt": zod.date().nullable(),
+  "closeReason": zod.string().max(closeAiShadowPlanResponsePlanCloseReasonMax).nullable(),
+  "evaluationRecommendation": zod.enum(['not_evaluated', 'blocked', 'eligible_for_governance_review'])
+}).strict(),
+  "productionActivationGranted": zod.literal(false),
+  "authority": zod.object({
+  "runtimeConnected": zod.literal(true),
+  "modelExecutionConnected": zod.literal(false),
+  "providerDisclosureAllowed": zod.literal(false),
+  "rawOutputPersistenceAllowed": zod.literal(false),
+  "customerVisible": zod.literal(false),
+  "productionActivationGranted": zod.literal(false),
+  "authority": zod.literal("named_human_governance_review_required")
+}).strict()
+}).strict()
+
+
+/**
+ * @summary Read the content-minimised privacy operations dashboard
+ */
+export const getPrivacyOperationsQueryLimitDefault = 25;
+export const getPrivacyOperationsQueryLimitMax = 50;
+
+
+
+export const GetPrivacyOperationsQueryParams = zod.object({
+  "limit": zod.number().min(1).max(getPrivacyOperationsQueryLimitMax).default(getPrivacyOperationsQueryLimitDefault)
+})
+
+export const getPrivacyOperationsResponseBoundedToMax = 50;
+
+
+export const getPrivacyOperationsResponseTotalsDataSubjectRequestsMin = 0;
+
+export const getPrivacyOperationsResponseTotalsConsentRecordsMin = 0;
+
+export const getPrivacyOperationsResponseTotalsLegalHoldsMin = 0;
+
+export const getPrivacyOperationsResponseTotalsSubprocessorsMin = 0;
+
+export const getPrivacyOperationsResponseTotalsCrossBorderTransfersMin = 0;
+
+export const getPrivacyOperationsResponseTotalsDeletionActionsMin = 0;
+
+export const getPrivacyOperationsResponseDataSubjectRequestsItemRequestTypeMax = 160;
+
+export const getPrivacyOperationsResponseDataSubjectRequestsItemIdentityVerificationStatusMax = 80;
+
+export const getPrivacyOperationsResponseDataSubjectRequestsItemStatusMax = 80;
+
+
+export const getPrivacyOperationsResponseDataSubjectRequestsMax = 50;
+
+export const getPrivacyOperationsResponseConsentRecordsItemWithdrawalEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+export const getPrivacyOperationsResponseConsentRecordsMax = 50;
+
+export const getPrivacyOperationsResponseLegalHoldsItemStatusMax = 80;
+
+export const getPrivacyOperationsResponseLegalHoldsItemReviewEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+export const getPrivacyOperationsResponseLegalHoldsMax = 50;
+
+export const getPrivacyOperationsResponseSubprocessorsItemLegalNameMax = 512;
+
+export const getPrivacyOperationsResponseSubprocessorsItemServiceMax = 512;
+
+export const getPrivacyOperationsResponseSubprocessorsItemCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+export const getPrivacyOperationsResponseSubprocessorsItemDpaStatusMax = 80;
+
+export const getPrivacyOperationsResponseSubprocessorsItemSecurityReviewStatusMax = 80;
+
+
+export const getPrivacyOperationsResponseSubprocessorsMax = 50;
+
+export const getPrivacyOperationsResponseCrossBorderTransfersItemOriginCountryRegExp = new RegExp('^[A-Z]{2}$');
+export const getPrivacyOperationsResponseCrossBorderTransfersItemDestinationCountryRegExp = new RegExp('^[A-Z]{2}$');
+export const getPrivacyOperationsResponseCrossBorderTransfersItemTransferBasisMax = 160;
+
+export const getPrivacyOperationsResponseCrossBorderTransfersItemLegalReviewStatusMax = 80;
+
+
+export const getPrivacyOperationsResponseCrossBorderTransfersMax = 50;
+
+export const getPrivacyOperationsResponseDeletionActionsItemStatusMax = 80;
+
+export const getPrivacyOperationsResponseDeletionActionsItemScopeManifestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+export const getPrivacyOperationsResponseDeletionActionsMax = 50;
+
+export const getPrivacyOperationsResponseBlockersItemMax = 1000;
+
+
+
+export const GetPrivacyOperationsResponse = zod.object({
+  "generatedAt": zod.date(),
+  "organisationId": zod.string().uuid(),
+  "boundedTo": zod.number().min(1).max(getPrivacyOperationsResponseBoundedToMax),
+  "legalDecisionAutomated": zod.literal(false),
+  "rawSubjectPiiIncluded": zod.literal(false),
+  "authorityNote": zod.string().min(1),
+  "totals": zod.object({
+  "dataSubjectRequests": zod.number().min(getPrivacyOperationsResponseTotalsDataSubjectRequestsMin),
+  "consentRecords": zod.number().min(getPrivacyOperationsResponseTotalsConsentRecordsMin),
+  "legalHolds": zod.number().min(getPrivacyOperationsResponseTotalsLegalHoldsMin),
+  "subprocessors": zod.number().min(getPrivacyOperationsResponseTotalsSubprocessorsMin),
+  "crossBorderTransfers": zod.number().min(getPrivacyOperationsResponseTotalsCrossBorderTransfersMin),
+  "deletionActions": zod.number().min(getPrivacyOperationsResponseTotalsDeletionActionsMin)
+}).strict(),
+  "truncated": zod.object({
+  "dataSubjectRequests": zod.boolean(),
+  "consentRecords": zod.boolean(),
+  "legalHolds": zod.boolean(),
+  "subprocessors": zod.boolean(),
+  "crossBorderTransfers": zod.boolean(),
+  "deletionActions": zod.boolean()
+}).strict(),
+  "dataSubjectRequests": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "requestType": zod.string().min(1).max(getPrivacyOperationsResponseDataSubjectRequestsItemRequestTypeMax),
+  "identityVerificationStatus": zod.string().min(1).max(getPrivacyOperationsResponseDataSubjectRequestsItemIdentityVerificationStatusMax),
+  "receivedAt": zod.date(),
+  "dueAt": zod.date(),
+  "status": zod.string().min(1).max(getPrivacyOperationsResponseDataSubjectRequestsItemStatusMax),
+  "assignedToUserId": zod.string().uuid().nullable(),
+  "responseEvidenceState": zod.enum(['verified', 'missing', 'invalid']),
+  "completedAt": zod.date().nullable(),
+  "urgency": zod.enum(['completed', 'overdue', 'due_soon', 'on_track']),
+  "version": zod.number().min(1),
+  "updatedAt": zod.date()
+}).strict()).max(getPrivacyOperationsResponseDataSubjectRequestsMax),
+  "consentRecords": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "privacyRecordId": zod.string().uuid().nullable(),
+  "capturedAt": zod.date(),
+  "withdrawnAt": zod.date().nullable(),
+  "state": zod.enum(['active', 'withdrawn']),
+  "captureEvidenceState": zod.enum(['verified', 'missing', 'invalid']),
+  "withdrawalReceiptState": zod.enum(['verified', 'missing', 'invalid']),
+  "withdrawalEvidenceSha256": zod.string().regex(getPrivacyOperationsResponseConsentRecordsItemWithdrawalEvidenceSha256RegExp).nullable(),
+  "withdrawnByUserId": zod.string().uuid().nullable(),
+  "version": zod.number().min(1),
+  "updatedAt": zod.date()
+}).strict()).max(getPrivacyOperationsResponseConsentRecordsMax),
+  "legalHolds": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "projectId": zod.string().uuid().nullable(),
+  "status": zod.string().min(1).max(getPrivacyOperationsResponseLegalHoldsItemStatusMax),
+  "placedByUserId": zod.string().uuid(),
+  "releasedByUserId": zod.string().uuid().nullable(),
+  "releasedAt": zod.date().nullable(),
+  "lastReviewOutcome": zod.union([zod.literal('continue'),zod.literal('escalate_for_legal_review'),zod.literal('release_recommended'),zod.literal(null)]).nullable(),
+  "lastReviewedAt": zod.date().nullable(),
+  "lastReviewedByUserId": zod.string().uuid().nullable(),
+  "nextReviewAt": zod.date().nullable(),
+  "reviewEvidenceSha256": zod.string().regex(getPrivacyOperationsResponseLegalHoldsItemReviewEvidenceSha256RegExp).nullable(),
+  "reviewPosture": zod.enum(['current', 'due_soon', 'overdue', 'missing_review_date', 'released']),
+  "version": zod.number().min(1),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date()
+}).strict()).max(getPrivacyOperationsResponseLegalHoldsMax),
+  "subprocessors": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "legalName": zod.string().min(1).max(getPrivacyOperationsResponseSubprocessorsItemLegalNameMax),
+  "service": zod.string().min(1).max(getPrivacyOperationsResponseSubprocessorsItemServiceMax),
+  "countryCode": zod.string().regex(getPrivacyOperationsResponseSubprocessorsItemCountryCodeRegExp),
+  "dpaStatus": zod.string().min(1).max(getPrivacyOperationsResponseSubprocessorsItemDpaStatusMax),
+  "securityReviewStatus": zod.string().min(1).max(getPrivacyOperationsResponseSubprocessorsItemSecurityReviewStatusMax),
+  "approvedAt": zod.date().nullable(),
+  "nextReviewAt": zod.date().nullable(),
+  "reviewPosture": zod.enum(['current', 'due_soon', 'overdue', 'missing_review_date']),
+  "version": zod.number().min(1),
+  "updatedAt": zod.date()
+}).strict()).max(getPrivacyOperationsResponseSubprocessorsMax),
+  "crossBorderTransfers": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "subprocessorId": zod.string().uuid().nullable(),
+  "originCountry": zod.string().regex(getPrivacyOperationsResponseCrossBorderTransfersItemOriginCountryRegExp),
+  "destinationCountry": zod.string().regex(getPrivacyOperationsResponseCrossBorderTransfersItemDestinationCountryRegExp),
+  "transferBasis": zod.string().min(1).max(getPrivacyOperationsResponseCrossBorderTransfersItemTransferBasisMax),
+  "approvalEvidenceState": zod.enum(['verified', 'missing', 'invalid']),
+  "legalReviewStatus": zod.string().min(1).max(getPrivacyOperationsResponseCrossBorderTransfersItemLegalReviewStatusMax),
+  "nextReviewAt": zod.date(),
+  "reviewPosture": zod.enum(['current', 'due_soon', 'overdue', 'missing_review_date']),
+  "version": zod.number().min(1),
+  "updatedAt": zod.date()
+}).strict()).max(getPrivacyOperationsResponseCrossBorderTransfersMax),
+  "deletionActions": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.string().min(1).max(getPrivacyOperationsResponseDeletionActionsItemStatusMax),
+  "held": zod.boolean(),
+  "executedByUserId": zod.string().uuid().nullable(),
+  "executedAt": zod.date().nullable(),
+  "receiptState": zod.enum(['pending', 'recorded', 'missing', 'invalid']),
+  "scopeManifestSha256": zod.string().regex(getPrivacyOperationsResponseDeletionActionsItemScopeManifestSha256RegExp).nullable(),
+  "signedByUserId": zod.string().uuid().nullable(),
+  "completedAt": zod.date().nullable(),
+  "version": zod.number().min(1),
+  "updatedAt": zod.date()
+}).strict()).max(getPrivacyOperationsResponseDeletionActionsMax),
+  "blockers": zod.array(zod.string().min(1).max(getPrivacyOperationsResponseBlockersItemMax))
+}).strict()
+
+
+/**
+ * Manager-only bounded selector; this endpoint is not a general user directory.
+ * @summary List current named privacy managers eligible for DSR assignment
+ */
+export const listPrivacyOperationsAssigneesResponseItemsItemNameMax = 512;
+
+export const listPrivacyOperationsAssigneesResponseItemsMax = 100;
+
+
+
+export const ListPrivacyOperationsAssigneesResponse = zod.object({
+  "organisationId": zod.string().uuid(),
+  "items": zod.array(zod.object({
+  "userId": zod.string().uuid(),
+  "name": zod.string().min(1).max(listPrivacyOperationsAssigneesResponseItemsItemNameMax)
+}).strict()).max(listPrivacyOperationsAssigneesResponseItemsMax),
+  "limit": zod.literal(100),
+  "truncated": zod.literal(false)
+}).strict()
+
+
+/**
+ * @summary Record named-human DSR triage evidence
+ */
+export const TriagePrivacyDataSubjectRequestParams = zod.object({
+  "id": zod.string().uuid()
+})
+
+export const triagePrivacyDataSubjectRequestHeaderIfMatchRegExp = new RegExp('^(?:W/)?"?[1-9][0-9]*"?$');
+
+
+export const TriagePrivacyDataSubjectRequestHeader = zod.object({
+  "If-Match": zod.string().regex(triagePrivacyDataSubjectRequestHeaderIfMatchRegExp).describe('Current positive integer resource version, optionally quoted or weakly prefixed.')
+})
+
+export const triagePrivacyDataSubjectRequestBodyDecisionEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const TriagePrivacyDataSubjectRequestBody = zod.object({
+  "status": zod.enum(['received', 'triaged', 'in_progress', 'awaiting_identity', 'on_hold']),
+  "identityVerificationStatus": zod.enum(['pending', 'verified', 'failed']),
+  "assignedToUserId": zod.string().uuid(),
+  "reasonCode": zod.enum(['initial_triage', 'identity_pending', 'scope_confirmation', 'complexity_review', 'deadline_risk', 'other_review_required']),
+  "decisionEvidenceSha256": zod.string().regex(triagePrivacyDataSubjectRequestBodyDecisionEvidenceSha256RegExp)
+}).strict()
+
+
+export const triagePrivacyDataSubjectRequestResponseReceiptReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+
+
+export const TriagePrivacyDataSubjectRequestResponse = zod.object({
+  "outcome": zod.literal("updated"),
+  "resultingVersion": zod.number().min(1),
+  "receipt": zod.object({
+  "receiptSha256": zod.string().regex(triagePrivacyDataSubjectRequestResponseReceiptReceiptSha256RegExp),
+  "eventType": zod.enum(['privacy.dsr_triage_recorded', 'privacy.consent_withdrawal_recorded', 'privacy.legal_hold_review_recorded']),
+  "objectId": zod.string().uuid(),
+  "actorUserId": zod.string().uuid(),
+  "recordedAt": zod.date(),
+  "resultingVersion": zod.number().min(1),
+  "legalDecisionAutomated": zod.literal(false)
+}).strict(),
+  "legalDecisionAutomated": zod.literal(false),
+  "authorityNote": zod.string().min(1)
+}).strict()
+
+
+/**
+ * @summary Record a consent withdrawal receipt under compare-and-swap
+ */
+export const RecordPrivacyConsentWithdrawalParams = zod.object({
+  "id": zod.string().uuid()
+})
+
+export const recordPrivacyConsentWithdrawalHeaderIfMatchRegExp = new RegExp('^(?:W/)?"?[1-9][0-9]*"?$');
+
+
+export const RecordPrivacyConsentWithdrawalHeader = zod.object({
+  "If-Match": zod.string().regex(recordPrivacyConsentWithdrawalHeaderIfMatchRegExp).describe('Current positive integer resource version, optionally quoted or weakly prefixed.')
+})
+
+export const recordPrivacyConsentWithdrawalBodyEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const RecordPrivacyConsentWithdrawalBody = zod.object({
+  "withdrawnAt": zod.date(),
+  "evidenceSha256": zod.string().regex(recordPrivacyConsentWithdrawalBodyEvidenceSha256RegExp)
+}).strict()
+
+
+export const recordPrivacyConsentWithdrawalResponseReceiptReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+
+
+export const RecordPrivacyConsentWithdrawalResponse = zod.object({
+  "outcome": zod.literal("updated"),
+  "resultingVersion": zod.number().min(1),
+  "receipt": zod.object({
+  "receiptSha256": zod.string().regex(recordPrivacyConsentWithdrawalResponseReceiptReceiptSha256RegExp),
+  "eventType": zod.enum(['privacy.dsr_triage_recorded', 'privacy.consent_withdrawal_recorded', 'privacy.legal_hold_review_recorded']),
+  "objectId": zod.string().uuid(),
+  "actorUserId": zod.string().uuid(),
+  "recordedAt": zod.date(),
+  "resultingVersion": zod.number().min(1),
+  "legalDecisionAutomated": zod.literal(false)
+}).strict(),
+  "legalDecisionAutomated": zod.literal(false),
+  "authorityNote": zod.string().min(1)
+}).strict()
+
+
+/**
+ * Records evidence for human legal review; it makes no automated legal decision.
+ * @summary Record a legal-hold review recommendation
+ */
+export const RecordPrivacyLegalHoldReviewParams = zod.object({
+  "id": zod.string().uuid()
+})
+
+export const recordPrivacyLegalHoldReviewHeaderIfMatchRegExp = new RegExp('^(?:W/)?"?[1-9][0-9]*"?$');
+
+
+export const RecordPrivacyLegalHoldReviewHeader = zod.object({
+  "If-Match": zod.string().regex(recordPrivacyLegalHoldReviewHeaderIfMatchRegExp).describe('Current positive integer resource version, optionally quoted or weakly prefixed.')
+})
+
+export const recordPrivacyLegalHoldReviewBodyEvidenceSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const RecordPrivacyLegalHoldReviewBody = zod.object({
+  "reviewOutcome": zod.enum(['continue', 'escalate_for_legal_review', 'release_recommended']),
+  "nextReviewAt": zod.date(),
+  "evidenceSha256": zod.string().regex(recordPrivacyLegalHoldReviewBodyEvidenceSha256RegExp)
+}).strict()
+
+
+export const recordPrivacyLegalHoldReviewResponseReceiptReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+
+
+export const RecordPrivacyLegalHoldReviewResponse = zod.object({
+  "outcome": zod.literal("updated"),
+  "resultingVersion": zod.number().min(1),
+  "receipt": zod.object({
+  "receiptSha256": zod.string().regex(recordPrivacyLegalHoldReviewResponseReceiptReceiptSha256RegExp),
+  "eventType": zod.enum(['privacy.dsr_triage_recorded', 'privacy.consent_withdrawal_recorded', 'privacy.legal_hold_review_recorded']),
+  "objectId": zod.string().uuid(),
+  "actorUserId": zod.string().uuid(),
+  "recordedAt": zod.date(),
+  "resultingVersion": zod.number().min(1),
+  "legalDecisionAutomated": zod.literal(false)
+}).strict(),
+  "legalDecisionAutomated": zod.literal(false),
+  "authorityNote": zod.string().min(1)
+}).strict()
+
+
+/**
+ * @summary Read the human-governed claims and contract-events ledger
+ */
+export const GetClaimsDeskParams = zod.object({
+  "projectId": zod.string().uuid()
+})
+
+export const getClaimsDeskResponseProjectStatusMax = 80;
+
+export const getClaimsDeskResponseRecordsItemReferenceMax = 80;
+
+export const getClaimsDeskResponseRecordsItemAmountMinorMin = 0;
+export const getClaimsDeskResponseRecordsItemAmountMinorMax = 9007199254740991;
+
+export const getClaimsDeskResponseRecordsItemCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const getClaimsDeskResponseRecordsItemDocumentBindingsItemSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getClaimsDeskResponseRecordsItemDocumentBindingsMax = 10;
+
+
+export const getClaimsDeskResponseRecordsItemLatestReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getClaimsDeskResponseRecordsItemReasonHistoryItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getClaimsDeskResponseRecordsItemReasonHistoryMax = 100;
+
+export const getClaimsDeskResponseRecordsMax = 250;
+
+export const getClaimsDeskResponsePostureTotalMin = 0;
+
+export const getClaimsDeskResponsePostureOpenMin = 0;
+
+export const getClaimsDeskResponsePostureOverdueMin = 0;
+
+export const getClaimsDeskResponsePostureDueSoonMin = 0;
+
+export const getClaimsDeskResponsePostureAwaitingCheckerMin = 0;
+
+export const getClaimsDeskResponsePostureTerminalMin = 0;
+
+
+
+
+export const GetClaimsDeskResponse = zod.object({
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "projectStatus": zod.string().min(1).max(getClaimsDeskResponseProjectStatusMax),
+  "records": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "recordType": zod.enum(['contract_event', 'notice_deadline', 'variation', 'claim', 'payment_certificate', 'obligation']),
+  "reference": zod.string().min(1).max(getClaimsDeskResponseRecordsItemReferenceMax),
+  "eventDate": zod.date(),
+  "dueAt": zod.date().nullable(),
+  "amountMinor": zod.number().min(getClaimsDeskResponseRecordsItemAmountMinorMin).max(getClaimsDeskResponseRecordsItemAmountMinorMax).nullable(),
+  "currency": zod.string().regex(getClaimsDeskResponseRecordsItemCurrencyRegExp).nullable(),
+  "documentBindings": zod.array(zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(getClaimsDeskResponseRecordsItemDocumentBindingsItemSha256RegExp)
+}).strict()).min(1).max(getClaimsDeskResponseRecordsItemDocumentBindingsMax),
+  "status": zod.enum(['registered', 'under_review', 'assessment_proposed', 'assessed', 'closure_proposed', 'closed', 'withdrawn']),
+  "assessmentCode": zod.union([zod.literal('requires_further_review'),zod.literal('commercial_position_recorded'),zod.literal('not_progressed'),zod.literal(null)]).nullable(),
+  "pendingMakerUserId": zod.string().uuid().nullable(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date(),
+  "latestReceiptSha256": zod.string().regex(getClaimsDeskResponseRecordsItemLatestReceiptSha256RegExp),
+  "reasonHistory": zod.array(zod.object({
+  "action": zod.enum(['start_review', 'propose_assessment', 'approve_assessment', 'return_assessment', 'propose_closure', 'approve_closure', 'return_closure', 'withdraw']),
+  "reasonCode": zod.enum(['evidence_received', 'deadline_review', 'assessment_ready', 'assessment_checked', 'assessment_returned', 'closure_ready', 'closure_checked', 'closure_returned', 'duplicate_record', 'superseded_record', 'other_human_review']),
+  "assessmentCode": zod.union([zod.literal('requires_further_review'),zod.literal('commercial_position_recorded'),zod.literal('not_progressed'),zod.literal(null)]).nullable(),
+  "fromStatus": zod.enum(['registered', 'under_review', 'assessment_proposed', 'assessed', 'closure_proposed', 'closed', 'withdrawn']),
+  "toStatus": zod.enum(['registered', 'under_review', 'assessment_proposed', 'assessed', 'closure_proposed', 'closed', 'withdrawn']),
+  "actorUserId": zod.string().uuid(),
+  "occurredAt": zod.date(),
+  "receiptSha256": zod.string().regex(getClaimsDeskResponseRecordsItemReasonHistoryItemReceiptSha256RegExp)
+}).strict()).max(getClaimsDeskResponseRecordsItemReasonHistoryMax)
+}).strict()).max(getClaimsDeskResponseRecordsMax),
+  "posture": zod.object({
+  "total": zod.number().min(getClaimsDeskResponsePostureTotalMin),
+  "open": zod.number().min(getClaimsDeskResponsePostureOpenMin),
+  "overdue": zod.number().min(getClaimsDeskResponsePostureOverdueMin),
+  "dueSoon": zod.number().min(getClaimsDeskResponsePostureDueSoonMin),
+  "awaitingChecker": zod.number().min(getClaimsDeskResponsePostureAwaitingCheckerMin),
+  "terminal": zod.number().min(getClaimsDeskResponsePostureTerminalMin)
+}).strict(),
+  "truncated": zod.literal(false),
+  "generatedAt": zod.date(),
+  "legalConclusionAutomated": zod.literal(false),
+  "noticeDispatched": zod.literal(false),
+  "paymentMutated": zod.literal(false),
+  "authorityNote": zod.string().min(1)
+}).strict()
+
+
+/**
+ * @summary Register a contract event, deadline, variation, claim, certificate or obligation
+ */
+export const CreateClaimsDeskRecordParams = zod.object({
+  "projectId": zod.string().uuid()
+})
+
+export const createClaimsDeskRecordBodyReferenceMax = 80;
+
+export const createClaimsDeskRecordBodyAmountMinorMin = 0;
+export const createClaimsDeskRecordBodyAmountMinorMax = 9007199254740991;
+
+export const createClaimsDeskRecordBodyCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const createClaimsDeskRecordBodyDocumentBindingsItemSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createClaimsDeskRecordBodyDocumentBindingsMax = 10;
+
+export const createClaimsDeskRecordBodyIdempotencyKeyMax = 128;
+
+
+
+export const CreateClaimsDeskRecordBody = zod.object({
+  "recordType": zod.enum(['contract_event', 'notice_deadline', 'variation', 'claim', 'payment_certificate', 'obligation']),
+  "reference": zod.string().min(1).max(createClaimsDeskRecordBodyReferenceMax),
+  "eventDate": zod.date(),
+  "dueAt": zod.date().nullable(),
+  "amountMinor": zod.number().min(createClaimsDeskRecordBodyAmountMinorMin).max(createClaimsDeskRecordBodyAmountMinorMax).nullable(),
+  "currency": zod.string().regex(createClaimsDeskRecordBodyCurrencyRegExp).nullable(),
+  "documentBindings": zod.array(zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(createClaimsDeskRecordBodyDocumentBindingsItemSha256RegExp)
+}).strict()).min(1).max(createClaimsDeskRecordBodyDocumentBindingsMax),
+  "idempotencyKey": zod.string().min(1).max(createClaimsDeskRecordBodyIdempotencyKeyMax)
+}).strict()
+
+export const createClaimsDeskRecordResponseRecordReferenceMax = 80;
+
+export const createClaimsDeskRecordResponseRecordAmountMinorMin = 0;
+export const createClaimsDeskRecordResponseRecordAmountMinorMax = 9007199254740991;
+
+export const createClaimsDeskRecordResponseRecordCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const createClaimsDeskRecordResponseRecordDocumentBindingsItemSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createClaimsDeskRecordResponseRecordDocumentBindingsMax = 10;
+
+
+export const createClaimsDeskRecordResponseRecordLatestReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createClaimsDeskRecordResponseRecordReasonHistoryItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createClaimsDeskRecordResponseRecordReasonHistoryMax = 100;
+
+
+
+
+export const CreateClaimsDeskRecordResponse = zod.object({
+  "outcome": zod.enum(['created', 'updated']),
+  "record": zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "recordType": zod.enum(['contract_event', 'notice_deadline', 'variation', 'claim', 'payment_certificate', 'obligation']),
+  "reference": zod.string().min(1).max(createClaimsDeskRecordResponseRecordReferenceMax),
+  "eventDate": zod.date(),
+  "dueAt": zod.date().nullable(),
+  "amountMinor": zod.number().min(createClaimsDeskRecordResponseRecordAmountMinorMin).max(createClaimsDeskRecordResponseRecordAmountMinorMax).nullable(),
+  "currency": zod.string().regex(createClaimsDeskRecordResponseRecordCurrencyRegExp).nullable(),
+  "documentBindings": zod.array(zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(createClaimsDeskRecordResponseRecordDocumentBindingsItemSha256RegExp)
+}).strict()).min(1).max(createClaimsDeskRecordResponseRecordDocumentBindingsMax),
+  "status": zod.enum(['registered', 'under_review', 'assessment_proposed', 'assessed', 'closure_proposed', 'closed', 'withdrawn']),
+  "assessmentCode": zod.union([zod.literal('requires_further_review'),zod.literal('commercial_position_recorded'),zod.literal('not_progressed'),zod.literal(null)]).nullable(),
+  "pendingMakerUserId": zod.string().uuid().nullable(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date(),
+  "latestReceiptSha256": zod.string().regex(createClaimsDeskRecordResponseRecordLatestReceiptSha256RegExp),
+  "reasonHistory": zod.array(zod.object({
+  "action": zod.enum(['start_review', 'propose_assessment', 'approve_assessment', 'return_assessment', 'propose_closure', 'approve_closure', 'return_closure', 'withdraw']),
+  "reasonCode": zod.enum(['evidence_received', 'deadline_review', 'assessment_ready', 'assessment_checked', 'assessment_returned', 'closure_ready', 'closure_checked', 'closure_returned', 'duplicate_record', 'superseded_record', 'other_human_review']),
+  "assessmentCode": zod.union([zod.literal('requires_further_review'),zod.literal('commercial_position_recorded'),zod.literal('not_progressed'),zod.literal(null)]).nullable(),
+  "fromStatus": zod.enum(['registered', 'under_review', 'assessment_proposed', 'assessed', 'closure_proposed', 'closed', 'withdrawn']),
+  "toStatus": zod.enum(['registered', 'under_review', 'assessment_proposed', 'assessed', 'closure_proposed', 'closed', 'withdrawn']),
+  "actorUserId": zod.string().uuid(),
+  "occurredAt": zod.date(),
+  "receiptSha256": zod.string().regex(createClaimsDeskRecordResponseRecordReasonHistoryItemReceiptSha256RegExp)
+}).strict()).max(createClaimsDeskRecordResponseRecordReasonHistoryMax)
+}).strict(),
+  "replayed": zod.boolean(),
+  "legalConclusionAutomated": zod.literal(false),
+  "noticeDispatched": zod.literal(false),
+  "paymentMutated": zod.literal(false),
+  "authorityNote": zod.string().min(1)
+}).strict()
+
+
+/**
+ * @summary Record a maker-checker Claims Desk transition
+ */
+export const TransitionClaimsDeskRecordParams = zod.object({
+  "projectId": zod.string().uuid(),
+  "recordId": zod.string().uuid().describe('Operations record UUID within the active tenant and project.')
+})
+
+export const transitionClaimsDeskRecordHeaderIfMatchRegExp = new RegExp('^(?:W/)?"?[1-9][0-9]*"?$');
+
+
+export const TransitionClaimsDeskRecordHeader = zod.object({
+  "If-Match": zod.string().regex(transitionClaimsDeskRecordHeaderIfMatchRegExp).describe('Current positive integer resource version, optionally quoted or weakly prefixed.')
+})
+
+export const transitionClaimsDeskRecordBodyDocumentBindingsItemSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const transitionClaimsDeskRecordBodyDocumentBindingsMax = 10;
+
+export const transitionClaimsDeskRecordBodyIdempotencyKeyMax = 128;
+
+
+
+export const TransitionClaimsDeskRecordBody = zod.object({
+  "action": zod.enum(['start_review', 'propose_assessment', 'approve_assessment', 'return_assessment', 'propose_closure', 'approve_closure', 'return_closure', 'withdraw']),
+  "reasonCode": zod.enum(['evidence_received', 'deadline_review', 'assessment_ready', 'assessment_checked', 'assessment_returned', 'closure_ready', 'closure_checked', 'closure_returned', 'duplicate_record', 'superseded_record', 'other_human_review']),
+  "assessmentCode": zod.union([zod.literal('requires_further_review'),zod.literal('commercial_position_recorded'),zod.literal('not_progressed'),zod.literal(null)]).nullable(),
+  "documentBindings": zod.array(zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(transitionClaimsDeskRecordBodyDocumentBindingsItemSha256RegExp)
+}).strict()).min(1).max(transitionClaimsDeskRecordBodyDocumentBindingsMax),
+  "idempotencyKey": zod.string().min(1).max(transitionClaimsDeskRecordBodyIdempotencyKeyMax)
+}).strict()
+
+export const transitionClaimsDeskRecordResponseRecordReferenceMax = 80;
+
+export const transitionClaimsDeskRecordResponseRecordAmountMinorMin = 0;
+export const transitionClaimsDeskRecordResponseRecordAmountMinorMax = 9007199254740991;
+
+export const transitionClaimsDeskRecordResponseRecordCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const transitionClaimsDeskRecordResponseRecordDocumentBindingsItemSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const transitionClaimsDeskRecordResponseRecordDocumentBindingsMax = 10;
+
+
+export const transitionClaimsDeskRecordResponseRecordLatestReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const transitionClaimsDeskRecordResponseRecordReasonHistoryItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const transitionClaimsDeskRecordResponseRecordReasonHistoryMax = 100;
+
+
+
+
+export const TransitionClaimsDeskRecordResponse = zod.object({
+  "outcome": zod.enum(['created', 'updated']),
+  "record": zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "recordType": zod.enum(['contract_event', 'notice_deadline', 'variation', 'claim', 'payment_certificate', 'obligation']),
+  "reference": zod.string().min(1).max(transitionClaimsDeskRecordResponseRecordReferenceMax),
+  "eventDate": zod.date(),
+  "dueAt": zod.date().nullable(),
+  "amountMinor": zod.number().min(transitionClaimsDeskRecordResponseRecordAmountMinorMin).max(transitionClaimsDeskRecordResponseRecordAmountMinorMax).nullable(),
+  "currency": zod.string().regex(transitionClaimsDeskRecordResponseRecordCurrencyRegExp).nullable(),
+  "documentBindings": zod.array(zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(transitionClaimsDeskRecordResponseRecordDocumentBindingsItemSha256RegExp)
+}).strict()).min(1).max(transitionClaimsDeskRecordResponseRecordDocumentBindingsMax),
+  "status": zod.enum(['registered', 'under_review', 'assessment_proposed', 'assessed', 'closure_proposed', 'closed', 'withdrawn']),
+  "assessmentCode": zod.union([zod.literal('requires_further_review'),zod.literal('commercial_position_recorded'),zod.literal('not_progressed'),zod.literal(null)]).nullable(),
+  "pendingMakerUserId": zod.string().uuid().nullable(),
+  "version": zod.number().min(1),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date(),
+  "latestReceiptSha256": zod.string().regex(transitionClaimsDeskRecordResponseRecordLatestReceiptSha256RegExp),
+  "reasonHistory": zod.array(zod.object({
+  "action": zod.enum(['start_review', 'propose_assessment', 'approve_assessment', 'return_assessment', 'propose_closure', 'approve_closure', 'return_closure', 'withdraw']),
+  "reasonCode": zod.enum(['evidence_received', 'deadline_review', 'assessment_ready', 'assessment_checked', 'assessment_returned', 'closure_ready', 'closure_checked', 'closure_returned', 'duplicate_record', 'superseded_record', 'other_human_review']),
+  "assessmentCode": zod.union([zod.literal('requires_further_review'),zod.literal('commercial_position_recorded'),zod.literal('not_progressed'),zod.literal(null)]).nullable(),
+  "fromStatus": zod.enum(['registered', 'under_review', 'assessment_proposed', 'assessed', 'closure_proposed', 'closed', 'withdrawn']),
+  "toStatus": zod.enum(['registered', 'under_review', 'assessment_proposed', 'assessed', 'closure_proposed', 'closed', 'withdrawn']),
+  "actorUserId": zod.string().uuid(),
+  "occurredAt": zod.date(),
+  "receiptSha256": zod.string().regex(transitionClaimsDeskRecordResponseRecordReasonHistoryItemReceiptSha256RegExp)
+}).strict()).max(transitionClaimsDeskRecordResponseRecordReasonHistoryMax)
+}).strict(),
+  "replayed": zod.boolean(),
+  "legalConclusionAutomated": zod.literal(false),
+  "noticeDispatched": zod.literal(false),
+  "paymentMutated": zod.literal(false),
+  "authorityNote": zod.string().min(1)
+}).strict()
 
 
 /**

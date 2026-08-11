@@ -42,9 +42,76 @@ export { parseExpectedVersion } from "../lib/permissions";
 import { isTenantFeatureEnabled } from "../lib/featureFlags";
 import { writeAudit } from "../lib/audit";
 import { isProjectContentImmutable } from "../lib/reportPolicy";
+import { CLAIMS_DESK_RELEASED_LEDGER_ROUTE_EXCEPTIONS } from "../lib/claimsDesk/activation";
 
 export const ORGANISATION_HEADER = "x-valo-organisation-id";
 export const BREAK_GLASS_HEADER = "x-valo-break-glass-session";
+
+const RELEASED_OPERATIONS_LEDGER_MUTATIONS: ReadonlyArray<{
+  method: "PATCH" | "POST";
+  path: RegExp;
+}> = Object.freeze([
+  ...CLAIMS_DESK_RELEASED_LEDGER_ROUTE_EXCEPTIONS,
+  {
+    method: "POST",
+    path: /^\/projects\/[^/]+\/operations-suite\/submission-war-rooms$/u,
+  },
+  {
+    method: "POST",
+    path: /^\/projects\/[^/]+\/operations-suite\/submission-war-rooms\/[^/]+\/advance$/u,
+  },
+  {
+    method: "POST",
+    path: /^\/projects\/[^/]+\/operations-suite\/visual-qa-reports$/u,
+  },
+  {
+    method: "POST",
+    path: /^\/projects\/[^/]+\/operations-suite\/post-award-items$/u,
+  },
+  {
+    method: "PATCH",
+    path: /^\/projects\/[^/]+\/operations-suite\/post-award-items\/[^/]+$/u,
+  },
+  {
+    method: "POST",
+    path: /^\/projects\/[^/]+\/client-actions\/package-deliveries$/u,
+  },
+  {
+    method: "POST",
+    path: /^\/projects\/[^/]+\/client-actions\/package-deliveries\/[^/]+\/acknowledgements$/u,
+  },
+  {
+    method: "POST",
+    path: /^\/projects\/[^/]+\/communications\/intents$/u,
+  },
+  {
+    method: "POST",
+    path: /^\/projects\/[^/]+\/communications\/intents\/[^/]+\/attempts$/u,
+  },
+  {
+    method: "POST",
+    path: /^\/projects\/[^/]+\/communications\/intents\/[^/]+\/reconciliations$/u,
+  },
+]);
+
+/**
+ * Released tender/report/document content stays immutable, while these exact
+ * append-only Operations ledger workflows remain usable after sign-off. An
+ * archived project is terminal and therefore never receives this exception.
+ */
+export function canMutateReleasedOperationsLedger(
+  projectStatus: string,
+  method: string,
+  path: string,
+): boolean {
+  if (projectStatus !== "signed_off" && projectStatus !== "exported") {
+    return false;
+  }
+  const normalizedMethod = method.toUpperCase();
+  return RELEASED_OPERATIONS_LEDGER_MUTATIONS.some(
+    (route) => route.method === normalizedMethod && route.path.test(path),
+  );
+}
 
 export interface AccessContext {
   organisationId: string;
@@ -593,7 +660,15 @@ export async function enforceTenantResourceBoundary(
           .select({ status: projects.status })
           .from(projects)
           .where(eq(projects.id, projectId));
-        if (project && isProjectContentImmutable(project.status)) {
+        if (
+          project &&
+          isProjectContentImmutable(project.status) &&
+          !canMutateReleasedOperationsLedger(
+            project.status,
+            req.method,
+            req.path,
+          )
+        ) {
           res.status(409).json({
             error:
               "Released project content is immutable; use a governed reopen workflow.",

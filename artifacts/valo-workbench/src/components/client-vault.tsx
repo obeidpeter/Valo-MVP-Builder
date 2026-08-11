@@ -291,6 +291,9 @@ export function ClientVault({ clientId }: { clientId: string }) {
                         className="font-mono"
                       >
                         {item.sha256.slice(0, 12)}...
+                        <span className="ml-2 font-sans text-muted-foreground">
+                          v{item.version}
+                        </span>
                       </span>
                     ) : (
                       "-"

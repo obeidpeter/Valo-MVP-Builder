@@ -23,6 +23,7 @@ const TEST_PERMISSIONS = [
   "audit:read",
   "membership:manage",
   "configuration:manage",
+  "organisation:read",
 ];
 
 vi.mock("@clerk/clerk-react", () => ({
@@ -183,6 +184,9 @@ describe("access gating in Layout", () => {
     renderLayout();
     expect(screen.getByLabelText(/valo command centre/i)).toBeInTheDocument();
     expect(screen.getByText(/^command centre$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^pursuit operations$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^commercial & claims desk$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^getting started & offers$/i)).toBeInTheDocument();
     expect(screen.getByTestId("protected-child")).toBeInTheDocument();
     expect(screen.queryByText(/pending access/i)).not.toBeInTheDocument();
     expect(
@@ -203,6 +207,7 @@ describe("access gating in Layout", () => {
     };
     renderLayout();
     expect(screen.getByText(/^platform operations$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^getting started & offers$/i)).toBeInTheDocument();
   });
 
   it("hides the Settings nav item from an approved reviewer", () => {
@@ -239,6 +244,8 @@ describe("access gating in Layout", () => {
     expect(screen.getByText(/^pursuits$/i)).toBeInTheDocument();
     expect(screen.getByText(/^clients$/i)).toBeInTheDocument();
     expect(screen.getByText(/evidence library/i)).toBeInTheDocument();
+    expect(screen.getByText(/^pursuit operations$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^getting started & offers$/i)).toBeInTheDocument();
     expect(screen.getByText(/billing & entitlements/i)).toBeInTheDocument();
     expect(screen.queryByText(/^reviews$/i)).not.toBeInTheDocument();
     expect(
@@ -259,6 +266,7 @@ describe("access gating in Layout", () => {
     };
     renderLayout();
     expect(screen.getByText(/partner workspace/i)).toBeInTheDocument();
+    expect(screen.getByText(/^consortium room$/i)).toBeInTheDocument();
     expect(screen.getByText(/evidence library/i)).toBeInTheDocument();
     expect(screen.getByText(/notifications/i)).toBeInTheDocument();
     expect(

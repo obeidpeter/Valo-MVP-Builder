@@ -17,10 +17,24 @@ import vaultRouter from "./vault";
 import capabilityRouter from "./capability";
 import sbdRouter from "./sbd";
 import operationsRouter from "./operations";
+import {
+  createDbOperationsSuiteGuards,
+  createOperationsSuiteRouter,
+} from "./operationsSuite";
 import analyticsRouter from "./analytics";
 import configRouter from "./config";
 import aiOperationsRouter from "./aiOperations";
 import intelligenceRouter from "./intelligence";
+import { createGrowthSuiteRouter } from "./growthSuite";
+import { createClientActionPortalRouter } from "./clientActionPortal";
+import { createOpportunitySourceNetworkRouter } from "./opportunitySourceNetwork";
+import { createProductionAcceptanceRouter } from "./productionAcceptance";
+import { createAiShadowProgrammeRouter } from "./aiShadowProgramme";
+import { createDisconnectedReconciledCommunicationsRouter } from "./reconciledCommunications";
+import { createPrivacyOperationsRouter } from "./privacyOperationsCentre";
+import { createCommercialRetainerRouter } from "./commercialRetainer";
+import { createDefaultPartnerConsortiumRoomRouter } from "./partnerConsortiumRoom";
+import { createClaimsDeskRouter } from "./claimsDesk";
 import organisationsRouter from "./organisations";
 import partnerRelationshipsRouter from "./partnerRelationships";
 import breakGlassRouter from "./breakGlass";
@@ -32,6 +46,49 @@ import {
   enforceTenantResourceBoundary,
 } from "../middlewares/tenancy";
 import { attachTenantDatabase } from "../middlewares/databaseTenancy";
+import { DrizzleOperationsSuiteStore } from "../lib/operationsSuite/drizzleStore";
+import { createDrizzleGrowthSuiteRepository } from "../lib/growthSuite/drizzleRepository";
+import { createDrizzleOnboardingProgressRepository } from "../lib/growthSuite/onboardingProgress";
+import {
+  ClientActionService,
+  DrizzleClientActionRepository,
+  createDbClientActionAuthority,
+} from "../lib/clientActionPortal";
+import { AuditProductionAcceptanceRepository } from "../lib/productionAcceptance";
+import { createCommercialRetainerService } from "../lib/commercialRetainer/service";
+import { createDrizzleCommercialRetainerRepository } from "../lib/commercialRetainer/drizzleRepository";
+
+const operationsSuiteGuards = createDbOperationsSuiteGuards();
+const operationsSuiteRouter = createOperationsSuiteRouter({
+  projectGuard: operationsSuiteGuards.projectGuard,
+  references: operationsSuiteGuards.references,
+  store: new DrizzleOperationsSuiteStore(),
+});
+const growthSuiteRouter = createGrowthSuiteRouter({
+  repository: createDrizzleGrowthSuiteRepository(),
+  onboardingProgressRepository: createDrizzleOnboardingProgressRepository(),
+});
+const clientActionPortalRouter = createClientActionPortalRouter({
+  service: new ClientActionService({
+    repository: new DrizzleClientActionRepository(),
+    authority: createDbClientActionAuthority(),
+  }),
+});
+const opportunitySourceNetworkRouter = createOpportunitySourceNetworkRouter();
+const productionAcceptanceRouter = createProductionAcceptanceRouter({
+  repository: new AuditProductionAcceptanceRepository(),
+});
+const aiShadowProgrammeRouter = createAiShadowProgrammeRouter();
+const reconciledCommunicationsRouter =
+  createDisconnectedReconciledCommunicationsRouter();
+const privacyOperationsRouter = createPrivacyOperationsRouter();
+const commercialRetainerRouter = createCommercialRetainerRouter({
+  service: createCommercialRetainerService({
+    repository: createDrizzleCommercialRetainerRepository(),
+  }),
+});
+const partnerConsortiumRoomRouter = createDefaultPartnerConsortiumRoomRouter();
+const claimsDeskRouter = createClaimsDeskRouter();
 
 const router: IRouter = Router();
 
@@ -69,8 +126,19 @@ router.use(vaultRouter);
 router.use(capabilityRouter);
 router.use(sbdRouter);
 router.use(operationsRouter);
+router.use(operationsSuiteRouter);
+router.use(growthSuiteRouter);
+router.use("/commercial-retainer", commercialRetainerRouter);
+router.use(clientActionPortalRouter);
+router.use(partnerConsortiumRoomRouter);
+router.use(reconciledCommunicationsRouter);
+router.use(opportunitySourceNetworkRouter);
+router.use(productionAcceptanceRouter);
+router.use(privacyOperationsRouter);
+router.use(claimsDeskRouter);
 router.use(analyticsRouter);
 router.use(aiOperationsRouter);
+router.use(aiShadowProgrammeRouter);
 router.use(intelligenceRouter);
 router.use(configRouter);
 router.use(storageRouter);

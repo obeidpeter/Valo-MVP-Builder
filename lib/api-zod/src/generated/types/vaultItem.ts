@@ -26,6 +26,8 @@ export interface VaultItem {
   expiryDate?: string | null;
   renewalLeadDays?: number | null;
   status: string;
+  /** @minimum 1 */
+  version: number;
   objectPath?: string | null;
   sha256?: string | null;
   sourceDocumentId?: string | null;

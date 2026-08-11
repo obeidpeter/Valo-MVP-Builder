@@ -56,6 +56,7 @@ export default function RequireArea({
     area,
     platformFeatureFlags(),
     organisationAccess.effectivePermissions,
+    organisationAccess.activeOrganisation.accessSource,
   );
   if (!decision.allowed) {
     return (

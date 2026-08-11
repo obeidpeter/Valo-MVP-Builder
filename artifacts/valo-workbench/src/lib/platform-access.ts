@@ -32,11 +32,21 @@ export type PlatformRoleInput = string | readonly string[] | null | undefined;
 export type PlatformArea =
   | "workbench"
   | "pursuit_workbench"
+  | "pursuit_operations"
   | "operations"
+  | "growth_operations"
+  | "opportunity_sources"
+  | "client_actions"
+  | "production_acceptance"
+  | "ai_shadow"
+  | "field_companion"
+  | "privacy_operations"
   | "client_portal"
   | "partner_workspace"
   | "evidence_readiness"
   | "billing_entitlements"
+  | "commercial_retainer"
+  | "claims_desk"
   | "notifications"
   | "security_audit"
   | "organisation_settings"
@@ -62,6 +72,8 @@ export interface PlatformAccessDecision {
   state: "active" | "pending_activation" | "denied";
   reason: string;
 }
+
+export type PlatformAccessSource = "membership" | "partner";
 
 export interface PlatformNavItem {
   href: string;
@@ -129,6 +141,31 @@ const SETTINGS_ROLES = new Set<PlatformRole>([
   "valo_operations_administrator",
 ]);
 
+const PURSUIT_ROLES = new Set<PlatformRole>([
+  ...INTERNAL_ROLES,
+  ...CLIENT_ROLES,
+  ...PARTNER_ROLES,
+  "read_only_auditor",
+  "client_auditor",
+]);
+
+const GROWTH_OPERATIONS_ROLES = new Set<PlatformRole>([...PURSUIT_ROLES]);
+
+const COMMERCIAL_RETAINER_ROLES = new Set<PlatformRole>([
+  ...INTERNAL_ROLES,
+  ...CLIENT_ROLES,
+  ...PARTNER_ROLES,
+]);
+
+const PRODUCTION_ACCEPTANCE_ROLES = new Set<PlatformRole>([
+  "admin",
+  "valo_operations_admin",
+  "valo_operations_administrator",
+  "valo_quality_adviser",
+  "platform_admin_restricted",
+  "restricted_platform_administrator",
+]);
+
 const QUALITY_ROLES = new Set<PlatformRole>([
   "admin",
   "reviewer",
@@ -159,14 +196,16 @@ const AREA_ROLES: Record<PlatformArea, ReadonlySet<PlatformRole>> = {
   // listed only after the backend validates the partner membership,
   // relationship lifecycle and commercial activation; the client is never
   // inferred from the role.
-  pursuit_workbench: new Set<PlatformRole>([
-    ...INTERNAL_ROLES,
-    ...CLIENT_ROLES,
-    ...PARTNER_ROLES,
-    "read_only_auditor",
-    "client_auditor",
-  ]),
+  pursuit_workbench: PURSUIT_ROLES,
+  pursuit_operations: PURSUIT_ROLES,
   operations: INTERNAL_ROLES,
+  growth_operations: GROWTH_OPERATIONS_ROLES,
+  opportunity_sources: PURSUIT_ROLES,
+  client_actions: PURSUIT_ROLES,
+  production_acceptance: PRODUCTION_ACCEPTANCE_ROLES,
+  ai_shadow: PRODUCTION_ACCEPTANCE_ROLES,
+  field_companion: PURSUIT_ROLES,
+  privacy_operations: QUALITY_ROLES,
   client_portal: new Set<PlatformRole>(["admin", ...CLIENT_ROLES]),
   partner_workspace: new Set<PlatformRole>(["admin", ...PARTNER_ROLES]),
   evidence_readiness: QUALITY_ROLES,
@@ -181,6 +220,8 @@ const AREA_ROLES: Record<PlatformArea, ReadonlySet<PlatformRole>> = {
     "client_administrator",
     "consultancy_partner_administrator",
   ]),
+  commercial_retainer: COMMERCIAL_RETAINER_ROLES,
+  claims_desk: PURSUIT_ROLES,
   notifications: new Set<PlatformRole>([
     ...INTERNAL_ROLES,
     ...CLIENT_ROLES,
@@ -215,15 +256,30 @@ const AREA_FEATURE: Partial<Record<PlatformArea, CommercialFeature>> = {
 const AREA_REQUIRED_PERMISSION: Partial<Record<PlatformArea, string>> = {
   workbench: "analytics:read",
   pursuit_workbench: "project:read",
+  pursuit_operations: "project:read",
   operations: "project:read",
+  growth_operations: "organisation:read",
+  opportunity_sources: "organisation:read",
+  client_actions: "project:read",
+  production_acceptance: "audit:read",
+  ai_shadow: "evaluation:read",
+  field_companion: "project:read",
+  privacy_operations: "privacy:read",
   client_portal: "project:read",
   partner_workspace: "partner_relationship:read",
   evidence_readiness: "evidence:read",
   billing_entitlements: "entitlement:read",
   notifications: "project:read",
+  claims_desk: "project:read",
   security_audit: "audit:read",
   organisation_settings: "membership:manage",
   settings: "configuration:manage",
+};
+
+const AREA_REQUIRED_PERMISSIONS: Partial<
+  Record<PlatformArea, readonly string[]>
+> = {
+  commercial_retainer: ["billing:read", "entitlement:read"],
 };
 
 const NAV_ITEMS: PlatformNavItem[] = [
@@ -242,6 +298,13 @@ const NAV_ITEMS: PlatformNavItem[] = [
     requiredPermission: "project:read",
   },
   {
+    href: "/opportunity-sources",
+    label: "Opportunity Sources",
+    area: "opportunity_sources",
+    group: "Workspace",
+    requiredPermission: "organisation:read",
+  },
+  {
     href: "/intelligence",
     label: "Intelligence Centre",
     area: "pursuit_workbench",
@@ -257,12 +320,27 @@ const NAV_ITEMS: PlatformNavItem[] = [
     requiredPermission: "project:read",
   },
   {
+    href: "/client-actions",
+    label: "Client Action Room",
+    area: "client_actions",
+    group: "Workspace",
+    requiredPermission: "project:read",
+  },
+  {
     href: "/partner",
     label: "Partner workspace",
     area: "partner_workspace",
     group: "Workspace",
     feature: "partnerWorkspace",
     requiredPermission: "partner_relationship:read",
+  },
+  {
+    href: "/consortium-room",
+    label: "Consortium Room",
+    area: "partner_workspace",
+    group: "Workspace",
+    feature: "partnerWorkspace",
+    requiredPermissions: ["partner_relationship:read", "project:read"],
   },
   {
     href: "/sbd",
@@ -277,6 +355,20 @@ const NAV_ITEMS: PlatformNavItem[] = [
     area: "evidence_readiness",
     group: "Delivery",
     requiredPermission: "evidence:read",
+  },
+  {
+    href: "/pursuit-operations",
+    label: "Pursuit Operations",
+    area: "pursuit_operations",
+    group: "Delivery",
+    requiredPermission: "project:read",
+  },
+  {
+    href: "/field-companion",
+    label: "Field Companion",
+    area: "field_companion",
+    group: "Delivery",
+    requiredPermission: "project:read",
   },
   {
     href: "/operations",
@@ -300,6 +392,13 @@ const NAV_ITEMS: PlatformNavItem[] = [
     requiredPermission: "client:read",
   },
   {
+    href: "/growth-operations",
+    label: "Getting Started & Offers",
+    area: "growth_operations",
+    group: "Oversight",
+    requiredPermission: "organisation:read",
+  },
+  {
     href: "/billing",
     label: "Billing & entitlements",
     area: "billing_entitlements",
@@ -308,8 +407,30 @@ const NAV_ITEMS: PlatformNavItem[] = [
     requiredPermission: "entitlement:read",
   },
   {
+    href: "/commercial-retainer",
+    label: "Commercial & Retainer",
+    area: "commercial_retainer",
+    group: "Oversight",
+    requiredPermissions: ["billing:read", "entitlement:read"],
+  },
+  {
+    href: "/claims-desk",
+    label: "Commercial & Claims Desk",
+    area: "claims_desk",
+    group: "Oversight",
+    requiredPermission: "project:read",
+  },
+  {
     href: "/notifications",
     label: "Notifications",
+    area: "notifications",
+    group: "Oversight",
+    feature: "notificationAdapters",
+    requiredPermission: "project:read",
+  },
+  {
+    href: "/communications",
+    label: "Communication Receipts",
     area: "notifications",
     group: "Oversight",
     feature: "notificationAdapters",
@@ -321,6 +442,27 @@ const NAV_ITEMS: PlatformNavItem[] = [
     area: "security_audit",
     group: "Administration",
     requiredPermission: "audit:read",
+  },
+  {
+    href: "/privacy-operations",
+    label: "Privacy Operations",
+    area: "privacy_operations",
+    group: "Administration",
+    requiredPermission: "privacy:read",
+  },
+  {
+    href: "/production-acceptance",
+    label: "Production Acceptance",
+    area: "production_acceptance",
+    group: "Administration",
+    requiredPermission: "audit:read",
+  },
+  {
+    href: "/ai-shadow",
+    label: "AI Shadow Programme",
+    area: "ai_shadow",
+    group: "Administration",
+    requiredPermission: "evaluation:read",
   },
   {
     href: "/organisation-settings",
@@ -425,6 +567,7 @@ export function getPlatformAccessDecision(
   area: PlatformArea,
   flags: PlatformFeatureFlags = platformFeatureFlags(),
   effectivePermissions?: readonly string[],
+  accessSource?: PlatformAccessSource,
 ): PlatformAccessDecision {
   const normalized = normalizePlatformRoles(role);
   const allowed = normalized.some((assignedRole) =>
@@ -456,6 +599,48 @@ export function getPlatformAccessDecision(
     };
   }
 
+  const requiredPermissions = AREA_REQUIRED_PERMISSIONS[area];
+  if (
+    requiredPermissions &&
+    effectivePermissions !== undefined &&
+    !requiredPermissions.every((permission) =>
+      effectivePermissions.includes(permission),
+    )
+  ) {
+    return {
+      area,
+      allowed: false,
+      enabled: false,
+      state: "denied",
+      reason:
+        "The selected organisation context does not grant every required permission.",
+    };
+  }
+
+  if (
+    [
+      "growth_operations",
+      "opportunity_sources",
+      "client_actions",
+      "production_acceptance",
+      "ai_shadow",
+      "field_companion",
+      "privacy_operations",
+      "commercial_retainer",
+      "claims_desk",
+    ].includes(area) &&
+    accessSource !== "membership"
+  ) {
+    return {
+      area,
+      allowed: false,
+      enabled: false,
+      state: "denied",
+      reason:
+        "This workspace requires a direct membership in the selected organisation.",
+    };
+  }
+
   const feature = AREA_FEATURE[area];
   const featureEnabled = feature ? flags[feature] : true;
   if (!featureEnabled) {
@@ -482,6 +667,7 @@ export function navigationForRole(
   role: PlatformRoleInput,
   flags: PlatformFeatureFlags = platformFeatureFlags(),
   effectivePermissions?: readonly string[],
+  accessSource?: PlatformAccessSource,
 ): Array<PlatformNavItem & { state: PlatformAccessDecision["state"] }> {
   return NAV_ITEMS.flatMap((item) => {
     const decision = getPlatformAccessDecision(
@@ -489,6 +675,7 @@ export function navigationForRole(
       item.area,
       flags,
       effectivePermissions,
+      accessSource,
     );
     const singlePermissionAllowed =
       !item.requiredPermission ||

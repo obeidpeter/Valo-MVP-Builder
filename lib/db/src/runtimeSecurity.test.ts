@@ -128,6 +128,10 @@ const intakeRetentionMigration = readFileSync(
   new URL("../migrations/0005_tranquil_jack_power.sql", import.meta.url),
   "utf8",
 );
+const intakeOperationsMigration = readFileSync(
+  new URL("../migrations/0006_lead_operations_queue.sql", import.meta.url),
+  "utf8",
+);
 
 function intakeFunctionSource(migration: string, functionName: string): string {
   const match = migration.match(
@@ -170,6 +174,38 @@ function migrationIntakeFunctions() {
       function_source: intakeFunctionSource(
         intakeLimiterMigration,
         "consume_bid_autopsy_rate_limit",
+      ),
+    },
+    {
+      ...common,
+      function_name: "get_bid_autopsy_contact_handoff",
+      argument_count: 1,
+      argument_types: "uuid",
+      identity_arguments: "p_request_id uuid",
+      return_type: "record",
+      function_result:
+        "TABLE(request_id uuid, contact_name text, preferred_contact_method text, contact_value text)",
+      returns_set: true,
+      runtime_can_execute: true,
+      function_source: intakeFunctionSource(
+        intakeOperationsMigration,
+        "get_bid_autopsy_contact_handoff",
+      ),
+    },
+    {
+      ...common,
+      function_name: "list_bid_autopsy_work_queue",
+      argument_count: 1,
+      argument_types: "integer",
+      identity_arguments: "p_limit integer",
+      return_type: "record",
+      function_result:
+        "TABLE(request_id uuid, organisation_label text, tender_category text, bid_stage text, tender_deadline date, delivery_status text, received_at timestamp with time zone)",
+      returns_set: true,
+      runtime_can_execute: true,
+      function_source: intakeFunctionSource(
+        intakeOperationsMigration,
+        "list_bid_autopsy_work_queue",
       ),
     },
     {
@@ -218,6 +254,22 @@ function migrationIntakeFunctions() {
       function_source: intakeFunctionSource(
         intakeRetentionMigration,
         "store_bid_autopsy_request",
+      ),
+    },
+    {
+      ...common,
+      function_name: "transition_bid_autopsy_work_queue",
+      argument_count: 3,
+      argument_types: "uuid,text,text",
+      identity_arguments:
+        "p_request_id uuid, p_expected_status text, p_next_status text",
+      return_type: "record",
+      function_result: "TABLE(request_id uuid)",
+      returns_set: true,
+      runtime_can_execute: true,
+      function_source: intakeFunctionSource(
+        intakeOperationsMigration,
+        "transition_bid_autopsy_work_queue",
       ),
     },
   ];

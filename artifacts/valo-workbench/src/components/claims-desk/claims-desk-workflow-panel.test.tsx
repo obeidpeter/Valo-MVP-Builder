@@ -1,0 +1,70 @@
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+import type { ClaimsDeskRecord } from "./claims-desk-contract";
+import {
+  ClaimsDeskCreatePanel,
+  ClaimsDeskTransitionPanel,
+} from "./claims-desk-workflow-panel";
+
+const DOC = "10000000-0000-4000-8000-000000000001";
+const SHA = "a".repeat(64);
+
+function record(status: string): ClaimsDeskRecord {
+  return {
+    id: "20000000-0000-4000-8000-000000000002",
+    organisationId: "30000000-0000-4000-8000-000000000003",
+    projectId: "40000000-0000-4000-8000-000000000004",
+    recordType: "claim",
+    reference: "CLM-001",
+    eventDate: "2026-08-01",
+    dueAt: null,
+    amountMinor: null,
+    currency: null,
+    documentBindings: [{ documentId: DOC, sha256: SHA }],
+    status,
+    assessmentCode: null,
+    pendingMakerUserId:
+      status === "assessment_proposed"
+        ? "50000000-0000-4000-8000-000000000005"
+        : null,
+    version: 1,
+    createdByUserId: "50000000-0000-4000-8000-000000000005",
+    createdAt: "2026-08-01T12:00:00.000Z",
+    updatedAt: "2026-08-01T12:00:00.000Z",
+    latestReceiptSha256: SHA,
+    reasonHistory: [],
+  };
+}
+
+describe("Claims Desk workflow panels", () => {
+  it("labels amounts as integer minor units and canonical document evidence", () => {
+    render(<ClaimsDeskCreatePanel pending={false} onCreate={vi.fn()} />);
+    expect(screen.getByText(/not legal entitlement/u)).toBeInTheDocument();
+    expect(screen.getByLabelText("Canonical document evidence")).toBeRequired();
+  });
+
+  it("shows only controlled actions for the current state", async () => {
+    const user = userEvent.setup();
+    render(
+      <ClaimsDeskTransitionPanel
+        records={[record("assessment_proposed")]}
+        pending={false}
+        onTransition={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByText("Independent checker required"),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("combobox", { name: "Action" }));
+    expect(
+      screen.getByRole("option", { name: "Approve assessment" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "Return assessment" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "Approve closure" }),
+    ).not.toBeInTheDocument();
+  });
+});

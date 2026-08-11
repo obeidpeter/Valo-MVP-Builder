@@ -15,6 +15,5343 @@
  *
  * OpenAPI spec version: 2.5.0
  */
+export type ProductionAcceptanceEvidenceDraftCategory = typeof ProductionAcceptanceEvidenceDraftCategory[keyof typeof ProductionAcceptanceEvidenceDraftCategory];
+
+
+export const ProductionAcceptanceEvidenceDraftCategory = {
+  migration: 'migration',
+  rls: 'rls',
+  tenant_isolation: 'tenant_isolation',
+  browser_accessibility: 'browser_accessibility',
+  backup: 'backup',
+  restore: 'restore',
+  rollback: 'rollback',
+} as const;
+
+export type ProductionAcceptanceEvidenceDraftOutcome = typeof ProductionAcceptanceEvidenceDraftOutcome[keyof typeof ProductionAcceptanceEvidenceDraftOutcome];
+
+
+export const ProductionAcceptanceEvidenceDraftOutcome = {
+  passed: 'passed',
+  failed: 'failed',
+} as const;
+
+export type ProductionAcceptanceEvidenceDraftEnvironment = typeof ProductionAcceptanceEvidenceDraftEnvironment[keyof typeof ProductionAcceptanceEvidenceDraftEnvironment];
+
+
+export const ProductionAcceptanceEvidenceDraftEnvironment = {
+  staging: 'staging',
+  production: 'production',
+  recovery_rehearsal: 'recovery_rehearsal',
+} as const;
+
+export interface ProductionAcceptanceEvidenceDraft {
+  category: ProductionAcceptanceEvidenceDraftCategory;
+  outcome: ProductionAcceptanceEvidenceDraftOutcome;
+  environment: ProductionAcceptanceEvidenceDraftEnvironment;
+  /** @pattern ^[a-f0-9]{64}$ */
+  releaseSha256: string;
+  ownerUserId: string;
+  observedAt: string;
+  expiresAt: string;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  evidenceReference: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  artifactSha256: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  summary: string;
+  /**
+     * @minLength 16
+     * @maxLength 128
+     * @pattern ^[a-zA-Z0-9][a-zA-Z0-9._:-]{15,127}$
+     */
+  idempotencyKey: string;
+}
+
+export type ProductionAcceptanceEvidenceRecordCategory = typeof ProductionAcceptanceEvidenceRecordCategory[keyof typeof ProductionAcceptanceEvidenceRecordCategory];
+
+
+export const ProductionAcceptanceEvidenceRecordCategory = {
+  migration: 'migration',
+  rls: 'rls',
+  tenant_isolation: 'tenant_isolation',
+  browser_accessibility: 'browser_accessibility',
+  backup: 'backup',
+  restore: 'restore',
+  rollback: 'rollback',
+} as const;
+
+export type ProductionAcceptanceEvidenceRecordOutcome = typeof ProductionAcceptanceEvidenceRecordOutcome[keyof typeof ProductionAcceptanceEvidenceRecordOutcome];
+
+
+export const ProductionAcceptanceEvidenceRecordOutcome = {
+  passed: 'passed',
+  failed: 'failed',
+} as const;
+
+export type ProductionAcceptanceEvidenceRecordEnvironment = typeof ProductionAcceptanceEvidenceRecordEnvironment[keyof typeof ProductionAcceptanceEvidenceRecordEnvironment];
+
+
+export const ProductionAcceptanceEvidenceRecordEnvironment = {
+  staging: 'staging',
+  production: 'production',
+  recovery_rehearsal: 'recovery_rehearsal',
+} as const;
+
+export interface ProductionAcceptanceEvidenceRecord {
+  schema: 'valo.production-acceptance-evidence/v1';
+  id: string;
+  organisationId: string;
+  category: ProductionAcceptanceEvidenceRecordCategory;
+  outcome: ProductionAcceptanceEvidenceRecordOutcome;
+  environment: ProductionAcceptanceEvidenceRecordEnvironment;
+  /** @pattern ^[a-f0-9]{64}$ */
+  releaseSha256: string;
+  ownerUserId: string;
+  verifiedByUserId: string;
+  observedAt: string;
+  expiresAt: string;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  evidenceReference: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  artifactSha256: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  summary: string;
+  recordedAt: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  evidenceDigest: string;
+}
+
+export type ProductionAcceptanceCategorySnapshotCategory = typeof ProductionAcceptanceCategorySnapshotCategory[keyof typeof ProductionAcceptanceCategorySnapshotCategory];
+
+
+export const ProductionAcceptanceCategorySnapshotCategory = {
+  migration: 'migration',
+  rls: 'rls',
+  tenant_isolation: 'tenant_isolation',
+  browser_accessibility: 'browser_accessibility',
+  backup: 'backup',
+  restore: 'restore',
+  rollback: 'rollback',
+} as const;
+
+export type ProductionAcceptanceCategorySnapshotState = typeof ProductionAcceptanceCategorySnapshotState[keyof typeof ProductionAcceptanceCategorySnapshotState];
+
+
+export const ProductionAcceptanceCategorySnapshotState = {
+  passed: 'passed',
+  failed: 'failed',
+  missing: 'missing',
+  expired: 'expired',
+  release_mismatch: 'release_mismatch',
+  integrity_failed: 'integrity_failed',
+} as const;
+
+export interface ProductionAcceptanceCategorySnapshot {
+  category: ProductionAcceptanceCategorySnapshotCategory;
+  /** @minLength 1 */
+  label: string;
+  state: ProductionAcceptanceCategorySnapshotState;
+  required: true;
+  latestEvidence: ProductionAcceptanceEvidenceRecord | null;
+}
+
+/**
+ * @nullable
+ */
+export type ProductionAcceptanceBlockerCategory = typeof ProductionAcceptanceBlockerCategory[keyof typeof ProductionAcceptanceBlockerCategory] | null;
+
+
+export const ProductionAcceptanceBlockerCategory = {
+  migration: 'migration',
+  rls: 'rls',
+  tenant_isolation: 'tenant_isolation',
+  browser_accessibility: 'browser_accessibility',
+  backup: 'backup',
+  restore: 'restore',
+  rollback: 'rollback',
+} as const;
+
+export interface ProductionAcceptanceBlocker {
+  /** @minLength 1 */
+  code: string;
+  /** @nullable */
+  category: ProductionAcceptanceBlockerCategory;
+  /** @minLength 1 */
+  message: string;
+}
+
+export type ProductionAcceptanceSnapshotRecommendedDecision = typeof ProductionAcceptanceSnapshotRecommendedDecision[keyof typeof ProductionAcceptanceSnapshotRecommendedDecision];
+
+
+export const ProductionAcceptanceSnapshotRecommendedDecision = {
+  go: 'go',
+  no_go: 'no_go',
+} as const;
+
+export interface ProductionAcceptanceSnapshot {
+  generatedAt: string;
+  organisationId: string;
+  /**
+     * @nullable
+     * @pattern ^[a-f0-9]{64}$
+     */
+  expectedReleaseSha256: string | null;
+  recommendedDecision: ProductionAcceptanceSnapshotRecommendedDecision;
+  deploymentAuthorized: false;
+  requiresNamedHumanApproval: true;
+  /** @maxItems 7 */
+  categories: ProductionAcceptanceCategorySnapshot[];
+  /** @maxItems 500 */
+  blockers: ProductionAcceptanceBlocker[];
+  /** @minLength 1 */
+  authorityNote: string;
+}
+
+export interface ProductionAcceptanceAuthority {
+  userId: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  name: string;
+}
+
+export type ProductionAcceptanceAuthorityListLimit = typeof ProductionAcceptanceAuthorityListLimit[keyof typeof ProductionAcceptanceAuthorityListLimit];
+
+
+export const ProductionAcceptanceAuthorityListLimit = {
+  NUMBER_100: 100,
+} as const;
+
+export interface ProductionAcceptanceAuthorityList {
+  organisationId: string;
+  /** @maxItems 100 */
+  items: ProductionAcceptanceAuthority[];
+  limit: ProductionAcceptanceAuthorityListLimit;
+  truncated: false;
+}
+
+export interface ProductionAcceptanceEvidenceMutation {
+  record: ProductionAcceptanceEvidenceRecord;
+  replayed: boolean;
+  deploymentAuthorized: false;
+  /** @minLength 1 */
+  authorityNote: string;
+}
+
+export type CreateClientEvidenceRequestInputPurpose = typeof CreateClientEvidenceRequestInputPurpose[keyof typeof CreateClientEvidenceRequestInputPurpose];
+
+
+export const CreateClientEvidenceRequestInputPurpose = {
+  tender_evidence: 'tender_evidence',
+  credential_refresh: 'credential_refresh',
+  clarification_support: 'clarification_support',
+  delivery_evidence: 'delivery_evidence',
+} as const;
+
+export interface ClientEvidenceSlotInput {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  label: string;
+  required: boolean;
+  /**
+     * @maxItems 8
+     * @items.minLength 1
+     * @items.maxLength 160
+     */
+  acceptedContentTypes?: string[];
+}
+
+export interface CreateClientEvidenceRequestInput {
+  purpose: CreateClientEvidenceRequestInputPurpose;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  purposeStatement: string;
+  recipientUserId: string;
+  /** @nullable */
+  dueAt?: string | null;
+  /**
+     * @minItems 1
+     * @maxItems 20
+     */
+  slots: ClientEvidenceSlotInput[];
+}
+
+export interface ClientAcknowledgementInput {
+  /** @minimum 1 */
+  expectedVersion: number;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  statement: string;
+}
+
+export interface ClientUploadIntentInput {
+  /** @minimum 1 */
+  expectedVersion: number;
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  filename: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  contentType: string;
+  /**
+     * @minimum 1
+     * @maximum 52428800
+     */
+  sizeBytes: number;
+  /** @pattern ^[a-f0-9]{64}$ */
+  declaredSha256: string;
+}
+
+export interface ClientAttachDocumentInput {
+  /** @minimum 1 */
+  expectedVersion: number;
+  intentId: string;
+  documentId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  sha256: string;
+}
+
+export type ClientSlotReviewInputDecision = typeof ClientSlotReviewInputDecision[keyof typeof ClientSlotReviewInputDecision];
+
+
+export const ClientSlotReviewInputDecision = {
+  accepted: 'accepted',
+  correction_required: 'correction_required',
+} as const;
+
+export interface ClientSlotReviewInput {
+  /** @minimum 1 */
+  expectedVersion: number;
+  decision: ClientSlotReviewInputDecision;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  reason: string;
+}
+
+export interface CreateClientPackageDeliveryInput {
+  recipientUserId: string;
+  packageVersionId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  manifestSha256: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  releaseReceiptSha256: string;
+}
+
+export interface ClientUploadIntent {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  filename: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  contentType: string;
+  /**
+     * @minimum 1
+     * @maximum 52428800
+     */
+  sizeBytes: number;
+  /** @pattern ^[a-f0-9]{64}$ */
+  declaredSha256: string;
+  recordedByUserId: string;
+  recordedAt: string;
+}
+
+export interface ClientAttachedDocument {
+  documentId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  sha256: string;
+  attachedByUserId: string;
+  attachedAt: string;
+}
+
+export type ClientSlotReviewDecision = typeof ClientSlotReviewDecision[keyof typeof ClientSlotReviewDecision];
+
+
+export const ClientSlotReviewDecision = {
+  accepted: 'accepted',
+  correction_required: 'correction_required',
+} as const;
+
+export interface ClientSlotReview {
+  decision: ClientSlotReviewDecision;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  reason: string;
+  reviewedByUserId: string;
+  reviewedAt: string;
+}
+
+export interface ClientCorrectionAcknowledgement {
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  statement: string;
+  acknowledgedByUserId: string;
+  acknowledgedAt: string;
+}
+
+export interface ClientEvidenceAttempt {
+  id: string;
+  intent: ClientUploadIntent;
+  document: ClientAttachedDocument | null;
+  review: ClientSlotReview | null;
+  correctionAcknowledgement: ClientCorrectionAcknowledgement | null;
+}
+
+export interface ClientEvidenceSlot {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  label: string;
+  required: boolean;
+  /**
+     * @maxItems 8
+     * @items.minLength 1
+     * @items.maxLength 160
+     */
+  acceptedContentTypes: string[];
+  /** @maxItems 10 */
+  attempts: ClientEvidenceAttempt[];
+}
+
+export interface ClientRequestAcknowledgement {
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  statement: string;
+  acknowledgedByUserId: string;
+  acknowledgedAt: string;
+}
+
+export type ClientEvidenceRequestRecordPurpose = typeof ClientEvidenceRequestRecordPurpose[keyof typeof ClientEvidenceRequestRecordPurpose];
+
+
+export const ClientEvidenceRequestRecordPurpose = {
+  tender_evidence: 'tender_evidence',
+  credential_refresh: 'credential_refresh',
+  clarification_support: 'clarification_support',
+  delivery_evidence: 'delivery_evidence',
+} as const;
+
+export type ClientEvidenceRequestRecordStatus = typeof ClientEvidenceRequestRecordStatus[keyof typeof ClientEvidenceRequestRecordStatus];
+
+
+export const ClientEvidenceRequestRecordStatus = {
+  open: 'open',
+  acknowledged: 'acknowledged',
+  in_progress: 'in_progress',
+  submitted: 'submitted',
+  changes_required: 'changes_required',
+  completed: 'completed',
+} as const;
+
+export interface ClientEvidenceRequestRecord {
+  id: string;
+  kind: 'evidence_request';
+  organisationId: string;
+  projectId: string;
+  /** @minimum 1 */
+  version: number;
+  createdByUserId: string;
+  createdAt: string;
+  updatedByUserId: string;
+  updatedAt: string;
+  purpose: ClientEvidenceRequestRecordPurpose;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  purposeStatement: string;
+  recipientUserId: string;
+  /** @nullable */
+  dueAt: string | null;
+  status: ClientEvidenceRequestRecordStatus;
+  requestAcknowledgement: ClientRequestAcknowledgement | null;
+  /** @maxItems 20 */
+  slots: ClientEvidenceSlot[];
+  /**
+     * @nullable
+     * @pattern ^[a-f0-9]{64}$
+     */
+  completionReceiptSha256: string | null;
+  externalMessageSentByValo: false;
+}
+
+export interface PackageDeliveryAcknowledgement {
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  statement: string;
+  acknowledgedByUserId: string;
+  acknowledgedAt: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  receiptSha256: string;
+}
+
+export type ClientPackageDeliveryRecordStatus = typeof ClientPackageDeliveryRecordStatus[keyof typeof ClientPackageDeliveryRecordStatus];
+
+
+export const ClientPackageDeliveryRecordStatus = {
+  available_for_acknowledgement: 'available_for_acknowledgement',
+  acknowledged: 'acknowledged',
+} as const;
+
+export interface ClientPackageDeliveryRecord {
+  id: string;
+  kind: 'package_delivery';
+  organisationId: string;
+  projectId: string;
+  /** @minimum 1 */
+  version: number;
+  createdByUserId: string;
+  createdAt: string;
+  updatedByUserId: string;
+  updatedAt: string;
+  recipientUserId: string;
+  packageVersionId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  manifestSha256: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  releaseReceiptSha256: string;
+  status: ClientPackageDeliveryRecordStatus;
+  deliveryMode: 'metadata_record_only';
+  acknowledgement: PackageDeliveryAcknowledgement | null;
+  externalDeliveryPerformedByValo: false;
+}
+
+export type ClientActionSnapshotAuthority = {
+  externalMessaging: false;
+  rawUpload: false;
+  packageTransfer: false;
+  uploadIntentOnly: true;
+};
+
+export interface ClientActionSnapshot {
+  organisationId: string;
+  projectId: string;
+  /** @maxItems 200 */
+  records: (ClientEvidenceRequestRecord | ClientPackageDeliveryRecord)[];
+  authority: ClientActionSnapshotAuthority;
+}
+
+export interface ClientActionAuthorityOption {
+  userId: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  name: string;
+}
+
+export type ClientActionAuthorityDirectoryLimit = typeof ClientActionAuthorityDirectoryLimit[keyof typeof ClientActionAuthorityDirectoryLimit];
+
+
+export const ClientActionAuthorityDirectoryLimit = {
+  NUMBER_100: 100,
+} as const;
+
+export interface ClientActionAuthorityDirectory {
+  organisationId: string;
+  projectId: string;
+  /** @maxItems 100 */
+  items: ClientActionAuthorityOption[];
+  limit: ClientActionAuthorityDirectoryLimit;
+  truncated: false;
+}
+
+export interface OpportunitySourceAuthority {
+  runtimeConnected: true;
+  externalAcquisitionConnected: false;
+  autonomousScrapingAllowed: false;
+  autonomousPursuitActivationAllowed: false;
+  authority: 'named_human_confirmation_required';
+}
+
+export interface OpportunitySourceInput {
+  sourceKind: 'manual_url';
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  sourceSystem: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  sourceAuthority: string;
+  /**
+     * @minLength 1
+     * @maxLength 2048
+     */
+  sourceLocator: string;
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     * @nullable
+     */
+  sourceLicenceReference: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  externalReference: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  procuringEntity: string;
+  /**
+     * @minLength 2
+     * @maxLength 2
+     * @pattern ^[A-Z]{2}$
+     */
+  jurisdiction: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     * @nullable
+     */
+  fundingSource: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     * @nullable
+     */
+  procurementCategory: string | null;
+  /** @nullable */
+  publishedAt: string | null;
+  /** @nullable */
+  submissionDeadline: string | null;
+  observedAt: string;
+  /**
+     * @nullable
+     * @pattern ^[a-f0-9]{64}$
+     */
+  sourceContentSha256: string | null;
+}
+
+export type OpportunitySourceDecisionDecision = typeof OpportunitySourceDecisionDecision[keyof typeof OpportunitySourceDecisionDecision];
+
+
+export const OpportunitySourceDecisionDecision = {
+  accept: 'accept',
+  reject: 'reject',
+} as const;
+
+export interface OpportunitySourceDecision {
+  /** @minimum 1 */
+  expectedVersion: number;
+  decision: OpportunitySourceDecisionDecision;
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     */
+  reason: string;
+}
+
+export type OpportunitySourceCandidateSourceKind = typeof OpportunitySourceCandidateSourceKind[keyof typeof OpportunitySourceCandidateSourceKind];
+
+
+export const OpportunitySourceCandidateSourceKind = {
+  manual_url: 'manual_url',
+  ocds: 'ocds',
+  licensed_feed: 'licensed_feed',
+  forwarded_notice: 'forwarded_notice',
+  csv: 'csv',
+} as const;
+
+export type OpportunitySourceCandidateProvenance = typeof OpportunitySourceCandidateProvenance[keyof typeof OpportunitySourceCandidateProvenance];
+
+
+export const OpportunitySourceCandidateProvenance = {
+  operator_recorded: 'operator_recorded',
+  adapter_verified: 'adapter_verified',
+} as const;
+
+export type OpportunitySourceCandidateStatus = typeof OpportunitySourceCandidateStatus[keyof typeof OpportunitySourceCandidateStatus];
+
+
+export const OpportunitySourceCandidateStatus = {
+  pending_review: 'pending_review',
+  accepted: 'accepted',
+  rejected: 'rejected',
+} as const;
+
+export interface OpportunitySourceCandidate {
+  sourceKind: OpportunitySourceCandidateSourceKind;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  sourceSystem: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  sourceAuthority: string;
+  /**
+     * @minLength 1
+     * @maxLength 2048
+     */
+  sourceLocator: string;
+  /**
+     * @maxLength 1024
+     * @nullable
+     */
+  sourceLicenceReference: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  externalReference: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  procuringEntity: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  jurisdiction: string;
+  /**
+     * @maxLength 512
+     * @nullable
+     */
+  fundingSource: string | null;
+  /**
+     * @maxLength 512
+     * @nullable
+     */
+  procurementCategory: string | null;
+  /** @nullable */
+  publishedAt: string | null;
+  /** @nullable */
+  submissionDeadline: string | null;
+  observedAt: string;
+  /**
+     * @nullable
+     * @pattern ^[a-f0-9]{64}$
+     */
+  sourceContentSha256: string | null;
+  provenance: OpportunitySourceCandidateProvenance;
+  /** @pattern ^[a-f0-9]{64}$ */
+  sourceLocatorSha256: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  receiptSha256: string;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  dedupeKey: string;
+  id: string;
+  organisationId: string;
+  status: OpportunitySourceCandidateStatus;
+  /** @minimum 1 */
+  version: number;
+  recordedByUserId: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  recordedByName: string;
+  /** @nullable */
+  reviewedByUserId: string | null;
+  /**
+     * @maxLength 512
+     * @nullable
+     */
+  reviewedByName: string | null;
+  /** @nullable */
+  reviewedAt: string | null;
+  /**
+     * @maxLength 1024
+     * @nullable
+     */
+  decisionReason: string | null;
+  /** @nullable */
+  tenderId: string | null;
+}
+
+export interface OpportunitySourceListResult {
+  /** @maxItems 250 */
+  items: OpportunitySourceCandidate[];
+  /**
+     * @minimum 1
+     * @maximum 250
+     */
+  limit: number;
+  truncated: false;
+  authority: OpportunitySourceAuthority;
+}
+
+export type CommunicationTemplateContext = {
+  kind: 'deadline';
+  deadlineAt: string;
+} | {
+  kind: 'evidence_request';
+  requestId: string;
+  /** @nullable */
+  dueAt: string | null;
+} | {
+  kind: 'evidence_correction';
+  requestId: string;
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  correctionSequence: number;
+} | {
+  kind: 'released_package';
+  packageVersionId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  manifestSha256: string;
+};
+
+export type CommunicationTemplateId = typeof CommunicationTemplateId[keyof typeof CommunicationTemplateId];
+
+
+export const CommunicationTemplateId = {
+  deadline_reminder_v1: 'deadline_reminder_v1',
+  evidence_request_ready_v1: 'evidence_request_ready_v1',
+  evidence_correction_required_v1: 'evidence_correction_required_v1',
+  package_ready_v1: 'package_ready_v1',
+} as const;
+
+export interface CommunicationRecipientReference {
+  userId: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  name: string;
+  channel: 'email';
+  /** @pattern ^[a-f0-9]{64}$ */
+  consentEvidenceSha256: string;
+}
+
+export interface CommunicationContextReference {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     * @pattern ^[A-Za-z0-9][A-Za-z0-9._:/-]*$
+     */
+  id: string;
+  /** @nullable */
+  recipientUserId: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  label: string;
+  templateId: CommunicationTemplateId;
+  context: CommunicationTemplateContext;
+}
+
+export type CommunicationReferenceSetLimit = typeof CommunicationReferenceSetLimit[keyof typeof CommunicationReferenceSetLimit];
+
+
+export const CommunicationReferenceSetLimit = {
+  NUMBER_100: 100,
+} as const;
+
+export interface CommunicationReferenceSet {
+  organisationId: string;
+  projectId: string;
+  /** @maxItems 100 */
+  recipients: CommunicationRecipientReference[];
+  /** @maxItems 100 */
+  contexts: CommunicationContextReference[];
+  limit: CommunicationReferenceSetLimit;
+  truncated: boolean;
+}
+
+export type QueueCommunicationInputChannel = typeof QueueCommunicationInputChannel[keyof typeof QueueCommunicationInputChannel];
+
+
+export const QueueCommunicationInputChannel = {
+  email: 'email',
+  whatsapp_business: 'whatsapp_business',
+} as const;
+
+export type QueueCommunicationInputTemplateId = typeof QueueCommunicationInputTemplateId[keyof typeof QueueCommunicationInputTemplateId];
+
+
+export const QueueCommunicationInputTemplateId = {
+  deadline_reminder_v1: 'deadline_reminder_v1',
+  evidence_request_ready_v1: 'evidence_request_ready_v1',
+  evidence_correction_required_v1: 'evidence_correction_required_v1',
+  package_ready_v1: 'package_ready_v1',
+} as const;
+
+export interface QueueCommunicationInput {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  idempotencyKey: string;
+  channel: QueueCommunicationInputChannel;
+  templateId: QueueCommunicationInputTemplateId;
+  recipientUserId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  consentEvidenceSha256: string;
+  context: CommunicationTemplateContext;
+  deadlineAt: string;
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  maxAttempts?: number;
+}
+
+export interface CommunicationAttemptInput {
+  /** @minimum 1 */
+  expectedVersion: number;
+}
+
+export interface CommunicationReconciliationInput {
+  /** @minimum 1 */
+  expectedVersion: number;
+  attemptId: string;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  receiptReference: string;
+}
+
+export type CommunicationAttemptStatus = typeof CommunicationAttemptStatus[keyof typeof CommunicationAttemptStatus];
+
+
+export const CommunicationAttemptStatus = {
+  prepared: 'prepared',
+  provider_disconnected: 'provider_disconnected',
+  policy_blocked: 'policy_blocked',
+  provider_rejected: 'provider_rejected',
+  outcome_unknown: 'outcome_unknown',
+  accepted_pending_receipt: 'accepted_pending_receipt',
+  receipt_verified_delivered: 'receipt_verified_delivered',
+  receipt_verified_failed: 'receipt_verified_failed',
+} as const;
+
+export interface CommunicationAttempt {
+  id: string;
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  attemptNumber: number;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  provider: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  idempotencyKey: string;
+  status: CommunicationAttemptStatus;
+  /**
+     * @maxLength 256
+     * @nullable
+     */
+  providerMessageId: string | null;
+  /**
+     * @nullable
+     * @pattern ^[a-f0-9]{64}$
+     */
+  receiptSha256: string | null;
+  /**
+     * @maxLength 96
+     * @nullable
+     */
+  responseCode: string | null;
+  attemptedAt: string;
+  /** @nullable */
+  nextAttemptAt: string | null;
+}
+
+export type CommunicationEventChannel = typeof CommunicationEventChannel[keyof typeof CommunicationEventChannel];
+
+
+export const CommunicationEventChannel = {
+  email: 'email',
+  whatsapp_business: 'whatsapp_business',
+} as const;
+
+export type CommunicationEventTemplateId = typeof CommunicationEventTemplateId[keyof typeof CommunicationEventTemplateId];
+
+
+export const CommunicationEventTemplateId = {
+  deadline_reminder_v1: 'deadline_reminder_v1',
+  evidence_request_ready_v1: 'evidence_request_ready_v1',
+  evidence_correction_required_v1: 'evidence_correction_required_v1',
+  package_ready_v1: 'package_ready_v1',
+} as const;
+
+export type CommunicationEventStatus = typeof CommunicationEventStatus[keyof typeof CommunicationEventStatus];
+
+
+export const CommunicationEventStatus = {
+  queued: 'queued',
+  prepared: 'prepared',
+  accepted_pending_receipt: 'accepted_pending_receipt',
+  retry_wait: 'retry_wait',
+  reconciliation_required: 'reconciliation_required',
+  delivered: 'delivered',
+  dead_letter: 'dead_letter',
+} as const;
+
+export interface CommunicationEvent {
+  id: string;
+  organisationId: string;
+  projectId: string;
+  channel: CommunicationEventChannel;
+  templateId: CommunicationEventTemplateId;
+  recipientUserId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  consentEvidenceSha256: string;
+  context: CommunicationTemplateContext;
+  status: CommunicationEventStatus;
+  requestedByUserId: string;
+  requestedAt: string;
+  deadlineAt: string;
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  maxAttempts: number;
+  /** @minimum 1 */
+  version: number;
+  /** @maxItems 5 */
+  attempts: CommunicationAttempt[];
+  deliveryAuthority: 'verified_provider_receipt_only';
+  arbitraryBodyAccepted: false;
+  rawRecipientPersisted: false;
+}
+
+export type CommunicationSnapshotPolicy = {
+  approvedTemplatesOnly: true;
+  arbitraryBodyAccepted: false;
+  arbitraryRecipientAccepted: false;
+  deliveryRequiresVerifiedProviderReceipt: true;
+  autonomousDispatch: false;
+  providersConnected: boolean;
+};
+
+export interface CommunicationSnapshot {
+  organisationId: string;
+  projectId: string;
+  /** @maxItems 250 */
+  events: CommunicationEvent[];
+  policy: CommunicationSnapshotPolicy;
+}
+
+export interface CommercialRetainerManifest {
+  moduleVersion: 'valo.commercial-retainer@v1';
+  routeMounted: true;
+  navigationMounted: true;
+  openApiPublished: true;
+  fixedCatalogueOnly: true;
+  approvedPriceBookSeedRequired: true;
+  automaticPricingAllowed: false;
+  paymentProviderConnected: false;
+  externalMessagingConnected: false;
+  autonomousWorkAllowed: false;
+  manualPaymentEvidenceOnly: true;
+  makerCheckerRequired: true;
+  directMembershipRequired: true;
+  privateNoStoreRequired: true;
+}
+
+export interface CommercialRetainerManifestResponse {
+  manifest: CommercialRetainerManifest;
+}
+
+export type CommercialOfferVersionId = typeof CommercialOfferVersionId[keyof typeof CommercialOfferVersionId];
+
+
+export const CommercialOfferVersionId = {
+  'bid_autopsy@1': 'bid_autopsy@1',
+  'assisted_bid@1': 'assisted_bid@1',
+  'evidence_readiness_retainer@1': 'evidence_readiness_retainer@1',
+} as const;
+
+export type CommercialOfferSku = typeof CommercialOfferSku[keyof typeof CommercialOfferSku];
+
+
+export const CommercialOfferSku = {
+  bid_autopsy: 'bid_autopsy',
+  assisted_bid: 'assisted_bid',
+  evidence_readiness_retainer: 'evidence_readiness_retainer',
+} as const;
+
+export type CommercialOfferCadence = typeof CommercialOfferCadence[keyof typeof CommercialOfferCadence];
+
+
+export const CommercialOfferCadence = {
+  one_off: 'one_off',
+  manual_monthly: 'manual_monthly',
+} as const;
+
+export interface CommercialOffer {
+  versionId: CommercialOfferVersionId;
+  sku: CommercialOfferSku;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  summary: string;
+  cadence: CommercialOfferCadence;
+  /**
+     * @maxItems 20
+     * @items.minLength 1
+     * @items.maxLength 1000
+     */
+  fixedScope: string[];
+  /**
+     * @maxItems 20
+     * @items.minLength 1
+     * @items.maxLength 1000
+     */
+  excludedActions: string[];
+  humanQuoteRequired: true;
+}
+
+export type CommercialOfferSnapshotVersionId = typeof CommercialOfferSnapshotVersionId[keyof typeof CommercialOfferSnapshotVersionId];
+
+
+export const CommercialOfferSnapshotVersionId = {
+  'bid_autopsy@1': 'bid_autopsy@1',
+  'assisted_bid@1': 'assisted_bid@1',
+  'evidence_readiness_retainer@1': 'evidence_readiness_retainer@1',
+} as const;
+
+export type CommercialOfferSnapshotSku = typeof CommercialOfferSnapshotSku[keyof typeof CommercialOfferSnapshotSku];
+
+
+export const CommercialOfferSnapshotSku = {
+  bid_autopsy: 'bid_autopsy',
+  assisted_bid: 'assisted_bid',
+  evidence_readiness_retainer: 'evidence_readiness_retainer',
+} as const;
+
+export type CommercialOfferSnapshotCadence = typeof CommercialOfferSnapshotCadence[keyof typeof CommercialOfferSnapshotCadence];
+
+
+export const CommercialOfferSnapshotCadence = {
+  one_off: 'one_off',
+  manual_monthly: 'manual_monthly',
+} as const;
+
+export interface CommercialOfferSnapshot {
+  versionId: CommercialOfferSnapshotVersionId;
+  sku: CommercialOfferSnapshotSku;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  summary: string;
+  cadence: CommercialOfferSnapshotCadence;
+  /**
+     * @maxItems 20
+     * @items.minLength 1
+     * @items.maxLength 1000
+     */
+  fixedScope: string[];
+  /**
+     * @maxItems 20
+     * @items.minLength 1
+     * @items.maxLength 1000
+     */
+  excludedActions: string[];
+  humanQuoteRequired: true;
+  orderable: boolean;
+}
+
+export type CommercialQuoteDraftOfferVersionId = typeof CommercialQuoteDraftOfferVersionId[keyof typeof CommercialQuoteDraftOfferVersionId];
+
+
+export const CommercialQuoteDraftOfferVersionId = {
+  'bid_autopsy@1': 'bid_autopsy@1',
+  'assisted_bid@1': 'assisted_bid@1',
+  'evidence_readiness_retainer@1': 'evidence_readiness_retainer@1',
+} as const;
+
+export interface CommercialQuoteDraft {
+  /** @nullable */
+  projectId: string | null;
+  /**
+     * Opaque customer token; plaintext customer identity is not accepted.
+     * @minLength 1
+     * @maxLength 160
+     */
+  customerReference: string;
+  offerVersionId: CommercialQuoteDraftOfferVersionId;
+  /**
+     * Opaque scope token; plaintext commercial scope is not accepted.
+     * @minLength 1
+     * @maxLength 1000
+     */
+  scopeSummary: string;
+  /** @pattern ^[A-Z]{3}$ */
+  currency: string;
+  /**
+     * @minimum 1
+     * @maximum 1000000000000000
+     */
+  amountMinor: number;
+  validUntil: string;
+  serviceStartsOn: string;
+  serviceEndsOn: string;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  serviceUnits: number;
+  /** @pattern ^[a-f0-9]{64}$ */
+  idempotencyDigest: string;
+}
+
+export type QuoteProposalOfferVersionId = typeof QuoteProposalOfferVersionId[keyof typeof QuoteProposalOfferVersionId];
+
+
+export const QuoteProposalOfferVersionId = {
+  'bid_autopsy@1': 'bid_autopsy@1',
+  'assisted_bid@1': 'assisted_bid@1',
+  'evidence_readiness_retainer@1': 'evidence_readiness_retainer@1',
+} as const;
+
+export type QuoteProposalStatus = typeof QuoteProposalStatus[keyof typeof QuoteProposalStatus];
+
+
+export const QuoteProposalStatus = {
+  pending_checker: 'pending_checker',
+  approved: 'approved',
+  invoiced: 'invoiced',
+  paid: 'paid',
+} as const;
+
+export interface QuoteProposal {
+  id: string;
+  organisationId: string;
+  /** @nullable */
+  projectId: string | null;
+  offerVersionId: QuoteProposalOfferVersionId;
+  /**
+     * Opaque customer token; plaintext customer identity is never returned.
+     * @minLength 1
+     * @maxLength 160
+     */
+  customerReference: string;
+  /**
+     * Opaque scope token; plaintext commercial scope is never returned.
+     * @minLength 1
+     * @maxLength 1000
+     */
+  scopeSummary: string;
+  /** @pattern ^[A-Z]{3}$ */
+  currency: string;
+  /**
+     * @minimum 1
+     * @maximum 1000000000000000
+     */
+  amountMinor: number;
+  validUntil: string;
+  serviceStartsOn: string;
+  serviceEndsOn: string;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  serviceUnits: number;
+  status: QuoteProposalStatus;
+  createdByUserId: string;
+  /** @nullable */
+  approvedByUserId: string | null;
+  /** @minimum 1 */
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CommercialQuoteResponse {
+  quote: QuoteProposal;
+}
+
+export interface CommercialQuoteMutationResponse {
+  outcome: 'updated';
+  record: QuoteProposal;
+}
+
+export interface CommercialInvoiceDraft {
+  /** @minimum 1 */
+  expectedOrderVersion: number;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  invoiceNumber: string;
+  /**
+     * @minimum 1
+     * @maximum 1000000000000000
+     */
+  netAmountMinor: number;
+  /**
+     * @minimum 0
+     * @maximum 100000
+     */
+  vatRateBasisPoints: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000000000000
+     */
+  vatAmountMinor: number;
+  /**
+     * @minimum 1
+     * @maximum 1000000000000000
+     */
+  grossAmountMinor: number;
+  /**
+     * @minimum 0
+     * @maximum 100000
+     * @nullable
+     */
+  whtRateBasisPoints: number | null;
+  /**
+     * @minimum 0
+     * @maximum 1000000000000000
+     * @nullable
+     */
+  whtAmountMinor: number | null;
+  /**
+     * @minimum 1
+     * @maximum 1000000000000000
+     */
+  netPayableMinor: number;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  taxRuleId: string;
+  taxPointAt: string;
+  /** @nullable */
+  dueAt: string | null;
+}
+
+export type CommercialInvoiceStatus = typeof CommercialInvoiceStatus[keyof typeof CommercialInvoiceStatus];
+
+
+export const CommercialInvoiceStatus = {
+  issued_manual: 'issued_manual',
+  paid_manual: 'paid_manual',
+} as const;
+
+export interface CommercialInvoice {
+  id: string;
+  orderId: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  invoiceNumber: string;
+  /** @pattern ^[A-Z]{3}$ */
+  currency: string;
+  /** @minimum 1 */
+  netAmountMinor: number;
+  /** @minimum 0 */
+  vatAmountMinor: number;
+  /** @minimum 1 */
+  grossAmountMinor: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  whtAmountMinor: number | null;
+  /** @minimum 1 */
+  netPayableMinor: number;
+  status: CommercialInvoiceStatus;
+  /** @minimum 1 */
+  version: number;
+  createdAt: string;
+}
+
+export interface CommercialInvoiceMutationResponse {
+  outcome: 'updated';
+  record: CommercialInvoice;
+}
+
+export interface CommercialPaymentEvidenceDraft {
+  /** @minimum 1 */
+  expectedInvoiceVersion: number;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  evidenceReference: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  evidenceSha256: string;
+  /**
+     * @minimum 1
+     * @maximum 1000000000000000
+     */
+  amountMinor: number;
+  /** @pattern ^[A-Z]{3}$ */
+  currency: string;
+  settledAt: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  idempotencyDigest: string;
+}
+
+export type CommercialPaymentStatus = typeof CommercialPaymentStatus[keyof typeof CommercialPaymentStatus];
+
+
+export const CommercialPaymentStatus = {
+  evidence_recorded: 'evidence_recorded',
+  settled: 'settled',
+} as const;
+
+export type CommercialPaymentReconciliationStatus = typeof CommercialPaymentReconciliationStatus[keyof typeof CommercialPaymentReconciliationStatus];
+
+
+export const CommercialPaymentReconciliationStatus = {
+  pending_checker: 'pending_checker',
+  verified_manual: 'verified_manual',
+} as const;
+
+export interface CommercialPayment {
+  id: string;
+  invoiceId: string;
+  /** @minimum 1 */
+  amountMinor: number;
+  /** @pattern ^[A-Z]{3}$ */
+  currency: string;
+  status: CommercialPaymentStatus;
+  reconciliationStatus: CommercialPaymentReconciliationStatus;
+  /** @pattern ^[a-f0-9]{64}$ */
+  evidenceSha256: string;
+  recordedByUserId: string;
+  /** @nullable */
+  verifiedByUserId: string | null;
+  settledAt: string;
+  /** @minimum 1 */
+  version: number;
+  createdAt: string;
+}
+
+export interface CommercialPaymentMutationResponse {
+  outcome: 'updated';
+  record: CommercialPayment;
+}
+
+export interface CommercialPaymentVerificationDraft {
+  /** @minimum 1 */
+  expectedPaymentVersion: number;
+  /** @minimum 1 */
+  expectedInvoiceVersion: number;
+}
+
+export type CommercialEntitlementProductKind = typeof CommercialEntitlementProductKind[keyof typeof CommercialEntitlementProductKind];
+
+
+export const CommercialEntitlementProductKind = {
+  bid_autopsy: 'bid_autopsy',
+  assisted_bid: 'assisted_bid',
+  evidence_readiness_retainer: 'evidence_readiness_retainer',
+} as const;
+
+export type CommercialEntitlementStatus = typeof CommercialEntitlementStatus[keyof typeof CommercialEntitlementStatus];
+
+
+export const CommercialEntitlementStatus = {
+  active: 'active',
+  scheduled: 'scheduled',
+} as const;
+
+export interface CommercialEntitlement {
+  id: string;
+  orderId: string;
+  /** @nullable */
+  subscriptionId: string | null;
+  productKind: CommercialEntitlementProductKind;
+  status: CommercialEntitlementStatus;
+  paymentState: 'verified_manual';
+  startsAt: string;
+  endsAt: string;
+  /** @minimum 1 */
+  usageLimit: number;
+  /** @minimum 0 */
+  usageConsumed: number;
+  rulesVersion: 'valo.commercial-retainer@v1';
+  /** @minimum 1 */
+  version: number;
+}
+
+export interface CommercialPaymentVerificationRecord {
+  payment: CommercialPayment;
+  entitlement: CommercialEntitlement;
+}
+
+export interface CommercialPaymentVerificationResponse {
+  outcome: 'updated';
+  record: CommercialPaymentVerificationRecord;
+}
+
+export type CreateRetainerRequestPurpose = typeof CreateRetainerRequestPurpose[keyof typeof CreateRetainerRequestPurpose];
+
+
+export const CreateRetainerRequestPurpose = {
+  evidence_review: 'evidence_review',
+  renewal_readiness: 'renewal_readiness',
+  bid_evidence_pack: 'bid_evidence_pack',
+} as const;
+
+export type CreateRetainerRequestSla = typeof CreateRetainerRequestSla[keyof typeof CreateRetainerRequestSla];
+
+
+export const CreateRetainerRequestSla = {
+  standard: 'standard',
+  priority: 'priority',
+} as const;
+
+export interface CreateRetainerRequest {
+  projectId: string;
+  entitlementId: string;
+  purpose: CreateRetainerRequestPurpose;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  summary: string;
+  ownerMembershipId: string;
+  sla: CreateRetainerRequestSla;
+  /** @pattern ^[a-f0-9]{64}$ */
+  idempotencyDigest: string;
+}
+
+export type RetainerRequestAction = {
+  action: 'comment';
+  /** @minimum 1 */
+  expectedVersion: number;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  body: string;
+} | {
+  action: 'record_evidence';
+  /** @minimum 1 */
+  expectedVersion: number;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  reference: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  sha256: string;
+} | {
+  action: 'set_status';
+  /** @minimum 1 */
+  expectedVersion: number;
+  status: 'in_progress' | 'awaiting_evidence' | 'completed' | 'cancelled';
+} | {
+  action: 'reassign';
+  /** @minimum 1 */
+  expectedVersion: number;
+  ownerMembershipId: string;
+};
+
+export interface RetainerComment {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  body: string;
+  createdByUserId: string;
+  createdAt: string;
+}
+
+export interface RetainerEvidenceReceipt {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  reference: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  sha256: string;
+  recordedByUserId: string;
+  recordedAt: string;
+}
+
+export type RetainerHistoryEntryAction = typeof RetainerHistoryEntryAction[keyof typeof RetainerHistoryEntryAction];
+
+
+export const RetainerHistoryEntryAction = {
+  created: 'created',
+  commented: 'commented',
+  evidence_recorded: 'evidence_recorded',
+  status_changed: 'status_changed',
+  reassigned: 'reassigned',
+} as const;
+
+export interface RetainerHistoryEntry {
+  action: RetainerHistoryEntryAction;
+  actorUserId: string;
+  at: string;
+  from?: string;
+  to?: string;
+}
+
+export type RetainerServiceRequestPurpose = typeof RetainerServiceRequestPurpose[keyof typeof RetainerServiceRequestPurpose];
+
+
+export const RetainerServiceRequestPurpose = {
+  evidence_review: 'evidence_review',
+  renewal_readiness: 'renewal_readiness',
+  bid_evidence_pack: 'bid_evidence_pack',
+} as const;
+
+export type RetainerServiceRequestSla = typeof RetainerServiceRequestSla[keyof typeof RetainerServiceRequestSla];
+
+
+export const RetainerServiceRequestSla = {
+  standard: 'standard',
+  priority: 'priority',
+} as const;
+
+export type RetainerServiceRequestStatus = typeof RetainerServiceRequestStatus[keyof typeof RetainerServiceRequestStatus];
+
+
+export const RetainerServiceRequestStatus = {
+  open: 'open',
+  in_progress: 'in_progress',
+  awaiting_evidence: 'awaiting_evidence',
+  completed: 'completed',
+  cancelled: 'cancelled',
+} as const;
+
+export interface RetainerServiceRequest {
+  id: string;
+  organisationId: string;
+  projectId: string;
+  entitlementId: string;
+  purpose: RetainerServiceRequestPurpose;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  summary: string;
+  ownerMembershipId: string;
+  sla: RetainerServiceRequestSla;
+  slaPolicyVersion: 'valo.retainer-sla@v1';
+  dueAt: string;
+  status: RetainerServiceRequestStatus;
+  /** @maxItems 20 */
+  comments: RetainerComment[];
+  /** @maxItems 10 */
+  evidenceReceipts: RetainerEvidenceReceipt[];
+  /** @maxItems 50 */
+  history: RetainerHistoryEntry[];
+  /** @minimum 1 */
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RetainerRequestMutationResponse {
+  outcome: 'updated';
+  record: RetainerServiceRequest;
+}
+
+export type CommercialSnapshotActivation = {
+  fixedPriceBookReady: boolean;
+  providerConnected: false;
+  manualReconciliationReady: boolean;
+  retainerDeskReady: boolean;
+};
+
+export interface CommercialSnapshot {
+  organisationId: string;
+  manifest: CommercialRetainerManifest;
+  activation: CommercialSnapshotActivation;
+  /** @maxItems 3 */
+  offers: CommercialOfferSnapshot[];
+  /** @maxItems 50 */
+  quotes: QuoteProposal[];
+  /** @maxItems 50 */
+  invoices: CommercialInvoice[];
+  /** @maxItems 50 */
+  payments: CommercialPayment[];
+  /** @maxItems 50 */
+  entitlements: CommercialEntitlement[];
+  /** @maxItems 50 */
+  serviceRequests: RetainerServiceRequest[];
+}
+
+export interface CommercialSnapshotResponse {
+  snapshot: CommercialSnapshot;
+}
+
+export interface InitializeConsortiumRoomInput {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  idempotencyKey: string;
+  clientCoordinatorUserId: string;
+  partnerCoordinatorUserId: string;
+}
+
+export type ConsortiumResponsibilityDraftResponsibleParty = typeof ConsortiumResponsibilityDraftResponsibleParty[keyof typeof ConsortiumResponsibilityDraftResponsibleParty];
+
+
+export const ConsortiumResponsibilityDraftResponsibleParty = {
+  client: 'client',
+  partner: 'partner',
+} as const;
+
+export type ConsortiumResponsibilityDraftAccountableParty = typeof ConsortiumResponsibilityDraftAccountableParty[keyof typeof ConsortiumResponsibilityDraftAccountableParty];
+
+
+export const ConsortiumResponsibilityDraftAccountableParty = {
+  client: 'client',
+  partner: 'partner',
+} as const;
+
+export interface ConsortiumResponsibilityDraft {
+  /** @minimum 1 */
+  expectedVersion: number;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  workstreamLabel: string;
+  responsibleParty: ConsortiumResponsibilityDraftResponsibleParty;
+  accountableParty: ConsortiumResponsibilityDraftAccountableParty;
+  ownerUserId: string;
+  /** @nullable */
+  dueAt?: string | null;
+}
+
+export type ConsortiumResponsibilityDecisionInputDecision = typeof ConsortiumResponsibilityDecisionInputDecision[keyof typeof ConsortiumResponsibilityDecisionInputDecision];
+
+
+export const ConsortiumResponsibilityDecisionInputDecision = {
+  accepted: 'accepted',
+  changes_requested: 'changes_requested',
+} as const;
+
+/**
+ * @nullable
+ */
+export type ConsortiumResponsibilityDecisionInputReasonCode = typeof ConsortiumResponsibilityDecisionInputReasonCode[keyof typeof ConsortiumResponsibilityDecisionInputReasonCode] | null;
+
+
+export const ConsortiumResponsibilityDecisionInputReasonCode = {
+  ownership_mismatch: 'ownership_mismatch',
+  scope_unclear: 'scope_unclear',
+  deadline_unworkable: 'deadline_unworkable',
+  quality_control_gap: 'quality_control_gap',
+  evidence_not_sufficient: 'evidence_not_sufficient',
+  offline_discussion_required: 'offline_discussion_required',
+} as const;
+
+export interface ConsortiumResponsibilityDecisionInput {
+  /** @minimum 1 */
+  expectedVersion: number;
+  decision: ConsortiumResponsibilityDecisionInputDecision;
+  /** @nullable */
+  reasonCode?: ConsortiumResponsibilityDecisionInputReasonCode;
+}
+
+export interface ConsortiumQaPreparationInput {
+  /** @minimum 1 */
+  expectedVersion: number;
+  /** @pattern ^[a-f0-9]{64}$ */
+  evidenceSha256: string;
+}
+
+export type ConsortiumQaDecisionInputDecision = typeof ConsortiumQaDecisionInputDecision[keyof typeof ConsortiumQaDecisionInputDecision];
+
+
+export const ConsortiumQaDecisionInputDecision = {
+  checked: 'checked',
+  rejected: 'rejected',
+} as const;
+
+/**
+ * @nullable
+ */
+export type ConsortiumQaDecisionInputReasonCode = typeof ConsortiumQaDecisionInputReasonCode[keyof typeof ConsortiumQaDecisionInputReasonCode] | null;
+
+
+export const ConsortiumQaDecisionInputReasonCode = {
+  ownership_mismatch: 'ownership_mismatch',
+  scope_unclear: 'scope_unclear',
+  deadline_unworkable: 'deadline_unworkable',
+  quality_control_gap: 'quality_control_gap',
+  evidence_not_sufficient: 'evidence_not_sufficient',
+  offline_discussion_required: 'offline_discussion_required',
+} as const;
+
+export interface ConsortiumQaDecisionInput {
+  /** @minimum 1 */
+  expectedVersion: number;
+  decision: ConsortiumQaDecisionInputDecision;
+  /** @nullable */
+  reasonCode?: ConsortiumQaDecisionInputReasonCode;
+}
+
+export type ConsortiumAcceptanceParty = typeof ConsortiumAcceptanceParty[keyof typeof ConsortiumAcceptanceParty];
+
+
+export const ConsortiumAcceptanceParty = {
+  client: 'client',
+  partner: 'partner',
+} as const;
+
+export type ConsortiumAcceptanceDecision = typeof ConsortiumAcceptanceDecision[keyof typeof ConsortiumAcceptanceDecision];
+
+
+export const ConsortiumAcceptanceDecision = {
+  accepted: 'accepted',
+  changes_requested: 'changes_requested',
+} as const;
+
+/**
+ * @nullable
+ */
+export type ConsortiumAcceptanceReasonCode = typeof ConsortiumAcceptanceReasonCode[keyof typeof ConsortiumAcceptanceReasonCode] | null;
+
+
+export const ConsortiumAcceptanceReasonCode = {
+  ownership_mismatch: 'ownership_mismatch',
+  scope_unclear: 'scope_unclear',
+  deadline_unworkable: 'deadline_unworkable',
+  quality_control_gap: 'quality_control_gap',
+  evidence_not_sufficient: 'evidence_not_sufficient',
+  offline_discussion_required: 'offline_discussion_required',
+} as const;
+
+export interface ConsortiumAcceptance {
+  party: ConsortiumAcceptanceParty;
+  decision: ConsortiumAcceptanceDecision;
+  /** @nullable */
+  reasonCode: ConsortiumAcceptanceReasonCode;
+  decidedByUserId: string;
+  decidedAt: string;
+}
+
+export type ConsortiumResponsibilityResponsibleParty = typeof ConsortiumResponsibilityResponsibleParty[keyof typeof ConsortiumResponsibilityResponsibleParty];
+
+
+export const ConsortiumResponsibilityResponsibleParty = {
+  client: 'client',
+  partner: 'partner',
+} as const;
+
+export type ConsortiumResponsibilityAccountableParty = typeof ConsortiumResponsibilityAccountableParty[keyof typeof ConsortiumResponsibilityAccountableParty];
+
+
+export const ConsortiumResponsibilityAccountableParty = {
+  client: 'client',
+  partner: 'partner',
+} as const;
+
+export type ConsortiumResponsibilityStatus = typeof ConsortiumResponsibilityStatus[keyof typeof ConsortiumResponsibilityStatus];
+
+
+export const ConsortiumResponsibilityStatus = {
+  proposed: 'proposed',
+  changes_requested: 'changes_requested',
+  active: 'active',
+} as const;
+
+export type ConsortiumResponsibilityAcceptances = {
+  client: ConsortiumAcceptance | null;
+  partner: ConsortiumAcceptance | null;
+};
+
+export interface ConsortiumResponsibility {
+  id: string;
+  /** @minimum 1 */
+  iteration: number;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  workstreamLabel: string;
+  responsibleParty: ConsortiumResponsibilityResponsibleParty;
+  accountableParty: ConsortiumResponsibilityAccountableParty;
+  ownerUserId: string;
+  /** @nullable */
+  dueAt: string | null;
+  status: ConsortiumResponsibilityStatus;
+  requiredAcceptance: 'both_parties';
+  acceptances: ConsortiumResponsibilityAcceptances;
+  createdByUserId: string;
+  createdAt: string;
+  updatedByUserId: string;
+  updatedAt: string;
+}
+
+export type ConsortiumQaDecisionDecision = typeof ConsortiumQaDecisionDecision[keyof typeof ConsortiumQaDecisionDecision];
+
+
+export const ConsortiumQaDecisionDecision = {
+  checked: 'checked',
+  rejected: 'rejected',
+} as const;
+
+/**
+ * @nullable
+ */
+export type ConsortiumQaDecisionReasonCode = typeof ConsortiumQaDecisionReasonCode[keyof typeof ConsortiumQaDecisionReasonCode] | null;
+
+
+export const ConsortiumQaDecisionReasonCode = {
+  ownership_mismatch: 'ownership_mismatch',
+  scope_unclear: 'scope_unclear',
+  deadline_unworkable: 'deadline_unworkable',
+  quality_control_gap: 'quality_control_gap',
+  evidence_not_sufficient: 'evidence_not_sufficient',
+  offline_discussion_required: 'offline_discussion_required',
+} as const;
+
+export interface ConsortiumQaDecision {
+  decision: ConsortiumQaDecisionDecision;
+  /** @nullable */
+  reasonCode: ConsortiumQaDecisionReasonCode;
+  decidedByUserId: string;
+  decidedAt: string;
+}
+
+export type ConsortiumQaItemCode = typeof ConsortiumQaItemCode[keyof typeof ConsortiumQaItemCode];
+
+
+export const ConsortiumQaItemCode = {
+  evidence_quality_review: 'evidence_quality_review',
+  requirement_coverage_review: 'requirement_coverage_review',
+  client_release_readiness: 'client_release_readiness',
+  partner_cosign: 'partner_cosign',
+} as const;
+
+export type ConsortiumQaItemPreparerParty = typeof ConsortiumQaItemPreparerParty[keyof typeof ConsortiumQaItemPreparerParty];
+
+
+export const ConsortiumQaItemPreparerParty = {
+  client: 'client',
+  partner: 'partner',
+} as const;
+
+export type ConsortiumQaItemCheckerParty = typeof ConsortiumQaItemCheckerParty[keyof typeof ConsortiumQaItemCheckerParty];
+
+
+export const ConsortiumQaItemCheckerParty = {
+  client: 'client',
+  partner: 'partner',
+} as const;
+
+export type ConsortiumQaItemStatus = typeof ConsortiumQaItemStatus[keyof typeof ConsortiumQaItemStatus];
+
+
+export const ConsortiumQaItemStatus = {
+  open: 'open',
+  ready_for_check: 'ready_for_check',
+  checked: 'checked',
+} as const;
+
+export interface ConsortiumQaItem {
+  id: string;
+  code: ConsortiumQaItemCode;
+  required: boolean;
+  preparerParty: ConsortiumQaItemPreparerParty;
+  checkerParty: ConsortiumQaItemCheckerParty;
+  ownerUserId: string;
+  status: ConsortiumQaItemStatus;
+  /**
+     * @nullable
+     * @pattern ^[a-f0-9]{64}$
+     */
+  evidenceSha256: string | null;
+  /** @nullable */
+  preparedByUserId: string | null;
+  /** @nullable */
+  preparedAt: string | null;
+  lastDecision: ConsortiumQaDecision | null;
+}
+
+export type ConsortiumAuditReceiptAction = typeof ConsortiumAuditReceiptAction[keyof typeof ConsortiumAuditReceiptAction];
+
+
+export const ConsortiumAuditReceiptAction = {
+  room_created: 'room_created',
+  responsibility_added: 'responsibility_added',
+  responsibility_revised: 'responsibility_revised',
+  responsibility_decided: 'responsibility_decided',
+  qa_prepared: 'qa_prepared',
+  qa_decided: 'qa_decided',
+} as const;
+
+export type ConsortiumAuditReceiptActorParty = typeof ConsortiumAuditReceiptActorParty[keyof typeof ConsortiumAuditReceiptActorParty];
+
+
+export const ConsortiumAuditReceiptActorParty = {
+  client: 'client',
+  partner: 'partner',
+} as const;
+
+export interface ConsortiumAuditReceipt {
+  id: string;
+  /** @minimum 1 */
+  sequence: number;
+  action: ConsortiumAuditReceiptAction;
+  objectId: string;
+  actorUserId: string;
+  actorParty: ConsortiumAuditReceiptActorParty;
+  /** @minimum 0 */
+  priorVersion: number;
+  /** @minimum 1 */
+  nextVersion: number;
+  /** @pattern ^[a-f0-9]{64}$ */
+  factsSha256: string;
+  /**
+     * @nullable
+     * @pattern ^[a-f0-9]{64}$
+     */
+  previousReceiptSha256: string | null;
+  /** @pattern ^[a-f0-9]{64}$ */
+  receiptSha256: string;
+  occurredAt: string;
+}
+
+export type PartnerConsortiumRoomStatus = typeof PartnerConsortiumRoomStatus[keyof typeof PartnerConsortiumRoomStatus];
+
+
+export const PartnerConsortiumRoomStatus = {
+  draft: 'draft',
+  active: 'active',
+  qa_in_progress: 'qa_in_progress',
+  ready_for_client_release: 'ready_for_client_release',
+} as const;
+
+export type PartnerConsortiumRoomRetention = {
+  namespace: 'valo.partner-consortium-room/v1';
+  class: 'project_coordination';
+  owner: 'client_organisation';
+  trigger: 'owning_project_retention_policy';
+  independentDeletionAllowed: false;
+};
+
+export type PartnerConsortiumRoomAuthorityBoundaries = {
+  legalAgreementGeneration: false;
+  revenueSettlement: false;
+  messaging: false;
+  crossClientLearning: false;
+  autonomousExternalAction: false;
+};
+
+export interface PartnerConsortiumRoom {
+  id: string;
+  organisationId: string;
+  projectId: string;
+  relationshipId: string;
+  clientOrganisationId: string;
+  partnerOrganisationId: string;
+  clientCoordinatorUserId: string;
+  partnerCoordinatorUserId: string;
+  coSigningRequired: boolean;
+  status: PartnerConsortiumRoomStatus;
+  /** @minimum 1 */
+  version: number;
+  /** @maxItems 40 */
+  responsibilities: ConsortiumResponsibility[];
+  /** @maxItems 4 */
+  qaChecklist: ConsortiumQaItem[];
+  /** @maxItems 500 */
+  auditReceipts: ConsortiumAuditReceipt[];
+  /** @pattern ^[a-f0-9]{64}$ */
+  idempotencyDigest: string;
+  createdByUserId: string;
+  updatedByUserId: string;
+  createdAt: string;
+  updatedAt: string;
+  retention: PartnerConsortiumRoomRetention;
+  authorityBoundaries: PartnerConsortiumRoomAuthorityBoundaries;
+}
+
+export type ConsortiumSnapshotActorParty = typeof ConsortiumSnapshotActorParty[keyof typeof ConsortiumSnapshotActorParty];
+
+
+export const ConsortiumSnapshotActorParty = {
+  client: 'client',
+  partner: 'partner',
+} as const;
+
+export type ConsortiumSnapshotRelationship = {
+  /** @minimum 1 */
+  version: number;
+  coSigningRequired: boolean;
+  /**
+     * @nullable
+     * @pattern ^[a-f0-9]{64}$
+     */
+  qaResponsibilitySha256: string | null;
+};
+
+export interface ConsortiumSnapshot {
+  organisationId: string;
+  projectId: string;
+  relationshipId: string;
+  actorParty: ConsortiumSnapshotActorParty;
+  room: PartnerConsortiumRoom;
+  relationship: ConsortiumSnapshotRelationship;
+}
+
+export type ConsortiumParticipantOptionParty = typeof ConsortiumParticipantOptionParty[keyof typeof ConsortiumParticipantOptionParty];
+
+
+export const ConsortiumParticipantOptionParty = {
+  client: 'client',
+  partner: 'partner',
+} as const;
+
+export interface ConsortiumParticipantOption {
+  userId: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  name: string;
+  party: ConsortiumParticipantOptionParty;
+}
+
+export type ConsortiumParticipantDirectoryLimit = typeof ConsortiumParticipantDirectoryLimit[keyof typeof ConsortiumParticipantDirectoryLimit];
+
+
+export const ConsortiumParticipantDirectoryLimit = {
+  NUMBER_100: 100,
+} as const;
+
+export interface ConsortiumParticipantDirectory {
+  organisationId: string;
+  projectId: string;
+  relationshipId: string;
+  /** @maxItems 100 */
+  items: ConsortiumParticipantOption[];
+  limit: ConsortiumParticipantDirectoryLimit;
+  truncated: false;
+}
+
+export interface AiShadowAuthority {
+  runtimeConnected: true;
+  modelExecutionConnected: false;
+  providerDisclosureAllowed: false;
+  rawOutputPersistenceAllowed: false;
+  customerVisible: false;
+  productionActivationGranted: false;
+  authority: 'named_human_governance_review_required';
+}
+
+export interface AiShadowVersionManifest {
+  /** @pattern ^[a-f0-9]{64}$ */
+  applicationReleaseSha256: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  modelSnapshotSha256: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  modelConfigurationSha256: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  promptSha256: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  schemaSha256: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  retrievalPolicySha256: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  corpusManifestSha256: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  governanceDecisionSha256: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  expectedCaseManifestSha256: string;
+}
+
+export type AiShadowCohortsItem = typeof AiShadowCohortsItem[keyof typeof AiShadowCohortsItem];
+
+
+export const AiShadowCohortsItem = {
+  representative: 'representative',
+  fatal_requirement: 'fatal_requirement',
+  abstention: 'abstention',
+  ocr_table: 'ocr_table',
+  injection: 'injection',
+  tenant_isolation: 'tenant_isolation',
+  cost_latency: 'cost_latency',
+} as const;
+
+/**
+ * @minItems 7
+ * @maxItems 7
+ */
+export type AiShadowCohorts = AiShadowCohortsItem[];
+
+export type AiShadowPlanDraftCapabilityId = typeof AiShadowPlanDraftCapabilityId[keyof typeof AiShadowPlanDraftCapabilityId];
+
+
+export const AiShadowPlanDraftCapabilityId = {
+  extract_pdf_multimodal: 'extract_pdf_multimodal',
+  extract_requirements: 'extract_requirements',
+  map_evidence: 'map_evidence',
+  suggest_defects: 'suggest_defects',
+  responsiveness_review: 'responsiveness_review',
+} as const;
+
+export interface AiShadowPlanDraft {
+  capabilityId: AiShadowPlanDraftCapabilityId;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  purpose: string;
+  versions: AiShadowVersionManifest;
+  cohorts: AiShadowCohorts;
+  /**
+     * @minimum 25
+     * @maximum 500
+     */
+  expectedCaseCount: number;
+  expiresAt: string;
+  /**
+     * @minLength 16
+     * @maxLength 128
+     * @pattern ^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$
+     */
+  idempotencyKey: string;
+}
+
+export type AiShadowPlanCapabilityId = typeof AiShadowPlanCapabilityId[keyof typeof AiShadowPlanCapabilityId];
+
+
+export const AiShadowPlanCapabilityId = {
+  extract_pdf_multimodal: 'extract_pdf_multimodal',
+  extract_requirements: 'extract_requirements',
+  map_evidence: 'map_evidence',
+  suggest_defects: 'suggest_defects',
+  responsiveness_review: 'responsiveness_review',
+} as const;
+
+export type AiShadowPlanStatus = typeof AiShadowPlanStatus[keyof typeof AiShadowPlanStatus];
+
+
+export const AiShadowPlanStatus = {
+  active: 'active',
+  closed: 'closed',
+} as const;
+
+export type AiShadowPlanEvaluationRecommendation = typeof AiShadowPlanEvaluationRecommendation[keyof typeof AiShadowPlanEvaluationRecommendation];
+
+
+export const AiShadowPlanEvaluationRecommendation = {
+  not_evaluated: 'not_evaluated',
+  blocked: 'blocked',
+  eligible_for_governance_review: 'eligible_for_governance_review',
+} as const;
+
+export interface AiShadowPlan {
+  schema: 'valo.ai-shadow-plan/v1';
+  id: string;
+  organisationId: string;
+  capabilityId: AiShadowPlanCapabilityId;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  purpose: string;
+  versions: AiShadowVersionManifest;
+  cohorts: AiShadowCohorts;
+  /**
+     * @minimum 25
+     * @maximum 500
+     */
+  expectedCaseCount: number;
+  expiresAt: string;
+  status: AiShadowPlanStatus;
+  /** @minimum 1 */
+  version: number;
+  executionMode: 'no_output_shadow';
+  customerVisible: false;
+  productionActivationGranted: false;
+  createdByUserId: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  createdByName: string;
+  createdAt: string;
+  /** @nullable */
+  closedByUserId: string | null;
+  /**
+     * @maxLength 512
+     * @nullable
+     */
+  closedByName: string | null;
+  /** @nullable */
+  closedAt: string | null;
+  /**
+     * @maxLength 1000
+     * @nullable
+     */
+  closeReason: string | null;
+  evaluationRecommendation: AiShadowPlanEvaluationRecommendation;
+}
+
+export type AiShadowObservationDraftCohort = typeof AiShadowObservationDraftCohort[keyof typeof AiShadowObservationDraftCohort];
+
+
+export const AiShadowObservationDraftCohort = {
+  representative: 'representative',
+  fatal_requirement: 'fatal_requirement',
+  abstention: 'abstention',
+  ocr_table: 'ocr_table',
+  injection: 'injection',
+  tenant_isolation: 'tenant_isolation',
+  cost_latency: 'cost_latency',
+} as const;
+
+export type AiShadowObservationDraftDisposition = typeof AiShadowObservationDraftDisposition[keyof typeof AiShadowObservationDraftDisposition];
+
+
+export const AiShadowObservationDraftDisposition = {
+  completed: 'completed',
+  abstained: 'abstained',
+  safe_failure: 'safe_failure',
+} as const;
+
+export type AiShadowObservationDraftExpectedDisposition = typeof AiShadowObservationDraftExpectedDisposition[keyof typeof AiShadowObservationDraftExpectedDisposition];
+
+
+export const AiShadowObservationDraftExpectedDisposition = {
+  completed: 'completed',
+  abstained: 'abstained',
+  safe_failure: 'safe_failure',
+} as const;
+
+export type AiShadowObservationDraftReviewerNoteCode = typeof AiShadowObservationDraftReviewerNoteCode[keyof typeof AiShadowObservationDraftReviewerNoteCode];
+
+
+export const AiShadowObservationDraftReviewerNoteCode = {
+  fixture_verified: 'fixture_verified',
+  fixture_discrepancy: 'fixture_discrepancy',
+  safe_failure_verified: 'safe_failure_verified',
+  requires_adjudication: 'requires_adjudication',
+} as const;
+
+export interface AiShadowObservationDraft {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     * @pattern ^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$
+     */
+  caseId: string;
+  cohort: AiShadowObservationDraftCohort;
+  disposition: AiShadowObservationDraftDisposition;
+  expectedDisposition: AiShadowObservationDraftExpectedDisposition;
+  passed: boolean;
+  /**
+     * @nullable
+     * @pattern ^[a-f0-9]{64}$
+     */
+  outputSha256: string | null;
+  /**
+     * @minimum 0
+     * @maximum 10000
+     */
+  fatalMissCount: number;
+  /**
+     * @minimum 0
+     * @maximum 10000
+     */
+  unsupportedMaterialClaimCount: number;
+  tenantLeakDetected: boolean;
+  injectionContained: boolean;
+  /**
+     * @minimum 0
+     * @maximum 100000
+     */
+  citationCorrectCount: number;
+  /**
+     * @minimum 0
+     * @maximum 100000
+     */
+  citationEvaluatedCount: number;
+  /**
+     * @minimum 0
+     * @maximum 3600000
+     */
+  latencyMs: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000000
+     */
+  costMinor: number;
+  reviewerNoteCode: AiShadowObservationDraftReviewerNoteCode;
+  observedAt: string;
+  /**
+     * @minLength 16
+     * @maxLength 128
+     * @pattern ^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$
+     */
+  idempotencyKey: string;
+}
+
+export type AiShadowObservationCohort = typeof AiShadowObservationCohort[keyof typeof AiShadowObservationCohort];
+
+
+export const AiShadowObservationCohort = {
+  representative: 'representative',
+  fatal_requirement: 'fatal_requirement',
+  abstention: 'abstention',
+  ocr_table: 'ocr_table',
+  injection: 'injection',
+  tenant_isolation: 'tenant_isolation',
+  cost_latency: 'cost_latency',
+} as const;
+
+export type AiShadowObservationDisposition = typeof AiShadowObservationDisposition[keyof typeof AiShadowObservationDisposition];
+
+
+export const AiShadowObservationDisposition = {
+  completed: 'completed',
+  abstained: 'abstained',
+  safe_failure: 'safe_failure',
+} as const;
+
+export type AiShadowObservationExpectedDisposition = typeof AiShadowObservationExpectedDisposition[keyof typeof AiShadowObservationExpectedDisposition];
+
+
+export const AiShadowObservationExpectedDisposition = {
+  completed: 'completed',
+  abstained: 'abstained',
+  safe_failure: 'safe_failure',
+} as const;
+
+export type AiShadowObservationReviewerNoteCode = typeof AiShadowObservationReviewerNoteCode[keyof typeof AiShadowObservationReviewerNoteCode];
+
+
+export const AiShadowObservationReviewerNoteCode = {
+  fixture_verified: 'fixture_verified',
+  fixture_discrepancy: 'fixture_discrepancy',
+  safe_failure_verified: 'safe_failure_verified',
+  requires_adjudication: 'requires_adjudication',
+} as const;
+
+export interface AiShadowObservation {
+  schema: 'valo.ai-shadow-observation/v1';
+  id: string;
+  organisationId: string;
+  planId: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  caseId: string;
+  cohort: AiShadowObservationCohort;
+  disposition: AiShadowObservationDisposition;
+  expectedDisposition: AiShadowObservationExpectedDisposition;
+  passed: boolean;
+  /**
+     * @nullable
+     * @pattern ^[a-f0-9]{64}$
+     */
+  outputSha256: string | null;
+  /**
+     * @minimum 0
+     * @maximum 10000
+     */
+  fatalMissCount: number;
+  /**
+     * @minimum 0
+     * @maximum 10000
+     */
+  unsupportedMaterialClaimCount: number;
+  tenantLeakDetected: boolean;
+  injectionContained: boolean;
+  /**
+     * @minimum 0
+     * @maximum 100000
+     */
+  citationCorrectCount: number;
+  /**
+     * @minimum 0
+     * @maximum 100000
+     */
+  citationEvaluatedCount: number;
+  /**
+     * @minimum 0
+     * @maximum 3600000
+     */
+  latencyMs: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000000
+     */
+  costMinor: number;
+  reviewerNoteCode: AiShadowObservationReviewerNoteCode;
+  observedAt: string;
+  recordedByUserId: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  recordedByName: string;
+  recordedAt: string;
+}
+
+export type AiShadowProgrammeSnapshotPlansItemCoveredCohortsItem = typeof AiShadowProgrammeSnapshotPlansItemCoveredCohortsItem[keyof typeof AiShadowProgrammeSnapshotPlansItemCoveredCohortsItem];
+
+
+export const AiShadowProgrammeSnapshotPlansItemCoveredCohortsItem = {
+  representative: 'representative',
+  fatal_requirement: 'fatal_requirement',
+  abstention: 'abstention',
+  ocr_table: 'ocr_table',
+  injection: 'injection',
+  tenant_isolation: 'tenant_isolation',
+  cost_latency: 'cost_latency',
+} as const;
+
+export type AiShadowProgrammeSnapshotPlansItem = {
+  plan: AiShadowPlan;
+  /**
+     * @minimum 0
+     * @maximum 500
+     */
+  observationCount: number;
+  /** @maxItems 7 */
+  coveredCohorts: AiShadowProgrammeSnapshotPlansItemCoveredCohortsItem[];
+  /**
+     * @items.minLength 1
+     * @items.maxLength 1000
+     */
+  blockers: string[];
+};
+
+export interface AiShadowProgrammeSnapshot {
+  generatedAt: string;
+  /** @maxItems 25 */
+  plans: AiShadowProgrammeSnapshotPlansItem[];
+  authority: AiShadowAuthority;
+}
+
+export interface AiShadowPlanMutationResponse {
+  plan: AiShadowPlan;
+  replayed: boolean;
+  authority: AiShadowAuthority;
+}
+
+export interface AiShadowObservationMutationResponse {
+  observation: AiShadowObservation;
+  replayed: boolean;
+  rawOutputPersisted: false;
+  productionActivationGranted: false;
+}
+
+export interface AiShadowCloseDraft {
+  /** @minimum 1 */
+  expectedVersion: number;
+  /**
+     * @minimum 0
+     * @maximum 500
+     */
+  expectedObservationCount: number;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  reason: string;
+}
+
+export interface AiShadowCloseResponse {
+  plan: AiShadowPlan;
+  productionActivationGranted: false;
+  authority: AiShadowAuthority;
+}
+
+export interface PrivacyOperationsTotals {
+  /** @minimum 0 */
+  dataSubjectRequests: number;
+  /** @minimum 0 */
+  consentRecords: number;
+  /** @minimum 0 */
+  legalHolds: number;
+  /** @minimum 0 */
+  subprocessors: number;
+  /** @minimum 0 */
+  crossBorderTransfers: number;
+  /** @minimum 0 */
+  deletionActions: number;
+}
+
+export interface PrivacyOperationsAssignee {
+  userId: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  name: string;
+}
+
+export type PrivacyOperationsAssigneeListLimit = typeof PrivacyOperationsAssigneeListLimit[keyof typeof PrivacyOperationsAssigneeListLimit];
+
+
+export const PrivacyOperationsAssigneeListLimit = {
+  NUMBER_100: 100,
+} as const;
+
+export interface PrivacyOperationsAssigneeList {
+  organisationId: string;
+  /** @maxItems 100 */
+  items: PrivacyOperationsAssignee[];
+  limit: PrivacyOperationsAssigneeListLimit;
+  truncated: false;
+}
+
+export type PrivacyDsrItemResponseEvidenceState = typeof PrivacyDsrItemResponseEvidenceState[keyof typeof PrivacyDsrItemResponseEvidenceState];
+
+
+export const PrivacyDsrItemResponseEvidenceState = {
+  verified: 'verified',
+  missing: 'missing',
+  invalid: 'invalid',
+} as const;
+
+export type PrivacyDsrItemUrgency = typeof PrivacyDsrItemUrgency[keyof typeof PrivacyDsrItemUrgency];
+
+
+export const PrivacyDsrItemUrgency = {
+  completed: 'completed',
+  overdue: 'overdue',
+  due_soon: 'due_soon',
+  on_track: 'on_track',
+} as const;
+
+export interface PrivacyDsrItem {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  requestType: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  identityVerificationStatus: string;
+  receivedAt: string;
+  dueAt: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  status: string;
+  /** @nullable */
+  assignedToUserId: string | null;
+  responseEvidenceState: PrivacyDsrItemResponseEvidenceState;
+  /** @nullable */
+  completedAt: string | null;
+  urgency: PrivacyDsrItemUrgency;
+  /** @minimum 1 */
+  version: number;
+  updatedAt: string;
+}
+
+export type PrivacyConsentItemState = typeof PrivacyConsentItemState[keyof typeof PrivacyConsentItemState];
+
+
+export const PrivacyConsentItemState = {
+  active: 'active',
+  withdrawn: 'withdrawn',
+} as const;
+
+export type PrivacyConsentItemCaptureEvidenceState = typeof PrivacyConsentItemCaptureEvidenceState[keyof typeof PrivacyConsentItemCaptureEvidenceState];
+
+
+export const PrivacyConsentItemCaptureEvidenceState = {
+  verified: 'verified',
+  missing: 'missing',
+  invalid: 'invalid',
+} as const;
+
+export type PrivacyConsentItemWithdrawalReceiptState = typeof PrivacyConsentItemWithdrawalReceiptState[keyof typeof PrivacyConsentItemWithdrawalReceiptState];
+
+
+export const PrivacyConsentItemWithdrawalReceiptState = {
+  verified: 'verified',
+  missing: 'missing',
+  invalid: 'invalid',
+} as const;
+
+export interface PrivacyConsentItem {
+  id: string;
+  /** @nullable */
+  privacyRecordId: string | null;
+  capturedAt: string;
+  /** @nullable */
+  withdrawnAt: string | null;
+  state: PrivacyConsentItemState;
+  captureEvidenceState: PrivacyConsentItemCaptureEvidenceState;
+  withdrawalReceiptState: PrivacyConsentItemWithdrawalReceiptState;
+  /**
+     * @nullable
+     * @pattern ^[a-f0-9]{64}$
+     */
+  withdrawalEvidenceSha256: string | null;
+  /** @nullable */
+  withdrawnByUserId: string | null;
+  /** @minimum 1 */
+  version: number;
+  updatedAt: string;
+}
+
+/**
+ * @nullable
+ */
+export type PrivacyLegalHoldItemLastReviewOutcome = typeof PrivacyLegalHoldItemLastReviewOutcome[keyof typeof PrivacyLegalHoldItemLastReviewOutcome] | null;
+
+
+export const PrivacyLegalHoldItemLastReviewOutcome = {
+  continue: 'continue',
+  escalate_for_legal_review: 'escalate_for_legal_review',
+  release_recommended: 'release_recommended',
+} as const;
+
+export type PrivacyLegalHoldItemReviewPosture = typeof PrivacyLegalHoldItemReviewPosture[keyof typeof PrivacyLegalHoldItemReviewPosture];
+
+
+export const PrivacyLegalHoldItemReviewPosture = {
+  current: 'current',
+  due_soon: 'due_soon',
+  overdue: 'overdue',
+  missing_review_date: 'missing_review_date',
+  released: 'released',
+} as const;
+
+export interface PrivacyLegalHoldItem {
+  id: string;
+  /** @nullable */
+  projectId: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  status: string;
+  placedByUserId: string;
+  /** @nullable */
+  releasedByUserId: string | null;
+  /** @nullable */
+  releasedAt: string | null;
+  /** @nullable */
+  lastReviewOutcome: PrivacyLegalHoldItemLastReviewOutcome;
+  /** @nullable */
+  lastReviewedAt: string | null;
+  /** @nullable */
+  lastReviewedByUserId: string | null;
+  /** @nullable */
+  nextReviewAt: string | null;
+  /**
+     * @nullable
+     * @pattern ^[a-f0-9]{64}$
+     */
+  reviewEvidenceSha256: string | null;
+  reviewPosture: PrivacyLegalHoldItemReviewPosture;
+  /** @minimum 1 */
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PrivacySubprocessorItemReviewPosture = typeof PrivacySubprocessorItemReviewPosture[keyof typeof PrivacySubprocessorItemReviewPosture];
+
+
+export const PrivacySubprocessorItemReviewPosture = {
+  current: 'current',
+  due_soon: 'due_soon',
+  overdue: 'overdue',
+  missing_review_date: 'missing_review_date',
+} as const;
+
+export interface PrivacySubprocessorItem {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  legalName: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  service: string;
+  /** @pattern ^[A-Z]{2}$ */
+  countryCode: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  dpaStatus: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  securityReviewStatus: string;
+  /** @nullable */
+  approvedAt: string | null;
+  /** @nullable */
+  nextReviewAt: string | null;
+  reviewPosture: PrivacySubprocessorItemReviewPosture;
+  /** @minimum 1 */
+  version: number;
+  updatedAt: string;
+}
+
+export type PrivacyTransferItemApprovalEvidenceState = typeof PrivacyTransferItemApprovalEvidenceState[keyof typeof PrivacyTransferItemApprovalEvidenceState];
+
+
+export const PrivacyTransferItemApprovalEvidenceState = {
+  verified: 'verified',
+  missing: 'missing',
+  invalid: 'invalid',
+} as const;
+
+export type PrivacyTransferItemReviewPosture = typeof PrivacyTransferItemReviewPosture[keyof typeof PrivacyTransferItemReviewPosture];
+
+
+export const PrivacyTransferItemReviewPosture = {
+  current: 'current',
+  due_soon: 'due_soon',
+  overdue: 'overdue',
+  missing_review_date: 'missing_review_date',
+} as const;
+
+export interface PrivacyTransferItem {
+  id: string;
+  /** @nullable */
+  subprocessorId: string | null;
+  /** @pattern ^[A-Z]{2}$ */
+  originCountry: string;
+  /** @pattern ^[A-Z]{2}$ */
+  destinationCountry: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  transferBasis: string;
+  approvalEvidenceState: PrivacyTransferItemApprovalEvidenceState;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  legalReviewStatus: string;
+  nextReviewAt: string;
+  reviewPosture: PrivacyTransferItemReviewPosture;
+  /** @minimum 1 */
+  version: number;
+  updatedAt: string;
+}
+
+export type PrivacyDeletionItemReceiptState = typeof PrivacyDeletionItemReceiptState[keyof typeof PrivacyDeletionItemReceiptState];
+
+
+export const PrivacyDeletionItemReceiptState = {
+  pending: 'pending',
+  recorded: 'recorded',
+  missing: 'missing',
+  invalid: 'invalid',
+} as const;
+
+export interface PrivacyDeletionItem {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  status: string;
+  held: boolean;
+  /** @nullable */
+  executedByUserId: string | null;
+  /** @nullable */
+  executedAt: string | null;
+  receiptState: PrivacyDeletionItemReceiptState;
+  /**
+     * @nullable
+     * @pattern ^[a-f0-9]{64}$
+     */
+  scopeManifestSha256: string | null;
+  /** @nullable */
+  signedByUserId: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  /** @minimum 1 */
+  version: number;
+  updatedAt: string;
+}
+
+export type PrivacyOperationsDashboardTruncated = {
+  dataSubjectRequests: boolean;
+  consentRecords: boolean;
+  legalHolds: boolean;
+  subprocessors: boolean;
+  crossBorderTransfers: boolean;
+  deletionActions: boolean;
+};
+
+export interface PrivacyOperationsDashboard {
+  generatedAt: string;
+  organisationId: string;
+  /**
+     * @minimum 1
+     * @maximum 50
+     */
+  boundedTo: number;
+  legalDecisionAutomated: false;
+  rawSubjectPiiIncluded: false;
+  /** @minLength 1 */
+  authorityNote: string;
+  totals: PrivacyOperationsTotals;
+  truncated: PrivacyOperationsDashboardTruncated;
+  /** @maxItems 50 */
+  dataSubjectRequests: PrivacyDsrItem[];
+  /** @maxItems 50 */
+  consentRecords: PrivacyConsentItem[];
+  /** @maxItems 50 */
+  legalHolds: PrivacyLegalHoldItem[];
+  /** @maxItems 50 */
+  subprocessors: PrivacySubprocessorItem[];
+  /** @maxItems 50 */
+  crossBorderTransfers: PrivacyTransferItem[];
+  /** @maxItems 50 */
+  deletionActions: PrivacyDeletionItem[];
+  /**
+     * @items.minLength 1
+     * @items.maxLength 1000
+     */
+  blockers: string[];
+}
+
+export type PrivacyDsrTriageDraftStatus = typeof PrivacyDsrTriageDraftStatus[keyof typeof PrivacyDsrTriageDraftStatus];
+
+
+export const PrivacyDsrTriageDraftStatus = {
+  received: 'received',
+  triaged: 'triaged',
+  in_progress: 'in_progress',
+  awaiting_identity: 'awaiting_identity',
+  on_hold: 'on_hold',
+} as const;
+
+export type PrivacyDsrTriageDraftIdentityVerificationStatus = typeof PrivacyDsrTriageDraftIdentityVerificationStatus[keyof typeof PrivacyDsrTriageDraftIdentityVerificationStatus];
+
+
+export const PrivacyDsrTriageDraftIdentityVerificationStatus = {
+  pending: 'pending',
+  verified: 'verified',
+  failed: 'failed',
+} as const;
+
+export type PrivacyDsrTriageDraftReasonCode = typeof PrivacyDsrTriageDraftReasonCode[keyof typeof PrivacyDsrTriageDraftReasonCode];
+
+
+export const PrivacyDsrTriageDraftReasonCode = {
+  initial_triage: 'initial_triage',
+  identity_pending: 'identity_pending',
+  scope_confirmation: 'scope_confirmation',
+  complexity_review: 'complexity_review',
+  deadline_risk: 'deadline_risk',
+  other_review_required: 'other_review_required',
+} as const;
+
+export interface PrivacyDsrTriageDraft {
+  status: PrivacyDsrTriageDraftStatus;
+  identityVerificationStatus: PrivacyDsrTriageDraftIdentityVerificationStatus;
+  assignedToUserId: string;
+  reasonCode: PrivacyDsrTriageDraftReasonCode;
+  /** @pattern ^[a-f0-9]{64}$ */
+  decisionEvidenceSha256: string;
+}
+
+export interface PrivacyConsentWithdrawalDraft {
+  withdrawnAt: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  evidenceSha256: string;
+}
+
+export type PrivacyHoldReviewDraftReviewOutcome = typeof PrivacyHoldReviewDraftReviewOutcome[keyof typeof PrivacyHoldReviewDraftReviewOutcome];
+
+
+export const PrivacyHoldReviewDraftReviewOutcome = {
+  continue: 'continue',
+  escalate_for_legal_review: 'escalate_for_legal_review',
+  release_recommended: 'release_recommended',
+} as const;
+
+export interface PrivacyHoldReviewDraft {
+  reviewOutcome: PrivacyHoldReviewDraftReviewOutcome;
+  nextReviewAt: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  evidenceSha256: string;
+}
+
+export type PrivacyWorkflowReceiptEventType = typeof PrivacyWorkflowReceiptEventType[keyof typeof PrivacyWorkflowReceiptEventType];
+
+
+export const PrivacyWorkflowReceiptEventType = {
+  privacydsr_triage_recorded: 'privacy.dsr_triage_recorded',
+  privacyconsent_withdrawal_recorded: 'privacy.consent_withdrawal_recorded',
+  privacylegal_hold_review_recorded: 'privacy.legal_hold_review_recorded',
+} as const;
+
+export interface PrivacyWorkflowReceipt {
+  /** @pattern ^[a-f0-9]{64}$ */
+  receiptSha256: string;
+  eventType: PrivacyWorkflowReceiptEventType;
+  objectId: string;
+  actorUserId: string;
+  recordedAt: string;
+  /** @minimum 1 */
+  resultingVersion: number;
+  legalDecisionAutomated: false;
+}
+
+export interface PrivacyMutationResponse {
+  outcome: 'updated';
+  /** @minimum 1 */
+  resultingVersion: number;
+  receipt: PrivacyWorkflowReceipt;
+  legalDecisionAutomated: false;
+  /** @minLength 1 */
+  authorityNote: string;
+}
+
+export interface ClaimsDeskDocumentBinding {
+  documentId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  sha256: string;
+}
+
+export type ClaimsDeskCreateDraftRecordType = typeof ClaimsDeskCreateDraftRecordType[keyof typeof ClaimsDeskCreateDraftRecordType];
+
+
+export const ClaimsDeskCreateDraftRecordType = {
+  contract_event: 'contract_event',
+  notice_deadline: 'notice_deadline',
+  variation: 'variation',
+  claim: 'claim',
+  payment_certificate: 'payment_certificate',
+  obligation: 'obligation',
+} as const;
+
+export interface ClaimsDeskCreateDraft {
+  recordType: ClaimsDeskCreateDraftRecordType;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  reference: string;
+  eventDate: string;
+  /** @nullable */
+  dueAt: string | null;
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     * @nullable
+     */
+  amountMinor: number | null;
+  /**
+     * @nullable
+     * @pattern ^[A-Z]{3}$
+     */
+  currency: string | null;
+  /**
+     * @minItems 1
+     * @maxItems 10
+     */
+  documentBindings: ClaimsDeskDocumentBinding[];
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  idempotencyKey: string;
+}
+
+export type ClaimsDeskTransitionDraftAction = typeof ClaimsDeskTransitionDraftAction[keyof typeof ClaimsDeskTransitionDraftAction];
+
+
+export const ClaimsDeskTransitionDraftAction = {
+  start_review: 'start_review',
+  propose_assessment: 'propose_assessment',
+  approve_assessment: 'approve_assessment',
+  return_assessment: 'return_assessment',
+  propose_closure: 'propose_closure',
+  approve_closure: 'approve_closure',
+  return_closure: 'return_closure',
+  withdraw: 'withdraw',
+} as const;
+
+export type ClaimsDeskTransitionDraftReasonCode = typeof ClaimsDeskTransitionDraftReasonCode[keyof typeof ClaimsDeskTransitionDraftReasonCode];
+
+
+export const ClaimsDeskTransitionDraftReasonCode = {
+  evidence_received: 'evidence_received',
+  deadline_review: 'deadline_review',
+  assessment_ready: 'assessment_ready',
+  assessment_checked: 'assessment_checked',
+  assessment_returned: 'assessment_returned',
+  closure_ready: 'closure_ready',
+  closure_checked: 'closure_checked',
+  closure_returned: 'closure_returned',
+  duplicate_record: 'duplicate_record',
+  superseded_record: 'superseded_record',
+  other_human_review: 'other_human_review',
+} as const;
+
+/**
+ * @nullable
+ */
+export type ClaimsDeskTransitionDraftAssessmentCode = typeof ClaimsDeskTransitionDraftAssessmentCode[keyof typeof ClaimsDeskTransitionDraftAssessmentCode] | null;
+
+
+export const ClaimsDeskTransitionDraftAssessmentCode = {
+  requires_further_review: 'requires_further_review',
+  commercial_position_recorded: 'commercial_position_recorded',
+  not_progressed: 'not_progressed',
+} as const;
+
+export interface ClaimsDeskTransitionDraft {
+  action: ClaimsDeskTransitionDraftAction;
+  reasonCode: ClaimsDeskTransitionDraftReasonCode;
+  /** @nullable */
+  assessmentCode: ClaimsDeskTransitionDraftAssessmentCode;
+  /**
+     * @minItems 1
+     * @maxItems 10
+     */
+  documentBindings: ClaimsDeskDocumentBinding[];
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  idempotencyKey: string;
+}
+
+export type ClaimsDeskReasonHistoryEntryAction = typeof ClaimsDeskReasonHistoryEntryAction[keyof typeof ClaimsDeskReasonHistoryEntryAction];
+
+
+export const ClaimsDeskReasonHistoryEntryAction = {
+  start_review: 'start_review',
+  propose_assessment: 'propose_assessment',
+  approve_assessment: 'approve_assessment',
+  return_assessment: 'return_assessment',
+  propose_closure: 'propose_closure',
+  approve_closure: 'approve_closure',
+  return_closure: 'return_closure',
+  withdraw: 'withdraw',
+} as const;
+
+export type ClaimsDeskReasonHistoryEntryReasonCode = typeof ClaimsDeskReasonHistoryEntryReasonCode[keyof typeof ClaimsDeskReasonHistoryEntryReasonCode];
+
+
+export const ClaimsDeskReasonHistoryEntryReasonCode = {
+  evidence_received: 'evidence_received',
+  deadline_review: 'deadline_review',
+  assessment_ready: 'assessment_ready',
+  assessment_checked: 'assessment_checked',
+  assessment_returned: 'assessment_returned',
+  closure_ready: 'closure_ready',
+  closure_checked: 'closure_checked',
+  closure_returned: 'closure_returned',
+  duplicate_record: 'duplicate_record',
+  superseded_record: 'superseded_record',
+  other_human_review: 'other_human_review',
+} as const;
+
+/**
+ * @nullable
+ */
+export type ClaimsDeskReasonHistoryEntryAssessmentCode = typeof ClaimsDeskReasonHistoryEntryAssessmentCode[keyof typeof ClaimsDeskReasonHistoryEntryAssessmentCode] | null;
+
+
+export const ClaimsDeskReasonHistoryEntryAssessmentCode = {
+  requires_further_review: 'requires_further_review',
+  commercial_position_recorded: 'commercial_position_recorded',
+  not_progressed: 'not_progressed',
+} as const;
+
+export type ClaimsDeskReasonHistoryEntryFromStatus = typeof ClaimsDeskReasonHistoryEntryFromStatus[keyof typeof ClaimsDeskReasonHistoryEntryFromStatus];
+
+
+export const ClaimsDeskReasonHistoryEntryFromStatus = {
+  registered: 'registered',
+  under_review: 'under_review',
+  assessment_proposed: 'assessment_proposed',
+  assessed: 'assessed',
+  closure_proposed: 'closure_proposed',
+  closed: 'closed',
+  withdrawn: 'withdrawn',
+} as const;
+
+export type ClaimsDeskReasonHistoryEntryToStatus = typeof ClaimsDeskReasonHistoryEntryToStatus[keyof typeof ClaimsDeskReasonHistoryEntryToStatus];
+
+
+export const ClaimsDeskReasonHistoryEntryToStatus = {
+  registered: 'registered',
+  under_review: 'under_review',
+  assessment_proposed: 'assessment_proposed',
+  assessed: 'assessed',
+  closure_proposed: 'closure_proposed',
+  closed: 'closed',
+  withdrawn: 'withdrawn',
+} as const;
+
+export interface ClaimsDeskReasonHistoryEntry {
+  action: ClaimsDeskReasonHistoryEntryAction;
+  reasonCode: ClaimsDeskReasonHistoryEntryReasonCode;
+  /** @nullable */
+  assessmentCode: ClaimsDeskReasonHistoryEntryAssessmentCode;
+  fromStatus: ClaimsDeskReasonHistoryEntryFromStatus;
+  toStatus: ClaimsDeskReasonHistoryEntryToStatus;
+  actorUserId: string;
+  occurredAt: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  receiptSha256: string;
+}
+
+export type ClaimsDeskRecordRecordType = typeof ClaimsDeskRecordRecordType[keyof typeof ClaimsDeskRecordRecordType];
+
+
+export const ClaimsDeskRecordRecordType = {
+  contract_event: 'contract_event',
+  notice_deadline: 'notice_deadline',
+  variation: 'variation',
+  claim: 'claim',
+  payment_certificate: 'payment_certificate',
+  obligation: 'obligation',
+} as const;
+
+export type ClaimsDeskRecordStatus = typeof ClaimsDeskRecordStatus[keyof typeof ClaimsDeskRecordStatus];
+
+
+export const ClaimsDeskRecordStatus = {
+  registered: 'registered',
+  under_review: 'under_review',
+  assessment_proposed: 'assessment_proposed',
+  assessed: 'assessed',
+  closure_proposed: 'closure_proposed',
+  closed: 'closed',
+  withdrawn: 'withdrawn',
+} as const;
+
+/**
+ * @nullable
+ */
+export type ClaimsDeskRecordAssessmentCode = typeof ClaimsDeskRecordAssessmentCode[keyof typeof ClaimsDeskRecordAssessmentCode] | null;
+
+
+export const ClaimsDeskRecordAssessmentCode = {
+  requires_further_review: 'requires_further_review',
+  commercial_position_recorded: 'commercial_position_recorded',
+  not_progressed: 'not_progressed',
+} as const;
+
+export interface ClaimsDeskRecord {
+  id: string;
+  organisationId: string;
+  projectId: string;
+  recordType: ClaimsDeskRecordRecordType;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  reference: string;
+  eventDate: string;
+  /** @nullable */
+  dueAt: string | null;
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     * @nullable
+     */
+  amountMinor: number | null;
+  /**
+     * @nullable
+     * @pattern ^[A-Z]{3}$
+     */
+  currency: string | null;
+  /**
+     * @minItems 1
+     * @maxItems 10
+     */
+  documentBindings: ClaimsDeskDocumentBinding[];
+  status: ClaimsDeskRecordStatus;
+  /** @nullable */
+  assessmentCode: ClaimsDeskRecordAssessmentCode;
+  /** @nullable */
+  pendingMakerUserId: string | null;
+  /** @minimum 1 */
+  version: number;
+  createdByUserId: string;
+  createdAt: string;
+  updatedAt: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  latestReceiptSha256: string;
+  /** @maxItems 100 */
+  reasonHistory: ClaimsDeskReasonHistoryEntry[];
+}
+
+export interface ClaimsDeskPosture {
+  /** @minimum 0 */
+  total: number;
+  /** @minimum 0 */
+  open: number;
+  /** @minimum 0 */
+  overdue: number;
+  /** @minimum 0 */
+  dueSoon: number;
+  /** @minimum 0 */
+  awaitingChecker: number;
+  /** @minimum 0 */
+  terminal: number;
+}
+
+export interface ClaimsDeskSnapshot {
+  organisationId: string;
+  projectId: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  projectStatus: string;
+  /** @maxItems 250 */
+  records: ClaimsDeskRecord[];
+  posture: ClaimsDeskPosture;
+  truncated: false;
+  generatedAt: string;
+  legalConclusionAutomated: false;
+  noticeDispatched: false;
+  paymentMutated: false;
+  /** @minLength 1 */
+  authorityNote: string;
+}
+
+export type ClaimsDeskMutationResponseOutcome = typeof ClaimsDeskMutationResponseOutcome[keyof typeof ClaimsDeskMutationResponseOutcome];
+
+
+export const ClaimsDeskMutationResponseOutcome = {
+  created: 'created',
+  updated: 'updated',
+} as const;
+
+export interface ClaimsDeskMutationResponse {
+  outcome: ClaimsDeskMutationResponseOutcome;
+  record: ClaimsDeskRecord;
+  replayed: boolean;
+  legalConclusionAutomated: false;
+  noticeDispatched: false;
+  paymentMutated: false;
+  /** @minLength 1 */
+  authorityNote: string;
+}
+
+export type ProjectExportPackageVersionSummaryRenderQaStatus = typeof ProjectExportPackageVersionSummaryRenderQaStatus[keyof typeof ProjectExportPackageVersionSummaryRenderQaStatus];
+
+
+export const ProjectExportPackageVersionSummaryRenderQaStatus = {
+  pending: 'pending',
+  passed: 'passed',
+  failed: 'failed',
+} as const;
+
+/**
+ * Metadata-only identity for the current canonical project-export package version. Archive contents and storage locations are excluded.
+ */
+export interface ProjectExportPackageVersionSummary {
+  packageId: string;
+  packageVersionId: string;
+  packageType: 'project_export';
+  /** @minimum 1 */
+  versionNumber: number;
+  /** @pattern ^[a-f0-9]{64}$ */
+  manifestSha256: string;
+  renderQaStatus: ProjectExportPackageVersionSummaryRenderQaStatus;
+  createdAt: string;
+}
+
+export interface ProjectExportPackageVersionListResponse {
+  /** @maxItems 100 */
+  items: ProjectExportPackageVersionSummary[];
+  limit: 100;
+  truncated: boolean;
+}
+
+/**
+ * Closed authority boundary returned by every growth-suite success response.
+ */
+export type GrowthHumanControlNote = 'Every assignment, qualification, conversion proposal, quote term and quote approval is a named human action. This surface sends no email, creates no CRM record, converts no pursuit, submits no bid, calculates no price and collects no payment.';
+
+export interface GrowthOnboardingChecklistItem {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  purpose: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  completionEvidence: string;
+}
+
+export interface GrowthSyntheticTourStep {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  instruction: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  syntheticObjectReference: string;
+}
+
+export type GrowthOnboardingJourneyDerivedFromRolesItem = typeof GrowthOnboardingJourneyDerivedFromRolesItem[keyof typeof GrowthOnboardingJourneyDerivedFromRolesItem];
+
+
+export const GrowthOnboardingJourneyDerivedFromRolesItem = {
+  client_organisation_owner: 'client_organisation_owner',
+  client_administrator: 'client_administrator',
+  bid_manager: 'bid_manager',
+  contributor: 'contributor',
+  client_reviewer_approver: 'client_reviewer_approver',
+  valo_operations_administrator: 'valo_operations_administrator',
+  restricted_platform_administrator: 'restricted_platform_administrator',
+  consultancy_partner_administrator: 'consultancy_partner_administrator',
+  consultancy_partner_analyst_reviewer: 'consultancy_partner_analyst_reviewer',
+  read_only_auditor: 'read_only_auditor',
+  valo_analyst: 'valo_analyst',
+  valo_quality_adviser: 'valo_quality_adviser',
+} as const;
+
+export type GrowthOnboardingJourneySyntheticTour = {
+  dataClassification: 'synthetic_non_customer';
+  writesAuthoritativeState: false;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  title: string;
+  /** @maxItems 16 */
+  steps: GrowthSyntheticTourStep[];
+};
+
+export interface GrowthOnboardingJourney {
+  policyVersion: '2026-08-11.2';
+  /** @maxItems 12 */
+  derivedFromRoles: GrowthOnboardingJourneyDerivedFromRolesItem[];
+  /** @maxItems 12 */
+  checklist: GrowthOnboardingChecklistItem[];
+  syntheticTour: GrowthOnboardingJourneySyntheticTour;
+}
+
+export interface GrowthOnboardingProgress {
+  journeyVersion: '2026-08-11.2';
+  /**
+     * @maxItems 512
+     * @items.minLength 1
+     * @items.maxLength 128
+     */
+  completedItemIds: string[];
+  /** @minimum 0 */
+  version: number;
+}
+
+export interface GrowthOnboardingResponse {
+  journey: GrowthOnboardingJourney;
+  progress: GrowthOnboardingProgress;
+  authorityNote: GrowthHumanControlNote;
+}
+
+export interface GrowthOnboardingProgressMutation {
+  journeyVersion: '2026-08-11.2';
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  itemId: string;
+  /** @minimum 0 */
+  expectedVersion: number;
+  completed: boolean;
+}
+
+export interface GrowthOnboardingProgressMutationResponse {
+  progress: GrowthOnboardingProgress;
+  authorityNote: GrowthHumanControlNote;
+}
+
+export type GrowthOfferCatalogueItemSku = typeof GrowthOfferCatalogueItemSku[keyof typeof GrowthOfferCatalogueItemSku];
+
+
+export const GrowthOfferCatalogueItemSku = {
+  bid_autopsy: 'bid_autopsy',
+  assisted_bid: 'assisted_bid',
+  evidence_readiness_retainer: 'evidence_readiness_retainer',
+} as const;
+
+export type GrowthOfferCatalogueItemVersionId = typeof GrowthOfferCatalogueItemVersionId[keyof typeof GrowthOfferCatalogueItemVersionId];
+
+
+export const GrowthOfferCatalogueItemVersionId = {
+  'bid_autopsy@1': 'bid_autopsy@1',
+  'assisted_bid@1': 'assisted_bid@1',
+  'evidence_readiness_retainer@1': 'evidence_readiness_retainer@1',
+} as const;
+
+export interface GrowthOfferCatalogueItem {
+  sku: GrowthOfferCatalogueItemSku;
+  versionId: GrowthOfferCatalogueItemVersionId;
+  revision: 1;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  summary: string;
+  /**
+     * @maxItems 20
+     * @items.minLength 1
+     * @items.maxLength 160
+     */
+  includedOutcomes: string[];
+  /**
+     * @maxItems 20
+     * @items.minLength 1
+     * @items.maxLength 160
+     */
+  excludedActions: string[];
+  pricingMode: 'human_quote_required';
+  paymentMode: 'external_manual_only';
+  status: 'active';
+}
+
+export interface GrowthOfferCatalogueResponse {
+  catalogueVersion: '2026-08-11.1';
+  /**
+     * @minItems 3
+     * @maxItems 3
+     */
+  items: GrowthOfferCatalogueItem[];
+  authorityNote: GrowthHumanControlNote;
+}
+
+export interface GrowthLeadConversionProposal {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  id: string;
+  status: 'pending_human_decision';
+  proposedAt: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  proposedByUserId: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  suggestedPursuitTitle: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  rationale: string;
+}
+
+export type GrowthLeadStatusDecisionStatus = typeof GrowthLeadStatusDecisionStatus[keyof typeof GrowthLeadStatusDecisionStatus];
+
+
+export const GrowthLeadStatusDecisionStatus = {
+  qualified: 'qualified',
+  not_a_fit: 'not_a_fit',
+  converted: 'converted',
+} as const;
+
+export interface GrowthLeadStatusDecision {
+  status: GrowthLeadStatusDecisionStatus;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  reason: string;
+  decidedAt: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  decidedByUserId: string;
+  externalTargetReference: string | null;
+  receiptSha256: string | null;
+}
+
+export type GrowthLeadInboxItemStatus = typeof GrowthLeadInboxItemStatus[keyof typeof GrowthLeadInboxItemStatus];
+
+
+export const GrowthLeadInboxItemStatus = {
+  new: 'new',
+  qualified: 'qualified',
+  not_a_fit: 'not_a_fit',
+  converted: 'converted',
+  conversion_proposed: 'conversion_proposed',
+} as const;
+
+/**
+ * Deliberately excludes a person's name, email address and telephone number.
+ */
+export interface GrowthLeadInboxItem {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  organisationId: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  leadReference: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  organisationLabel: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  tenderCategory: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  bidStage: string;
+  receivedAt: string;
+  /** @nullable */
+  tenderDeadline: string | null;
+  /**
+     * @maxLength 128
+     * @nullable
+     */
+  assignedToUserId: string | null;
+  status: GrowthLeadInboxItemStatus;
+  /** @nullable */
+  slaDueAt: string | null;
+  conversionProposal: GrowthLeadConversionProposal | null;
+  latestStatusDecision: GrowthLeadStatusDecision | null;
+  /** @minimum 1 */
+  version: number;
+  updatedAt: string;
+}
+
+export interface GrowthLeadListResponse {
+  /** @maxItems 50 */
+  items: GrowthLeadInboxItem[];
+  /**
+     * @minimum 0
+     * @maximum 50
+     */
+  count: number;
+  contactDataIncluded: false;
+  authorityNote: GrowthHumanControlNote;
+}
+
+export interface GrowthLeadAssignMutation {
+  action: 'assign';
+  /** @minimum 1 */
+  expectedVersion: number;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  assigneeUserId: string;
+}
+
+export type GrowthLeadQualificationStatusMutationStatus = typeof GrowthLeadQualificationStatusMutationStatus[keyof typeof GrowthLeadQualificationStatusMutationStatus];
+
+
+export const GrowthLeadQualificationStatusMutationStatus = {
+  qualified: 'qualified',
+  not_a_fit: 'not_a_fit',
+} as const;
+
+export interface GrowthLeadQualificationStatusMutation {
+  action: 'set_status';
+  /** @minimum 1 */
+  expectedVersion: number;
+  status: GrowthLeadQualificationStatusMutationStatus;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  reason: string;
+}
+
+export interface GrowthLeadConvertedStatusMutation {
+  action: 'set_status';
+  /** @minimum 1 */
+  expectedVersion: number;
+  status: 'converted';
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  reason: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  externalTargetReference: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  receiptSha256: string;
+}
+
+export type GrowthLeadStatusMutation = GrowthLeadQualificationStatusMutation | GrowthLeadConvertedStatusMutation;
+
+export interface GrowthLeadSlaMutation {
+  action: 'set_sla';
+  /** @minimum 1 */
+  expectedVersion: number;
+  slaDueAt: string;
+}
+
+export interface GrowthLeadConversionMutation {
+  action: 'propose_conversion';
+  /** @minimum 1 */
+  expectedVersion: number;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  suggestedPursuitTitle: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  rationale: string;
+}
+
+export type GrowthLeadMutation = GrowthLeadAssignMutation | GrowthLeadStatusMutation | GrowthLeadSlaMutation | GrowthLeadConversionMutation;
+
+export interface GrowthLeadMutationResponse {
+  item: GrowthLeadInboxItem;
+  authorityNote: GrowthHumanControlNote;
+}
+
+export type GrowthLeadContactHandoffRequestPurpose = typeof GrowthLeadContactHandoffRequestPurpose[keyof typeof GrowthLeadContactHandoffRequestPurpose];
+
+
+export const GrowthLeadContactHandoffRequestPurpose = {
+  initial_follow_up: 'initial_follow_up',
+  qualification_call: 'qualification_call',
+  conversion_handoff: 'conversion_handoff',
+} as const;
+
+export interface GrowthLeadContactHandoffRequest {
+  /** @minimum 1 */
+  expectedVersion: number;
+  purpose: GrowthLeadContactHandoffRequestPurpose;
+}
+
+export type GrowthLeadEmailContactHandoffPurpose = typeof GrowthLeadEmailContactHandoffPurpose[keyof typeof GrowthLeadEmailContactHandoffPurpose];
+
+
+export const GrowthLeadEmailContactHandoffPurpose = {
+  initial_follow_up: 'initial_follow_up',
+  qualification_call: 'qualification_call',
+  conversion_handoff: 'conversion_handoff',
+} as const;
+
+export interface GrowthLeadEmailContactHandoff {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  leadId: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  contactName: string;
+  preferredContactMethod: 'email';
+  /**
+     * @minLength 1
+     * @maxLength 254
+     */
+  contactValue: string;
+  purpose: GrowthLeadEmailContactHandoffPurpose;
+  accessedAt: string;
+  /** @minimum 1 */
+  version: number;
+}
+
+export type GrowthLeadTelephoneContactHandoffPurpose = typeof GrowthLeadTelephoneContactHandoffPurpose[keyof typeof GrowthLeadTelephoneContactHandoffPurpose];
+
+
+export const GrowthLeadTelephoneContactHandoffPurpose = {
+  initial_follow_up: 'initial_follow_up',
+  qualification_call: 'qualification_call',
+  conversion_handoff: 'conversion_handoff',
+} as const;
+
+export interface GrowthLeadTelephoneContactHandoff {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  leadId: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  contactName: string;
+  preferredContactMethod: 'telephone';
+  /**
+     * @minLength 1
+     * @maxLength 32
+     */
+  contactValue: string;
+  purpose: GrowthLeadTelephoneContactHandoffPurpose;
+  accessedAt: string;
+  /** @minimum 1 */
+  version: number;
+}
+
+/**
+ * Transient contact data for one assigned lead. It must not be retained in a client cache, bulk export, application log or analytics event.
+ */
+export type GrowthLeadContactHandoff = GrowthLeadEmailContactHandoff | GrowthLeadTelephoneContactHandoff;
+
+export interface GrowthLeadContactHandoffResponse {
+  handoff: GrowthLeadContactHandoff;
+  contactDataIncluded: true;
+  authorityNote: 'This single-record contact handoff is for the recorded purpose and assigned operator only. It sends no message and must not be copied into logs or bulk exports.';
+}
+
+export type GrowthCreateQuoteDraftOfferVersionId = typeof GrowthCreateQuoteDraftOfferVersionId[keyof typeof GrowthCreateQuoteDraftOfferVersionId];
+
+
+export const GrowthCreateQuoteDraftOfferVersionId = {
+  'bid_autopsy@1': 'bid_autopsy@1',
+  'assisted_bid@1': 'assisted_bid@1',
+  'evidence_readiness_retainer@1': 'evidence_readiness_retainer@1',
+} as const;
+
+export interface GrowthCreateQuoteDraft {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  customerReference: string;
+  offerVersionId: GrowthCreateQuoteDraftOfferVersionId;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  scopeSummary: string;
+  /** @pattern ^[A-Z]{3}$ */
+  currency: string;
+  /**
+     * Entered by a named operator; never calculated by Valo.
+     * @minimum 1
+     * @maximum 1000000000000000
+     */
+  amountMinor: number;
+  validUntil: string;
+}
+
+export type GrowthQuoteProposalOfferVersionId = typeof GrowthQuoteProposalOfferVersionId[keyof typeof GrowthQuoteProposalOfferVersionId];
+
+
+export const GrowthQuoteProposalOfferVersionId = {
+  'bid_autopsy@1': 'bid_autopsy@1',
+  'assisted_bid@1': 'assisted_bid@1',
+  'evidence_readiness_retainer@1': 'evidence_readiness_retainer@1',
+} as const;
+
+export type GrowthQuoteProposalStatus = typeof GrowthQuoteProposalStatus[keyof typeof GrowthQuoteProposalStatus];
+
+
+export const GrowthQuoteProposalStatus = {
+  draft: 'draft',
+  approved: 'approved',
+} as const;
+
+export interface GrowthQuoteProposal {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  organisationId: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  customerReference: string;
+  offerVersionId: GrowthQuoteProposalOfferVersionId;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  scopeSummary: string;
+  /** @pattern ^[A-Z]{3}$ */
+  currency: string;
+  /**
+     * @minimum 1
+     * @maximum 1000000000000000
+     */
+  amountMinor: number;
+  validUntil: string;
+  status: GrowthQuoteProposalStatus;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  createdByUserId: string;
+  /**
+     * @maxLength 128
+     * @nullable
+     */
+  approvedByUserId: string | null;
+  /** @nullable */
+  approvedAt: string | null;
+  /** @minimum 1 */
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GrowthQuoteListResponse {
+  /** @maxItems 50 */
+  items: GrowthQuoteProposal[];
+  /**
+     * @minimum 0
+     * @maximum 50
+     */
+  count: number;
+  authorityNote: GrowthHumanControlNote;
+}
+
+export interface GrowthQuoteMutationResponse {
+  quote: GrowthQuoteProposal;
+  authorityNote: GrowthHumanControlNote;
+}
+
+export interface ExpectedVersionRequest {
+  /** @minimum 1 */
+  expectedVersion: number;
+}
+
+export type OperationsSuiteErrorEnvelopeCode = typeof OperationsSuiteErrorEnvelopeCode[keyof typeof OperationsSuiteErrorEnvelopeCode];
+
+
+export const OperationsSuiteErrorEnvelopeCode = {
+  invalid_request: 'invalid_request',
+  not_found: 'not_found',
+  conflict: 'conflict',
+  stale_version: 'stale_version',
+  scope_denied: 'scope_denied',
+  capacity_exceeded: 'capacity_exceeded',
+  policy_denied: 'policy_denied',
+} as const;
+
+export interface OperationsSuiteErrorEnvelope {
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     */
+  error: string;
+  code?: OperationsSuiteErrorEnvelopeCode;
+}
+
+/**
+ * @minLength 1
+ * @maxLength 128
+ * @pattern ^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$
+ */
+export type OperationsReferenceId = string;
+
+/**
+ * @pattern ^[a-f0-9]{64}$
+ */
+export type OperationsSha256 = string;
+
+export interface OperationsRecordBase {
+  id: string;
+  kind: string;
+  organisationId: string;
+  projectId: string;
+  /** @minimum 1 */
+  version: number;
+  createdByUserId: string;
+  updatedByUserId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type OperationsOpportunitySourceInputType = typeof OperationsOpportunitySourceInputType[keyof typeof OperationsOpportunitySourceInputType];
+
+
+export const OperationsOpportunitySourceInputType = {
+  manual_url: 'manual_url',
+  forwarded_email: 'forwarded_email',
+  licensed_csv: 'licensed_csv',
+  ocds: 'ocds',
+} as const;
+
+export interface OperationsOpportunitySourceInput {
+  type: OperationsOpportunitySourceInputType;
+  /**
+     * @minLength 1
+     * @maxLength 2048
+     */
+  locator: string;
+  receivedAt: string;
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     * @nullable
+     */
+  authorisationBasis?: string | null;
+  contentSha256?: OperationsSha256 | null;
+}
+
+export interface OperationsCreateOpportunity {
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     */
+  issuer: string;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     * @nullable
+     */
+  reference?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     * @nullable
+     */
+  lot?: string | null;
+  /** @nullable */
+  deadline?: string | null;
+  source: OperationsOpportunitySourceInput;
+}
+
+export interface OperationsConfirmDeadline {
+  /** @minimum 1 */
+  expectedVersion: number;
+  deadline: string;
+}
+
+export type OperationsOpportunityRecordSourceType = typeof OperationsOpportunityRecordSourceType[keyof typeof OperationsOpportunityRecordSourceType];
+
+
+export const OperationsOpportunityRecordSourceType = {
+  manual_url: 'manual_url',
+  forwarded_email: 'forwarded_email',
+  licensed_csv: 'licensed_csv',
+  ocds: 'ocds',
+} as const;
+
+export type OperationsOpportunityRecordSource = {
+  type: OperationsOpportunityRecordSourceType;
+  /**
+     * @minLength 1
+     * @maxLength 2048
+     */
+  locator: string;
+  receivedAt: string;
+  /**
+     * @maxLength 1024
+     * @nullable
+     */
+  authorisationBasis: string | null;
+  contentSha256: OperationsSha256 | null;
+};
+
+export type OperationsOpportunityRecordDeadlineStatus = typeof OperationsOpportunityRecordDeadlineStatus[keyof typeof OperationsOpportunityRecordDeadlineStatus];
+
+
+export const OperationsOpportunityRecordDeadlineStatus = {
+  unconfirmed: 'unconfirmed',
+  human_confirmed: 'human_confirmed',
+} as const;
+
+export type OperationsOpportunityRecordStatus = typeof OperationsOpportunityRecordStatus[keyof typeof OperationsOpportunityRecordStatus];
+
+
+export const OperationsOpportunityRecordStatus = {
+  recorded: 'recorded',
+  qualified: 'qualified',
+  not_pursued: 'not_pursued',
+} as const;
+
+export type OperationsOpportunityRecord = OperationsRecordBase & ({
+  kind: 'opportunity_intake';
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     */
+  issuer: string;
+  /**
+     * @maxLength 256
+     * @nullable
+     */
+  reference: string | null;
+  /**
+     * @maxLength 256
+     * @nullable
+     */
+  lot: string | null;
+  source: OperationsOpportunityRecordSource;
+  dedupeKey: OperationsSha256;
+  provenanceSha256: OperationsSha256;
+  /** @nullable */
+  deadline: string | null;
+  deadlineStatus: OperationsOpportunityRecordDeadlineStatus;
+  /** @nullable */
+  deadlineConfirmedByUserId: string | null;
+  /** @nullable */
+  deadlineConfirmedAt: string | null;
+  status: OperationsOpportunityRecordStatus;
+});
+
+export interface OperationsWorkObjectLinks {
+  /** @maxItems 100 */
+  requirementIds?: OperationsReferenceId[];
+  /** @maxItems 100 */
+  evidenceItemIds?: OperationsReferenceId[];
+  /** @maxItems 100 */
+  packageIds?: OperationsReferenceId[];
+}
+
+export type OperationsWorkObjectLinksComplete = OperationsWorkObjectLinks & { [key: string]: unknown } & Required<Pick<OperationsWorkObjectLinks & { [key: string]: unknown }, 'requirementIds' | 'evidenceItemIds' | 'packageIds'>>;
+
+export type OperationsCreateWorkItemPriority = typeof OperationsCreateWorkItemPriority[keyof typeof OperationsCreateWorkItemPriority];
+
+
+export const OperationsCreateWorkItemPriority = {
+  low: 'low',
+  normal: 'normal',
+  high: 'high',
+  critical: 'critical',
+} as const;
+
+export interface OperationsCreateWorkItem {
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     * @nullable
+     */
+  description?: string | null;
+  /** @nullable */
+  ownerUserId?: string | null;
+  /** @nullable */
+  dueAt?: string | null;
+  priority?: OperationsCreateWorkItemPriority;
+  links?: OperationsWorkObjectLinks;
+  /** @maxItems 50 */
+  dependsOnIds?: string[];
+  approvalRequired?: boolean;
+}
+
+export type OperationsUpdateWorkItemPriority = typeof OperationsUpdateWorkItemPriority[keyof typeof OperationsUpdateWorkItemPriority];
+
+
+export const OperationsUpdateWorkItemPriority = {
+  low: 'low',
+  normal: 'normal',
+  high: 'high',
+  critical: 'critical',
+} as const;
+
+export type OperationsUpdateWorkItemStatus = typeof OperationsUpdateWorkItemStatus[keyof typeof OperationsUpdateWorkItemStatus];
+
+
+export const OperationsUpdateWorkItemStatus = {
+  backlog: 'backlog',
+  ready: 'ready',
+  in_progress: 'in_progress',
+  blocked: 'blocked',
+  in_review: 'in_review',
+  done: 'done',
+  cancelled: 'cancelled',
+} as const;
+
+export type OperationsUpdateWorkItem = unknown & ({
+  /** @minimum 1 */
+  expectedVersion: number;
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     */
+  title?: string;
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     * @nullable
+     */
+  description?: string | null;
+  /** @nullable */
+  ownerUserId?: string | null;
+  /** @nullable */
+  dueAt?: string | null;
+  priority?: OperationsUpdateWorkItemPriority;
+  status?: OperationsUpdateWorkItemStatus;
+  links?: OperationsWorkObjectLinks;
+  /** @maxItems 50 */
+  dependsOnIds?: string[];
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     */
+  reason?: string;
+});
+
+export interface OperationsStatusReason {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  fromStatus: string;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  toStatus: string;
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     */
+  reason: string;
+  recordedByUserId: string;
+  recordedAt: string;
+}
+
+export interface OperationsAddWorkComment {
+  /** @minimum 1 */
+  expectedVersion: number;
+  /**
+     * @minLength 1
+     * @maxLength 2048
+     */
+  body: string;
+}
+
+export type OperationsWorkApprovalDecisionDecision = typeof OperationsWorkApprovalDecisionDecision[keyof typeof OperationsWorkApprovalDecisionDecision];
+
+
+export const OperationsWorkApprovalDecisionDecision = {
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface OperationsWorkApprovalDecision {
+  /** @minimum 1 */
+  expectedVersion: number;
+  decision: OperationsWorkApprovalDecisionDecision;
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     */
+  reason: string;
+}
+
+export interface OperationsWorkItemComment {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 2048
+     */
+  body: string;
+  authorUserId: string;
+  createdAt: string;
+}
+
+export type OperationsWorkItemApprovalStatus = typeof OperationsWorkItemApprovalStatus[keyof typeof OperationsWorkItemApprovalStatus];
+
+
+export const OperationsWorkItemApprovalStatus = {
+  not_required: 'not_required',
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface OperationsWorkItemApproval {
+  status: OperationsWorkItemApprovalStatus;
+  /** @nullable */
+  decidedByUserId: string | null;
+  /** @nullable */
+  decidedAt: string | null;
+  /**
+     * @maxLength 1024
+     * @nullable
+     */
+  reason: string | null;
+}
+
+export type OperationsWorkItemRecordPriority = typeof OperationsWorkItemRecordPriority[keyof typeof OperationsWorkItemRecordPriority];
+
+
+export const OperationsWorkItemRecordPriority = {
+  low: 'low',
+  normal: 'normal',
+  high: 'high',
+  critical: 'critical',
+} as const;
+
+export type OperationsWorkItemRecordStatus = typeof OperationsWorkItemRecordStatus[keyof typeof OperationsWorkItemRecordStatus];
+
+
+export const OperationsWorkItemRecordStatus = {
+  backlog: 'backlog',
+  ready: 'ready',
+  in_progress: 'in_progress',
+  blocked: 'blocked',
+  in_review: 'in_review',
+  done: 'done',
+  cancelled: 'cancelled',
+} as const;
+
+export type OperationsWorkItemRecord = OperationsRecordBase & ({
+  kind: 'work_item';
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     */
+  title: string;
+  /**
+     * @maxLength 4096
+     * @nullable
+     */
+  description: string | null;
+  /** @nullable */
+  ownerUserId: string | null;
+  /** @nullable */
+  dueAt: string | null;
+  priority: OperationsWorkItemRecordPriority;
+  status: OperationsWorkItemRecordStatus;
+  links: OperationsWorkObjectLinksComplete;
+  /** @maxItems 50 */
+  dependsOnIds: string[];
+  /** @maxItems 100 */
+  comments: OperationsWorkItemComment[];
+  approval: OperationsWorkItemApproval;
+  /** @maxItems 100 */
+  statusReasonHistory: OperationsStatusReason[];
+});
+
+export interface OperationsEvidenceRequestSlotInput {
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  label: string;
+  required: boolean;
+  /**
+     * @maxItems 20
+     * @items.minLength 1
+     * @items.maxLength 128
+     */
+  acceptedContentTypes?: string[];
+}
+
+export interface OperationsCreateEvidenceRequest {
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  recipientLabel: string;
+  /** @nullable */
+  dueAt?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     */
+  requestMessage: string;
+  /**
+     * @minItems 1
+     * @maxItems 50
+     */
+  slots: OperationsEvidenceRequestSlotInput[];
+}
+
+export interface OperationsRecordEvidenceResponse {
+  /** @minimum 1 */
+  expectedVersion: number;
+  slotId: string;
+  documentId: string;
+  sha256: OperationsSha256;
+  /**
+     * @minLength 1
+     * @maxLength 2048
+     */
+  attestation: string;
+}
+
+export type OperationsEvidenceDecisionDecision = typeof OperationsEvidenceDecisionDecision[keyof typeof OperationsEvidenceDecisionDecision];
+
+
+export const OperationsEvidenceDecisionDecision = {
+  accepted: 'accepted',
+  rejected: 'rejected',
+} as const;
+
+export interface OperationsEvidenceDecision {
+  /** @minimum 1 */
+  expectedVersion: number;
+  slotId: string;
+  decision: OperationsEvidenceDecisionDecision;
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     */
+  reason: string;
+}
+
+export interface OperationsEvidenceSlotResponse {
+  documentId: string;
+  sha256: OperationsSha256;
+  /**
+     * @minLength 1
+     * @maxLength 2048
+     */
+  attestation: string;
+  recordedByUserId: string;
+  recordedAt: string;
+}
+
+export type OperationsEvidenceSlotAcceptanceDecision = typeof OperationsEvidenceSlotAcceptanceDecision[keyof typeof OperationsEvidenceSlotAcceptanceDecision];
+
+
+export const OperationsEvidenceSlotAcceptanceDecision = {
+  accepted: 'accepted',
+  rejected: 'rejected',
+} as const;
+
+export interface OperationsEvidenceSlotAcceptance {
+  decision: OperationsEvidenceSlotAcceptanceDecision;
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     */
+  reason: string;
+  decidedByUserId: string;
+  decidedAt: string;
+}
+
+export interface OperationsEvidenceSlotResponseHistoryItem {
+  response: OperationsEvidenceSlotResponse;
+  acceptance: OperationsEvidenceSlotAcceptance;
+}
+
+export interface OperationsEvidenceRequestSlot {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  label: string;
+  required: boolean;
+  /**
+     * @maxItems 20
+     * @items.minLength 1
+     * @items.maxLength 128
+     */
+  acceptedContentTypes: string[];
+  response: OperationsEvidenceSlotResponse | null;
+  acceptance: OperationsEvidenceSlotAcceptance | null;
+  /**
+     * Immutable prior rejected response-decision pairs, oldest first.
+     * @maxItems 20
+     */
+  responseHistory: OperationsEvidenceSlotResponseHistoryItem[];
+}
+
+export type OperationsEvidenceRequestRecordStatus = typeof OperationsEvidenceRequestRecordStatus[keyof typeof OperationsEvidenceRequestRecordStatus];
+
+
+export const OperationsEvidenceRequestRecordStatus = {
+  draft: 'draft',
+  shared_manually: 'shared_manually',
+  response_recorded: 'response_recorded',
+  accepted: 'accepted',
+  closed: 'closed',
+} as const;
+
+export type OperationsEvidenceRequestRecord = OperationsRecordBase & ({
+  kind: 'evidence_request';
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  recipientLabel: string;
+  /** @nullable */
+  dueAt: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     */
+  requestMessage: string;
+  deliveryMode: 'manual_out_of_band';
+  status: OperationsEvidenceRequestRecordStatus;
+  /** @nullable */
+  sharedByUserId: string | null;
+  /** @nullable */
+  sharedAt: string | null;
+  /**
+     * @minItems 1
+     * @maxItems 50
+     */
+  slots: OperationsEvidenceRequestSlot[];
+  receiptSha256: OperationsSha256 | null;
+});
+
+export interface OperationsCreateSubmissionWarRoom {
+  packageId: string;
+  packageVersionId: string;
+  manifestSha256: OperationsSha256;
+  /**
+     * @minimum 0
+     * @maximum 10000
+     */
+  copyCount?: number;
+  /**
+     * @maxItems 100
+     * @items.minLength 1
+     * @items.maxLength 256
+     */
+  sealIdentifiers?: string[];
+}
+
+export type OperationsAdvanceSubmissionWarRoomToStatus = typeof OperationsAdvanceSubmissionWarRoomToStatus[keyof typeof OperationsAdvanceSubmissionWarRoomToStatus];
+
+
+export const OperationsAdvanceSubmissionWarRoomToStatus = {
+  frozen: 'frozen',
+  copies_prepared: 'copies_prepared',
+  sealed: 'sealed',
+  dispatched: 'dispatched',
+  receipt_recorded: 'receipt_recorded',
+  cancelled: 'cancelled',
+} as const;
+
+export type OperationsAdvanceSubmissionWarRoom = unknown & ({
+  /** @minimum 1 */
+  expectedVersion: number;
+  toStatus: OperationsAdvanceSubmissionWarRoomToStatus;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     * @nullable
+     */
+  dispatchMethod?: string | null;
+  receiptSha256?: OperationsSha256 | null;
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     * @nullable
+     */
+  reason?: string | null;
+});
+
+export type OperationsSubmissionWarRoomRecordStatus = typeof OperationsSubmissionWarRoomRecordStatus[keyof typeof OperationsSubmissionWarRoomRecordStatus];
+
+
+export const OperationsSubmissionWarRoomRecordStatus = {
+  planning: 'planning',
+  frozen: 'frozen',
+  copies_prepared: 'copies_prepared',
+  sealed: 'sealed',
+  dispatched: 'dispatched',
+  receipt_recorded: 'receipt_recorded',
+  cancelled: 'cancelled',
+} as const;
+
+export type OperationsSubmissionWarRoomRecord = OperationsRecordBase & ({
+  kind: 'submission_war_room';
+  packageId: string;
+  packageVersionId: string;
+  manifestSha256: OperationsSha256;
+  /**
+     * @minimum 0
+     * @maximum 10000
+     */
+  copyCount: number;
+  /**
+     * @maxItems 100
+     * @items.minLength 1
+     * @items.maxLength 256
+     */
+  sealIdentifiers: string[];
+  status: OperationsSubmissionWarRoomRecordStatus;
+  externalActionPolicy: 'record_only';
+  /** @nullable */
+  frozenByUserId: string | null;
+  /** @nullable */
+  frozenAt: string | null;
+  /** @nullable */
+  dispatchedByUserId: string | null;
+  /** @nullable */
+  dispatchedAt: string | null;
+  /**
+     * @maxLength 256
+     * @nullable
+     */
+  dispatchMethod: string | null;
+  receiptSha256: OperationsSha256 | null;
+  /** @nullable */
+  receiptRecordedByUserId: string | null;
+  /** @nullable */
+  receiptRecordedAt: string | null;
+  /** @maxItems 100 */
+  statusReasonHistory: OperationsStatusReason[];
+});
+
+export interface OperationsVisualQaPageInput {
+  /**
+     * @minimum 1
+     * @maximum 100000
+     */
+  pageNumber: number;
+  /** @minimum 0 */
+  textCharacterCount: number;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  nonWhitespacePixelRatio: number;
+  /** @minimum 0 */
+  clippedElementCount: number;
+}
+
+export interface OperationsVisualQaCrossReferenceInput {
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  label: string;
+  resolved: boolean;
+}
+
+export interface OperationsVisualQaSignatureInput {
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  label: string;
+  required: boolean;
+  present: boolean;
+}
+
+export interface OperationsCreateVisualQaReport {
+  packageVersionId: string;
+  manifestSha256: OperationsSha256;
+  expectedManifestSha256: OperationsSha256;
+  /**
+     * @minItems 1
+     * @maxItems 2000
+     */
+  pages: OperationsVisualQaPageInput[];
+  /** @maxItems 5000 */
+  crossReferences?: OperationsVisualQaCrossReferenceInput[];
+  /** @maxItems 250 */
+  signatures?: OperationsVisualQaSignatureInput[];
+}
+
+export type OperationsVisualQaFindingCode = typeof OperationsVisualQaFindingCode[keyof typeof OperationsVisualQaFindingCode];
+
+
+export const OperationsVisualQaFindingCode = {
+  manifest_mismatch: 'manifest_mismatch',
+  unexpected_blank_page: 'unexpected_blank_page',
+  clipped_content: 'clipped_content',
+  broken_cross_reference: 'broken_cross_reference',
+  missing_signature: 'missing_signature',
+} as const;
+
+export type OperationsVisualQaFindingSeverity = typeof OperationsVisualQaFindingSeverity[keyof typeof OperationsVisualQaFindingSeverity];
+
+
+export const OperationsVisualQaFindingSeverity = {
+  blocker: 'blocker',
+  warning: 'warning',
+} as const;
+
+export interface OperationsVisualQaFinding {
+  code: OperationsVisualQaFindingCode;
+  severity: OperationsVisualQaFindingSeverity;
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     */
+  message: string;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  pageNumber: number | null;
+}
+
+export type OperationsVisualQaResultStatus = typeof OperationsVisualQaResultStatus[keyof typeof OperationsVisualQaResultStatus];
+
+
+export const OperationsVisualQaResultStatus = {
+  pass: 'pass',
+  review: 'review',
+  fail: 'fail',
+} as const;
+
+export interface OperationsVisualQaResult {
+  algorithmVersion: 'visual-qa-v1';
+  status: OperationsVisualQaResultStatus;
+  inputSha256: OperationsSha256;
+  /** @maxItems 7500 */
+  findings: OperationsVisualQaFinding[];
+}
+
+export type OperationsVisualQaReportRecord = OperationsRecordBase & {
+  kind: 'visual_qa_report';
+  packageVersionId: string;
+  manifestSha256: OperationsSha256;
+  expectedManifestSha256: OperationsSha256;
+  result: OperationsVisualQaResult;
+};
+
+export type OperationsCreateCredentialVerificationOutcome = typeof OperationsCreateCredentialVerificationOutcome[keyof typeof OperationsCreateCredentialVerificationOutcome];
+
+
+export const OperationsCreateCredentialVerificationOutcome = {
+  verified: 'verified',
+  not_verified: 'not_verified',
+  inconclusive: 'inconclusive',
+} as const;
+
+export interface OperationsCreateCredentialVerification {
+  vaultItemId: string;
+  /** @minimum 1 */
+  vaultItemVersion: number;
+  documentSha256: OperationsSha256;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  authorityName: string;
+  /**
+     * @minLength 1
+     * @maxLength 2048
+     */
+  officialSourceLocator: string;
+  checkedAt: string;
+  outcome: OperationsCreateCredentialVerificationOutcome;
+  receiptSha256: OperationsSha256;
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     * @nullable
+     */
+  notes?: string | null;
+}
+
+export type OperationsCredentialVerificationRecordOutcome = typeof OperationsCredentialVerificationRecordOutcome[keyof typeof OperationsCredentialVerificationRecordOutcome];
+
+
+export const OperationsCredentialVerificationRecordOutcome = {
+  verified: 'verified',
+  not_verified: 'not_verified',
+  inconclusive: 'inconclusive',
+} as const;
+
+export type OperationsCredentialVerificationRecord = OperationsRecordBase & ({
+  kind: 'credential_verification';
+  vaultItemId: string;
+  /** @minimum 1 */
+  vaultItemVersion: number;
+  documentSha256: OperationsSha256;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  authorityName: string;
+  /**
+     * @minLength 1
+     * @maxLength 2048
+     */
+  officialSourceLocator: string;
+  checkedAt: string;
+  checkedByUserId: string;
+  outcome: OperationsCredentialVerificationRecordOutcome;
+  receiptSha256: OperationsSha256;
+  /**
+     * @maxLength 4096
+     * @nullable
+     */
+  notes: string | null;
+  verificationMode: 'human_recorded';
+});
+
+export interface OperationsMissionChecklistItemInput {
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  label: string;
+  required: boolean;
+}
+
+export type OperationsCreateMissionMissionType = typeof OperationsCreateMissionMissionType[keyof typeof OperationsCreateMissionMissionType];
+
+
+export const OperationsCreateMissionMissionType = {
+  pre_bid: 'pre_bid',
+  site_visit: 'site_visit',
+} as const;
+
+export interface OperationsCreateMission {
+  missionType: OperationsCreateMissionMissionType;
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     */
+  location: string;
+  startsAt: string;
+  attendanceRequired: boolean;
+  /** @nullable */
+  delegateUserId?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     * @nullable
+     */
+  delegateAuthorityNote?: string | null;
+  /** @maxItems 100 */
+  checklist: OperationsMissionChecklistItemInput[];
+}
+
+export type OperationsUpdateMissionStatus = typeof OperationsUpdateMissionStatus[keyof typeof OperationsUpdateMissionStatus];
+
+
+export const OperationsUpdateMissionStatus = {
+  planned: 'planned',
+  attended: 'attended',
+  missed: 'missed',
+  completed: 'completed',
+  cancelled: 'cancelled',
+} as const;
+
+export type OperationsUpdateMission = unknown & {
+  /** @minimum 1 */
+  expectedVersion: number;
+  status?: OperationsUpdateMissionStatus;
+  completedChecklistItemId?: string;
+  proofDocumentId?: string;
+  proofSha256?: OperationsSha256;
+  followUpWorkItemId?: string;
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     */
+  reason?: string;
+};
+
+export type OperationsMissionChecklistItem = OperationsMissionChecklistItemInput & ({
+  id: string;
+  /** @nullable */
+  completedByUserId: string | null;
+  /** @nullable */
+  completedAt: string | null;
+});
+
+export interface OperationsMissionProof {
+  documentId: string;
+  sha256: OperationsSha256;
+  recordedByUserId: string;
+  recordedAt: string;
+}
+
+export type OperationsMissionRecordMissionType = typeof OperationsMissionRecordMissionType[keyof typeof OperationsMissionRecordMissionType];
+
+
+export const OperationsMissionRecordMissionType = {
+  pre_bid: 'pre_bid',
+  site_visit: 'site_visit',
+} as const;
+
+export type OperationsMissionRecordStatus = typeof OperationsMissionRecordStatus[keyof typeof OperationsMissionRecordStatus];
+
+
+export const OperationsMissionRecordStatus = {
+  planned: 'planned',
+  attended: 'attended',
+  missed: 'missed',
+  completed: 'completed',
+  cancelled: 'cancelled',
+} as const;
+
+export type OperationsMissionRecord = OperationsRecordBase & ({
+  kind: 'mission';
+  missionType: OperationsMissionRecordMissionType;
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     */
+  location: string;
+  startsAt: string;
+  attendanceRequired: boolean;
+  /** @nullable */
+  delegateUserId: string | null;
+  /**
+     * @maxLength 1024
+     * @nullable
+     */
+  delegateAuthorityNote: string | null;
+  /** @maxItems 100 */
+  checklist: OperationsMissionChecklistItem[];
+  /** @maxItems 50 */
+  proofs: OperationsMissionProof[];
+  /** @maxItems 100 */
+  followUpWorkItemIds: string[];
+  status: OperationsMissionRecordStatus;
+  /** @maxItems 100 */
+  statusReasonHistory: OperationsStatusReason[];
+});
+
+export type OperationsCreatePostAwardItemCategory = typeof OperationsCreatePostAwardItemCategory[keyof typeof OperationsCreatePostAwardItemCategory];
+
+
+export const OperationsCreatePostAwardItemCategory = {
+  obligation: 'obligation',
+  deliverable: 'deliverable',
+  variation: 'variation',
+  payment_milestone: 'payment_milestone',
+  notice: 'notice',
+  completion_record: 'completion_record',
+} as const;
+
+export interface OperationsCreatePostAwardItem {
+  category: OperationsCreatePostAwardItemCategory;
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     * @nullable
+     */
+  description?: string | null;
+  /** @nullable */
+  dueAt?: string | null;
+  /** @nullable */
+  ownerUserId?: string | null;
+  /** @nullable */
+  sourceDocumentId?: string | null;
+  /** @maxItems 100 */
+  evidenceDocumentIds?: string[];
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  valueMinorUnits?: number | null;
+  /**
+     * @nullable
+     * @pattern ^[A-Z]{3}$
+     */
+  currency?: string | null;
+}
+
+export type OperationsUpdatePostAwardItemStatus = typeof OperationsUpdatePostAwardItemStatus[keyof typeof OperationsUpdatePostAwardItemStatus];
+
+
+export const OperationsUpdatePostAwardItemStatus = {
+  open: 'open',
+  in_progress: 'in_progress',
+  satisfied: 'satisfied',
+  disputed: 'disputed',
+  cancelled: 'cancelled',
+} as const;
+
+export type OperationsUpdatePostAwardItem = unknown & ({
+  /** @minimum 1 */
+  expectedVersion: number;
+  status?: OperationsUpdatePostAwardItemStatus;
+  /** @nullable */
+  ownerUserId?: string | null;
+  /** @nullable */
+  dueAt?: string | null;
+  /** @maxItems 100 */
+  evidenceDocumentIds?: string[];
+  completionReceiptSha256?: OperationsSha256 | null;
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     */
+  reason?: string;
+});
+
+export type OperationsPostAwardItemRecordCategory = typeof OperationsPostAwardItemRecordCategory[keyof typeof OperationsPostAwardItemRecordCategory];
+
+
+export const OperationsPostAwardItemRecordCategory = {
+  obligation: 'obligation',
+  deliverable: 'deliverable',
+  variation: 'variation',
+  payment_milestone: 'payment_milestone',
+  notice: 'notice',
+  completion_record: 'completion_record',
+} as const;
+
+export type OperationsPostAwardItemRecordStatus = typeof OperationsPostAwardItemRecordStatus[keyof typeof OperationsPostAwardItemRecordStatus];
+
+
+export const OperationsPostAwardItemRecordStatus = {
+  open: 'open',
+  in_progress: 'in_progress',
+  satisfied: 'satisfied',
+  disputed: 'disputed',
+  cancelled: 'cancelled',
+} as const;
+
+export type OperationsPostAwardItemRecord = OperationsRecordBase & ({
+  kind: 'post_award_item';
+  category: OperationsPostAwardItemRecordCategory;
+  /**
+     * @minLength 1
+     * @maxLength 4096
+     */
+  title: string;
+  /**
+     * @maxLength 4096
+     * @nullable
+     */
+  description: string | null;
+  /** @nullable */
+  dueAt: string | null;
+  /** @nullable */
+  ownerUserId: string | null;
+  /** @nullable */
+  sourceDocumentId: string | null;
+  /** @maxItems 100 */
+  evidenceDocumentIds: string[];
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  valueMinorUnits: number | null;
+  /**
+     * @nullable
+     * @pattern ^[A-Z]{3}$
+     */
+  currency: string | null;
+  status: OperationsPostAwardItemRecordStatus;
+  completionReceiptSha256: OperationsSha256 | null;
+  /** @nullable */
+  completedByUserId: string | null;
+  /** @nullable */
+  completedAt: string | null;
+  /** @maxItems 100 */
+  statusReasonHistory: OperationsStatusReason[];
+});
+
+export type OperationsRecord = OperationsOpportunityRecord | OperationsWorkItemRecord | OperationsEvidenceRequestRecord | OperationsSubmissionWarRoomRecord | OperationsVisualQaReportRecord | OperationsCredentialVerificationRecord | OperationsMissionRecord | OperationsPostAwardItemRecord;
+
+export interface OperationsSuiteCounts {
+  /**
+     * @minimum 0
+     * @maximum 250
+     */
+  opportunity_intake: number;
+  /**
+     * @minimum 0
+     * @maximum 250
+     */
+  work_item: number;
+  /**
+     * @minimum 0
+     * @maximum 250
+     */
+  evidence_request: number;
+  /**
+     * @minimum 0
+     * @maximum 250
+     */
+  submission_war_room: number;
+  /**
+     * @minimum 0
+     * @maximum 250
+     */
+  visual_qa_report: number;
+  /**
+     * @minimum 0
+     * @maximum 250
+     */
+  credential_verification: number;
+  /**
+     * @minimum 0
+     * @maximum 250
+     */
+  mission: number;
+  /**
+     * @minimum 0
+     * @maximum 250
+     */
+  post_award_item: number;
+}
+
+export const OperationsAuthorityBoundaryValue = {
+  opportunityAcquisition: 'record_only',
+  clientDelivery: 'manual_out_of_band',
+  credentialVerification: 'human_recorded',
+  submission: 'record_only',
+} as const;
+export type OperationsAuthorityBoundary = typeof OperationsAuthorityBoundaryValue;
+
+export type OperationsSuiteVisibilityVisibleKindsItem = typeof OperationsSuiteVisibilityVisibleKindsItem[keyof typeof OperationsSuiteVisibilityVisibleKindsItem];
+
+
+export const OperationsSuiteVisibilityVisibleKindsItem = {
+  opportunity_intake: 'opportunity_intake',
+  work_item: 'work_item',
+  evidence_request: 'evidence_request',
+  submission_war_room: 'submission_war_room',
+  visual_qa_report: 'visual_qa_report',
+  credential_verification: 'credential_verification',
+  mission: 'mission',
+  post_award_item: 'post_award_item',
+} as const;
+
+export interface OperationsSuiteVisibility {
+  visibleKinds: OperationsSuiteVisibilityVisibleKindsItem[];
+  filtered: boolean;
+}
+
+export interface OperationsSuiteSnapshotResponse {
+  organisationId: string;
+  projectId: string;
+  /** @maxItems 1000 */
+  records: OperationsRecord[];
+  counts: OperationsSuiteCounts;
+  visibility: OperationsSuiteVisibility;
+  authority: OperationsAuthorityBoundary;
+}
+
+export type OperationsMobileQueueItemKind = typeof OperationsMobileQueueItemKind[keyof typeof OperationsMobileQueueItemKind];
+
+
+export const OperationsMobileQueueItemKind = {
+  work_item: 'work_item',
+  evidence_request: 'evidence_request',
+  submission_war_room: 'submission_war_room',
+  mission: 'mission',
+} as const;
+
+/**
+ * @nullable
+ */
+export type OperationsMobileQueueItemPriority = typeof OperationsMobileQueueItemPriority[keyof typeof OperationsMobileQueueItemPriority] | null;
+
+
+export const OperationsMobileQueueItemPriority = {
+  low: 'low',
+  normal: 'normal',
+  high: 'high',
+  critical: 'critical',
+} as const;
+
+export type OperationsMobileQueueItemAction = typeof OperationsMobileQueueItemAction[keyof typeof OperationsMobileQueueItemAction];
+
+
+export const OperationsMobileQueueItemAction = {
+  continue_work: 'continue_work',
+  review_evidence_response: 'review_evidence_response',
+  record_submission_receipt: 'record_submission_receipt',
+  prepare_mission: 'prepare_mission',
+} as const;
+
+export interface OperationsMobileQueueItem {
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  id: string;
+  recordId: string;
+  /** @nullable */
+  subresourceId: string | null;
+  kind: OperationsMobileQueueItemKind;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  status: string;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  label: string;
+  /** @nullable */
+  dueAt: string | null;
+  /** @nullable */
+  priority: OperationsMobileQueueItemPriority;
+  action: OperationsMobileQueueItemAction;
+  restrictedContent: true;
+}
+
+export interface OperationsMobileQueue {
+  restrictedContent: true;
+  maxItems: 250;
+  /** @maxItems 250 */
+  items: OperationsMobileQueueItem[];
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -1614,6 +6951,28 @@ export interface RetentionRequestCreate {
   dueAt?: string;
 }
 
+export type RetentionCompletionConflictCommercialFinancialBlockers = {
+  /** @minimum 0 */
+  orders: number;
+  /** @minimum 0 */
+  invoiceLines: number;
+  /** @minimum 0 */
+  invoices: number;
+  /** @minimum 0 */
+  payments: number;
+  /** @minimum 0 */
+  entitlements: number;
+  /** @minimum 0 */
+  subscriptions: number;
+  /** @minimum 0 */
+  entitlementUsage: number;
+};
+
+export interface RetentionCompletionConflict {
+  error: string;
+  commercialFinancialBlockers?: RetentionCompletionConflictCommercialFinancialBlockers;
+}
+
 export interface SeverityWeights {
   /**
      * @minimum 0
@@ -1896,6 +7255,8 @@ export interface VaultItem {
   expiryDate?: string | null;
   renewalLeadDays?: number | null;
   status: string;
+  /** @minimum 1 */
+  version: number;
   objectPath?: string | null;
   sha256?: string | null;
   sourceDocumentId?: string | null;
@@ -3367,7 +8728,7 @@ export type TenantSelectionRequiredResponse = ErrorEnvelope;
 export type PreconditionRequiredResponse = ErrorEnvelope;
 
 /**
- * Authentication or tenant-context resolution failed unexpectedly
+ * Authentication, tenant-context resolution or request processing failed unexpectedly
  */
 export type InternalServerErrorResponse = ErrorEnvelope;
 
@@ -3390,6 +8751,65 @@ export type AiInvalidProviderResultResponse = AiWorkflowErrorEnvelope;
  * AI is disabled or a required release, model, privacy, region, retention, provider, or capability gate is unavailable
  */
 export type AiUnavailableResponse = AiWorkflowErrorEnvelope;
+
+/**
+ * The durable growth operations repository is not available.
+ */
+export type GrowthSuiteUnavailableResponse = ErrorEnvelope;
+
+/**
+ * The fail-closed durable repository or required activation evidence is unavailable.
+ */
+export type RoadmapRepositoryUnavailableResponse = ErrorEnvelope;
+
+/**
+ * A bounded request, record set or durable ledger capacity was exceeded.
+ */
+export type RoadmapCapacityExceededResponse = ErrorEnvelope;
+
+/**
+ * A human-control, consent, maker-checker, evidence or authority invariant denied the action.
+ */
+export type RoadmapPolicyDeniedResponse = ErrorEnvelope;
+
+/**
+ * The bounded operations request is invalid.
+ */
+export type OperationsBadRequestResponse = OperationsSuiteErrorEnvelope;
+
+/**
+ * Tenant, project, permission or referenced-resource scope is denied.
+ */
+export type OperationsForbiddenResponse = OperationsSuiteErrorEnvelope;
+
+/**
+ * The exact-scope operations record was not found.
+ */
+export type OperationsNotFoundResponse = OperationsSuiteErrorEnvelope;
+
+/**
+ * The record changed, already exists or conflicts with current state.
+ */
+export type OperationsConflictResponse = OperationsSuiteErrorEnvelope;
+
+/**
+ * The request or bounded operations materialisation limit was exceeded.
+ */
+export type OperationsPayloadTooLargeResponse = OperationsSuiteErrorEnvelope;
+
+/**
+ * A human-control, transition, evidence or identity invariant denied the action.
+ */
+export type OperationsPolicyDeniedResponse = OperationsSuiteErrorEnvelope;
+
+/**
+ * Maximum bounded rows to return.
+ */
+export type GrowthListLimitParameter = number;
+
+export type CommercialProjectIdQueryParameter = string;
+
+export type PrivacyOperationsLimitParameter = number;
 
 /**
  * Selects the organisation access context. It is required when the caller
@@ -3447,3 +8867,33 @@ export const GetAccessReviewFormat = {
   json: 'json',
   csv: 'csv',
 } as const;
+
+export type ListGrowthLeadsParams = {
+/**
+ * Maximum bounded rows to return.
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: GrowthListLimitParameter;
+};
+
+export type ListGrowthQuotesParams = {
+/**
+ * Maximum bounded rows to return.
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: GrowthListLimitParameter;
+};
+
+export type GetCommercialRetainerSnapshotParams = {
+projectId?: CommercialProjectIdQueryParameter;
+};
+
+export type GetPrivacyOperationsParams = {
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: PrivacyOperationsLimitParameter;
+};

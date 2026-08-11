@@ -1,3 +1,8 @@
 # Known non-secret UUID fixtures from the initial landing-overhaul test commit.
 6205d59444716b774225bbd34b2fcb1c71ae87f3:artifacts/valo-workbench/src/signed-out-routes.test.tsx:generic-api-key:525
 6205d59444716b774225bbd34b2fcb1c71ae87f3:artifacts/valo-workbench/src/signed-out-routes.test.tsx:generic-api-key:560
+
+# Known non-secret AI shadow deduplication markers from the roadmap workflow commit.
+3f4b624feecc48c43bfe60169d2e831ff14036bd:artifacts/api-server/src/lib/aiShadowProgramme/service.test.ts:generic-api-key:61
+3f4b624feecc48c43bfe60169d2e831ff14036bd:artifacts/api-server/src/lib/aiShadowProgramme/service.ts:generic-api-key:474
+3f4b624feecc48c43bfe60169d2e831ff14036bd:artifacts/api-server/src/lib/aiShadowProgramme/service.ts:generic-api-key:512

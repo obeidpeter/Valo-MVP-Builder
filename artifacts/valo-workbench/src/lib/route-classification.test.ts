@@ -13,6 +13,11 @@ describe("route privacy classification", () => {
     ["/app/security", "protected"],
     ["/projects/project-id?tab=requirements", "protected"],
     ["/intelligence?project=project-id", "protected"],
+    ["/pursuit-operations?project=project-id", "protected"],
+    ["/growth-operations", "protected"],
+    ["/commercial-retainer?project=project-id", "protected"],
+    ["/claims-desk?project=project-id", "protected"],
+    ["/consortium-room?project=project-id", "protected"],
     ["/organisation-settings", "protected"],
   ] as const)("classifies %s as %s", (path, expected) => {
     expect(classifyRoute(path)).toBe(expected);

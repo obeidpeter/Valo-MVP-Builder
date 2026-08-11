@@ -83,4 +83,35 @@ describe("public SEO and privacy boundary", () => {
     expect(image.readUInt32BE(16)).toBe(1200);
     expect(image.readUInt32BE(20)).toBe(630);
   });
+
+  it("offers an online-first installable workspace without caching tender data", () => {
+    const manifest = JSON.parse(
+      readFileSync(resolve(root, "public", "site.webmanifest"), "utf8"),
+    ) as {
+      id?: string;
+      start_url?: string;
+      display?: string;
+      shortcuts?: Array<{ url?: string }>;
+    };
+    const html = readFileSync(resolve(root, "index.html"), "utf8");
+
+    expect(manifest).toMatchObject({
+      id: "/app",
+      start_url: "/app",
+      display: "standalone",
+    });
+    expect(manifest.shortcuts?.map((shortcut) => shortcut.url)).toEqual([
+      "/projects",
+      "/operations",
+    ]);
+    expect(html).toContain('name="mobile-web-app-capable" content="yes"');
+    expect(html).toContain('name="apple-mobile-web-app-capable" content="yes"');
+
+    // The mobile shell is deliberately online-first. A future service worker
+    // must pass a separate privacy review before any authenticated content can
+    // enter Cache Storage or IndexedDB.
+    expect(readFileSync(resolve(root, "src", "main.tsx"), "utf8")).not.toMatch(
+      /serviceWorker|navigator\.serviceWorker/,
+    );
+  });
 });

@@ -43,6 +43,13 @@
       "when": 1786339224638,
       "tag": "0005_tranquil_jack_power",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786425600000,
+      "tag": "0006_lead_operations_queue",
+      "breakpoints": true
     }
   ]
 }

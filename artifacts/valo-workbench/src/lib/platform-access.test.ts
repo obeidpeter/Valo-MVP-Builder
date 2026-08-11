@@ -54,10 +54,12 @@ describe("v2.5 platform access", () => {
       "/portal",
       "/sbd",
       "/evidence-readiness",
+      "/pursuit-operations",
       "/reports",
       "/clients",
       "/billing",
       "/notifications",
+      "/communications",
       "/organisation-settings",
     ]);
     expect(items.find((item) => item.href === "/portal")?.state).toBe(
@@ -92,6 +94,15 @@ describe("v2.5 platform access", () => {
       allowed: false,
       state: "denied",
     });
+    expect(
+      getPlatformAccessDecision(
+        "client_admin",
+        "pursuit_operations",
+        enabledFlags,
+        ["project:read"],
+        "membership",
+      ),
+    ).toMatchObject({ allowed: true, state: "active" });
   });
 
   it("allows partner reviewers to open selected-tenant pursuits but not administer billing", () => {
@@ -101,6 +112,7 @@ describe("v2.5 platform access", () => {
     ).map((item) => item.href);
     expect(hrefs).toContain("/partner");
     expect(hrefs).toContain("/evidence-readiness");
+    expect(hrefs).toContain("/pursuit-operations");
     expect(hrefs).toContain("/notifications");
     expect(hrefs).not.toContain("/billing");
     expect(hrefs).toContain("/projects");
@@ -115,12 +127,48 @@ describe("v2.5 platform access", () => {
     ).toMatchObject({ allowed: true, state: "active" });
   });
 
+  it("keeps the consortium room on the exact partner workspace feature and permission gate", () => {
+    const permissions = ["partner_relationship:read", "project:read"];
+    const pending = navigationForRole(
+      "consultancy_partner_analyst_reviewer",
+      disabledFlags,
+      permissions,
+      "partner",
+    ).find(({ href }) => href === "/consortium-room");
+    const active = navigationForRole(
+      "consultancy_partner_analyst_reviewer",
+      enabledFlags,
+      permissions,
+      "partner",
+    ).find(({ href }) => href === "/consortium-room");
+    expect(pending?.state).toBe("pending_activation");
+    expect(active?.state).toBe("active");
+    expect(
+      navigationForRole(
+        "consultancy_partner_analyst_reviewer",
+        enabledFlags,
+        ["project:read"],
+        "partner",
+      ).some(({ href }) => href === "/consortium-room"),
+    ).toBe(false);
+    expect(
+      getPlatformAccessDecision(
+        "client_organisation_owner",
+        "partner_workspace",
+        enabledFlags,
+        permissions,
+        "membership",
+      ).allowed,
+    ).toBe(false);
+  });
+
   it("allows a read-only auditor to browse pursuit records without administration", () => {
     const hrefs = navigationForRole("read_only_auditor", enabledFlags).map(
       (item) => item.href,
     );
     expect(hrefs).toContain("/projects");
     expect(hrefs).toContain("/intelligence");
+    expect(hrefs).toContain("/pursuit-operations");
     expect(hrefs).toContain("/reports");
     expect(hrefs).toContain("/app/security");
     expect(hrefs).not.toContain("/organisation-settings");
@@ -143,9 +191,11 @@ describe("v2.5 platform access", () => {
       "/projects",
       "/sbd",
       "/evidence-readiness",
+      "/pursuit-operations",
       "/reports",
       "/clients",
       "/notifications",
+      "/communications",
     ]);
     expect(
       platformHomeForRole(
@@ -195,9 +245,164 @@ describe("v2.5 platform access", () => {
     );
     expect(hrefs).toContain("/app");
     expect(hrefs).toContain("/operations");
+    expect(hrefs).toContain("/pursuit-operations");
     expect(hrefs).toContain("/evidence-readiness");
+    expect(hrefs).not.toContain("/growth-operations");
     expect(hrefs).not.toContain("/app/security");
     expect(hrefs).not.toContain("/settings");
+  });
+
+  it("requires direct membership and organisation read access for onboarding and offers", () => {
+    const permissions = ["organisation:read"];
+    expect(
+      getPlatformAccessDecision(
+        "valo_operations_administrator",
+        "growth_operations",
+        enabledFlags,
+        permissions,
+        "membership",
+      ),
+    ).toMatchObject({ allowed: true, state: "active" });
+    expect(
+      navigationForRole(
+        "valo_operations_administrator",
+        enabledFlags,
+        permissions,
+        "membership",
+      ).map((item) => item.href),
+    ).toContain("/growth-operations");
+    expect(
+      getPlatformAccessDecision(
+        "valo_operations_administrator",
+        "growth_operations",
+        enabledFlags,
+        permissions,
+        "partner",
+      ),
+    ).toMatchObject({ allowed: false, state: "denied" });
+    expect(
+      getPlatformAccessDecision(
+        "valo_operations_administrator",
+        "growth_operations",
+        enabledFlags,
+        permissions,
+      ),
+    ).toMatchObject({ allowed: false, state: "denied" });
+    expect(
+      getPlatformAccessDecision(
+        "valo_operations_administrator",
+        "growth_operations",
+        enabledFlags,
+        [],
+        "membership",
+      ),
+    ).toMatchObject({ allowed: false, state: "denied" });
+    expect(
+      getPlatformAccessDecision(
+        "client_reviewer_approver",
+        "growth_operations",
+        enabledFlags,
+        permissions,
+        "membership",
+      ),
+    ).toMatchObject({ allowed: true, state: "active" });
+    expect(
+      navigationForRole(
+        "client_reviewer_approver",
+        enabledFlags,
+        permissions,
+        "membership",
+      ).map((item) => item.href),
+    ).toContain("/growth-operations");
+    expect(
+      getPlatformAccessDecision(
+        "consultancy_partner_analyst_reviewer",
+        "growth_operations",
+        enabledFlags,
+        permissions,
+        "partner",
+      ),
+    ).toMatchObject({ allowed: false, state: "denied" });
+  });
+
+  it("requires direct membership and both ledger-read grants for Commercial & Retainer", () => {
+    const permissions = ["billing:read", "entitlement:read"];
+    expect(
+      getPlatformAccessDecision(
+        "client_organisation_owner",
+        "commercial_retainer",
+        enabledFlags,
+        permissions,
+        "membership",
+      ),
+    ).toMatchObject({ allowed: true, state: "active" });
+    expect(
+      navigationForRole(
+        "client_organisation_owner",
+        enabledFlags,
+        permissions,
+        "membership",
+      ).map((item) => item.href),
+    ).toContain("/commercial-retainer");
+    expect(
+      getPlatformAccessDecision(
+        "client_organisation_owner",
+        "commercial_retainer",
+        enabledFlags,
+        ["entitlement:read"],
+        "membership",
+      ),
+    ).toMatchObject({ allowed: false, state: "denied" });
+    expect(
+      getPlatformAccessDecision(
+        "client_organisation_owner",
+        "commercial_retainer",
+        enabledFlags,
+        permissions,
+        "partner",
+      ),
+    ).toMatchObject({ allowed: false, state: "denied" });
+  });
+
+  it("fails the Claims Desk closed unless project-read comes from direct membership", () => {
+    const permissions = ["project:read"];
+    expect(
+      getPlatformAccessDecision(
+        "client_reviewer_approver",
+        "claims_desk",
+        enabledFlags,
+        permissions,
+        "membership",
+      ),
+    ).toMatchObject({ allowed: true, state: "active" });
+    expect(
+      navigationForRole(
+        "client_reviewer_approver",
+        enabledFlags,
+        permissions,
+        "membership",
+      ).map((item) => item.href),
+    ).toContain("/claims-desk");
+    for (const accessSource of ["partner", undefined] as const) {
+      expect(
+        getPlatformAccessDecision(
+          "consultancy_partner_analyst_reviewer",
+          "claims_desk",
+          enabledFlags,
+          permissions,
+          accessSource,
+        ),
+      ).toMatchObject({ allowed: false, state: "denied" });
+    }
+    expect(
+      getPlatformAccessDecision(
+        "client_reviewer_approver",
+        "claims_desk",
+        enabledFlags,
+        [],
+        "membership",
+      ),
+    ).toMatchObject({ allowed: false, state: "denied" });
   });
 
   it("rejects unknown and unassigned roles fail-closed", () => {
@@ -252,6 +457,7 @@ describe("v2.5 platform access", () => {
       "/intelligence",
       "/sbd",
       "/evidence-readiness",
+      "/pursuit-operations",
       "/reports",
       "/clients",
       "/app/security",
