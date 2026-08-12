@@ -1,5 +1,6 @@
 import express, { type ErrorRequestHandler, type Express } from "express";
 import cors from "cors";
+import { rateLimit } from "express-rate-limit";
 import pinoHttp from "pino-http";
 import { clerkMiddleware } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
@@ -104,10 +105,46 @@ app.use(rejectDisallowedCorsOrigin);
 // router here avoids any path-prefix bypass in protected middleware.
 app.use("/api", healthRouter);
 
+const configuredRateLimitWindowMs = Number(
+  process.env.RATE_LIMIT_WINDOW_MS || 60_000,
+);
+const configuredRateLimitMax = Number(
+  process.env.RATE_LIMIT_MAX_REQUESTS || 300,
+);
+const rateLimitWindowMs =
+  Number.isFinite(configuredRateLimitWindowMs) &&
+  configuredRateLimitWindowMs > 0
+    ? configuredRateLimitWindowMs
+    : 60_000;
+const rateLimitMax =
+  Number.isSafeInteger(configuredRateLimitMax) && configuredRateLimitMax > 0
+    ? configuredRateLimitMax
+    : 300;
 app.use(
   createRateLimiter({
-    windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000),
-    max: Number(process.env.RATE_LIMIT_MAX_REQUESTS || 300),
+    windowMs: rateLimitWindowMs,
+    max: rateLimitMax,
+  }),
+);
+// Keep the bounded Valo limiter authoritative, then layer a supported limiter
+// for framework-aware security tooling and defence in depth. Doubling the
+// secondary fixed-window allowance prevents it from rejecting traffic that the
+// primary per-client fixed window accepted across a secondary window boundary.
+app.use(
+  rateLimit({
+    windowMs: Math.min(rateLimitWindowMs, 2_147_483_647),
+    limit: Math.min(Number.MAX_SAFE_INTEGER, rateLimitMax * 2),
+    standardHeaders: false,
+    legacyHeaders: false,
+    skip: (req) => req.method === "OPTIONS" || req.path === "/healthz",
+    // Match the primary limiter's exact-IP grouping. The default IPv6 subnet
+    // grouping would otherwise combine clients the Valo policy keeps separate.
+    keyGenerator: (req) => req.ip || req.socket.remoteAddress || "unknown",
+    validate: { keyGeneratorIpFallback: false },
+    passOnStoreError: false,
+    handler: (_req, res) => {
+      res.status(429).json({ error: "Too many requests" });
+    },
   }),
 );
 app.use(
