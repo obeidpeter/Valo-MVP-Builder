@@ -4,14 +4,15 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
-import PursuitOperationsSuiteRoute, {
+import {
   OperationsSuitePayloadError,
   adaptOperationsMobileQueuePayload,
   adaptOperationsSuitePayload,
   adaptPackageVersionListPayload,
   adaptProjectDocumentOptions,
   adaptVaultItemOptions,
-} from "./pursuit-operations-suite-route";
+} from "./operations-suite-codec";
+import PursuitOperationsSuiteRoute from "./pursuit-operations-suite-route";
 
 const HASH_A = "a".repeat(64);
 const HASH_B = "b".repeat(64);

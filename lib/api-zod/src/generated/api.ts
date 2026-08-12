@@ -19,12 +19,204 @@ import * as zod from 'zod';
 
 
 /**
- * Returns server health status
- * @summary Health check
+ * Returns dependency-free process liveness. This endpoint does not assert database or traffic readiness.
+ * @summary Process liveness check
  */
 export const HealthCheckResponse = zod.object({
-  "status": zod.string()
+  "status": zod.literal("ok")
 })
+
+
+/**
+ * Returns `200` only while the runtime is accepting traffic and its bounded
+ * database probe succeeds. Starting and draining runtimes do not touch the
+ * database. Metrics and paging delivery are reported independently and do
+ * not change readiness. GET and implicit HEAD are public deployment probes.
+ * @summary Runtime readiness check
+ */
+export const ReadinessCheckResponse = zod.object({
+  "status": zod.literal("ready"),
+  "checks": zod.object({
+  "lifecycle": zod.literal("ready"),
+  "database": zod.literal("ready")
+}).strict(),
+  "delivery": zod.object({
+  "metrics": zod.enum(['connected', 'disconnected']),
+  "paging": zod.enum(['connected', 'disconnected'])
+}).strict()
+}).strict()
+
+
+/**
+ * Returns an authority-filtered, tenant-wide read model for current direct
+ * memberships only. Items are grouped using the Africa/Lagos business day;
+ * the combined item count across all groups never exceeds `limit`.
+ * Restricted source row identifiers are replaced by tenant-bound,
+ * non-reversible UI keys.
+ * @summary List the current operator's bounded cross-project work inbox
+ */
+export const getWorkInboxQueryLimitDefault = 50;
+export const getWorkInboxQueryLimitMax = 100;
+
+
+
+export const GetWorkInboxQueryParams = zod.object({
+  "limit": zod.number().min(1).max(getWorkInboxQueryLimitMax).default(getWorkInboxQueryLimitDefault).describe('Maximum total items across all four groups. The wire value is one to three decimal digits with no leading zero.')
+})
+
+export const getWorkInboxResponseLimitMax = 100;
+
+export const getWorkInboxResponseGroupsOverdueItemKeyRegExp = new RegExp('^[a-f0-9]{64}$');
+export const getWorkInboxResponseGroupsOverdueItemTitleMax = 1024;
+
+export const getWorkInboxResponseGroupsOverdueItemProjectTitleMax = 1024;
+
+export const getWorkInboxResponseGroupsOverdueItemStatusMax = 64;
+
+export const getWorkInboxResponseGroupsOverdueItemHrefTwoRegExp = new RegExp('^/pursuit-operations\\?project=[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$');
+export const getWorkInboxResponseGroupsOverdueMax = 100;
+
+export const getWorkInboxResponseGroupsTodayItemKeyRegExp = new RegExp('^[a-f0-9]{64}$');
+export const getWorkInboxResponseGroupsTodayItemTitleMax = 1024;
+
+export const getWorkInboxResponseGroupsTodayItemProjectTitleMax = 1024;
+
+export const getWorkInboxResponseGroupsTodayItemStatusMax = 64;
+
+export const getWorkInboxResponseGroupsTodayItemHrefTwoRegExp = new RegExp('^/pursuit-operations\\?project=[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$');
+export const getWorkInboxResponseGroupsTodayMax = 100;
+
+export const getWorkInboxResponseGroupsUpcomingItemKeyRegExp = new RegExp('^[a-f0-9]{64}$');
+export const getWorkInboxResponseGroupsUpcomingItemTitleMax = 1024;
+
+export const getWorkInboxResponseGroupsUpcomingItemProjectTitleMax = 1024;
+
+export const getWorkInboxResponseGroupsUpcomingItemStatusMax = 64;
+
+export const getWorkInboxResponseGroupsUpcomingItemHrefTwoRegExp = new RegExp('^/pursuit-operations\\?project=[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$');
+export const getWorkInboxResponseGroupsUpcomingMax = 100;
+
+export const getWorkInboxResponseGroupsUnscheduledItemKeyRegExp = new RegExp('^[a-f0-9]{64}$');
+export const getWorkInboxResponseGroupsUnscheduledItemTitleMax = 1024;
+
+export const getWorkInboxResponseGroupsUnscheduledItemProjectTitleMax = 1024;
+
+export const getWorkInboxResponseGroupsUnscheduledItemStatusMax = 64;
+
+export const getWorkInboxResponseGroupsUnscheduledItemHrefTwoRegExp = new RegExp('^/pursuit-operations\\?project=[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$');
+export const getWorkInboxResponseGroupsUnscheduledMax = 100;
+
+
+
+export const GetWorkInboxResponse = zod.object({
+  "organisationId": zod.string().uuid(),
+  "generatedAt": zod.date(),
+  "businessTimeZone": zod.literal("Africa/Lagos"),
+  "limit": zod.number().min(1).max(getWorkInboxResponseLimitMax),
+  "truncated": zod.boolean(),
+  "restrictedContent": zod.literal(true),
+  "groups": zod.object({
+  "overdue": zod.array(zod.object({
+  "key": zod.string().regex(getWorkInboxResponseGroupsOverdueItemKeyRegExp).describe('Tenant-bound, non-reversible UI identity; never a persisted source row identifier.'),
+  "assignment": zod.enum(['owned', 'unassigned']),
+  "kind": zod.enum(['work_item', 'mission', 'post_award_item', 'retainer_request']),
+  "title": zod.string().min(1).max(getWorkInboxResponseGroupsOverdueItemTitleMax),
+  "projectTitle": zod.string().min(1).max(getWorkInboxResponseGroupsOverdueItemProjectTitleMax),
+  "status": zod.string().min(1).max(getWorkInboxResponseGroupsOverdueItemStatusMax),
+  "dueAt": zod.date().nullable(),
+  "priority": zod.union([zod.literal('low'),zod.literal('normal'),zod.literal('high'),zod.literal('critical'),zod.literal(null)]).nullable(),
+  "href": zod.union([zod.literal("/commercial-retainer"),zod.string().regex(getWorkInboxResponseGroupsOverdueItemHrefTwoRegExp)])
+}).strict()).max(getWorkInboxResponseGroupsOverdueMax),
+  "today": zod.array(zod.object({
+  "key": zod.string().regex(getWorkInboxResponseGroupsTodayItemKeyRegExp).describe('Tenant-bound, non-reversible UI identity; never a persisted source row identifier.'),
+  "assignment": zod.enum(['owned', 'unassigned']),
+  "kind": zod.enum(['work_item', 'mission', 'post_award_item', 'retainer_request']),
+  "title": zod.string().min(1).max(getWorkInboxResponseGroupsTodayItemTitleMax),
+  "projectTitle": zod.string().min(1).max(getWorkInboxResponseGroupsTodayItemProjectTitleMax),
+  "status": zod.string().min(1).max(getWorkInboxResponseGroupsTodayItemStatusMax),
+  "dueAt": zod.date().nullable(),
+  "priority": zod.union([zod.literal('low'),zod.literal('normal'),zod.literal('high'),zod.literal('critical'),zod.literal(null)]).nullable(),
+  "href": zod.union([zod.literal("/commercial-retainer"),zod.string().regex(getWorkInboxResponseGroupsTodayItemHrefTwoRegExp)])
+}).strict()).max(getWorkInboxResponseGroupsTodayMax),
+  "upcoming": zod.array(zod.object({
+  "key": zod.string().regex(getWorkInboxResponseGroupsUpcomingItemKeyRegExp).describe('Tenant-bound, non-reversible UI identity; never a persisted source row identifier.'),
+  "assignment": zod.enum(['owned', 'unassigned']),
+  "kind": zod.enum(['work_item', 'mission', 'post_award_item', 'retainer_request']),
+  "title": zod.string().min(1).max(getWorkInboxResponseGroupsUpcomingItemTitleMax),
+  "projectTitle": zod.string().min(1).max(getWorkInboxResponseGroupsUpcomingItemProjectTitleMax),
+  "status": zod.string().min(1).max(getWorkInboxResponseGroupsUpcomingItemStatusMax),
+  "dueAt": zod.date().nullable(),
+  "priority": zod.union([zod.literal('low'),zod.literal('normal'),zod.literal('high'),zod.literal('critical'),zod.literal(null)]).nullable(),
+  "href": zod.union([zod.literal("/commercial-retainer"),zod.string().regex(getWorkInboxResponseGroupsUpcomingItemHrefTwoRegExp)])
+}).strict()).max(getWorkInboxResponseGroupsUpcomingMax),
+  "unscheduled": zod.array(zod.object({
+  "key": zod.string().regex(getWorkInboxResponseGroupsUnscheduledItemKeyRegExp).describe('Tenant-bound, non-reversible UI identity; never a persisted source row identifier.'),
+  "assignment": zod.enum(['owned', 'unassigned']),
+  "kind": zod.enum(['work_item', 'mission', 'post_award_item', 'retainer_request']),
+  "title": zod.string().min(1).max(getWorkInboxResponseGroupsUnscheduledItemTitleMax),
+  "projectTitle": zod.string().min(1).max(getWorkInboxResponseGroupsUnscheduledItemProjectTitleMax),
+  "status": zod.string().min(1).max(getWorkInboxResponseGroupsUnscheduledItemStatusMax),
+  "dueAt": zod.date().nullable(),
+  "priority": zod.union([zod.literal('low'),zod.literal('normal'),zod.literal('high'),zod.literal('critical'),zod.literal(null)]).nullable(),
+  "href": zod.union([zod.literal("/commercial-retainer"),zod.string().regex(getWorkInboxResponseGroupsUnscheduledItemHrefTwoRegExp)])
+}).strict()).max(getWorkInboxResponseGroupsUnscheduledMax)
+}).strict()
+}).strict()
+
+
+/**
+ * Returns only current, clean, quarantine-cleared document versions visible
+ * to the caller's current direct tenant authority. Claims binds and
+ * revalidates a canonical document ID and digest. Privacy may use this list
+ * as optional convenience when the operator has `document:read`, but its
+ * mutations continue accepting closed-format external or legacy SHA receipt
+ * digests; picker selection is not required and those digests are not
+ * scanner attestations.
+ * @summary List current clean canonical evidence options
+ */
+export const listCanonicalEvidenceOptionsQueryLimitDefault = 50;
+export const listCanonicalEvidenceOptionsQueryLimitMax = 100;
+
+
+
+export const ListCanonicalEvidenceOptionsQueryParams = zod.object({
+  "projectId": zod.string().uuid().optional().describe('Optional exact project scope within the selected tenant.'),
+  "limit": zod.number().min(1).max(listCanonicalEvidenceOptionsQueryLimitMax).default(listCanonicalEvidenceOptionsQueryLimitDefault).describe('Maximum canonical evidence options. The wire value is one to three decimal digits with no leading zero.')
+})
+
+export const listCanonicalEvidenceOptionsResponseLimitMax = 100;
+
+export const listCanonicalEvidenceOptionsResponseItemsItemFilenameMax = 512;
+
+export const listCanonicalEvidenceOptionsResponseItemsItemProjectTitleMax = 1024;
+
+export const listCanonicalEvidenceOptionsResponseItemsItemSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+export const listCanonicalEvidenceOptionsResponseItemsItemDetectedMimeMax = 256;
+
+export const listCanonicalEvidenceOptionsResponseItemsItemSizeBytesMin = 0;
+
+export const listCanonicalEvidenceOptionsResponseItemsMax = 100;
+
+
+
+export const ListCanonicalEvidenceOptionsResponse = zod.object({
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid().nullable(),
+  "limit": zod.number().min(1).max(listCanonicalEvidenceOptionsResponseLimitMax),
+  "truncated": zod.boolean(),
+  "items": zod.array(zod.object({
+  "documentId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "filename": zod.string().min(1).max(listCanonicalEvidenceOptionsResponseItemsItemFilenameMax),
+  "projectTitle": zod.string().min(1).max(listCanonicalEvidenceOptionsResponseItemsItemProjectTitleMax),
+  "sha256": zod.string().regex(listCanonicalEvidenceOptionsResponseItemsItemSha256RegExp),
+  "versionNumber": zod.number().min(1),
+  "detectedMime": zod.string().min(1).max(listCanonicalEvidenceOptionsResponseItemsItemDetectedMimeMax),
+  "sizeBytes": zod.number().min(listCanonicalEvidenceOptionsResponseItemsItemSizeBytesMin),
+  "privacyEligible": zod.boolean().describe('True when this current clean document can be offered by the optional Privacy picker; every returned option is currently eligible.')
+}).strict()).max(listCanonicalEvidenceOptionsResponseItemsMax)
+}).strict()
 
 
 /**

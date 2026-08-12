@@ -20,6 +20,7 @@ import {
 import { registerProductionWebApp } from "./lib/webApp";
 import { createPublicBidAutopsyRouter } from "./routes/public";
 import healthRouter from "./routes/health";
+import { operationalSignals, requestCorrelationId } from "./lib/observability";
 
 const app: Express = express();
 app.disable("x-powered-by");
@@ -28,6 +29,11 @@ if (process.env.TRUST_PROXY === "1") app.set("trust proxy", 1);
 app.use(
   pinoHttp({
     logger,
+    genReqId(req, res) {
+      const requestId = requestCorrelationId(req.headers);
+      res.setHeader("X-Request-Id", requestId);
+      return requestId;
+    },
     serializers: {
       req(req) {
         return {
@@ -44,6 +50,7 @@ app.use(
     },
   }),
 );
+app.use(operationalSignals.middleware());
 
 const allowedOrigins = parseAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS);
 const clerkProxyHosts = clerkProxyHostsFromOrigins(allowedOrigins);
@@ -62,9 +69,11 @@ app.use(
       "Content-Type",
       "Idempotency-Key",
       "If-Match",
+      "X-Request-Id",
       "X-Valo-Organisation-Id",
       "X-Valo-Break-Glass-Session",
     ],
+    exposedHeaders: ["X-Request-Id"],
     origin(origin, callback) {
       // Server-to-server and same-origin requests do not carry Origin.
       if (!origin || allowedOrigins.has(origin.replace(/\/$/, ""))) {
@@ -89,10 +98,10 @@ const rejectDisallowedCorsOrigin: ErrorRequestHandler = (
 };
 app.use(rejectDisallowedCorsOrigin);
 
-// Liveness must remain independent of Clerk and request throttling so the
-// deployment sidecar can probe the process through its internal Host header.
-// Mounting the route itself here keeps the bypass exact: only the route's GET
-// handler (and Express' implicit HEAD handling) can skip the global middleware.
+// Liveness remains dependency-free; readiness checks lifecycle and database.
+// Both exact routes are independent of Clerk and request throttling so the
+// deployment sidecar can probe through its internal Host header. Mounting the
+// router here avoids any path-prefix bypass in protected middleware.
 app.use("/api", healthRouter);
 
 app.use(

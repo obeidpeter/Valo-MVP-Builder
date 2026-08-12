@@ -66,15 +66,21 @@ import {
   type RetainerServiceRequest,
   type RetainerStatus,
 } from "./contracts";
+import {
+  COMMERCIAL_PAYMENT_RECORDED_EVENT,
+  COMMERCIAL_PAYMENT_VERIFIED_EVENT,
+  COMMERCIAL_QUOTE_APPROVED_EVENT,
+  COMMERCIAL_QUOTE_CREATED_EVENT,
+  indexCommercialSnapshotAudits,
+  type CommercialPaymentActors,
+  type CommercialSnapshotAuditEvent,
+  type CommercialSnapshotAuditIndex,
+} from "./snapshotAuditIndex";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Actor = typeof users.$inferSelect;
 
-const QUOTE_CREATED_EVENT = "commercial.quote_created.v1";
-const QUOTE_APPROVED_EVENT = "commercial.quote_approved.v1";
 const INVOICE_CREATED_EVENT = "commercial.invoice_created.v1";
-const PAYMENT_RECORDED_EVENT = "commercial.payment_recorded.v1";
-const PAYMENT_VERIFIED_EVENT = "commercial.payment_verified.v1";
 const ENTITLEMENT_PROVISIONED_EVENT = "commercial.entitlement_provisioned.v1";
 const RETAINER_CREATED_EVENT = "retainer.request_created.v1";
 const RETAINER_MUTATED_EVENT = "retainer.request_mutated.v1";
@@ -590,6 +596,86 @@ async function catalogueEntry(
   return row.entry;
 }
 
+async function loadSnapshotAuditIndex(
+  tx: Transaction,
+  organisationId: string,
+  orderIds: readonly string[],
+  paymentIds: readonly string[],
+): Promise<CommercialSnapshotAuditIndex> {
+  const orderFilter =
+    orderIds.length === 0
+      ? undefined
+      : and(
+          eq(auditEvents.objectType, "order"),
+          inArray(auditEvents.objectId, [...orderIds]),
+          inArray(auditEvents.eventType, [
+            COMMERCIAL_QUOTE_CREATED_EVENT,
+            COMMERCIAL_QUOTE_APPROVED_EVENT,
+          ]),
+        );
+  const paymentFilter =
+    paymentIds.length === 0
+      ? undefined
+      : and(
+          eq(auditEvents.objectType, "payment"),
+          inArray(auditEvents.objectId, [...paymentIds]),
+          inArray(auditEvents.eventType, [
+            COMMERCIAL_PAYMENT_RECORDED_EVENT,
+            COMMERCIAL_PAYMENT_VERIFIED_EVENT,
+          ]),
+        );
+  const objectFilter =
+    orderFilter && paymentFilter
+      ? or(orderFilter, paymentFilter)
+      : (orderFilter ?? paymentFilter);
+  if (!objectFilter) return indexCommercialSnapshotAudits([]);
+
+  // Rank before limiting so duplicate historical receipts retain the former
+  // per-record query semantics: earliest creation/recording/verification and
+  // latest approval. The outer query therefore materialises at most one row
+  // per selected object/event pair, regardless of raw audit history size.
+  const maxRows = orderIds.length * 2 + paymentIds.length * 2;
+  const rankedAudits = tx
+    .select({
+      objectType: auditEvents.objectType,
+      objectId: auditEvents.objectId,
+      eventType: auditEvents.eventType,
+      userId: auditEvents.userId,
+      details: auditEvents.details,
+      createdAt: auditEvents.createdAt,
+      seq: auditEvents.seq,
+      snapshotRank: sql<number>`row_number() over (
+        partition by ${auditEvents.objectType}, ${auditEvents.objectId}, ${auditEvents.eventType}
+        order by case
+          when ${auditEvents.eventType} = ${COMMERCIAL_QUOTE_APPROVED_EVENT}
+            then -${auditEvents.seq}
+          else ${auditEvents.seq}
+        end asc
+      )`.as("snapshot_rank"),
+    })
+    .from(auditEvents)
+    .where(and(eq(auditEvents.organisationId, organisationId), objectFilter))
+    .as("ranked_commercial_snapshot_audits");
+  const rows = await tx
+    .select({
+      objectType: rankedAudits.objectType,
+      objectId: rankedAudits.objectId,
+      eventType: rankedAudits.eventType,
+      userId: rankedAudits.userId,
+      details: rankedAudits.details,
+      createdAt: rankedAudits.createdAt,
+      seq: rankedAudits.seq,
+    })
+    .from(rankedAudits)
+    .where(eq(rankedAudits.snapshotRank, 1))
+    .orderBy(asc(rankedAudits.seq))
+    .limit(maxRows + 1);
+  if (rows.length > maxRows) {
+    throw new CommercialRetainerError("persistence_unavailable");
+  }
+  return indexCommercialSnapshotAudits(rows);
+}
+
 async function createdAuditFor(
   tx: Transaction,
   organisationId: string,
@@ -601,7 +687,7 @@ async function createdAuditFor(
     .where(
       and(
         eq(auditEvents.organisationId, organisationId),
-        eq(auditEvents.eventType, QUOTE_CREATED_EVENT),
+        eq(auditEvents.eventType, COMMERCIAL_QUOTE_CREATED_EVENT),
         eq(auditEvents.objectType, "order"),
         eq(auditEvents.objectId, orderId),
       ),
@@ -623,7 +709,7 @@ async function approvedByFor(
     .where(
       and(
         eq(auditEvents.organisationId, organisationId),
-        eq(auditEvents.eventType, QUOTE_APPROVED_EVENT),
+        eq(auditEvents.eventType, COMMERCIAL_QUOTE_APPROVED_EVENT),
         eq(auditEvents.objectType, "order"),
         eq(auditEvents.objectId, orderId),
       ),
@@ -642,6 +728,16 @@ async function quoteRecord(
     row.organisationId,
     row.id,
   );
+  const approvedByUserId = await approvedByFor(tx, row.organisationId, row.id);
+  return materializeQuote(row, event, details, approvedByUserId);
+}
+
+function materializeQuote(
+  row: typeof orders.$inferSelect,
+  event: Pick<CommercialSnapshotAuditEvent, "createdAt">,
+  details: QuoteAuditDetails,
+  approvedByUserId: string | null,
+): QuoteProposal {
   if (
     details.projectId !== row.projectId ||
     details.currency !== row.currency ||
@@ -665,11 +761,25 @@ async function quoteRecord(
     serviceUnits: details.serviceUnits,
     status: statusForOrder(row.status),
     createdByUserId: row.placedByUserId,
-    approvedByUserId: await approvedByFor(tx, row.organisationId, row.id),
+    approvedByUserId,
     version: row.version,
     createdAt: event.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
+}
+
+function quoteRecordFromAuditIndex(
+  row: typeof orders.$inferSelect,
+  audits: CommercialSnapshotAuditIndex,
+): QuoteProposal {
+  const event = audits.quoteCreatedByOrderId.get(row.id);
+  if (!event) throw new CommercialRetainerError("persistence_unavailable");
+  return materializeQuote(
+    row,
+    event,
+    quoteAudit(event.details),
+    audits.quoteApprovedByOrderId.get(row.id)?.userId ?? null,
+  );
 }
 
 function invoiceRecord(
@@ -710,19 +820,19 @@ async function paymentActors(
         eq(auditEvents.objectType, "payment"),
         eq(auditEvents.objectId, paymentId),
         inArray(auditEvents.eventType, [
-          PAYMENT_RECORDED_EVENT,
-          PAYMENT_VERIFIED_EVENT,
+          COMMERCIAL_PAYMENT_RECORDED_EVENT,
+          COMMERCIAL_PAYMENT_VERIFIED_EVENT,
         ]),
       ),
     )
     .orderBy(asc(auditEvents.seq));
   return {
     recordedByUserId:
-      rows.find((row) => row.eventType === PAYMENT_RECORDED_EVENT)?.userId ??
-      null,
+      rows.find((row) => row.eventType === COMMERCIAL_PAYMENT_RECORDED_EVENT)
+        ?.userId ?? null,
     verifiedByUserId:
-      rows.find((row) => row.eventType === PAYMENT_VERIFIED_EVENT)?.userId ??
-      null,
+      rows.find((row) => row.eventType === COMMERCIAL_PAYMENT_VERIFIED_EVENT)
+        ?.userId ?? null,
   };
 }
 
@@ -730,6 +840,16 @@ async function paymentRecord(
   tx: Transaction,
   row: typeof payments.$inferSelect,
 ): Promise<CommercialPayment> {
+  return materializePayment(
+    row,
+    await paymentActors(tx, row.organisationId, row.id),
+  );
+}
+
+function materializePayment(
+  row: typeof payments.$inferSelect,
+  actors: CommercialPaymentActors | undefined,
+): CommercialPayment {
   if (
     !row.invoiceId ||
     row.provider !== PAYMENT_PROVIDER ||
@@ -741,8 +861,7 @@ async function paymentRecord(
   ) {
     throw new CommercialRetainerError("persistence_unavailable");
   }
-  const actors = await paymentActors(tx, row.organisationId, row.id);
-  if (!actors.recordedByUserId) {
+  if (!actors?.recordedByUserId) {
     throw new CommercialRetainerError("persistence_unavailable");
   }
   return {
@@ -759,6 +878,13 @@ async function paymentRecord(
     version: row.version,
     createdAt: row.createdAt.toISOString(),
   };
+}
+
+function paymentRecordFromAuditIndex(
+  row: typeof payments.$inferSelect,
+  audits: CommercialSnapshotAuditIndex,
+): CommercialPayment {
+  return materializePayment(row, audits.paymentActorsByPaymentId.get(row.id));
 }
 
 function entitlementRecord(
@@ -872,9 +998,6 @@ export class DrizzleCommercialRetainerRepository implements CommercialRetainerRe
       if (orderRows.length > COMMERCIAL_RETAINER_BOUNDS.listRows) {
         throw new CommercialRetainerError("capacity_exceeded");
       }
-      const quotes = await Promise.all(
-        orderRows.map((row) => quoteRecord(db as unknown as Transaction, row)),
-      );
       const orderIds = orderRows.map((row) => row.id);
       const invoiceRows =
         orderIds.length === 0
@@ -919,10 +1042,17 @@ export class DrizzleCommercialRetainerRepository implements CommercialRetainerRe
       if (paymentRows.length > COMMERCIAL_RETAINER_BOUNDS.listRows) {
         throw new CommercialRetainerError("capacity_exceeded");
       }
-      const commercialPayments = await Promise.all(
-        paymentRows.map((row) =>
-          paymentRecord(db as unknown as Transaction, row),
-        ),
+      const snapshotAudits = await loadSnapshotAuditIndex(
+        db as unknown as Transaction,
+        scope.organisationId,
+        orderIds,
+        paymentRows.map((row) => row.id),
+      );
+      const quotes = orderRows.map((row) =>
+        quoteRecordFromAuditIndex(row, snapshotAudits),
+      );
+      const commercialPayments = paymentRows.map((row) =>
+        paymentRecordFromAuditIndex(row, snapshotAudits),
       );
       const entitlementRows =
         orderIds.length === 0
@@ -1078,7 +1208,7 @@ export class DrizzleCommercialRetainerRepository implements CommercialRetainerRe
             user: actor,
             organisationId: scope.organisationId,
             projectId: terms.projectId,
-            eventType: QUOTE_CREATED_EVENT,
+            eventType: COMMERCIAL_QUOTE_CREATED_EVENT,
             objectType: "order",
             objectId: row.id,
             details: JSON.stringify(details),
@@ -1181,7 +1311,7 @@ export class DrizzleCommercialRetainerRepository implements CommercialRetainerRe
             user: actor,
             organisationId: scope.organisationId,
             projectId: updated.projectId,
-            eventType: QUOTE_APPROVED_EVENT,
+            eventType: COMMERCIAL_QUOTE_APPROVED_EVENT,
             objectType: "order",
             objectId: updated.id,
             details: JSON.stringify({
@@ -1516,7 +1646,7 @@ export class DrizzleCommercialRetainerRepository implements CommercialRetainerRe
             user: actor,
             organisationId: scope.organisationId,
             projectId: invoiceContext!.projectId,
-            eventType: PAYMENT_RECORDED_EVENT,
+            eventType: COMMERCIAL_PAYMENT_RECORDED_EVENT,
             objectType: "payment",
             objectId: payment.id,
             details: JSON.stringify({
@@ -1790,7 +1920,7 @@ export class DrizzleCommercialRetainerRepository implements CommercialRetainerRe
             user: actor,
             organisationId: scope.organisationId,
             projectId: order.projectId,
-            eventType: PAYMENT_VERIFIED_EVENT,
+            eventType: COMMERCIAL_PAYMENT_VERIFIED_EVENT,
             objectType: "payment",
             objectId: payment.id,
             details: JSON.stringify({

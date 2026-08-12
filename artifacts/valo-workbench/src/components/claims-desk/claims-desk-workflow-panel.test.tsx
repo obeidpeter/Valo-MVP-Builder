@@ -9,6 +9,19 @@ import {
 
 const DOC = "10000000-0000-4000-8000-000000000001";
 const SHA = "a".repeat(64);
+const options = [
+  {
+    documentId: DOC,
+    projectId: "40000000-0000-4000-8000-000000000004",
+    filename: "claim-evidence.pdf",
+    projectTitle: "Claims project",
+    sha256: SHA,
+    versionNumber: 1,
+    detectedMime: "application/pdf",
+    sizeBytes: 128,
+    privacyEligible: true,
+  },
+];
 
 function record(status: string): ClaimsDeskRecord {
   return {
@@ -39,9 +52,39 @@ function record(status: string): ClaimsDeskRecord {
 
 describe("Claims Desk workflow panels", () => {
   it("labels amounts as integer minor units and canonical document evidence", () => {
-    render(<ClaimsDeskCreatePanel pending={false} onCreate={vi.fn()} />);
+    render(
+      <ClaimsDeskCreatePanel
+        pending={false}
+        evidenceOptions={options}
+        onCreate={vi.fn()}
+      />,
+    );
     expect(screen.getByText(/not legal entitlement/u)).toBeInTheDocument();
     expect(screen.getByLabelText("Canonical document evidence")).toBeRequired();
+  });
+
+  it("does not enable evidence-dependent actions without a current selection", () => {
+    const { rerender } = render(
+      <ClaimsDeskCreatePanel
+        pending={false}
+        evidenceOptions={[]}
+        onCreate={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Record immutable evidence" }),
+    ).toBeDisabled();
+    rerender(
+      <ClaimsDeskTransitionPanel
+        records={[record("registered")]}
+        evidenceOptions={[]}
+        pending={false}
+        onTransition={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Record Start review" }),
+    ).toBeDisabled();
   });
 
   it("shows only controlled actions for the current state", async () => {
@@ -49,6 +92,7 @@ describe("Claims Desk workflow panels", () => {
     render(
       <ClaimsDeskTransitionPanel
         records={[record("assessment_proposed")]}
+        evidenceOptions={options}
         pending={false}
         onTransition={vi.fn()}
       />,
@@ -65,6 +109,36 @@ describe("Claims Desk workflow panels", () => {
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("option", { name: "Approve closure" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("preserves a previously bound document outside the bounded option page", () => {
+    const older = record("registered");
+    older.documentBindings = [
+      {
+        documentId: "60000000-0000-4000-8000-000000000006",
+        sha256: "c".repeat(64),
+      },
+    ];
+    render(
+      <ClaimsDeskTransitionPanel
+        records={[older]}
+        evidenceOptions={options}
+        evidenceOptionsTruncated
+        pending={false}
+        onTransition={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole("option", {
+        name: "Previously bound document 1 — revalidated on submit",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Record Start review" }),
+    ).toBeEnabled();
+    expect(
+      screen.queryByText(older.documentBindings[0]!.documentId),
     ).not.toBeInTheDocument();
   });
 });

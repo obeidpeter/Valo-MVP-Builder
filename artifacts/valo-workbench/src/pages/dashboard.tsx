@@ -19,6 +19,7 @@ import {
   StatusPanel,
   type SurfaceState,
 } from "@/components/platform-states";
+import { MyWorkInbox } from "@/components/my-work-inbox";
 
 const TERMINAL_STATUSES = new Set(["signed_off", "exported", "archived"]);
 const WAT_TIME_ZONE = "Africa/Lagos";
@@ -319,6 +320,8 @@ export default function Dashboard() {
           </Button>
         }
       />
+
+      <MyWorkInbox />
 
       {allLoading ? (
         <LoadingPanel label="Loading Command Centre signals" />

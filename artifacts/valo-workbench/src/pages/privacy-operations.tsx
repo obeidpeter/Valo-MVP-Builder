@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { customFetch } from "@workspace/api-client-react";
+import { customFetch, useGetMe } from "@workspace/api-client-react";
 import {
   adaptPrivacyOperationsAssignees,
   adaptPrivacyOperationsDashboard,
@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { useToast } from "@/hooks/use-toast";
+import { adaptCanonicalEvidenceOptions } from "@/lib/canonical-evidence-options";
+import { assertAuthorityScopeCurrent } from "@/lib/authority-scope";
 
 const QUERY_ROOT = "privacy-operations";
 
@@ -38,35 +40,64 @@ export default function PrivacyOperationsPage() {
   const online = useOnlineStatus();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const meQuery = useGetMe();
   const organisationId = access?.activeOrganisation?.id ?? "";
   const permissions = access?.effectivePermissions ?? [];
+  const actorUserId = meQuery.data?.id ?? "";
+  const capabilityKey = permissions
+    .filter((permission) =>
+      ["privacy:read", "privacy:manage", "document:read"].includes(permission),
+    )
+    .sort()
+    .join("|");
   const directMembership =
-    access?.activeOrganisation?.accessSource === "membership";
+    access?.activeOrganisation?.accessSource === "membership" &&
+    access.activeOrganisation.membershipOrganisationId === organisationId;
   const canRead = Boolean(
-    organisationId && directMembership && permissions.includes("privacy:read"),
+    organisationId &&
+    actorUserId &&
+    directMembership &&
+    permissions.includes("privacy:read"),
   );
   const canManage = Boolean(
     organisationId &&
+    actorUserId &&
     directMembership &&
     permissions.includes("privacy:manage"),
   );
-  const activeOrganisationId = useRef(organisationId);
-  activeOrganisationId.current = organisationId;
-  const queryKey = [QUERY_ROOT, organisationId] as const;
+  const canBrowseDocuments = Boolean(
+    canManage && permissions.includes("document:read"),
+  );
+  const activeScope = useRef({ organisationId, actorUserId, capabilityKey });
+  activeScope.current = { organisationId, actorUserId, capabilityKey };
+  const queryKey = [
+    QUERY_ROOT,
+    organisationId,
+    actorUserId,
+    capabilityKey,
+  ] as const;
 
   const assigneesQuery = useQuery({
-    queryKey: [QUERY_ROOT, "assignees", organisationId],
+    queryKey: [
+      QUERY_ROOT,
+      "assignees",
+      organisationId,
+      actorUserId,
+      capabilityKey,
+    ],
     enabled: canManage && online,
     queryFn: async () => {
-      const requestedOrganisationId = organisationId;
+      const requestedScope = { organisationId, actorUserId, capabilityKey };
       const payload = await customFetch<unknown>(
         "/api/privacy-operations/assignees",
         { responseType: "json", cache: "no-store" },
       );
-      if (activeOrganisationId.current !== requestedOrganisationId) {
-        throw new Error("Organisation changed while assignees loaded");
-      }
-      return adaptPrivacyOperationsAssignees(payload, requestedOrganisationId);
+      assertAuthorityScopeCurrent(
+        activeScope.current,
+        requestedScope,
+        "Privacy authority changed while assignees loaded",
+      );
+      return adaptPrivacyOperationsAssignees(payload, organisationId);
     },
   });
 
@@ -74,21 +105,57 @@ export default function PrivacyOperationsPage() {
     queryKey,
     enabled: canRead && online,
     queryFn: async () => {
-      const requestedOrganisationId = organisationId;
+      const requestedScope = { organisationId, actorUserId, capabilityKey };
       const payload = await customFetch<unknown>(
         "/api/privacy-operations?limit=25",
         { responseType: "json", cache: "no-store" },
       );
-      if (activeOrganisationId.current !== requestedOrganisationId) {
-        throw new Error("Organisation changed while privacy evidence loaded");
-      }
-      return adaptPrivacyOperationsDashboard(payload, requestedOrganisationId);
+      assertAuthorityScopeCurrent(
+        activeScope.current,
+        requestedScope,
+        "Privacy authority changed while evidence loaded",
+      );
+      return adaptPrivacyOperationsDashboard(payload, organisationId);
+    },
+  });
+
+  const evidenceOptionsQuery = useQuery({
+    queryKey: [
+      "canonical-evidence-options",
+      organisationId,
+      actorUserId,
+      capabilityKey,
+      "privacy-operations",
+    ],
+    enabled: canBrowseDocuments && online,
+    staleTime: 0,
+    gcTime: 0,
+    queryFn: async () => {
+      const requestedScope = { organisationId, actorUserId, capabilityKey };
+      const payload = await customFetch<unknown>(
+        "/api/canonical-evidence-options?limit=100",
+        { responseType: "json", cache: "no-store" },
+      );
+      assertAuthorityScopeCurrent(
+        activeScope.current,
+        requestedScope,
+        "Privacy authority changed while evidence options loaded",
+      );
+      const adapted = adaptCanonicalEvidenceOptions(
+        payload,
+        organisationId,
+        null,
+      );
+      return {
+        ...adapted,
+        items: adapted.items.filter((option) => option.privacyEligible),
+      };
     },
   });
 
   const workflowMutation = useMutation({
     mutationFn: async (workflow: WorkflowMutation) => {
-      const requestedOrganisationId = organisationId;
+      const requestedScope = { organisationId, actorUserId, capabilityKey };
       const releaseCriticalWorkflow = access?.beginCriticalWorkflow();
       try {
         const payload = await customFetch<unknown>(workflow.path, {
@@ -98,18 +165,18 @@ export default function PrivacyOperationsPage() {
           responseType: "json",
           cache: "no-store",
         });
-        if (activeOrganisationId.current !== requestedOrganisationId) {
-          throw new Error(
-            "Organisation changed while privacy evidence was recorded",
-          );
-        }
+        assertAuthorityScopeCurrent(
+          activeScope.current,
+          requestedScope,
+          "Privacy authority changed while evidence was recorded",
+        );
         assertPrivacyWorkflowResponse(
           payload,
           workflow.objectId,
           workflow.expectedEventType,
         );
         return {
-          organisationId: requestedOrganisationId,
+          organisationId: requestedScope.organisationId,
           receiptSha256: payload.receipt.receiptSha256,
         };
       } finally {
@@ -200,43 +267,56 @@ export default function PrivacyOperationsPage() {
       dashboard={dashboardQuery.data}
       workflowPanel={
         canManage ? (
-          <PrivacyWorkflowPanel
-            dashboard={dashboardQuery.data}
-            assigneeOptions={
-              assigneesQuery.data?.items.map(({ userId, name }) => ({
-                id: userId,
-                name,
-              })) ?? []
-            }
-            busy={workflowMutation.isPending}
-            onTriage={(id, version, body) =>
-              run({
-                path: `/api/privacy-operations/data-subject-requests/${id}/triage`,
-                objectId: id,
-                expectedEventType: "privacy.dsr_triage_recorded",
-                version,
-                body,
-              })
-            }
-            onWithdraw={(id, version, body) =>
-              run({
-                path: `/api/privacy-operations/consent-records/${id}/withdrawal`,
-                objectId: id,
-                expectedEventType: "privacy.consent_withdrawal_recorded",
-                version,
-                body,
-              })
-            }
-            onReviewHold={(id, version, body) =>
-              run({
-                path: `/api/privacy-operations/legal-holds/${id}/reviews`,
-                objectId: id,
-                expectedEventType: "privacy.legal_hold_review_recorded",
-                version,
-                body,
-              })
-            }
-          />
+          <>
+            {canBrowseDocuments && evidenceOptionsQuery.isError ? (
+              <StatusPanel
+                state="error"
+                title="Governed document choices are unavailable"
+                description="The optional picker could not be loaded. Existing external or legacy digest evidence can still be recorded and is not a scanner attestation."
+              />
+            ) : null}
+            <PrivacyWorkflowPanel
+              dashboard={dashboardQuery.data}
+              assigneeOptions={
+                assigneesQuery.data?.items.map(({ userId, name }) => ({
+                  id: userId,
+                  name,
+                })) ?? []
+              }
+              evidenceOptions={evidenceOptionsQuery.data?.items ?? []}
+              evidenceOptionsTruncated={
+                evidenceOptionsQuery.data?.truncated ?? false
+              }
+              busy={workflowMutation.isPending}
+              onTriage={(id, version, body) =>
+                run({
+                  path: `/api/privacy-operations/data-subject-requests/${id}/triage`,
+                  objectId: id,
+                  expectedEventType: "privacy.dsr_triage_recorded",
+                  version,
+                  body,
+                })
+              }
+              onWithdraw={(id, version, body) =>
+                run({
+                  path: `/api/privacy-operations/consent-records/${id}/withdrawal`,
+                  objectId: id,
+                  expectedEventType: "privacy.consent_withdrawal_recorded",
+                  version,
+                  body,
+                })
+              }
+              onReviewHold={(id, version, body) =>
+                run({
+                  path: `/api/privacy-operations/legal-holds/${id}/reviews`,
+                  objectId: id,
+                  expectedEventType: "privacy.legal_hold_review_recorded",
+                  version,
+                  body,
+                })
+              }
+            />
+          </>
         ) : undefined
       }
     />

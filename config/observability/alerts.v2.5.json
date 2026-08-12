@@ -60,7 +60,7 @@
     {
       "id": "deployment_health",
       "severity": "critical",
-      "signal": "http.healthz.success",
+      "signal": "http.readyz.success",
       "condition": "< 1 for 3 consecutive probes",
       "runbook": "ROLLBACK.md"
     },

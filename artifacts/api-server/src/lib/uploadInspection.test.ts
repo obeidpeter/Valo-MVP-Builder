@@ -1,10 +1,72 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  canonicalMimeForDetectedFormat,
   inspectUpload,
   type UploadInspectionInput,
   type UploadInspectionPolicy,
 } from "./uploadInspection";
+
+test("detected formats have one canonical persisted MIME and unknown fails closed", () => {
+  assert.deepEqual(
+    ["pdf", "docx", "xlsx", "png", "jpeg", "zip", "unknown"].map((format) => [
+      format,
+      canonicalMimeForDetectedFormat(
+        format as Parameters<typeof canonicalMimeForDetectedFormat>[0],
+      ),
+    ]),
+    [
+      ["pdf", "application/pdf"],
+      [
+        "docx",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ],
+      [
+        "xlsx",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ],
+      ["png", "image/png"],
+      ["jpeg", "image/jpeg"],
+      ["zip", "application/zip"],
+      ["unknown", null],
+    ],
+  );
+});
+
+test("Office archives declared as ZIP persist their detected Office MIME", () => {
+  const office = (kind: "docx" | "xlsx") => {
+    const directory = kind === "docx" ? "word/document.xml" : "xl/workbook.xml";
+    return inspectUpload(
+      {
+        ...base,
+        filename: `evidence.${kind}`,
+        declaredMime: "application/zip",
+        bytes: new Uint8Array([0x50, 0x4b, 0x03, 0x04]),
+        archiveEntries: [
+          {
+            path: "[Content_Types].xml",
+            compressedBytes: 10,
+            expandedBytes: 20,
+          },
+          { path: directory, compressedBytes: 10, expandedBytes: 20 },
+        ],
+      },
+      policy,
+    );
+  };
+  const docx = office("docx");
+  const xlsx = office("xlsx");
+  assert.equal(docx.disposition, "ready");
+  assert.equal(xlsx.disposition, "ready");
+  assert.equal(
+    canonicalMimeForDetectedFormat(docx.detectedFormat),
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  );
+  assert.equal(
+    canonicalMimeForDetectedFormat(xlsx.detectedFormat),
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  );
+});
 
 const policy: UploadInspectionPolicy = {
   maxBytes: 10_000,

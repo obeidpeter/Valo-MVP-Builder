@@ -2,7 +2,18 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { initializeProductionAdapterReadiness } from "./lib/productionReadiness";
 import { parseBootstrapOrganisationConfig } from "./lib/bootstrap";
-import { assertRuntimeDatabaseSecurity } from "@workspace/db";
+import {
+  assertRuntimeDatabaseSecurity,
+  closeDatabasePool,
+  databasePoolSnapshot,
+} from "@workspace/db";
+import { startOperationalSignalHeartbeat } from "./lib/observability";
+import {
+  createGracefulShutdown,
+  installGracefulShutdown,
+  runtimeReadiness,
+  shutdownTimeouts,
+} from "./lib/runtimeLifecycle";
 
 const adapterReadiness = initializeProductionAdapterReadiness();
 parseBootstrapOrganisationConfig({
@@ -43,17 +54,37 @@ if (Number.isNaN(port) || port <= 0) {
 
 async function start(): Promise<void> {
   await assertRuntimeDatabaseSecurity();
-  app.listen(port, (err) => {
-    if (err) {
-      logger.error({ err }, "Error listening on port");
-      process.exit(1);
-    }
-
+  const stopOperationalSignals = startOperationalSignalHeartbeat({
+    getDatabasePool: databasePoolSnapshot,
+    getLifecycle: () => runtimeReadiness.current(),
+    intervalMillis: Number(
+      process.env.VALO_OPERATIONAL_SIGNAL_INTERVAL_MS || 60_000,
+    ),
+    logger,
+  });
+  const server = app.listen(port, () => {
+    runtimeReadiness.markAccepting();
     logger.info({ port }, "Server listening");
+  });
+  const timeouts = shutdownTimeouts(process.env);
+  const graceful = createGracefulShutdown({
+    beforeDrain: stopOperationalSignals,
+    closeDatabase: closeDatabasePool,
+    logger,
+    readiness: runtimeReadiness,
+    server,
+    ...timeouts,
+  });
+  installGracefulShutdown(graceful);
+  server.once("error", (error) => {
+    runtimeReadiness.beginDrain();
+    stopOperationalSignals();
+    logger.fatal({ err: error }, "HTTP server failed");
+    void closeDatabasePool().finally(() => process.exit(1));
   });
 }
 
 start().catch((error: unknown) => {
-  logger.fatal({ err: error }, "Production database safety gate failed");
-  process.exit(1);
+  logger.fatal({ err: error }, "API startup failed");
+  void closeDatabasePool().finally(() => process.exit(1));
 });

@@ -6,6 +6,9 @@ const apiClientReactSrc = path.resolve(root, "lib", "api-client-react", "src");
 const apiZodSrc = path.resolve(root, "lib", "api-zod", "src");
 
 const strictRoadmapOperationIds = [
+  "readinessCheck",
+  "getWorkInbox",
+  "listCanonicalEvidenceOptions",
   "getProductionAcceptanceSnapshot",
   "listProductionAcceptanceAuthorities",
   "recordProductionAcceptanceEvidence",

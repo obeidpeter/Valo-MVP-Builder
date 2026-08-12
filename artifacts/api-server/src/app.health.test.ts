@@ -48,13 +48,20 @@ describe("application liveness boundary", () => {
 
   it("answers GET and HEAD probes sent through an internal Host without authentication", async () => {
     const getResponse = await fetch(`${origin}/api/healthz`, {
-      headers: { Host: "127.0.0.1:8080" },
+      headers: {
+        Host: "127.0.0.1:8080",
+        "X-Request-Id": "probe-01:health_check",
+      },
     });
     assert.equal(getResponse.status, 200);
     assert.equal(getResponse.headers.get("x-content-type-options"), "nosniff");
     assert.match(
       getResponse.headers.get("content-security-policy") ?? "",
       /default-src 'none'/,
+    );
+    assert.equal(
+      getResponse.headers.get("x-request-id"),
+      "probe-01:health_check",
     );
     assert.deepEqual(await getResponse.json(), { status: "ok" });
 
@@ -77,6 +84,20 @@ describe("application liveness boundary", () => {
     assert.deepEqual(await response.json(), { status: "ok" });
   });
 
+  it("keeps readiness separate from dependency-free liveness while starting", async () => {
+    const liveness = await fetch(`${origin}/api/healthz`);
+    const readiness = await fetch(`${origin}/api/readyz`);
+
+    assert.equal(liveness.status, 200);
+    assert.equal(readiness.status, 503);
+    assert.equal(readiness.headers.get("cache-control"), "private, no-store");
+    assert.deepEqual(await readiness.json(), {
+      status: "not_ready",
+      checks: { lifecycle: "not_ready", database: "not_checked" },
+      delivery: { metrics: "disconnected", paging: "disconnected" },
+    });
+  });
+
   it("keeps every protected endpoint behind Clerk", async () => {
     const [publicHostResponse, internalHostResponse] = await Promise.all([
       fetch(`${origin}/api/me`, {
@@ -93,17 +114,22 @@ describe("application liveness boundary", () => {
   });
 
   it("does not bypass middleware for other methods or path prefixes", async () => {
-    const [postResponse, nestedResponse] = await Promise.all([
-      fetch(`${origin}/api/healthz`, {
-        method: "POST",
-        headers: { Host: "valo.example" },
-      }),
-      fetch(`${origin}/api/healthz/extra`, {
-        headers: { Host: "valo.example" },
-      }),
-    ]);
+    const [postResponse, nestedResponse, readinessNestedResponse] =
+      await Promise.all([
+        fetch(`${origin}/api/healthz`, {
+          method: "POST",
+          headers: { Host: "valo.example" },
+        }),
+        fetch(`${origin}/api/healthz/extra`, {
+          headers: { Host: "valo.example" },
+        }),
+        fetch(`${origin}/api/readyz/extra`, {
+          headers: { Host: "valo.example" },
+        }),
+      ]);
 
     assert.notEqual(postResponse.status, 200);
     assert.notEqual(nestedResponse.status, 200);
+    assert.notEqual(readinessNestedResponse.status, 200);
   });
 });

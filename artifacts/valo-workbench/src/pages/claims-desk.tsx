@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   customFetch,
   getListProjectsQueryKey,
+  useGetMe,
   useListProjects,
 } from "@workspace/api-client-react";
 import { useSearchParams } from "wouter";
@@ -21,6 +22,8 @@ import { Button } from "@/components/ui/button";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { useToast } from "@/hooks/use-toast";
+import { adaptCanonicalEvidenceOptions } from "@/lib/canonical-evidence-options";
+import { assertAuthorityScopeCurrent } from "@/lib/authority-scope";
 
 const QUERY_ROOT = "claims-desk";
 
@@ -38,8 +41,16 @@ export default function ClaimsDeskPage() {
   const online = useOnlineStatus();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const meQuery = useGetMe();
   const organisationId = access?.activeOrganisation?.id ?? "";
   const permissions = access?.effectivePermissions ?? [];
+  const actorUserId = meQuery.data?.id ?? "";
+  const capabilityKey = permissions
+    .filter((permission) =>
+      ["project:read", "project:update", "document:read"].includes(permission),
+    )
+    .sort()
+    .join("|");
   const directMembership =
     access?.activeOrganisation?.accessSource === "membership" &&
     access.activeOrganisation.membershipOrganisationId === organisationId;
@@ -50,8 +61,13 @@ export default function ClaimsDeskPage() {
   activeOrganisationId.current = organisationId;
   const projectsQuery = useListProjects(undefined, {
     query: {
-      enabled: canEnter && online,
-      queryKey: [...getListProjectsQueryKey(), organisationId],
+      enabled: canEnter && online && Boolean(actorUserId),
+      queryKey: [
+        ...getListProjectsQueryKey(),
+        organisationId,
+        actorUserId,
+        capabilityKey,
+      ],
       select: (projects) => {
         if (activeOrganisationId.current !== organisationId) {
           throw new Error("Organisation changed while projects loaded");
@@ -68,31 +84,96 @@ export default function ClaimsDeskPage() {
     projects.find((project) => project.id === requestedProjectId) ??
     projects[0];
   const projectId = selectedProject?.id ?? "";
-  const canRead = Boolean(canEnter && projectId);
-  const canManage = Boolean(canRead && permissions.includes("project:update"));
-  const activeScope = useRef(`${organisationId}:${projectId}`);
-  activeScope.current = `${organisationId}:${projectId}`;
-  const queryKey = [QUERY_ROOT, organisationId, projectId] as const;
+  const canRead = Boolean(canEnter && projectId && actorUserId);
+  const canManage = Boolean(
+    canRead &&
+    actorUserId &&
+    permissions.includes("project:update") &&
+    permissions.includes("document:read"),
+  );
+  const activeScope = useRef({
+    organisationId,
+    projectId,
+    actorUserId,
+    capabilityKey,
+  });
+  activeScope.current = {
+    organisationId,
+    projectId,
+    actorUserId,
+    capabilityKey,
+  };
+  const queryKey = [
+    QUERY_ROOT,
+    organisationId,
+    projectId,
+    actorUserId,
+    capabilityKey,
+  ] as const;
 
   const snapshotQuery = useQuery({
     queryKey,
     enabled: canRead && online,
     queryFn: async () => {
-      const requestedScope = `${organisationId}:${projectId}`;
+      const requestedScope = {
+        organisationId,
+        projectId,
+        actorUserId,
+        capabilityKey,
+      };
       const payload = await customFetch<unknown>(
         `/api/projects/${projectId}/claims-desk`,
         { responseType: "json", cache: "no-store" },
       );
-      if (activeScope.current !== requestedScope)
-        throw new Error("Claims Desk scope changed while evidence loaded");
+      assertAuthorityScopeCurrent(
+        activeScope.current,
+        requestedScope,
+        "Claims Desk scope changed while evidence loaded",
+      );
       return adaptClaimsDeskSnapshot(payload, organisationId, projectId);
+    },
+  });
+
+  const evidenceOptionsQuery = useQuery({
+    queryKey: [
+      "canonical-evidence-options",
+      organisationId,
+      projectId,
+      actorUserId,
+      capabilityKey,
+      "claims-desk",
+    ],
+    enabled: canManage && online,
+    staleTime: 0,
+    gcTime: 0,
+    queryFn: async () => {
+      const requestedScope = {
+        organisationId,
+        projectId,
+        actorUserId,
+        capabilityKey,
+      };
+      const payload = await customFetch<unknown>(
+        `/api/canonical-evidence-options?projectId=${encodeURIComponent(projectId)}&limit=100`,
+        { responseType: "json", cache: "no-store" },
+      );
+      assertAuthorityScopeCurrent(
+        activeScope.current,
+        requestedScope,
+        "Claims Desk authority changed while evidence options loaded",
+      );
+      return adaptCanonicalEvidenceOptions(payload, organisationId, projectId);
     },
   });
 
   const mutation = useMutation({
     mutationFn: async (request: Mutation) => {
-      const requestedOrganisationId = organisationId;
-      const requestedProjectId = projectId;
+      const requestedScope = {
+        organisationId,
+        projectId,
+        actorUserId,
+        capabilityKey,
+      };
       const releaseCriticalWorkflow = access?.beginCriticalWorkflow();
       try {
         const path =
@@ -109,21 +190,19 @@ export default function ClaimsDeskPage() {
           responseType: "json",
           cache: "no-store",
         });
-        if (
-          activeScope.current !==
-          `${requestedOrganisationId}:${requestedProjectId}`
-        )
-          throw new Error(
-            "Claims Desk scope changed while evidence was recorded",
-          );
+        assertAuthorityScopeCurrent(
+          activeScope.current,
+          requestedScope,
+          "Claims Desk authority changed while evidence was recorded",
+        );
         const record = assertClaimsDeskMutationResponse(
           payload,
-          requestedOrganisationId,
-          requestedProjectId,
+          requestedScope.organisationId,
+          requestedScope.projectId,
         );
         return {
-          organisationId: requestedOrganisationId,
-          projectId: requestedProjectId,
+          organisationId: requestedScope.organisationId,
+          projectId: requestedScope.projectId,
           record,
         };
       } finally {
@@ -258,6 +337,7 @@ export default function ClaimsDeskPage() {
             id="claims-desk-project"
             className="min-h-11 min-w-64 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             value={projectId}
+            disabled={mutation.isPending}
             onChange={(event) => {
               const next = new URLSearchParams(searchParams);
               next.set("project", event.currentTarget.value);
@@ -273,17 +353,31 @@ export default function ClaimsDeskPage() {
         </label>
       </section>
       <ClaimsDeskDashboard snapshot={snapshotQuery.data} />
-      {canManage ? (
+      {canManage && evidenceOptionsQuery.isError ? (
+        <StatusPanel
+          state="error"
+          title="Canonical evidence could not be verified"
+          description="Claims Desk mutations remain disabled until current clean document versions can be reloaded."
+        />
+      ) : canManage ? (
         <div className="grid gap-6 xl:grid-cols-2">
           <ClaimsDeskCreatePanel
-            pending={mutation.isPending}
+            pending={mutation.isPending || evidenceOptionsQuery.isLoading}
+            evidenceOptions={evidenceOptionsQuery.data?.items ?? []}
+            evidenceOptionsTruncated={
+              evidenceOptionsQuery.data?.truncated ?? false
+            }
             onCreate={(body) =>
               mutation.mutateAsync({ kind: "create", body }).then(() => {})
             }
           />
           <ClaimsDeskTransitionPanel
             records={snapshotQuery.data.records}
-            pending={mutation.isPending}
+            pending={mutation.isPending || evidenceOptionsQuery.isLoading}
+            evidenceOptions={evidenceOptionsQuery.data?.items ?? []}
+            evidenceOptionsTruncated={
+              evidenceOptionsQuery.data?.truncated ?? false
+            }
             onTransition={(record, body) =>
               mutation
                 .mutateAsync({ kind: "transition", record, body })

@@ -27,36 +27,20 @@ import {
   parseClaimsDeskCreateDraft,
   parseClaimsDeskTransitionDraft,
 } from "../lib/claimsDesk/service";
+import {
+  resolveCurrentDirectAuthority,
+  type CurrentDirectAuthority,
+} from "../lib/directMembershipAuthority";
 
 export interface ClaimsDeskRouterOptions {
   repository?: ClaimsDeskRepository;
   now?: () => Date;
   resolveAccess?: (request: Request) => AccessContext | undefined;
   resolveActorUserId?: (request: Request) => string | undefined;
-}
-
-function isDirectMembership(context: AccessContext | undefined): boolean {
-  return Boolean(
-    context?.source === "membership" &&
-    context.membershipId &&
-    context.membershipOrganisationId === context.organisationId,
-  );
-}
-
-export function canReadClaimsDesk(context: AccessContext | undefined): boolean {
-  return Boolean(
-    isDirectMembership(context) &&
-    context?.permissions.has(CLAIMS_DESK_READ_PERMISSION),
-  );
-}
-
-export function canManageClaimsDesk(
-  context: AccessContext | undefined,
-): boolean {
-  return Boolean(
-    isDirectMembership(context) &&
-    context?.permissions.has(CLAIMS_DESK_MANAGE_PERMISSION),
-  );
+  resolveAuthority?: (
+    context: AccessContext | undefined,
+    actorUserId: string | undefined,
+  ) => Promise<CurrentDirectAuthority | null>;
 }
 
 function privateResponse(
@@ -69,23 +53,29 @@ function privateResponse(
   next();
 }
 
-function scopeFor(
+async function authorisedScopeFor(
   request: Request,
+  permission:
+    | typeof CLAIMS_DESK_READ_PERMISSION
+    | typeof CLAIMS_DESK_MANAGE_PERMISSION,
   resolveAccess: (request: Request) => AccessContext | undefined,
   resolveActorUserId: (request: Request) => string | undefined,
-): ClaimsDeskScope | null {
-  const access = resolveAccess(request);
-  const actorUserId = resolveActorUserId(request);
+  resolveAuthority: (
+    context: AccessContext | undefined,
+    actorUserId: string | undefined,
+  ) => Promise<CurrentDirectAuthority | null>,
+): Promise<ClaimsDeskScope | null> {
   const projectId = request.params.projectId;
-  return access &&
-    actorUserId &&
-    typeof projectId === "string" &&
-    access.membershipId
+  const authority = await resolveAuthority(
+    resolveAccess(request),
+    resolveActorUserId(request),
+  );
+  return authority?.permissions.has(permission) && typeof projectId === "string"
     ? {
-        organisationId: access.organisationId,
+        organisationId: authority.organisationId,
         projectId,
-        actorUserId,
-        actorMembershipId: access.membershipId,
+        actorUserId: authority.actorUserId,
+        actorMembershipId: authority.membershipId,
       }
     : null;
 }
@@ -151,15 +141,22 @@ export function createClaimsDeskRouter(
   const resolveActorUserId =
     options.resolveActorUserId ??
     ((request: Request) => getLocalUser(request)?.id);
+  const resolveAuthority =
+    options.resolveAuthority ?? resolveCurrentDirectAuthority;
 
   router.use("/projects/:projectId/claims-desk", privateResponse);
 
   router.get(
     "/projects/:projectId/claims-desk",
     async (request, response, next) => {
-      const access = resolveAccess(request);
-      const scope = scopeFor(request, resolveAccess, resolveActorUserId);
-      if (!canReadClaimsDesk(access) || !scope) {
+      const scope = await authorisedScopeFor(
+        request,
+        CLAIMS_DESK_READ_PERMISSION,
+        resolveAccess,
+        resolveActorUserId,
+        resolveAuthority,
+      );
+      if (!scope) {
         response.status(403).json({ error: "Claims Desk access denied" });
         return;
       }
@@ -174,9 +171,14 @@ export function createClaimsDeskRouter(
   router.post(
     "/projects/:projectId/claims-desk/records",
     async (request, response, next) => {
-      const access = resolveAccess(request);
-      const scope = scopeFor(request, resolveAccess, resolveActorUserId);
-      if (!canManageClaimsDesk(access) || !scope) {
+      const scope = await authorisedScopeFor(
+        request,
+        CLAIMS_DESK_MANAGE_PERMISSION,
+        resolveAccess,
+        resolveActorUserId,
+        resolveAuthority,
+      );
+      if (!scope) {
         response.status(403).json({ error: "Claims Desk management denied" });
         return;
       }
@@ -201,9 +203,14 @@ export function createClaimsDeskRouter(
   router.post(
     "/projects/:projectId/claims-desk/records/:recordId/transitions",
     async (request, response, next) => {
-      const access = resolveAccess(request);
-      const scope = scopeFor(request, resolveAccess, resolveActorUserId);
-      if (!canManageClaimsDesk(access) || !scope) {
+      const scope = await authorisedScopeFor(
+        request,
+        CLAIMS_DESK_MANAGE_PERMISSION,
+        resolveAccess,
+        resolveActorUserId,
+        resolveAuthority,
+      );
+      if (!scope) {
         response.status(403).json({ error: "Claims Desk management denied" });
         return;
       }

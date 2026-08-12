@@ -16,6 +16,7 @@
  * OpenAPI spec version: 2.5.0
  */
 
-export interface HealthStatus {
-  status: string;
-}
+export const HealthStatusValue = {
+  status: 'ok',
+} as const;
+export type HealthStatus = typeof HealthStatusValue;

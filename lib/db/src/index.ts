@@ -9,11 +9,18 @@ import {
   selectDatabaseConnectionString,
 } from "./runtimeSecurity";
 import { assertIndependentTenantContext } from "./tenantContext";
+import {
+  createIdempotentAsyncCloser,
+  createRuntimePoolConfig,
+  createSingleFlightReadinessProbe,
+} from "./poolConfig";
 
 const { Pool } = pg;
 
 const connectionString = selectDatabaseConnectionString(process.env);
-export const pool = new Pool({ connectionString });
+export const pool = new Pool(
+  createRuntimePoolConfig(connectionString, process.env),
+);
 if (isProductionRuntime(process.env)) {
   // Replit injects the managed owner URL into deployed processes. Runtime uses
   // only the constrained login; remove both secrets from the mutable process
@@ -123,7 +130,34 @@ export async function assertRuntimeDatabaseSecurity(): Promise<void> {
   await assertProductionRuntimeDatabaseSafety(pool, process.env);
 }
 
+export interface DatabasePoolSnapshot {
+  idle: number;
+  total: number;
+  waiting: number;
+}
+
+/** Low-cardinality pool pressure only; no connection or tenant details. */
+export function databasePoolSnapshot(): DatabasePoolSnapshot {
+  return {
+    idle: pool.idleCount,
+    total: pool.totalCount,
+    waiting: pool.waitingCount,
+  };
+}
+
+/**
+ * Run at most one dependency probe at a time so repeated readiness checks can
+ * never build an unbounded queue behind a saturated pool.
+ */
+export const checkRuntimeDatabaseReadiness = createSingleFlightReadinessProbe(
+  () => pool.query("SELECT 1"),
+);
+
+/** Idempotently stop new database work and close every pooled connection. */
+export const closeDatabasePool = createIdempotentAsyncCloser(() => pool.end());
+
 export { assertIndependentTenantContext };
+export { createRuntimePoolConfig };
 export {
   isProductionRuntime,
   selectDatabaseConnectionString,

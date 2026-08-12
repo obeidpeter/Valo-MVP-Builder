@@ -18,7 +18,7 @@
     "migration:bridge:legacy:evidence:test": "node --test ./scripts/capture-legacy-evidence.test.mjs",
     "migration:bridge:legacy": "node ./scripts/run-legacy-bridge.mjs --execute",
     "migration:bridge:legacy:rehearse": "node ./scripts/legacy-bridge-ci-rehearsal.mjs",
-    "test": "tsx --test src/runtimeSecurity.test.ts && node --test ./scripts/replit-intake-migrations.test.mjs"
+    "test": "tsx --test src/poolConfig.test.ts src/runtimeSecurity.test.ts && node --test ./scripts/replit-intake-migrations.test.mjs"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",

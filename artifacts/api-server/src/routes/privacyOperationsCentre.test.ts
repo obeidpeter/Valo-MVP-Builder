@@ -3,6 +3,7 @@ import { createServer, type Server } from "node:http";
 import { after, before, describe, test } from "node:test";
 import express from "express";
 import type { Permission } from "../lib/permissions";
+import type { CurrentDirectAuthority } from "../lib/directMembershipAuthority";
 import type {
   PrivacyOperationsRepository,
   PrivacyWorkflowReceipt,
@@ -62,6 +63,7 @@ describe("privacy operations route factory", () => {
   let server: Server;
   let origin: string;
   let currentAccess = access(["privacy:read", "privacy:manage"]);
+  let authorityPermissionsOverride: readonly Permission[] | null | undefined;
   const mutations: { kind: string; expectedVersion: number }[] = [];
 
   before(async () => {
@@ -146,6 +148,30 @@ describe("privacy operations route factory", () => {
         now: () => NOW,
         resolveAccess: () => currentAccess,
         resolveActorUserId: () => ACTOR_ID,
+        resolveAuthority: async (
+          context,
+          actorUserId,
+        ): Promise<CurrentDirectAuthority | null> => {
+          if (
+            !context ||
+            !actorUserId ||
+            context.source !== "membership" ||
+            !context.membershipId ||
+            context.membershipOrganisationId !== context.organisationId ||
+            authorityPermissionsOverride === null
+          ) {
+            return null;
+          }
+          return {
+            organisationId: context.organisationId,
+            actorUserId,
+            membershipId: context.membershipId,
+            roles: ["client_administrator"],
+            permissions: new Set(
+              authorityPermissionsOverride ?? context.permissions,
+            ),
+          };
+        },
       }),
     );
     server = createServer(app);
@@ -218,6 +244,28 @@ describe("privacy operations route factory", () => {
       403,
     );
     currentAccess = access(["privacy:read", "privacy:manage"]);
+  });
+
+  test("rejects stale read and manage grants before repository work", async () => {
+    currentAccess = access(["privacy:read", "privacy:manage"]);
+    authorityPermissionsOverride = [];
+    const mutationsBefore = mutations.length;
+    assert.equal((await fetch(`${origin}/api/privacy-operations`)).status, 403);
+    assert.equal(
+      (await fetch(`${origin}/api/privacy-operations/assignees`)).status,
+      403,
+    );
+    assert.equal(
+      (
+        await fetch(
+          `${origin}/api/privacy-operations/data-subject-requests/${DSR_ID}/triage`,
+          { method: "POST" },
+        )
+      ).status,
+      403,
+    );
+    assert.equal(mutations.length, mutationsBefore);
+    authorityPermissionsOverride = undefined;
   });
 
   test("DSR triage is CAS-bound, closed-schema and names an assignee", async () => {

@@ -17,13 +17,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { CanonicalEvidencePicker } from "@/components/canonical-evidence-picker";
+import type {
+  CanonicalEvidenceBinding,
+  CanonicalEvidenceOption,
+} from "@/lib/canonical-evidence-options";
 import {
   CLAIMS_DESK_ASSESSMENT_CODES,
   CLAIMS_DESK_REASON_CODES,
   CLAIMS_DESK_RECORD_TYPES,
-  bindingLines,
-  parseBindingLines,
   type ClaimsDeskAction,
   type ClaimsDeskCreateDraft,
   type ClaimsDeskRecord,
@@ -56,9 +58,13 @@ const actionsFor = (status: string): readonly ClaimsDeskAction[] => {
 
 export function ClaimsDeskCreatePanel({
   pending,
+  evidenceOptions = [],
+  evidenceOptionsTruncated = false,
   onCreate,
 }: {
   pending: boolean;
+  evidenceOptions?: readonly CanonicalEvidenceOption[];
+  evidenceOptionsTruncated?: boolean;
   onCreate: (draft: ClaimsDeskCreateDraft) => Promise<void>;
 }) {
   const [recordType, setRecordType] =
@@ -68,7 +74,7 @@ export function ClaimsDeskCreatePanel({
   const [dueAt, setDueAt] = useState("");
   const [amountMinor, setAmountMinor] = useState("");
   const [currency, setCurrency] = useState("NGN");
-  const [bindings, setBindings] = useState("");
+  const [bindings, setBindings] = useState<CanonicalEvidenceBinding[]>([]);
   const [error, setError] = useState<string | null>(null);
   const amountAllowed = ["variation", "claim", "payment_certificate"].includes(
     recordType,
@@ -89,14 +95,14 @@ export function ClaimsDeskCreatePanel({
         dueAt: dueAt ? new Date(dueAt).toISOString() : null,
         amountMinor: amount,
         currency: amount === null ? null : currency,
-        documentBindings: parseBindingLines(bindings),
+        documentBindings: bindings,
         idempotencyKey: key("claims-create"),
       });
       setReference("");
       setEventDate("");
       setDueAt("");
       setAmountMinor("");
-      setBindings("");
+      setBindings([]);
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Record could not be prepared",
@@ -200,24 +206,24 @@ export function ClaimsDeskCreatePanel({
               </div>
             </>
           ) : null}
-          <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="claims-bindings">Canonical document evidence</Label>
-            <Textarea
+          <div className="sm:col-span-2">
+            <CanonicalEvidencePicker
               id="claims-bindings"
-              required
-              rows={3}
+              label="Canonical document evidence"
+              options={evidenceOptions}
               value={bindings}
-              onChange={(event) => setBindings(event.target.value)}
-              placeholder="document-uuid sha256 (one pair per line)"
-              aria-describedby="claims-bindings-help"
+              onChange={setBindings}
+              multiple
+              maxSelections={10}
+              disabled={pending}
+              truncated={evidenceOptionsTruncated}
             />
             <p
               id="claims-bindings-help"
               className="text-xs text-muted-foreground"
             >
-              1–10 same-project document UUID/SHA-256 pairs. The server
-              revalidates the unique current version, malware-clean and
-              quarantine-cleared state.
+              Choose 1–10 current, governed documents. The server revalidates
+              every version and its security status when you submit.
             </p>
           </div>
           {error ? (
@@ -226,7 +232,12 @@ export function ClaimsDeskCreatePanel({
             </p>
           ) : null}
           <div className="sm:col-span-2">
-            <Button type="submit" disabled={pending}>
+            <Button
+              type="submit"
+              disabled={
+                pending || evidenceOptions.length === 0 || bindings.length === 0
+              }
+            >
               {pending ? "Recording…" : "Record immutable evidence"}
             </Button>
           </div>
@@ -239,10 +250,14 @@ export function ClaimsDeskCreatePanel({
 export function ClaimsDeskTransitionPanel({
   records,
   pending,
+  evidenceOptions = [],
+  evidenceOptionsTruncated = false,
   onTransition,
 }: {
   records: readonly ClaimsDeskRecord[];
   pending: boolean;
+  evidenceOptions?: readonly CanonicalEvidenceOption[];
+  evidenceOptionsTruncated?: boolean;
   onTransition: (
     record: ClaimsDeskRecord,
     draft: ClaimsDeskTransitionDraft,
@@ -263,15 +278,15 @@ export function ClaimsDeskTransitionPanel({
   const [assessmentCode, setAssessmentCode] = useState<
     (typeof CLAIMS_DESK_ASSESSMENT_CODES)[number]
   >("requires_further_review");
-  const [bindings, setBindings] = useState(
-    selected ? bindingLines(selected.documentBindings) : "",
+  const [bindings, setBindings] = useState<CanonicalEvidenceBinding[]>(
+    selected ? [...selected.documentBindings] : [],
   );
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (selected) {
       setAction(actionsFor(selected.status)[0] ?? "start_review");
-      setBindings(bindingLines(selected.documentBindings));
+      setBindings([...selected.documentBindings]);
     }
   }, [selected?.id, selected?.version]);
   const makerChecker = useMemo(
@@ -293,7 +308,7 @@ export function ClaimsDeskTransitionPanel({
         action,
         reasonCode,
         assessmentCode: action === "propose_assessment" ? assessmentCode : null,
-        documentBindings: parseBindingLines(bindings),
+        documentBindings: bindings,
         idempotencyKey: key("claims-transition"),
       });
     } catch (cause) {
@@ -407,16 +422,17 @@ export function ClaimsDeskTransitionPanel({
                 </Badge>
               </div>
             )}
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="claims-transition-bindings">
-                Revalidated canonical document evidence
-              </Label>
-              <Textarea
+            <div className="sm:col-span-2">
+              <CanonicalEvidencePicker
                 id="claims-transition-bindings"
-                required
-                rows={3}
+                label="Revalidated canonical document evidence"
+                options={evidenceOptions}
                 value={bindings}
-                onChange={(event) => setBindings(event.target.value)}
+                onChange={setBindings}
+                multiple
+                maxSelections={10}
+                disabled={pending}
+                truncated={evidenceOptionsTruncated}
               />
             </div>
             {error ? (
@@ -428,7 +444,7 @@ export function ClaimsDeskTransitionPanel({
               </p>
             ) : null}
             <div className="sm:col-span-2">
-              <Button type="submit" disabled={pending}>
+              <Button type="submit" disabled={pending || bindings.length === 0}>
                 {pending ? "Recording…" : `Record ${label(action)}`}
               </Button>
             </div>
