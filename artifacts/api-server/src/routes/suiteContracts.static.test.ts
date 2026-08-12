@@ -22,6 +22,10 @@ const operationsErrorSource = readFileSync(
   new URL("../lib/operationsSuite/errors.ts", import.meta.url),
   "utf8",
 );
+const boundedJsonBodySource = readFileSync(
+  new URL("./boundedJsonBody.ts", import.meta.url),
+  "utf8",
+);
 const openApi = readFileSync(
   new URL("../../../../lib/api-spec/openapi.yaml", import.meta.url),
   "utf8",
@@ -438,7 +442,15 @@ test("documented errors come from the mounted authentication and suite policies"
     assert.match(growthSource, new RegExp(`\\.status\\(${status}\\)`, "u"));
   }
   assert.match(operationsSource, /res\.status\(created \? 201 : 200\)/u);
-  assert.match(operationsSource, /\.status\(413\)/u);
+  assert.match(
+    operationsSource,
+    /createBoundedJsonBody\([\s\S]*?OPERATIONS_SUITE_BOUNDS\.requestBodyBytes,[\s\S]*?"operations",[\s\S]*?\)/u,
+  );
+  assert.match(boundedJsonBodySource, /res\.status\(413\)\.json/u);
+  assert.match(
+    boundedJsonBodySource,
+    /Request body exceeds the \$\{domain\} bound\./u,
+  );
 });
 
 test("the generated React and Zod surfaces contain every suite operation", () => {
