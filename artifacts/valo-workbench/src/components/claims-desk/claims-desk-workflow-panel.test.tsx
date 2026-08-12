@@ -64,6 +64,10 @@ describe("Claims Desk workflow panels", () => {
   });
 
   it("does not enable evidence-dependent actions without a current selection", () => {
+    const unboundRecord = {
+      ...record("registered"),
+      documentBindings: [],
+    };
     const { rerender } = render(
       <ClaimsDeskCreatePanel
         pending={false}
@@ -76,7 +80,7 @@ describe("Claims Desk workflow panels", () => {
     ).toBeDisabled();
     rerender(
       <ClaimsDeskTransitionPanel
-        records={[record("registered")]}
+        records={[unboundRecord]}
         evidenceOptions={[]}
         pending={false}
         onTransition={vi.fn()}

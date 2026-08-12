@@ -131,14 +131,17 @@ describe("PrivacyWorkflowPanel", () => {
     expect(
       screen.getByText(/cannot release a hold, delete data/iu),
     ).toBeInTheDocument();
-    expect(
-      screen.getAllByText(
-        /not a mutation-time scanner or canonical attestation/iu,
-      ),
-    ).toHaveLength(3);
-    expect(
-      screen.queryByText(/revalidated on submit/iu),
-    ).not.toBeInTheDocument();
+    for (const tabName of ["Triage DSR", "Record withdrawal", "Review hold"]) {
+      fireEvent.click(screen.getByRole("tab", { name: tabName }));
+      expect(
+        screen.getByText(
+          /not a mutation-time scanner or canonical attestation/iu,
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText(/revalidated on submit/iu),
+      ).not.toBeInTheDocument();
+    }
   });
 
   it("keeps workflows disabled until an external or legacy digest is entered", () => {
@@ -155,12 +158,15 @@ describe("PrivacyWorkflowPanel", () => {
     expect(
       screen.getByRole("button", { name: "Record triage with CAS" }),
     ).toBeDisabled();
+    fireEvent.click(screen.getByRole("tab", { name: "Record withdrawal" }));
     expect(
       screen.getByRole("button", { name: "Record withdrawal evidence" }),
     ).toBeDisabled();
+    fireEvent.click(screen.getByRole("tab", { name: "Review hold" }));
     expect(
-      screen.getByRole("button", { name: "Record bounded review" }),
+      screen.getByRole("button", { name: "Record hold review" }),
     ).toBeDisabled();
+    fireEvent.click(screen.getByRole("tab", { name: "Triage DSR" }));
     fireEvent.change(
       screen.getByLabelText(
         /Decision external or legacy evidence digest — not a scanner attestation/u,
