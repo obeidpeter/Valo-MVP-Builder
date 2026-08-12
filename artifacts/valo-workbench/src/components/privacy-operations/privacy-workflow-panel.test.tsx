@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { PrivacyOperationsDashboard } from "./privacy-operations-contract";
 import { PrivacyWorkflowPanel } from "./privacy-workflow-panel";
@@ -117,7 +118,8 @@ describe("PrivacyWorkflowPanel", () => {
     expect(draft).not.toHaveProperty("notes");
   });
 
-  it("explains that hold review cannot release or delete data", () => {
+  it("explains that hold review cannot release or delete data", async () => {
+    const user = userEvent.setup();
     render(
       <PrivacyWorkflowPanel
         dashboard={dashboard()}
@@ -132,7 +134,7 @@ describe("PrivacyWorkflowPanel", () => {
       screen.getByText(/cannot release a hold, delete data/iu),
     ).toBeInTheDocument();
     for (const tabName of ["Triage DSR", "Record withdrawal", "Review hold"]) {
-      fireEvent.click(screen.getByRole("tab", { name: tabName }));
+      await user.click(screen.getByRole("tab", { name: tabName }));
       expect(
         screen.getByText(
           /not a mutation-time scanner or canonical attestation/iu,
@@ -144,7 +146,8 @@ describe("PrivacyWorkflowPanel", () => {
     }
   });
 
-  it("keeps workflows disabled until an external or legacy digest is entered", () => {
+  it("keeps workflows disabled until an external or legacy digest is entered", async () => {
+    const user = userEvent.setup();
     render(
       <PrivacyWorkflowPanel
         dashboard={dashboard()}
@@ -158,15 +161,15 @@ describe("PrivacyWorkflowPanel", () => {
     expect(
       screen.getByRole("button", { name: "Record triage with CAS" }),
     ).toBeDisabled();
-    fireEvent.click(screen.getByRole("tab", { name: "Record withdrawal" }));
+    await user.click(screen.getByRole("tab", { name: "Record withdrawal" }));
     expect(
       screen.getByRole("button", { name: "Record withdrawal evidence" }),
     ).toBeDisabled();
-    fireEvent.click(screen.getByRole("tab", { name: "Review hold" }));
+    await user.click(screen.getByRole("tab", { name: "Review hold" }));
     expect(
       screen.getByRole("button", { name: "Record hold review" }),
     ).toBeDisabled();
-    fireEvent.click(screen.getByRole("tab", { name: "Triage DSR" }));
+    await user.click(screen.getByRole("tab", { name: "Triage DSR" }));
     fireEvent.change(
       screen.getByLabelText(
         /Decision external or legacy evidence digest — not a scanner attestation/u,
