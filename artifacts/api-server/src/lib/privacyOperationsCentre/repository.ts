@@ -54,12 +54,32 @@ const PRIVACY_MANAGE_ROLES = [
   "consultancy_partner_administrator",
 ] as const;
 
+type PrivacyTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Serialises privacy management writes with membership and role-grant writers.
+ * The transaction-scoped lock is held through the outer tenant request commit.
+ */
+async function lockPrivacyMembershipAdministration(
+  transaction: PrivacyTransaction,
+  organisationId: string,
+): Promise<void> {
+  await transaction.execute(sql`
+    SELECT pg_advisory_xact_lock(
+      hashtextextended(
+        ${`valo.membership-administration:${organisationId}`},
+        0
+      )
+    )
+  `);
+}
+
 async function actorForAudit(
-  transaction: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  transaction: PrivacyTransaction,
   organisationId: string,
   actorUserId: string,
+  now = new Date(),
 ) {
-  const now = new Date();
   const memberships = await transaction
     .select({ membershipId: organisationMemberships.id, actor: users })
     .from(organisationMemberships)
@@ -116,7 +136,7 @@ async function actorForAudit(
 }
 
 async function mutationMiss(
-  transaction: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  transaction: PrivacyTransaction,
   table: typeof dataSubjectRequests | typeof consentRecords | typeof legalHolds,
   organisationId: string,
   id: string,
@@ -476,7 +496,18 @@ export class PostgresPrivacyOperationsRepository implements PrivacyOperationsRep
     return withTenantDatabase(scope.organisationId, () =>
       db.transaction(
         async (transaction) => {
-          const now = new Date(command.recordedAt);
+          await lockPrivacyMembershipAdministration(
+            transaction,
+            scope.organisationId,
+          );
+          const authorityNow = new Date();
+          const actor = await actorForAudit(
+            transaction,
+            scope.organisationId,
+            scope.actorUserId,
+            authorityNow,
+          );
+          const recordedAt = new Date(command.recordedAt);
           const assignees = await transaction
             .select({
               membershipId: organisationMemberships.id,
@@ -495,11 +526,11 @@ export class PostgresPrivacyOperationsRepository implements PrivacyOperationsRep
                 isNull(organisationMemberships.delegatedByMembershipId),
                 or(
                   isNull(organisationMemberships.accessStartsAt),
-                  lte(organisationMemberships.accessStartsAt, now),
+                  lte(organisationMemberships.accessStartsAt, authorityNow),
                 ),
                 or(
                   isNull(organisationMemberships.accessExpiresAt),
-                  gt(organisationMemberships.accessExpiresAt, now),
+                  gt(organisationMemberships.accessExpiresAt, authorityNow),
                 ),
                 eq(users.status, "active"),
               ),
@@ -522,8 +553,14 @@ export class PostgresPrivacyOperationsRepository implements PrivacyOperationsRep
                 eq(roleGrants.membershipId, assignee.membershipId),
                 inArray(roleGrants.role, [...PRIVACY_MANAGE_ROLES]),
                 isNull(roleGrants.revokedAt),
-                or(isNull(roleGrants.startsAt), lte(roleGrants.startsAt, now)),
-                or(isNull(roleGrants.expiresAt), gt(roleGrants.expiresAt, now)),
+                or(
+                  isNull(roleGrants.startsAt),
+                  lte(roleGrants.startsAt, authorityNow),
+                ),
+                or(
+                  isNull(roleGrants.expiresAt),
+                  gt(roleGrants.expiresAt, authorityNow),
+                ),
               ),
             )
             .limit(PRIVACY_MANAGE_ROLES.length + 1);
@@ -564,7 +601,7 @@ export class PostgresPrivacyOperationsRepository implements PrivacyOperationsRep
               identityVerificationStatus: command.identityVerificationStatus,
               assignedToUserId: command.assignedToUserId,
               version: sql`${dataSubjectRequests.version} + 1`,
-              updatedAt: now,
+              updatedAt: recordedAt,
             })
             .where(
               and(
@@ -583,11 +620,6 @@ export class PostgresPrivacyOperationsRepository implements PrivacyOperationsRep
               command.expectedVersion,
             );
           }
-          const actor = await actorForAudit(
-            transaction,
-            scope.organisationId,
-            scope.actorUserId,
-          );
           const workflow = createPrivacyWorkflowAuditDetails({
             eventType: "privacy.dsr_triage_recorded",
             objectId: command.id,
@@ -629,6 +661,17 @@ export class PostgresPrivacyOperationsRepository implements PrivacyOperationsRep
     return withTenantDatabase(scope.organisationId, () =>
       db.transaction(
         async (transaction) => {
+          await lockPrivacyMembershipAdministration(
+            transaction,
+            scope.organisationId,
+          );
+          const authorityNow = new Date();
+          const actor = await actorForAudit(
+            transaction,
+            scope.organisationId,
+            scope.actorUserId,
+            authorityNow,
+          );
           const [existing] = await transaction
             .select({
               version: consentRecords.version,
@@ -678,11 +721,6 @@ export class PostgresPrivacyOperationsRepository implements PrivacyOperationsRep
               command.expectedVersion,
             );
           }
-          const actor = await actorForAudit(
-            transaction,
-            scope.organisationId,
-            scope.actorUserId,
-          );
           const workflow = createPrivacyWorkflowAuditDetails({
             eventType: "privacy.consent_withdrawal_recorded",
             objectId: command.id,
@@ -721,6 +759,17 @@ export class PostgresPrivacyOperationsRepository implements PrivacyOperationsRep
     return withTenantDatabase(scope.organisationId, () =>
       db.transaction(
         async (transaction) => {
+          await lockPrivacyMembershipAdministration(
+            transaction,
+            scope.organisationId,
+          );
+          const authorityNow = new Date();
+          const actor = await actorForAudit(
+            transaction,
+            scope.organisationId,
+            scope.actorUserId,
+            authorityNow,
+          );
           const [existing] = await transaction
             .select({ version: legalHolds.version, status: legalHolds.status })
             .from(legalHolds)
@@ -763,11 +812,6 @@ export class PostgresPrivacyOperationsRepository implements PrivacyOperationsRep
               command.expectedVersion,
             );
           }
-          const actor = await actorForAudit(
-            transaction,
-            scope.organisationId,
-            scope.actorUserId,
-          );
           const workflow = createPrivacyWorkflowAuditDetails({
             eventType: "privacy.legal_hold_review_recorded",
             objectId: command.id,

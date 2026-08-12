@@ -7,6 +7,7 @@ import type {
   ClaimsDeskRecord,
   ClaimsDeskRepository,
 } from "../lib/claimsDesk/contracts";
+import type { CurrentDirectAuthority } from "../lib/directMembershipAuthority";
 import type { AccessContext } from "../middlewares/tenancy";
 
 process.env.NODE_ENV = "test";
@@ -69,35 +70,43 @@ describe("Claims Desk route factory", () => {
   let server: Server;
   let origin = "";
   let currentAccess = access(["project:read", "project:update"]);
+  let authorityPermissionsOverride: readonly Permission[] | null | undefined;
+  let authorityMembershipId = MEMBER;
   const calls: string[] = [];
+  const observedMembershipIds: string[] = [];
 
   before(async () => {
     const repository: ClaimsDeskRepository = {
-      readSnapshot: async (scope) => ({
-        organisationId: scope.organisationId,
-        projectId: scope.projectId,
-        projectStatus: "review",
-        records: [record()],
-        posture: {
-          total: 1,
-          open: 1,
-          overdue: 0,
-          dueSoon: 0,
-          awaitingChecker: 0,
-          terminal: 0,
-        },
-        truncated: false,
-        generatedAt: NOW.toISOString(),
-        legalConclusionAutomated: false,
-        noticeDispatched: false,
-        paymentMutated: false,
-        authorityNote: "Human workflow evidence only",
-      }),
-      createRecord: async () => {
+      readSnapshot: async (scope) => {
+        observedMembershipIds.push(scope.actorMembershipId);
+        return {
+          organisationId: scope.organisationId,
+          projectId: scope.projectId,
+          projectStatus: "review",
+          records: [record()],
+          posture: {
+            total: 1,
+            open: 1,
+            overdue: 0,
+            dueSoon: 0,
+            awaitingChecker: 0,
+            terminal: 0,
+          },
+          truncated: false,
+          generatedAt: NOW.toISOString(),
+          legalConclusionAutomated: false,
+          noticeDispatched: false,
+          paymentMutated: false,
+          authorityNote: "Human workflow evidence only",
+        };
+      },
+      createRecord: async (scope) => {
+        observedMembershipIds.push(scope.actorMembershipId);
         calls.push("create");
         return { outcome: "created", record: record(), replayed: false };
       },
-      transitionRecord: async (_scope, _id, expectedVersion) => {
+      transitionRecord: async (scope, _id, expectedVersion) => {
+        observedMembershipIds.push(scope.actorMembershipId);
         calls.push(`transition:${expectedVersion}`);
         return { outcome: "updated", record: record(2), replayed: false };
       },
@@ -111,6 +120,30 @@ describe("Claims Desk route factory", () => {
         now: () => NOW,
         resolveAccess: () => currentAccess,
         resolveActorUserId: () => ACTOR,
+        resolveAuthority: async (
+          context,
+          actorUserId,
+        ): Promise<CurrentDirectAuthority | null> => {
+          if (
+            !context ||
+            !actorUserId ||
+            context.source !== "membership" ||
+            !context.membershipId ||
+            context.membershipOrganisationId !== context.organisationId ||
+            authorityPermissionsOverride === null
+          ) {
+            return null;
+          }
+          return {
+            organisationId: context.organisationId,
+            actorUserId,
+            membershipId: authorityMembershipId,
+            roles: ["client_administrator"],
+            permissions: new Set(
+              authorityPermissionsOverride ?? context.permissions,
+            ),
+          };
+        },
       }),
     );
     server = createServer(app);
@@ -163,6 +196,37 @@ describe("Claims Desk route factory", () => {
       403,
     );
     currentAccess = access(["project:read", "project:update"]);
+  });
+
+  test("rejects stale grants and scopes repository work to current membership", async () => {
+    currentAccess = access(["project:read", "project:update"]);
+    authorityPermissionsOverride = [];
+    const callsBefore = calls.length;
+    assert.equal(
+      (await fetch(`${origin}/api/projects/${PROJECT}/claims-desk`)).status,
+      403,
+    );
+    assert.equal(
+      (
+        await fetch(`${origin}/api/projects/${PROJECT}/claims-desk/records`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: "{}",
+        })
+      ).status,
+      403,
+    );
+    assert.equal(calls.length, callsBefore);
+
+    authorityPermissionsOverride = ["project:read"];
+    authorityMembershipId = "50000000-0000-4000-8000-000000000099";
+    assert.equal(
+      (await fetch(`${origin}/api/projects/${PROJECT}/claims-desk`)).status,
+      200,
+    );
+    assert.equal(observedMembershipIds.at(-1), authorityMembershipId);
+    authorityMembershipId = MEMBER;
+    authorityPermissionsOverride = undefined;
   });
 
   test("accepts closed creation and CAS transition payloads", async () => {

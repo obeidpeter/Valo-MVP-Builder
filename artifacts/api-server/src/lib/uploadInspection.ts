@@ -96,6 +96,25 @@ const MIME_BY_FORMAT: Record<Exclude<UploadFormat, "unknown">, Set<string>> = {
   zip: new Set(["application/zip", "application/x-zip-compressed"]),
 };
 
+const CANONICAL_MIME_BY_FORMAT: Record<
+  Exclude<UploadFormat, "unknown">,
+  string
+> = {
+  pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  png: "image/png",
+  jpeg: "image/jpeg",
+  zip: "application/zip",
+};
+
+/** Returns null for an unrecognised signature so governed intake fails closed. */
+export function canonicalMimeForDetectedFormat(
+  format: UploadFormat,
+): string | null {
+  return format === "unknown" ? null : CANONICAL_MIME_BY_FORMAT[format];
+}
+
 const extension = (filename: string): string =>
   filename.toLowerCase().split(".").pop() ?? "";
 

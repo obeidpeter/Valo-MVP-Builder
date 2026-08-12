@@ -67,6 +67,50 @@ test("mutations revalidate a current direct named privacy authority", () => {
   assert.match(source, /PRIVACY_MANAGE_ROLES/u);
 });
 
+test("every privacy mutation stabilises membership authority before reads and writes", () => {
+  assert.match(
+    source,
+    /pg_advisory_xact_lock\([\s\S]*valo\.membership-administration:\$\{organisationId\}/u,
+  );
+  const methods = [
+    ["async triageDataSubjectRequest", "async recordConsentWithdrawal"],
+    ["async recordConsentWithdrawal", "async recordLegalHoldReview"],
+    [
+      "async recordLegalHoldReview",
+      "export const postgresPrivacyOperationsRepository",
+    ],
+  ] as const;
+  for (const [start, end] of methods) {
+    const method = source.slice(source.indexOf(start), source.indexOf(end));
+    const lockAt = method.indexOf("lockPrivacyMembershipAdministration(");
+    const timeAt = method.indexOf("const authorityNow = new Date()", lockAt);
+    const actorAt = method.indexOf("await actorForAudit(", timeAt);
+    const stateReadAt = method.indexOf("await transaction", actorAt);
+    const mutationAt = method.indexOf(".update(", stateReadAt);
+    assert.ok(lockAt >= 0, `${start} is missing the membership lock`);
+    assert.ok(timeAt > lockAt, `${start} must evaluate time after lock wait`);
+    assert.ok(actorAt > timeAt, `${start} must recheck actor after the lock`);
+    assert.ok(
+      stateReadAt > actorAt,
+      `${start} reads state before actor recheck`,
+    );
+    assert.ok(
+      mutationAt > stateReadAt,
+      `${start} mutates before authority reads`,
+    );
+  }
+});
+
+test("privacy and membership writers share the exact advisory namespace", () => {
+  const organisations = readFileSync(
+    new URL("../../routes/organisations.ts", import.meta.url),
+    "utf8",
+  );
+  const namespace = "valo.membership-administration:${organisationId}";
+  assert.ok(source.includes(namespace));
+  assert.ok(organisations.includes(namespace));
+});
+
 test("DSR assignment rejects inactive, delegated, or unnamed members", () => {
   const triage = source.slice(
     source.indexOf("async triageDataSubjectRequest"),

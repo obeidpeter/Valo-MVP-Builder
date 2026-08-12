@@ -100,15 +100,118 @@ paths:
       security: []
       operationId: healthCheck
       tags: [health]
-      summary: Health check
-      description: Returns server health status
+      summary: Process liveness check
+      description: Returns dependency-free process liveness. This endpoint does not assert database or traffic readiness.
       responses:
         "200":
-          description: Healthy
+          description: The API process is alive.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /readyz:
+    get:
+      security: []
+      operationId: readinessCheck
+      tags: [health]
+      summary: Runtime readiness check
+      description: |
+        Returns `200` only while the runtime is accepting traffic and its bounded
+        database probe succeeds. Starting and draining runtimes do not touch the
+        database. Metrics and paging delivery are reported independently and do
+        not change readiness. GET and implicit HEAD are public deployment probes.
+      responses:
+        "200":
+          description: The runtime is accepting traffic and the database probe succeeded.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessReadyStatus"
+        "503":
+          description: The runtime is starting, draining, or the database probe failed or timed out.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessNotReadyStatus"
+  /work-inbox:
+    get:
+      operationId: getWorkInbox
+      tags: [Operations]
+      summary: List the current operator's bounded cross-project work inbox
+      description: |
+        Returns an authority-filtered, tenant-wide read model for current direct
+        memberships only. Items are grouped using the Africa/Lagos business day;
+        the combined item count across all groups never exceeds `limit`.
+        Restricted source row identifiers are replaced by tenant-bound,
+        non-reversible UI keys.
+      parameters:
+        - $ref: "#/components/parameters/WorkInboxLimit"
+      responses:
+        "200":
+          description: A bounded role-scoped work inbox.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkInboxSnapshot"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "503":
+          $ref: "#/components/responses/RoadmapRepositoryUnavailable"
+  /canonical-evidence-options:
+    get:
+      operationId: listCanonicalEvidenceOptions
+      tags: [Documents]
+      summary: List current clean canonical evidence options
+      description: |
+        Returns only current, clean, quarantine-cleared document versions visible
+        to the caller's current direct tenant authority. Claims binds and
+        revalidates a canonical document ID and digest. Privacy may use this list
+        as optional convenience when the operator has `document:read`, but its
+        mutations continue accepting closed-format external or legacy SHA receipt
+        digests; picker selection is not required and those digests are not
+        scanner attestations.
+      parameters:
+        - $ref: "#/components/parameters/CanonicalEvidenceProjectId"
+        - $ref: "#/components/parameters/CanonicalEvidenceLimit"
+      responses:
+        "200":
+          description: A bounded canonical evidence option list.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanonicalEvidenceOptionList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "503":
+          $ref: "#/components/responses/RoadmapRepositoryUnavailable"
   /public/bid-autopsy-requests:
     post:
       security: []
@@ -5114,6 +5217,34 @@ components:
         minimum: 1
         maximum: 50
         default: 25
+    WorkInboxLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum total items across all four groups. The wire value is one to three decimal digits with no leading zero.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+    CanonicalEvidenceProjectId:
+      name: projectId
+      in: query
+      required: false
+      description: Optional exact project scope within the selected tenant.
+      schema:
+        type: string
+        format: uuid
+    CanonicalEvidenceLimit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum canonical evidence options. The wire value is one to three decimal digits with no leading zero.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
     ProjectIdParam:
       name: projectId
       in: path
@@ -10386,11 +10517,254 @@ components:
             $ref: "#/components/schemas/OperationsMobileQueueItem"
     HealthStatus:
       type: object
+      additionalProperties: false
       properties:
         status:
           type: string
+          const: ok
       required:
         - status
+    ReadinessDeliveryStatus:
+      type: object
+      additionalProperties: false
+      required: [metrics, paging]
+      properties:
+        metrics:
+          type: string
+          enum: [connected, disconnected]
+        paging:
+          type: string
+          enum: [connected, disconnected]
+    ReadinessReadyStatus:
+      type: object
+      additionalProperties: false
+      required: [status, checks, delivery]
+      properties:
+        status:
+          type: string
+          const: ready
+        checks:
+          type: object
+          additionalProperties: false
+          required: [lifecycle, database]
+          properties:
+            lifecycle:
+              type: string
+              const: ready
+            database:
+              type: string
+              const: ready
+        delivery:
+          $ref: "#/components/schemas/ReadinessDeliveryStatus"
+    ReadinessNotReadyStatus:
+      type: object
+      additionalProperties: false
+      required: [status, checks, delivery]
+      properties:
+        status:
+          type: string
+          const: not_ready
+        checks:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [lifecycle, database]
+              properties:
+                lifecycle:
+                  type: string
+                  const: not_ready
+                database:
+                  type: string
+                  const: not_checked
+            - type: object
+              additionalProperties: false
+              required: [lifecycle, database]
+              properties:
+                lifecycle:
+                  type: string
+                  const: ready
+                database:
+                  type: string
+                  const: not_ready
+        delivery:
+          $ref: "#/components/schemas/ReadinessDeliveryStatus"
+    WorkInboxItem:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          key,
+          assignment,
+          kind,
+          title,
+          projectTitle,
+          status,
+          dueAt,
+          priority,
+          href,
+        ]
+      properties:
+        key:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+          description: Tenant-bound, non-reversible UI identity; never a persisted source row identifier.
+        assignment:
+          type: string
+          enum: [owned, unassigned]
+        kind:
+          type: string
+          enum: [work_item, mission, post_award_item, retainer_request]
+        title:
+          type: string
+          minLength: 1
+          maxLength: 1024
+        projectTitle:
+          type: string
+          minLength: 1
+          maxLength: 1024
+        status:
+          type: string
+          minLength: 1
+          maxLength: 64
+        dueAt:
+          type: [string, "null"]
+          format: date-time
+        priority:
+          type: [string, "null"]
+          enum: [low, normal, high, critical, null]
+        href:
+          oneOf:
+            - type: string
+              const: /commercial-retainer
+            - type: string
+              pattern: '^/pursuit-operations\?project=[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    WorkInboxGroups:
+      type: object
+      additionalProperties: false
+      required: [overdue, today, upcoming, unscheduled]
+      properties:
+        overdue:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/WorkInboxItem"
+        today:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/WorkInboxItem"
+        upcoming:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/WorkInboxItem"
+        unscheduled:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/WorkInboxItem"
+    WorkInboxSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          organisationId,
+          generatedAt,
+          businessTimeZone,
+          limit,
+          truncated,
+          restrictedContent,
+          groups,
+        ]
+      properties:
+        organisationId:
+          type: string
+          format: uuid
+        generatedAt:
+          type: string
+          format: date-time
+        businessTimeZone:
+          type: string
+          const: Africa/Lagos
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        truncated:
+          type: boolean
+        restrictedContent:
+          type: boolean
+          const: true
+        groups:
+          $ref: "#/components/schemas/WorkInboxGroups"
+    CanonicalEvidenceOption:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          documentId,
+          projectId,
+          filename,
+          projectTitle,
+          sha256,
+          versionNumber,
+          detectedMime,
+          sizeBytes,
+          privacyEligible,
+        ]
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        filename:
+          type: string
+          minLength: 1
+          maxLength: 512
+        projectTitle:
+          type: string
+          minLength: 1
+          maxLength: 1024
+        sha256:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+        versionNumber:
+          type: integer
+          minimum: 1
+        detectedMime:
+          type: string
+          minLength: 1
+          maxLength: 256
+        sizeBytes:
+          type: integer
+          minimum: 0
+        privacyEligible:
+          type: boolean
+          description: True when this current clean document can be offered by the optional Privacy picker; every returned option is currently eligible.
+    CanonicalEvidenceOptionList:
+      type: object
+      additionalProperties: false
+      required: [organisationId, projectId, limit, truncated, items]
+      properties:
+        organisationId:
+          type: string
+          format: uuid
+        projectId:
+          type: [string, "null"]
+          format: uuid
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        truncated:
+          type: boolean
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/CanonicalEvidenceOption"
     BidAutopsyRequestCreate:
       type: object
       additionalProperties: false

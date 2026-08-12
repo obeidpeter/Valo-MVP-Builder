@@ -8,7 +8,7 @@ const PROJECT = "20000000-0000-4000-8000-000000000002";
 const mocks = vi.hoisted(() => ({
   customFetch: vi.fn(),
   accessSource: "membership" as "membership" | "partner",
-  permissions: ["project:read", "project:update"],
+  permissions: ["project:read", "project:update", "document:read"],
   toast: vi.fn(),
 }));
 
@@ -26,6 +26,10 @@ vi.mock("@workspace/api-client-react", () => ({
     ],
     isLoading: false,
     isError: false,
+  }),
+  useGetMe: () => ({
+    data: { id: "30000000-0000-4000-8000-000000000003" },
+    isLoading: false,
   }),
 }));
 vi.mock("wouter", () => ({
@@ -87,7 +91,7 @@ describe("ClaimsDeskPage", () => {
     mocks.customFetch.mockReset();
     mocks.toast.mockReset();
     mocks.accessSource = "membership";
-    mocks.permissions = ["project:read", "project:update"];
+    mocks.permissions = ["project:read", "project:update", "document:read"];
   });
 
   it("denies partner-derived access without requesting project data", () => {
@@ -100,7 +104,19 @@ describe("ClaimsDeskPage", () => {
   });
 
   it("loads an exact tenant/project query and exposes bounded workflows", async () => {
-    mocks.customFetch.mockResolvedValue(response());
+    mocks.customFetch.mockImplementation((path: string) =>
+      Promise.resolve(
+        path.startsWith("/api/canonical-evidence-options")
+          ? {
+              organisationId: ORG,
+              projectId: PROJECT,
+              limit: 100,
+              truncated: false,
+              items: [],
+            }
+          : response(),
+      ),
+    );
     renderPage();
     await screen.findByRole("heading", { name: "Commercial & Claims Desk" });
     expect(mocks.customFetch).toHaveBeenCalledWith(

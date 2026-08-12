@@ -2,7 +2,6 @@ import { and, asc, eq, inArray, isNull, like, lte, or, sql } from "drizzle-orm";
 import {
   db,
   documents,
-  documentVersions,
   organisationMemberships,
   projects,
   users,
@@ -359,6 +358,7 @@ async function verifyDocuments(
       organisationId: documents.organisationId,
       projectId: documents.projectId,
       sha256: documents.sha256,
+      extractionStatus: documents.extractionStatus,
     })
     .from(documents)
     .where(
@@ -369,34 +369,41 @@ async function verifyDocuments(
       ),
     );
   if (documentRows.length !== ids.length) return false;
-  const versionRows = await tx
-    .select({
-      documentId: documentVersions.documentId,
-      versionNumber: documentVersions.versionNumber,
-      sha256: documentVersions.sha256,
-      malwareStatus: documentVersions.malwareStatus,
-      quarantineStatus: documentVersions.quarantineStatus,
-    })
-    .from(documentVersions)
-    .where(
-      and(
-        eq(documentVersions.organisationId, scope.organisationId),
-        inArray(documentVersions.documentId, ids),
-      ),
-    );
+  const versionResult = await tx.execute(sql`
+    SELECT
+      current_version.document_id::text AS "documentId",
+      current_version.sha256 AS sha256,
+      current_version.malware_status AS "malwareStatus",
+      current_version.quarantine_status AS "quarantineStatus"
+    FROM document_versions AS current_version
+    WHERE current_version.organisation_id = ${scope.organisationId}::uuid
+      AND current_version.document_id IN (${sql.join(
+        ids.map((id) => sql`${id}::uuid`),
+        sql`, `,
+      )})
+      AND NOT EXISTS (
+        SELECT 1
+        FROM document_versions AS later_version
+        WHERE later_version.organisation_id = current_version.organisation_id
+          AND later_version.document_id = current_version.document_id
+          AND later_version.version_number > current_version.version_number
+      )
+    LIMIT ${CLAIMS_DESK_BOUNDS.documentsPerEvent + 1}
+  `);
+  if (versionResult.rows.length !== ids.length) return false;
+  const versionRows = versionResult.rows as Array<{
+    documentId: string;
+    sha256: string;
+    malwareStatus: string;
+    quarantineStatus: string;
+  }>;
   const bindingById = new Map(
     bindings.map((binding) => [binding.documentId, binding]),
   );
   return documentRows.every((document) => {
     const binding = bindingById.get(document.id);
-    const candidates = versionRows.filter(
+    const current = versionRows.filter(
       (version) => version.documentId === document.id,
-    );
-    const highest = Math.max(
-      ...candidates.map((version) => version.versionNumber),
-    );
-    const current = candidates.filter(
-      (version) => version.versionNumber === highest,
     );
     return Boolean(
       binding &&
@@ -404,6 +411,7 @@ async function verifyDocuments(
       document.organisationId === scope.organisationId &&
       document.projectId === scope.projectId &&
       document.sha256 === binding.sha256 &&
+      document.extractionStatus !== "quarantined" &&
       current.length === 1 &&
       current[0]?.sha256 === binding.sha256 &&
       current[0]?.malwareStatus === "clean" &&

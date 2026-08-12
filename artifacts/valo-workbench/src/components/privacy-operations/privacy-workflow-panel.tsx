@@ -4,14 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CanonicalEvidencePicker } from "@/components/canonical-evidence-picker";
+import type {
+  CanonicalEvidenceBinding,
+  CanonicalEvidenceOption,
+} from "@/lib/canonical-evidence-options";
 import type {
   PrivacyConsentWithdrawalDraft,
   PrivacyDsrTriageDraft,
   PrivacyHoldReviewDraft,
   PrivacyOperationsDashboard,
 } from "./privacy-operations-contract";
-
-const SHA256_PATTERN = "[0-9a-f]{64}";
 
 function selectedVersion(
   id: string,
@@ -27,9 +30,13 @@ function isoFromForm(form: HTMLFormElement, name: string): string {
   return parsed.toISOString();
 }
 
+const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
+
 export function PrivacyWorkflowPanel({
   dashboard,
   assigneeOptions,
+  evidenceOptions = [],
+  evidenceOptionsTruncated = false,
   busy = false,
   onTriage,
   onWithdraw,
@@ -37,6 +44,8 @@ export function PrivacyWorkflowPanel({
 }: {
   dashboard: PrivacyOperationsDashboard;
   assigneeOptions: readonly { id: string; name: string }[];
+  evidenceOptions?: readonly CanonicalEvidenceOption[];
+  evidenceOptionsTruncated?: boolean;
   busy?: boolean;
   onTriage: (
     id: string,
@@ -55,6 +64,22 @@ export function PrivacyWorkflowPanel({
   ) => Promise<void>;
 }) {
   const [formError, setFormError] = useState<string | null>(null);
+  const [triageEvidence, setTriageEvidence] = useState<
+    CanonicalEvidenceBinding[]
+  >([]);
+  const [withdrawalEvidence, setWithdrawalEvidence] = useState<
+    CanonicalEvidenceBinding[]
+  >([]);
+  const [holdEvidence, setHoldEvidence] = useState<CanonicalEvidenceBinding[]>(
+    [],
+  );
+  const [triageLegacyDigest, setTriageLegacyDigest] = useState("");
+  const [withdrawalLegacyDigest, setWithdrawalLegacyDigest] = useState("");
+  const [holdLegacyDigest, setHoldLegacyDigest] = useState("");
+  const triageDigest = triageEvidence[0]?.sha256 ?? triageLegacyDigest.trim();
+  const withdrawalDigest =
+    withdrawalEvidence[0]?.sha256 ?? withdrawalLegacyDigest.trim();
+  const holdDigest = holdEvidence[0]?.sha256 ?? holdLegacyDigest.trim();
   const activeConsents = dashboard.consentRecords.filter(
     ({ state }) => state === "active",
   );
@@ -69,6 +94,10 @@ export function PrivacyWorkflowPanel({
     const id = String(data.get("dsrId") ?? "");
     const version = selectedVersion(id, dashboard.dataSubjectRequests);
     if (!version) return setFormError("Select a current DSR row.");
+    if (!SHA256_PATTERN.test(triageDigest))
+      return setFormError(
+        "Select governed evidence or enter a SHA-256 digest.",
+      );
     setFormError(null);
     try {
       await onTriage(id, version, {
@@ -80,9 +109,7 @@ export function PrivacyWorkflowPanel({
         reasonCode: String(
           data.get("reasonCode"),
         ) as PrivacyDsrTriageDraft["reasonCode"],
-        decisionEvidenceSha256: String(
-          data.get("decisionEvidenceSha256") ?? "",
-        ),
+        decisionEvidenceSha256: triageDigest,
       });
     } catch {
       setFormError("Triage evidence was not recorded. Reload before retrying.");
@@ -96,11 +123,15 @@ export function PrivacyWorkflowPanel({
     const id = String(data.get("consentId") ?? "");
     const version = selectedVersion(id, activeConsents);
     if (!version) return setFormError("Select an active consent row.");
+    if (!SHA256_PATTERN.test(withdrawalDigest))
+      return setFormError(
+        "Select governed evidence or enter a SHA-256 digest.",
+      );
     setFormError(null);
     try {
       await onWithdraw(id, version, {
         withdrawnAt: isoFromForm(form, "withdrawnAt"),
-        evidenceSha256: String(data.get("evidenceSha256") ?? ""),
+        evidenceSha256: withdrawalDigest,
       });
     } catch {
       setFormError(
@@ -116,6 +147,10 @@ export function PrivacyWorkflowPanel({
     const id = String(data.get("holdId") ?? "");
     const version = selectedVersion(id, activeHolds);
     if (!version) return setFormError("Select an active legal hold.");
+    if (!SHA256_PATTERN.test(holdDigest))
+      return setFormError(
+        "Select governed evidence or enter a SHA-256 digest.",
+      );
     setFormError(null);
     try {
       await onReviewHold(id, version, {
@@ -123,7 +158,7 @@ export function PrivacyWorkflowPanel({
           data.get("reviewOutcome"),
         ) as PrivacyHoldReviewDraft["reviewOutcome"],
         nextReviewAt: isoFromForm(form, "nextReviewAt"),
-        evidenceSha256: String(data.get("evidenceSha256") ?? ""),
+        evidenceSha256: holdDigest,
       });
     } catch {
       setFormError("Hold review was not recorded. Reload before retrying.");
@@ -250,22 +285,46 @@ export function PrivacyWorkflowPanel({
                   </option>
                 </select>
               </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="privacy-triage-evidence">
-                  Decision evidence SHA-256
+              <div className="sm:col-span-2">
+                <CanonicalEvidencePicker
+                  id="privacy-triage-evidence"
+                  label="Decision evidence"
+                  options={evidenceOptions}
+                  value={triageEvidence}
+                  onChange={(value) => {
+                    setTriageEvidence(value);
+                    if (value.length > 0) setTriageLegacyDigest("");
+                  }}
+                  required={false}
+                  disabled={busy}
+                  truncated={evidenceOptionsTruncated}
+                  verificationNote="This optional picker copies a digest from a recent governed-document snapshot. The privacy receipt records the digest; it is not a mutation-time scanner or canonical attestation."
+                />
+                <Label htmlFor="privacy-triage-legacy-digest">
+                  Decision external or legacy evidence digest — not a scanner
+                  attestation
                 </Label>
                 <Input
-                  id="privacy-triage-evidence"
-                  name="decisionEvidenceSha256"
-                  required
-                  pattern={SHA256_PATTERN}
+                  id="privacy-triage-legacy-digest"
+                  value={triageLegacyDigest}
+                  onChange={(event) => {
+                    setTriageLegacyDigest(
+                      event.currentTarget.value.toLowerCase(),
+                    );
+                    setTriageEvidence([]);
+                  }}
                   minLength={64}
                   maxLength={64}
-                  autoComplete="off"
+                  pattern="[a-f0-9]{64}"
+                  disabled={busy}
                 />
               </div>
               <Button
-                disabled={busy || assigneeOptions.length === 0}
+                disabled={
+                  busy ||
+                  assigneeOptions.length === 0 ||
+                  !SHA256_PATTERN.test(triageDigest)
+                }
                 type="submit"
                 className="sm:col-span-2"
               >
@@ -311,21 +370,45 @@ export function PrivacyWorkflowPanel({
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="privacy-withdrawal-evidence">
-                  Evidence SHA-256
+              <div>
+                <CanonicalEvidencePicker
+                  id="privacy-withdrawal-evidence"
+                  label="Withdrawal evidence"
+                  options={evidenceOptions}
+                  value={withdrawalEvidence}
+                  onChange={(value) => {
+                    setWithdrawalEvidence(value);
+                    if (value.length > 0) setWithdrawalLegacyDigest("");
+                  }}
+                  required={false}
+                  disabled={busy}
+                  truncated={evidenceOptionsTruncated}
+                  verificationNote="This optional picker copies a digest from a recent governed-document snapshot. The privacy receipt records the digest; it is not a mutation-time scanner or canonical attestation."
+                />
+                <Label htmlFor="privacy-withdrawal-legacy-digest">
+                  Withdrawal external or legacy evidence digest — not a scanner
+                  attestation
                 </Label>
                 <Input
-                  id="privacy-withdrawal-evidence"
-                  name="evidenceSha256"
-                  required
-                  pattern={SHA256_PATTERN}
+                  id="privacy-withdrawal-legacy-digest"
+                  value={withdrawalLegacyDigest}
+                  onChange={(event) => {
+                    setWithdrawalLegacyDigest(
+                      event.currentTarget.value.toLowerCase(),
+                    );
+                    setWithdrawalEvidence([]);
+                  }}
                   minLength={64}
                   maxLength={64}
-                  autoComplete="off"
+                  pattern="[a-f0-9]{64}"
+                  disabled={busy}
                 />
               </div>
-              <Button disabled={busy} type="submit" className="sm:col-span-2">
+              <Button
+                disabled={busy || !SHA256_PATTERN.test(withdrawalDigest)}
+                type="submit"
+                className="sm:col-span-2"
+              >
                 {busy ? "Recording…" : "Record withdrawal evidence"}
               </Button>
             </form>
@@ -383,21 +466,45 @@ export function PrivacyWorkflowPanel({
                   required
                 />
               </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="privacy-hold-evidence">
-                  Review evidence SHA-256
+              <div className="sm:col-span-2">
+                <CanonicalEvidencePicker
+                  id="privacy-hold-evidence"
+                  label="Review evidence"
+                  options={evidenceOptions}
+                  value={holdEvidence}
+                  onChange={(value) => {
+                    setHoldEvidence(value);
+                    if (value.length > 0) setHoldLegacyDigest("");
+                  }}
+                  required={false}
+                  disabled={busy}
+                  truncated={evidenceOptionsTruncated}
+                  verificationNote="This optional picker copies a digest from a recent governed-document snapshot. The privacy receipt records the digest; it is not a mutation-time scanner or canonical attestation."
+                />
+                <Label htmlFor="privacy-hold-legacy-digest">
+                  Hold-review external or legacy evidence digest — not a scanner
+                  attestation
                 </Label>
                 <Input
-                  id="privacy-hold-evidence"
-                  name="evidenceSha256"
-                  required
-                  pattern={SHA256_PATTERN}
+                  id="privacy-hold-legacy-digest"
+                  value={holdLegacyDigest}
+                  onChange={(event) => {
+                    setHoldLegacyDigest(
+                      event.currentTarget.value.toLowerCase(),
+                    );
+                    setHoldEvidence([]);
+                  }}
                   minLength={64}
                   maxLength={64}
-                  autoComplete="off"
+                  pattern="[a-f0-9]{64}"
+                  disabled={busy}
                 />
               </div>
-              <Button disabled={busy} type="submit" className="sm:col-span-2">
+              <Button
+                disabled={busy || !SHA256_PATTERN.test(holdDigest)}
+                type="submit"
+                className="sm:col-span-2"
+              >
                 {busy ? "Recording…" : "Record hold review"}
               </Button>
             </form>

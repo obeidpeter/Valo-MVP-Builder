@@ -1,7 +1,14 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, desc, eq, isNull, ne, or } from "drizzle-orm";
-import { db, documents, users, projects, clients } from "@workspace/db";
+import {
+  db,
+  documentVersions,
+  documents,
+  users,
+  projects,
+  clients,
+} from "@workspace/db";
 import { CreateDocumentBody, UpdateDocumentBody } from "@workspace/api-zod";
 import { getLocalUser } from "../middlewares/auth";
 import {
@@ -23,6 +30,7 @@ import {
   ObjectStorageService,
 } from "../lib/objectStorage";
 import { inspectDocumentIntake } from "../lib/documentIntakeSecurity";
+import { canonicalMimeForDetectedFormat } from "../lib/uploadInspection";
 import { productionFeatureIssues } from "../lib/productionReadiness";
 import {
   EXCLUDED_EXTRACTION_NOTES,
@@ -32,10 +40,46 @@ import {
 import { isOwnedStagedUploadPath } from "../lib/stagedUploadCleanup";
 import { lockStagedUploadObject } from "../lib/stagedUploadLock";
 import { storagePathReferenceKinds } from "../lib/storageReferences";
+import { lockCanonicalEvidenceDigest } from "../lib/canonicalEvidence";
 import { holdTenantDatabaseUntilComplete } from "../middlewares/databaseTenancy";
 
 const sha256Hex = (buf: Buffer): string =>
   createHash("sha256").update(buf).digest("hex");
+
+function governedVersionIntegrityManifest(input: {
+  organisationId: string;
+  documentId: string;
+  objectPath: string;
+  sha256: string;
+  sizeBytes: number;
+  detectedFormat: string;
+  detectedMime: string;
+  scannerProvider: string;
+  scannerEngineVersion: string;
+  scannerEvidence: string | null;
+}): string {
+  const scannerEvidenceSha256 = input.scannerEvidence
+    ? createHash("sha256").update(input.scannerEvidence, "utf8").digest("hex")
+    : null;
+  return JSON.stringify({
+    schema: "valo.document-version-integrity/v1",
+    versionNumber: 1,
+    organisationId: input.organisationId,
+    documentId: input.documentId,
+    objectPath: input.objectPath,
+    sha256: input.sha256,
+    sizeBytes: input.sizeBytes,
+    detectedFormat: input.detectedFormat,
+    detectedMime: input.detectedMime,
+    malwareStatus: "clean",
+    quarantineStatus: "cleared",
+    scanner: {
+      provider: input.scannerProvider,
+      engineVersion: input.scannerEngineVersion,
+      evidenceSha256: scannerEvidenceSha256,
+    },
+  });
+}
 
 class PromotedObjectIntegrityError extends Error {
   constructor(
@@ -240,6 +284,7 @@ router.post(
                 eq(documents.sha256, measuredSha256),
               ),
             )
+            .limit(1)
         )
           .map((row) => row.sha256)
           .filter((value): value is string => Boolean(value))
@@ -395,6 +440,23 @@ router.post(
       return;
     }
     const sha256 = inspection.sha256;
+    const detectedMime = canonicalMimeForDetectedFormat(
+      inspection.detectedFormat,
+    );
+    if (
+      inspection.malware.state !== "clean" ||
+      inspection.disposition !== "ready" ||
+      !inspection.mayProcess ||
+      !detectedMime ||
+      !inspection.malware.provider ||
+      !inspection.malware.engineVersion
+    ) {
+      res.status(503).json({
+        error:
+          "Secure intake did not establish the governed version metadata required for registration.",
+      });
+      return;
+    }
 
     // Re-check the NDA gate after the (slow) download so a mid-flight NDA
     // revocation cannot slip a document in behind the earlier check.
@@ -428,6 +490,10 @@ router.post(
     let finalizedObjectPath: string | null = null;
     let created: typeof documents.$inferSelect;
     try {
+      // Keep registration ordered with privacy evidence revalidation. This
+      // transaction-scoped key remains held through the request commit.
+      await lockCanonicalEvidenceDigest(organisationId, sha256);
+
       // Write the exact inspected buffer to a create-only, server-controlled
       // path and revoke the staged path before the row can be committed. A
       // still-live signed PUT can therefore never replace registered bytes.
@@ -435,7 +501,7 @@ router.post(
         parsed.data.objectPath,
         documentId,
         buffer,
-        parsed.data.contentType ?? null,
+        detectedMime,
       );
 
       // Verify the stable object before registration as an independent storage
@@ -466,6 +532,32 @@ router.post(
           ...extractionState,
         })
         .returning();
+
+      await db.insert(documentVersions).values({
+        organisationId,
+        documentId: created.id,
+        versionNumber: 1,
+        objectPath: finalizedObjectPath,
+        sha256,
+        detectedMime,
+        detectedFormat: inspection.detectedFormat,
+        sizeBytes: buffer.length,
+        malwareStatus: "clean",
+        quarantineStatus: "cleared",
+        integrityManifest: governedVersionIntegrityManifest({
+          organisationId,
+          documentId: created.id,
+          objectPath: finalizedObjectPath,
+          sha256,
+          sizeBytes: buffer.length,
+          detectedFormat: inspection.detectedFormat,
+          detectedMime,
+          scannerProvider: inspection.malware.provider,
+          scannerEngineVersion: inspection.malware.engineVersion,
+          scannerEvidence: inspection.malware.evidence,
+        }),
+        uploadedBy: user?.id ?? null,
+      });
 
       // Intake manifest: filename, SHA-256, measured size, received-at all
       // live in the audit chain so the record is tamper-evident from intake

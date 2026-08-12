@@ -5352,8 +5352,183 @@ export interface OperationsMobileQueue {
   items: OperationsMobileQueueItem[];
 }
 
-export interface HealthStatus {
+export const HealthStatusValue = {
+  status: 'ok',
+} as const;
+export type HealthStatus = typeof HealthStatusValue;
+
+export type ReadinessDeliveryStatusMetrics = typeof ReadinessDeliveryStatusMetrics[keyof typeof ReadinessDeliveryStatusMetrics];
+
+
+export const ReadinessDeliveryStatusMetrics = {
+  connected: 'connected',
+  disconnected: 'disconnected',
+} as const;
+
+export type ReadinessDeliveryStatusPaging = typeof ReadinessDeliveryStatusPaging[keyof typeof ReadinessDeliveryStatusPaging];
+
+
+export const ReadinessDeliveryStatusPaging = {
+  connected: 'connected',
+  disconnected: 'disconnected',
+} as const;
+
+export interface ReadinessDeliveryStatus {
+  metrics: ReadinessDeliveryStatusMetrics;
+  paging: ReadinessDeliveryStatusPaging;
+}
+
+export type ReadinessReadyStatusChecks = {
+  lifecycle: 'ready';
+  database: 'ready';
+};
+
+export interface ReadinessReadyStatus {
+  status: 'ready';
+  checks: ReadinessReadyStatusChecks;
+  delivery: ReadinessDeliveryStatus;
+}
+
+export type ReadinessNotReadyStatusChecks = {
+  lifecycle: 'not_ready';
+  database: 'not_checked';
+} | {
+  lifecycle: 'ready';
+  database: 'not_ready';
+};
+
+export interface ReadinessNotReadyStatus {
+  status: 'not_ready';
+  checks: ReadinessNotReadyStatusChecks;
+  delivery: ReadinessDeliveryStatus;
+}
+
+export type WorkInboxItemAssignment = typeof WorkInboxItemAssignment[keyof typeof WorkInboxItemAssignment];
+
+
+export const WorkInboxItemAssignment = {
+  owned: 'owned',
+  unassigned: 'unassigned',
+} as const;
+
+export type WorkInboxItemKind = typeof WorkInboxItemKind[keyof typeof WorkInboxItemKind];
+
+
+export const WorkInboxItemKind = {
+  work_item: 'work_item',
+  mission: 'mission',
+  post_award_item: 'post_award_item',
+  retainer_request: 'retainer_request',
+} as const;
+
+/**
+ * @nullable
+ */
+export type WorkInboxItemPriority = typeof WorkInboxItemPriority[keyof typeof WorkInboxItemPriority] | null;
+
+
+export const WorkInboxItemPriority = {
+  low: 'low',
+  normal: 'normal',
+  high: 'high',
+  critical: 'critical',
+} as const;
+
+export interface WorkInboxItem {
+  /**
+     * Tenant-bound, non-reversible UI identity; never a persisted source row identifier.
+     * @pattern ^[a-f0-9]{64}$
+     */
+  key: string;
+  assignment: WorkInboxItemAssignment;
+  kind: WorkInboxItemKind;
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     */
+  projectTitle: string;
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
   status: string;
+  /** @nullable */
+  dueAt: string | null;
+  /** @nullable */
+  priority: WorkInboxItemPriority;
+  href: '/commercial-retainer' | string;
+}
+
+export interface WorkInboxGroups {
+  /** @maxItems 100 */
+  overdue: WorkInboxItem[];
+  /** @maxItems 100 */
+  today: WorkInboxItem[];
+  /** @maxItems 100 */
+  upcoming: WorkInboxItem[];
+  /** @maxItems 100 */
+  unscheduled: WorkInboxItem[];
+}
+
+export interface WorkInboxSnapshot {
+  organisationId: string;
+  generatedAt: string;
+  businessTimeZone: 'Africa/Lagos';
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  limit: number;
+  truncated: boolean;
+  restrictedContent: true;
+  groups: WorkInboxGroups;
+}
+
+export interface CanonicalEvidenceOption {
+  documentId: string;
+  projectId: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  filename: string;
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     */
+  projectTitle: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  sha256: string;
+  /** @minimum 1 */
+  versionNumber: number;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  detectedMime: string;
+  /** @minimum 0 */
+  sizeBytes: number;
+  /** True when this current clean document can be offered by the optional Privacy picker; every returned option is currently eligible. */
+  privacyEligible: boolean;
+}
+
+export interface CanonicalEvidenceOptionList {
+  organisationId: string;
+  /** @nullable */
+  projectId: string | null;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  limit: number;
+  truncated: boolean;
+  /** @maxItems 100 */
+  items: CanonicalEvidenceOption[];
 }
 
 export type BidAutopsyRequestCreateTenderCategory = typeof BidAutopsyRequestCreateTenderCategory[keyof typeof BidAutopsyRequestCreateTenderCategory];
@@ -8807,6 +8982,21 @@ export type OperationsPolicyDeniedResponse = OperationsSuiteErrorEnvelope;
  */
 export type GrowthListLimitParameter = number;
 
+/**
+ * Maximum total items across all four groups. The wire value is one to three decimal digits with no leading zero.
+ */
+export type WorkInboxLimitParameter = number;
+
+/**
+ * Optional exact project scope within the selected tenant.
+ */
+export type CanonicalEvidenceProjectIdParameter = string;
+
+/**
+ * Maximum canonical evidence options. The wire value is one to three decimal digits with no leading zero.
+ */
+export type CanonicalEvidenceLimitParameter = number;
+
 export type CommercialProjectIdQueryParameter = string;
 
 export type PrivacyOperationsLimitParameter = number;
@@ -8840,6 +9030,28 @@ export type IfMatchVersionParameter = string;
  * Required when updating an existing row; omitted when creating the first tenant override.
  */
 export type IfMatchVersionOptionalParameter = string;
+
+export type GetWorkInboxParams = {
+/**
+ * Maximum total items across all four groups. The wire value is one to three decimal digits with no leading zero.
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: WorkInboxLimitParameter;
+};
+
+export type ListCanonicalEvidenceOptionsParams = {
+/**
+ * Optional exact project scope within the selected tenant.
+ */
+projectId?: CanonicalEvidenceProjectIdParameter;
+/**
+ * Maximum canonical evidence options. The wire value is one to three decimal digits with no leading zero.
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: CanonicalEvidenceLimitParameter;
+};
 
 export type ListProjectsParams = {
 clientId?: string;

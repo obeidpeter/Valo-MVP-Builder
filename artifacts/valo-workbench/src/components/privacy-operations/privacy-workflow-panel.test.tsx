@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { PrivacyOperationsDashboard } from "./privacy-operations-contract";
 import { PrivacyWorkflowPanel } from "./privacy-workflow-panel";
@@ -7,6 +8,20 @@ const ORGANISATION_ID = "10000000-0000-4000-8000-000000000001";
 const DSR_ID = "40000000-0000-4000-8000-000000000004";
 const ASSIGNEE_ID = "30000000-0000-4000-8000-000000000003";
 const SHA_A = "a".repeat(64);
+const DOCUMENT_ID = "70000000-0000-4000-8000-000000000007";
+const evidenceOptions = [
+  {
+    documentId: DOCUMENT_ID,
+    projectId: "80000000-0000-4000-8000-000000000008",
+    filename: "privacy-evidence.pdf",
+    projectTitle: "Governed privacy evidence",
+    sha256: SHA_A,
+    versionNumber: 1,
+    detectedMime: "application/pdf",
+    sizeBytes: 128,
+    privacyEligible: true,
+  },
+];
 
 function dashboard(): PrivacyOperationsDashboard {
   return {
@@ -63,6 +78,7 @@ describe("PrivacyWorkflowPanel", () => {
     render(
       <PrivacyWorkflowPanel
         dashboard={dashboard()}
+        evidenceOptions={evidenceOptions}
         assigneeOptions={[{ id: ASSIGNEE_ID, name: "Privacy Assignee" }]}
         onTriage={onTriage}
         onWithdraw={vi.fn().mockResolvedValue(undefined)}
@@ -75,8 +91,8 @@ describe("PrivacyWorkflowPanel", () => {
     fireEvent.change(screen.getByLabelText("Named privacy assignee"), {
       target: { value: ASSIGNEE_ID },
     });
-    fireEvent.change(screen.getByLabelText("Decision evidence SHA-256"), {
-      target: { value: SHA_A },
+    fireEvent.change(screen.getByLabelText("Decision evidence"), {
+      target: { value: DOCUMENT_ID },
     });
     fireEvent.submit(
       screen
@@ -102,10 +118,12 @@ describe("PrivacyWorkflowPanel", () => {
     expect(draft).not.toHaveProperty("notes");
   });
 
-  it("explains that hold review cannot release or delete data", () => {
+  it("explains that hold review cannot release or delete data", async () => {
+    const user = userEvent.setup();
     render(
       <PrivacyWorkflowPanel
         dashboard={dashboard()}
+        evidenceOptions={evidenceOptions}
         assigneeOptions={[{ id: ASSIGNEE_ID, name: "Privacy Assignee" }]}
         onTriage={vi.fn().mockResolvedValue(undefined)}
         onWithdraw={vi.fn().mockResolvedValue(undefined)}
@@ -115,5 +133,51 @@ describe("PrivacyWorkflowPanel", () => {
     expect(
       screen.getByText(/cannot release a hold, delete data/iu),
     ).toBeInTheDocument();
+    for (const tabName of ["Triage DSR", "Record withdrawal", "Review hold"]) {
+      await user.click(screen.getByRole("tab", { name: tabName }));
+      expect(
+        screen.getByText(
+          /not a mutation-time scanner or canonical attestation/iu,
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText(/revalidated on submit/iu),
+      ).not.toBeInTheDocument();
+    }
+  });
+
+  it("keeps workflows disabled until an external or legacy digest is entered", async () => {
+    const user = userEvent.setup();
+    render(
+      <PrivacyWorkflowPanel
+        dashboard={dashboard()}
+        evidenceOptions={[]}
+        assigneeOptions={[{ id: ASSIGNEE_ID, name: "Privacy Assignee" }]}
+        onTriage={vi.fn().mockResolvedValue(undefined)}
+        onWithdraw={vi.fn().mockResolvedValue(undefined)}
+        onReviewHold={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Record triage with CAS" }),
+    ).toBeDisabled();
+    await user.click(screen.getByRole("tab", { name: "Record withdrawal" }));
+    expect(
+      screen.getByRole("button", { name: "Record withdrawal evidence" }),
+    ).toBeDisabled();
+    await user.click(screen.getByRole("tab", { name: "Review hold" }));
+    expect(
+      screen.getByRole("button", { name: "Record hold review" }),
+    ).toBeDisabled();
+    await user.click(screen.getByRole("tab", { name: "Triage DSR" }));
+    fireEvent.change(
+      screen.getByLabelText(
+        /Decision external or legacy evidence digest — not a scanner attestation/u,
+      ),
+      { target: { value: SHA_A } },
+    );
+    expect(
+      screen.getByRole("button", { name: "Record triage with CAS" }),
+    ).toBeEnabled();
   });
 });

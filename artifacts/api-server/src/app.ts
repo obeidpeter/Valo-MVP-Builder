@@ -1,5 +1,6 @@
 import express, { type ErrorRequestHandler, type Express } from "express";
 import cors from "cors";
+import { rateLimit } from "express-rate-limit";
 import pinoHttp from "pino-http";
 import { clerkMiddleware } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
@@ -20,6 +21,7 @@ import {
 import { registerProductionWebApp } from "./lib/webApp";
 import { createPublicBidAutopsyRouter } from "./routes/public";
 import healthRouter from "./routes/health";
+import { operationalSignals, requestCorrelationId } from "./lib/observability";
 
 const app: Express = express();
 app.disable("x-powered-by");
@@ -28,6 +30,11 @@ if (process.env.TRUST_PROXY === "1") app.set("trust proxy", 1);
 app.use(
   pinoHttp({
     logger,
+    genReqId(req, res) {
+      const requestId = requestCorrelationId(req.headers);
+      res.setHeader("X-Request-Id", requestId);
+      return requestId;
+    },
     serializers: {
       req(req) {
         return {
@@ -44,6 +51,7 @@ app.use(
     },
   }),
 );
+app.use(operationalSignals.middleware());
 
 const allowedOrigins = parseAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS);
 const clerkProxyHosts = clerkProxyHostsFromOrigins(allowedOrigins);
@@ -62,9 +70,11 @@ app.use(
       "Content-Type",
       "Idempotency-Key",
       "If-Match",
+      "X-Request-Id",
       "X-Valo-Organisation-Id",
       "X-Valo-Break-Glass-Session",
     ],
+    exposedHeaders: ["X-Request-Id"],
     origin(origin, callback) {
       // Server-to-server and same-origin requests do not carry Origin.
       if (!origin || allowedOrigins.has(origin.replace(/\/$/, ""))) {
@@ -89,16 +99,52 @@ const rejectDisallowedCorsOrigin: ErrorRequestHandler = (
 };
 app.use(rejectDisallowedCorsOrigin);
 
-// Liveness must remain independent of Clerk and request throttling so the
-// deployment sidecar can probe the process through its internal Host header.
-// Mounting the route itself here keeps the bypass exact: only the route's GET
-// handler (and Express' implicit HEAD handling) can skip the global middleware.
+// Liveness remains dependency-free; readiness checks lifecycle and database.
+// Both exact routes are independent of Clerk and request throttling so the
+// deployment sidecar can probe through its internal Host header. Mounting the
+// router here avoids any path-prefix bypass in protected middleware.
 app.use("/api", healthRouter);
 
+const configuredRateLimitWindowMs = Number(
+  process.env.RATE_LIMIT_WINDOW_MS || 60_000,
+);
+const configuredRateLimitMax = Number(
+  process.env.RATE_LIMIT_MAX_REQUESTS || 300,
+);
+const rateLimitWindowMs =
+  Number.isFinite(configuredRateLimitWindowMs) &&
+  configuredRateLimitWindowMs > 0
+    ? configuredRateLimitWindowMs
+    : 60_000;
+const rateLimitMax =
+  Number.isSafeInteger(configuredRateLimitMax) && configuredRateLimitMax > 0
+    ? configuredRateLimitMax
+    : 300;
 app.use(
   createRateLimiter({
-    windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000),
-    max: Number(process.env.RATE_LIMIT_MAX_REQUESTS || 300),
+    windowMs: rateLimitWindowMs,
+    max: rateLimitMax,
+  }),
+);
+// Keep the bounded Valo limiter authoritative, then layer a supported limiter
+// for framework-aware security tooling and defence in depth. Doubling the
+// secondary fixed-window allowance prevents it from rejecting traffic that the
+// primary per-client fixed window accepted across a secondary window boundary.
+app.use(
+  rateLimit({
+    windowMs: Math.min(rateLimitWindowMs, 2_147_483_647),
+    limit: Math.min(Number.MAX_SAFE_INTEGER, rateLimitMax * 2),
+    standardHeaders: false,
+    legacyHeaders: false,
+    skip: (req) => req.method === "OPTIONS" || req.path === "/healthz",
+    // Match the primary limiter's exact-IP grouping. The default IPv6 subnet
+    // grouping would otherwise combine clients the Valo policy keeps separate.
+    keyGenerator: (req) => req.ip || req.socket.remoteAddress || "unknown",
+    validate: { keyGeneratorIpFallback: false },
+    passOnStoreError: false,
+    handler: (_req, res) => {
+      res.status(429).json({ error: "Too many requests" });
+    },
   }),
 );
 app.use(

@@ -12,6 +12,10 @@ import {
   type AccessContext,
 } from "../middlewares/tenancy";
 import {
+  resolveCurrentDirectAuthority,
+  type CurrentDirectAuthority,
+} from "../lib/directMembershipAuthority";
+import {
   PRIVACY_OPERATIONS_DEFAULT_ITEMS,
   PRIVACY_OPERATIONS_MAX_ASSIGNEES,
   PRIVACY_OPERATIONS_MAX_ITEMS,
@@ -38,28 +42,10 @@ export interface PrivacyOperationsRouterOptions {
   now?: () => Date;
   resolveAccess?: (request: Request) => AccessContext | undefined;
   resolveActorUserId?: (request: Request) => string | undefined;
-}
-
-export function canReadPrivacyOperations(
-  context: AccessContext | undefined,
-): boolean {
-  return Boolean(
-    context?.source === "membership" &&
-    context.membershipId &&
-    context.membershipOrganisationId === context.organisationId &&
-    context.permissions.has("privacy:read"),
-  );
-}
-
-export function canManagePrivacyOperations(
-  context: AccessContext | undefined,
-): boolean {
-  return Boolean(
-    context?.source === "membership" &&
-    context.membershipId &&
-    context.membershipOrganisationId === context.organisationId &&
-    context.permissions.has("privacy:manage"),
-  );
+  resolveAuthority?: (
+    context: AccessContext | undefined,
+    actorUserId: string | undefined,
+  ) => Promise<CurrentDirectAuthority | null>;
 }
 
 function privateResponse(
@@ -135,12 +121,22 @@ export function createPrivacyOperationsRouter(
   const resolveActorUserId =
     options.resolveActorUserId ??
     ((request: Request) => getLocalUser(request)?.id);
+  const resolveAuthority =
+    options.resolveAuthority ?? resolveCurrentDirectAuthority;
 
-  const scope = (request: Request): PrivacyOperationsScope | null => {
-    const access = resolveAccess(request);
-    const actorUserId = resolveActorUserId(request);
-    return access && actorUserId
-      ? { organisationId: access.organisationId, actorUserId }
+  const authorisedScope = async (
+    request: Request,
+    permission: "privacy:read" | "privacy:manage",
+  ): Promise<PrivacyOperationsScope | null> => {
+    const authority = await resolveAuthority(
+      resolveAccess(request),
+      resolveActorUserId(request),
+    );
+    return authority?.permissions.has(permission)
+      ? {
+          organisationId: authority.organisationId,
+          actorUserId: authority.actorUserId,
+        }
       : null;
   };
 
@@ -149,9 +145,8 @@ export function createPrivacyOperationsRouter(
   router.get(
     "/privacy-operations/assignees",
     async (request, response, next) => {
-      const access = resolveAccess(request);
-      const requestScope = scope(request);
-      if (!canManagePrivacyOperations(access) || !requestScope) {
+      const requestScope = await authorisedScope(request, "privacy:manage");
+      if (!requestScope) {
         response
           .status(403)
           .json({ error: "Privacy operations management denied" });
@@ -178,9 +173,8 @@ export function createPrivacyOperationsRouter(
   );
 
   router.get("/privacy-operations", async (request, response, next) => {
-    const access = resolveAccess(request);
-    const requestScope = scope(request);
-    if (!canReadPrivacyOperations(access) || !requestScope) {
+    const requestScope = await authorisedScope(request, "privacy:read");
+    if (!requestScope) {
       response.status(403).json({ error: "Privacy operations access denied" });
       return;
     }
@@ -207,9 +201,8 @@ export function createPrivacyOperationsRouter(
   router.post(
     "/privacy-operations/data-subject-requests/:id/triage",
     async (request, response, next) => {
-      const access = resolveAccess(request);
-      const requestScope = scope(request);
-      if (!canManagePrivacyOperations(access) || !requestScope) {
+      const requestScope = await authorisedScope(request, "privacy:manage");
+      if (!requestScope) {
         response
           .status(403)
           .json({ error: "Privacy operations management denied" });
@@ -252,9 +245,8 @@ export function createPrivacyOperationsRouter(
   router.post(
     "/privacy-operations/consent-records/:id/withdrawal",
     async (request, response, next) => {
-      const access = resolveAccess(request);
-      const requestScope = scope(request);
-      if (!canManagePrivacyOperations(access) || !requestScope) {
+      const requestScope = await authorisedScope(request, "privacy:manage");
+      if (!requestScope) {
         response
           .status(403)
           .json({ error: "Privacy operations management denied" });
@@ -299,9 +291,8 @@ export function createPrivacyOperationsRouter(
   router.post(
     "/privacy-operations/legal-holds/:id/reviews",
     async (request, response, next) => {
-      const access = resolveAccess(request);
-      const requestScope = scope(request);
-      if (!canManagePrivacyOperations(access) || !requestScope) {
+      const requestScope = await authorisedScope(request, "privacy:manage");
+      if (!requestScope) {
         response
           .status(403)
           .json({ error: "Privacy operations management denied" });

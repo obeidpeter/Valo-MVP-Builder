@@ -18,6 +18,16 @@ describe("Claims Desk static security contract", () => {
     assert.match(source, /quarantineStatus === "cleared"/u);
     assert.match(source, /malwareStatus === "clean"/u);
     assert.match(source, /document\.sha256 === binding\.sha256/u);
+    assert.match(source, /document\.extractionStatus !== "quarantined"/u);
+    assert.match(
+      source,
+      /NOT EXISTS \([\s\S]*later_version\.version_number > current_version\.version_number/u,
+    );
+    assert.match(
+      source,
+      /LIMIT \$\{CLAIMS_DESK_BOUNDS\.documentsPerEvent \+ 1\}/u,
+    );
+    assert.doesNotMatch(source, /const highest = Math\.max/u);
   });
 
   test("routes expose controlled record/transition endpoints only", async () => {
@@ -27,13 +37,11 @@ describe("Claims Desk static security contract", () => {
       source,
       /["'`]\/[^"'`]*(?:dispatch|invoice|payment-provider)|fetch\(/iu,
     );
-    assert.match(
-      source,
-      /context\?\.permissions\.has\(CLAIMS_DESK_READ_PERMISSION\)/u,
-    );
-    assert.match(
-      source,
-      /context\?\.permissions\.has\(CLAIMS_DESK_MANAGE_PERMISSION\)/u,
+    assert.match(source, /resolveCurrentDirectAuthority/u);
+    assert.match(source, /authority\?\.permissions\.has\(permission\)/u);
+    assert.match(source, /actorMembershipId: authority\.membershipId/u);
+    assert.ok(
+      (source.match(/await authorisedScopeFor\(/gu) ?? []).length === 3,
     );
   });
 });

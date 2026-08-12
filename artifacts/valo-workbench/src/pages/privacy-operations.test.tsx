@@ -7,12 +7,16 @@ const ORGANISATION_ID = "10000000-0000-4000-8000-000000000001";
 const mocks = vi.hoisted(() => ({
   customFetch: vi.fn(),
   accessSource: "membership" as "membership" | "partner",
-  permissions: ["privacy:read", "privacy:manage"],
+  permissions: ["privacy:read", "privacy:manage", "document:read"],
   toast: vi.fn(),
 }));
 
 vi.mock("@workspace/api-client-react", () => ({
   customFetch: mocks.customFetch,
+  useGetMe: () => ({
+    data: { id: "20000000-0000-4000-8000-000000000002" },
+    isLoading: false,
+  }),
 }));
 
 vi.mock("@/contexts/organisation-context", () => ({
@@ -20,6 +24,8 @@ vi.mock("@/contexts/organisation-context", () => ({
     activeOrganisation: {
       id: ORGANISATION_ID,
       accessSource: mocks.accessSource,
+      membershipOrganisationId:
+        mocks.accessSource === "membership" ? ORGANISATION_ID : null,
     },
     effectivePermissions: mocks.permissions,
     beginCriticalWorkflow: () => () => {},
@@ -99,7 +105,7 @@ describe("PrivacyOperationsPage", () => {
     mocks.customFetch.mockReset();
     mocks.toast.mockReset();
     mocks.accessSource = "membership";
-    mocks.permissions = ["privacy:read", "privacy:manage"];
+    mocks.permissions = ["privacy:read", "privacy:manage", "document:read"];
   });
 
   it("denies partner-derived access without calling the API", () => {
@@ -114,7 +120,17 @@ describe("PrivacyOperationsPage", () => {
   it("loads a tenant-bound bounded dashboard and exposes human workflows", async () => {
     mocks.customFetch.mockImplementation((url: string) =>
       Promise.resolve(
-        url.endsWith("/assignees") ? assigneesResponse() : dashboardResponse(),
+        url.endsWith("/assignees")
+          ? assigneesResponse()
+          : url.startsWith("/api/canonical-evidence-options")
+            ? {
+                organisationId: ORGANISATION_ID,
+                projectId: null,
+                limit: 100,
+                truncated: false,
+                items: [],
+              }
+            : dashboardResponse(),
       ),
     );
     renderPage();
@@ -143,5 +159,31 @@ describe("PrivacyOperationsPage", () => {
     expect(
       screen.queryByRole("heading", { name: "Record a named-human workflow" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("keeps manual privacy evidence operable without document:read and skips the picker API", async () => {
+    mocks.permissions = ["privacy:read", "privacy:manage"];
+    mocks.customFetch.mockImplementation((url: string) =>
+      Promise.resolve(
+        url.endsWith("/assignees") ? assigneesResponse() : dashboardResponse(),
+      ),
+    );
+    renderPage();
+    await screen.findByRole("heading", {
+      name: "Record a named-human workflow",
+    });
+    expect(
+      await screen.findByRole("option", { name: "Privacy Assignee" }),
+    ).toBeInTheDocument();
+    expect(
+      mocks.customFetch.mock.calls.some(([url]) =>
+        String(url).startsWith("/api/canonical-evidence-options"),
+      ),
+    ).toBe(false);
+    expect(
+      screen.getByLabelText(
+        /Decision external or legacy evidence digest — not a scanner attestation/u,
+      ),
+    ).toBeInTheDocument();
   });
 });

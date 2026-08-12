@@ -54,6 +54,7 @@ import type {
   BoqRunResult,
   BreakGlassSession,
   BreakGlassSessionCreate,
+  CanonicalEvidenceOptionList,
   CapabilityItem,
   CapabilityItemCreate,
   CapabilityItemUpdate,
@@ -125,6 +126,7 @@ import type {
   GetCommercialRetainerSnapshotParams,
   GetMonthlyCostReportParams,
   GetPrivacyOperationsParams,
+  GetWorkInboxParams,
   GrowthCreateQuoteDraft,
   GrowthLeadContactHandoffRequest,
   GrowthLeadContactHandoffResponse,
@@ -148,6 +150,7 @@ import type {
   IntelligenceReviewMutationResponse,
   InternalServerErrorResponse,
   LegacyAuditIntegrityAssessment,
+  ListCanonicalEvidenceOptionsParams,
   ListGrowthLeadsParams,
   ListGrowthQuotesParams,
   ListProjectsParams,
@@ -223,6 +226,8 @@ import type {
   ProjectSummary,
   ProjectUpdate,
   QueueCommunicationInput,
+  ReadinessNotReadyStatus,
+  ReadinessReadyStatus,
   Report,
   Requirement,
   RequirementCreate,
@@ -261,6 +266,7 @@ import type {
   VaultItem,
   VaultItemCreate,
   VaultItemUpdate,
+  WorkInboxSnapshot,
   WorkflowAlerts
 } from './api.schemas';
 
@@ -300,8 +306,8 @@ export const getHealthCheckUrl = () => {
 }
 
 /**
- * Returns server health status
- * @summary Health check
+ * Returns dependency-free process liveness. This endpoint does not assert database or traffic readiness.
+ * @summary Process liveness check
  */
 export const healthCheck = async ( options?: RequestInit): Promise<HealthStatus> => {
 
@@ -348,7 +354,7 @@ export type HealthCheckQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Health check
+ * @summary Process liveness check
  */
 
 export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>(
@@ -357,6 +363,267 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getHealthCheckQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReadinessCheckUrl = () => {
+
+
+
+
+  return `/api/readyz`
+}
+
+/**
+ * Returns `200` only while the runtime is accepting traffic and its bounded
+ * database probe succeeds. Starting and draining runtimes do not touch the
+ * database. Metrics and paging delivery are reported independently and do
+ * not change readiness. GET and implicit HEAD are public deployment probes.
+ * @summary Runtime readiness check
+ */
+export const readinessCheck = async ( options?: RequestInit): Promise<ReadinessReadyStatus> => {
+
+  return customFetch<ReadinessReadyStatus>(getReadinessCheckUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getReadinessCheckQueryKey = () => {
+    return [
+    `/api/readyz`
+    ] as const;
+    }
+
+
+export const getReadinessCheckQueryOptions = <TData = Awaited<ReturnType<typeof readinessCheck>>, TError = ErrorType<ReadinessNotReadyStatus>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof readinessCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getReadinessCheckQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof readinessCheck>>> = ({ signal }) => readinessCheck({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof readinessCheck>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ReadinessCheckQueryResult = NonNullable<Awaited<ReturnType<typeof readinessCheck>>>
+export type ReadinessCheckQueryError = ErrorType<ReadinessNotReadyStatus>
+
+
+/**
+ * @summary Runtime readiness check
+ */
+
+export function useReadinessCheck<TData = Awaited<ReturnType<typeof readinessCheck>>, TError = ErrorType<ReadinessNotReadyStatus>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof readinessCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getReadinessCheckQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetWorkInboxUrl = (params?: GetWorkInboxParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/work-inbox?${stringifiedParams}` : `/api/work-inbox`
+}
+
+/**
+ * Returns an authority-filtered, tenant-wide read model for current direct
+ * memberships only. Items are grouped using the Africa/Lagos business day;
+ * the combined item count across all groups never exceeds `limit`.
+ * Restricted source row identifiers are replaced by tenant-bound,
+ * non-reversible UI keys.
+ * @summary List the current operator's bounded cross-project work inbox
+ */
+export const getWorkInbox = async (params?: GetWorkInboxParams, options?: RequestInit): Promise<WorkInboxSnapshot> => {
+
+  return customFetch<WorkInboxSnapshot>(getGetWorkInboxUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWorkInboxQueryKey = (params?: GetWorkInboxParams,) => {
+    return [
+    `/api/work-inbox`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetWorkInboxQueryOptions = <TData = Awaited<ReturnType<typeof getWorkInbox>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(params?: GetWorkInboxParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkInbox>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWorkInboxQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWorkInbox>>> = ({ signal }) => getWorkInbox(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWorkInbox>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWorkInboxQueryResult = NonNullable<Awaited<ReturnType<typeof getWorkInbox>>>
+export type GetWorkInboxQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+
+/**
+ * @summary List the current operator's bounded cross-project work inbox
+ */
+
+export function useGetWorkInbox<TData = Awaited<ReturnType<typeof getWorkInbox>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(
+ params?: GetWorkInboxParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWorkInbox>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWorkInboxQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListCanonicalEvidenceOptionsUrl = (params?: ListCanonicalEvidenceOptionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/canonical-evidence-options?${stringifiedParams}` : `/api/canonical-evidence-options`
+}
+
+/**
+ * Returns only current, clean, quarantine-cleared document versions visible
+ * to the caller's current direct tenant authority. Claims binds and
+ * revalidates a canonical document ID and digest. Privacy may use this list
+ * as optional convenience when the operator has `document:read`, but its
+ * mutations continue accepting closed-format external or legacy SHA receipt
+ * digests; picker selection is not required and those digests are not
+ * scanner attestations.
+ * @summary List current clean canonical evidence options
+ */
+export const listCanonicalEvidenceOptions = async (params?: ListCanonicalEvidenceOptionsParams, options?: RequestInit): Promise<CanonicalEvidenceOptionList> => {
+
+  return customFetch<CanonicalEvidenceOptionList>(getListCanonicalEvidenceOptionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCanonicalEvidenceOptionsQueryKey = (params?: ListCanonicalEvidenceOptionsParams,) => {
+    return [
+    `/api/canonical-evidence-options`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListCanonicalEvidenceOptionsQueryOptions = <TData = Awaited<ReturnType<typeof listCanonicalEvidenceOptions>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(params?: ListCanonicalEvidenceOptionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCanonicalEvidenceOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCanonicalEvidenceOptionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCanonicalEvidenceOptions>>> = ({ signal }) => listCanonicalEvidenceOptions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCanonicalEvidenceOptions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCanonicalEvidenceOptionsQueryResult = NonNullable<Awaited<ReturnType<typeof listCanonicalEvidenceOptions>>>
+export type ListCanonicalEvidenceOptionsQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+
+/**
+ * @summary List current clean canonical evidence options
+ */
+
+export function useListCanonicalEvidenceOptions<TData = Awaited<ReturnType<typeof listCanonicalEvidenceOptions>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(
+ params?: ListCanonicalEvidenceOptionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCanonicalEvidenceOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCanonicalEvidenceOptionsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

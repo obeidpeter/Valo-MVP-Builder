@@ -46,6 +46,50 @@ test("new registrations are excluded/no-model and never auto-schedule extraction
   assert.match(source, /query\.for\("share", \{ of: clients \}\)/);
 });
 
+test("accepted registration atomically creates a truthful governed version manifest", () => {
+  const documentInsertAt = createSource.indexOf(".insert(documents)");
+  const versionInsertAt = createSource.indexOf(
+    "db.insert(documentVersions)",
+    documentInsertAt,
+  );
+  const auditAt = createSource.indexOf(
+    'eventType: "document.created"',
+    versionInsertAt,
+  );
+  assert.ok(documentInsertAt >= 0 && versionInsertAt > documentInsertAt);
+  assert.ok(
+    auditAt > versionInsertAt,
+    "version creation must precede success audit",
+  );
+  assert.match(
+    createSource,
+    /inspection\.malware\.state !== "clean"[\s\S]*inspection\.disposition !== "ready"[\s\S]*!inspection\.mayProcess/,
+  );
+  assert.match(
+    createSource,
+    /malwareStatus: "clean"[\s\S]*quarantineStatus: "cleared"/,
+  );
+  assert.match(createSource, /detectedFormat: inspection\.detectedFormat/);
+  assert.match(
+    createSource,
+    /canonicalMimeForDetectedFormat\([\s\S]*inspection\.detectedFormat/,
+  );
+  assert.doesNotMatch(
+    createSource,
+    /const detectedMime = parsed\.data\.contentType/,
+  );
+  assert.match(
+    createSource,
+    /promoteStagedUploadToDocument\([\s\S]*buffer,[\s\S]*detectedMime/,
+  );
+  assert.match(source, /valo\.document-version-integrity\/v1/);
+  assert.match(source, /scannerEvidenceSha256/);
+  assert.doesNotMatch(
+    source,
+    /scanner:\s*\{[\s\S]*evidence:\s*input\.scannerEvidence/,
+  );
+});
+
 test("manual extraction verifies the intake hash before inspection or parser/model", () => {
   const hashAt = manualSource.indexOf("const actualSha256 = sha256Hex(buffer)");
   const mismatchAt = manualSource.indexOf(
