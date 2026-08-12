@@ -35,14 +35,33 @@ describe("authority-scoped query caches", () => {
       "const authorityQueryKey = [",
       "const mutation = useMutation",
     );
+    const mutationBlock = sourceBlock(
+      clientActionSource,
+      "const mutation = useMutation",
+      "if (!canAccess)",
+    );
     expect(snapshotBlock).toMatch(/actorUserId,[\s\S]*capabilityKey,/u);
     expect(snapshotBlock).toContain("enabled: canView && Boolean(actorUserId)");
-    expect(authorityBlock).toMatch(/actorUserId,[\s\S]*capabilityKey,/u);
-    expect(authorityBlock).toMatch(
-      /activeScope\.current\.actorUserId !==\s*requestedScope\.actorUserId/u,
+    expect(snapshotBlock).toContain("assertAuthorityScopeCurrent(");
+    expect(snapshotBlock).toContain(
+      "Client action authority changed while records loaded",
     );
-    expect(authorityBlock).toMatch(
-      /activeScope\.current\.capabilityKey !==\s*requestedScope\.capabilityKey/u,
+    expect(authorityBlock).toMatch(/actorUserId,[\s\S]*capabilityKey,/u);
+    expect(authorityBlock).toContain("assertAuthorityScopeCurrent(");
+    expect(authorityBlock).toContain(
+      "Client action scope changed while authorities loaded",
+    );
+    expect(mutationBlock).toContain("assertAuthorityScopeCurrent(");
+    expect(mutationBlock).toContain(
+      "Client action scope changed while action completed",
+    );
+    expect(mutationBlock).toContain("beginCriticalWorkflow()");
+    expect(mutationBlock).toMatch(/finally\s*\{[\s\S]*release\?\.\(\);/u);
+    expect(
+      clientActionSource.match(/assertAuthorityScopeCurrent\(/gu),
+    ).toHaveLength(4);
+    expect(clientActionSource).not.toContain(
+      "activeScope.current.actorUserId !==",
     );
     expect(clientActionSource).toContain(
       "key={`${organisationId}:${projectId}:${actorUserId}:${capabilityKey}`}",
@@ -50,20 +69,44 @@ describe("authority-scoped query caches", () => {
   });
 
   it("partitions consortium rooms and participant names by current authority", () => {
+    const snapshotBlock = sourceBlock(
+      consortiumSource,
+      "const queryKey = [",
+      "const participantQueryKey = [",
+    );
     const participantBlock = sourceBlock(
       consortiumSource,
       "const participantQueryKey = [",
       "const mutation = useMutation",
     );
+    const mutationBlock = sourceBlock(
+      consortiumSource,
+      "const mutation = useMutation",
+      "if (!canRead)",
+    );
+    expect(snapshotBlock).toContain("assertAuthorityScopeCurrent(");
+    expect(snapshotBlock).toContain(
+      "Consortium scope changed while the room loaded",
+    );
     expect(participantBlock).toMatch(/actorUserId,[\s\S]*capabilityKey,/u);
-    expect(participantBlock).toMatch(
-      /activeScope\.current\.actorUserId !==\s*requestedScope\.actorUserId/u,
+    expect(participantBlock).toContain("assertAuthorityScopeCurrent(");
+    expect(participantBlock).toContain(
+      "Consortium scope changed while participants loaded",
     );
-    expect(participantBlock).toMatch(
-      /activeScope\.current\.capabilityKey !==\s*requestedScope\.capabilityKey/u,
+    expect(mutationBlock).toContain("assertAuthorityScopeCurrent(");
+    expect(mutationBlock).toContain(
+      "Consortium scope changed while the action completed",
     );
+    expect(mutationBlock).toContain("beginCriticalWorkflow()");
+    expect(mutationBlock).toMatch(/finally\s*\{[\s\S]*release\?\.\(\);/u);
     expect(participantBlock).toContain(
       "enabled: canView && canWrite && Boolean(actorUserId)",
+    );
+    expect(
+      consortiumSource.match(/assertAuthorityScopeCurrent\(/gu),
+    ).toHaveLength(5);
+    expect(consortiumSource).not.toContain(
+      "activeScope.current.actorUserId !==",
     );
     expect(consortiumSource).toContain(
       "key={`${organisationId}:${projectId}:${relationshipId}:${actorUserId}:${capabilityKey}`}",
@@ -87,17 +130,31 @@ describe("authority-scoped query caches", () => {
       "const refreshAfterMutation",
     );
     expect(suiteBlock).toMatch(/actorUserId,[\s\S]*capabilityKey,/u);
-    expect(suiteBlock).toContain("readScopeIsCurrent(requestedScope)");
+    expect(suiteBlock).toContain("assertAuthorityScopeCurrent(");
+    expect(suiteBlock).toContain(
+      "Operations authority changed while records loaded",
+    );
     expect(mobileBlock).toMatch(/actorUserId,[\s\S]*capabilityKey,/u);
     expect(mobileBlock).toContain(
       "enabled: Boolean(compactMode && canRead && projectId && actorUserId)",
     );
-    expect(mobileBlock).toContain("readScopeIsCurrent(requestedScope)");
-    expect(mutationScopeBlock).toMatch(
-      /activeMutationScope\.current\.actorUserId !==\s*requestedScope\.actorUserId/u,
+    expect(mobileBlock).toContain("assertAuthorityScopeCurrent(");
+    expect(mobileBlock).toContain(
+      "Operations authority changed while queue loaded",
     );
+    expect(mutationScopeBlock).toContain("assertAuthorityScopeCurrent(");
+    expect(mutationScopeBlock).toContain(
+      "Pursuit changed while the operation was recorded",
+    );
+    expect(mutationScopeBlock).toContain("beginCriticalWorkflow()");
     expect(mutationScopeBlock).toMatch(
-      /activeMutationScope\.current\.capabilityKey !==\s*requestedScope\.capabilityKey/u,
+      /finally\s*\{[\s\S]*releaseCriticalWorkflow\?\.\(\);/u,
+    );
+    expect(
+      operationsSource.match(/assertAuthorityScopeCurrent\(/gu),
+    ).toHaveLength(7);
+    expect(operationsSource).not.toContain(
+      "activeMutationScope.current.actorUserId !==",
     );
     expect(operationsSource).toContain(
       "key={`${organisationId}:${projectId}:${actorUserId}:${capabilityKey}`}",

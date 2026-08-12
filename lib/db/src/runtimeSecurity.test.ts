@@ -8,6 +8,7 @@ import {
   isProductionRuntime,
   selectDatabaseConnectionString,
 } from "./runtimeSecurity";
+import { INTAKE_FUNCTION_MANIFEST } from "./intakeFunctionManifest";
 
 const SPECIAL_TENANT_TRIGGERS = [
   [
@@ -158,121 +159,32 @@ function migrationIntakeFunctions() {
     owner_is_schema_owner: true,
     public_can_execute: false,
   };
-  return [
-    {
+  const migrationsByFunction = new Map([
+    ["consume_bid_autopsy_rate_limit", intakeLimiterMigration],
+    ["get_bid_autopsy_contact_handoff", intakeOperationsMigration],
+    ["list_bid_autopsy_work_queue", intakeOperationsMigration],
+    ["purge_expired_bid_autopsy_rate_limits", intakeRetentionMigration],
+    ["purge_expired_bid_autopsy_requests", intakeRetentionMigration],
+    ["store_bid_autopsy_request", intakeRetentionMigration],
+    ["transition_bid_autopsy_work_queue", intakeOperationsMigration],
+  ]);
+
+  return [...INTAKE_FUNCTION_MANIFEST].map(([functionName, expected]) => {
+    const functionMigration = migrationsByFunction.get(functionName);
+    assert.ok(functionMigration, `missing migration for ${functionName}`);
+    return {
       ...common,
-      function_name: "consume_bid_autopsy_rate_limit",
-      argument_count: 3,
-      argument_types: "text,integer,integer",
-      identity_arguments:
-        "p_client_key_hash text, p_window_seconds integer, p_max_requests integer",
-      return_type: "record",
-      function_result:
-        "TABLE(allowed boolean, remaining integer, reset_at timestamp with time zone)",
-      returns_set: true,
-      runtime_can_execute: true,
-      function_source: intakeFunctionSource(
-        intakeLimiterMigration,
-        "consume_bid_autopsy_rate_limit",
-      ),
-    },
-    {
-      ...common,
-      function_name: "get_bid_autopsy_contact_handoff",
-      argument_count: 1,
-      argument_types: "uuid",
-      identity_arguments: "p_request_id uuid",
-      return_type: "record",
-      function_result:
-        "TABLE(request_id uuid, contact_name text, preferred_contact_method text, contact_value text)",
-      returns_set: true,
-      runtime_can_execute: true,
-      function_source: intakeFunctionSource(
-        intakeOperationsMigration,
-        "get_bid_autopsy_contact_handoff",
-      ),
-    },
-    {
-      ...common,
-      function_name: "list_bid_autopsy_work_queue",
-      argument_count: 1,
-      argument_types: "integer",
-      identity_arguments: "p_limit integer",
-      return_type: "record",
-      function_result:
-        "TABLE(request_id uuid, organisation_label text, tender_category text, bid_stage text, tender_deadline date, delivery_status text, received_at timestamp with time zone)",
-      returns_set: true,
-      runtime_can_execute: true,
-      function_source: intakeFunctionSource(
-        intakeOperationsMigration,
-        "list_bid_autopsy_work_queue",
-      ),
-    },
-    {
-      ...common,
-      function_name: "purge_expired_bid_autopsy_rate_limits",
-      argument_count: 0,
-      argument_types: "",
-      identity_arguments: "",
-      return_type: "integer",
-      function_result: "integer",
-      returns_set: false,
-      runtime_can_execute: false,
-      function_source: intakeFunctionSource(
-        intakeRetentionMigration,
-        "purge_expired_bid_autopsy_rate_limits",
-      ),
-    },
-    {
-      ...common,
-      function_name: "purge_expired_bid_autopsy_requests",
-      argument_count: 0,
-      argument_types: "",
-      identity_arguments: "",
-      return_type: "integer",
-      function_result: "integer",
-      returns_set: false,
-      runtime_can_execute: false,
-      function_source: intakeFunctionSource(
-        intakeRetentionMigration,
-        "purge_expired_bid_autopsy_requests",
-      ),
-    },
-    {
-      ...common,
-      function_name: "store_bid_autopsy_request",
-      argument_count: 12,
-      argument_types:
-        "text,text,text,text,text,text,text,text,date,text,text,integer",
-      identity_arguments:
-        "p_idempotency_key_hash text, p_payload_fingerprint text, p_contact_name text, p_company_name text, p_business_email text, p_business_telephone text, p_tender_category text, p_bid_stage text, p_tender_deadline date, p_preferred_contact_method text, p_privacy_notice_version text, p_retention_days integer",
-      return_type: "record",
-      function_result:
-        "TABLE(request_id uuid, received_at timestamp with time zone, replayed boolean, payload_matches boolean)",
-      returns_set: true,
-      runtime_can_execute: true,
-      function_source: intakeFunctionSource(
-        intakeRetentionMigration,
-        "store_bid_autopsy_request",
-      ),
-    },
-    {
-      ...common,
-      function_name: "transition_bid_autopsy_work_queue",
-      argument_count: 3,
-      argument_types: "uuid,text,text",
-      identity_arguments:
-        "p_request_id uuid, p_expected_status text, p_next_status text",
-      return_type: "uuid",
-      function_result: "TABLE(request_id uuid)",
-      returns_set: true,
-      runtime_can_execute: true,
-      function_source: intakeFunctionSource(
-        intakeOperationsMigration,
-        "transition_bid_autopsy_work_queue",
-      ),
-    },
-  ];
+      function_name: functionName,
+      argument_count: expected.argumentCount,
+      argument_types: expected.argumentTypes,
+      identity_arguments: expected.identityArguments,
+      return_type: expected.returnType,
+      function_result: expected.functionResult,
+      returns_set: expected.returnsSet,
+      runtime_can_execute: expected.runtimeCanExecute,
+      function_source: intakeFunctionSource(functionMigration, functionName),
+    };
+  });
 }
 
 function migrationTenantEdges() {
@@ -720,6 +632,55 @@ describe("production public-intake least privilege attestation", () => {
       () => assertIntakeFunctionAttestation(proofs.slice(1)),
       /intake function catalog is drifted/,
     );
+  });
+
+  test("keeps the runtime manifest aligned with the owner migration gate", async () => {
+    const migrationGateUrl = new URL(
+      "../scripts/replit-intake-migrations.mjs",
+      import.meta.url,
+    ).href;
+    const migrationGate = (await import(migrationGateUrl)) as {
+      EXPECTED_REPLIT_INTAKE_SECURITY: {
+        functions: readonly (readonly unknown[])[];
+        functionGrants: readonly (readonly unknown[])[];
+      };
+    };
+    const ownerFunctions = new Map(
+      migrationGate.EXPECTED_REPLIT_INTAKE_SECURITY.functions.map((entry) => [
+        String(entry[0]),
+        entry,
+      ]),
+    );
+    const runtimeExecutableFunctions = new Set(
+      migrationGate.EXPECTED_REPLIT_INTAKE_SECURITY.functionGrants
+        .filter(
+          (grant) =>
+            grant[2] === "$OWNER" &&
+            grant[3] === "$ROLE:valo_app_runtime" &&
+            grant[4] === "EXECUTE",
+        )
+        .map((grant) => String(grant[0])),
+    );
+
+    assert.equal(ownerFunctions.size, INTAKE_FUNCTION_MANIFEST.size);
+    for (const [functionName, expected] of INTAKE_FUNCTION_MANIFEST) {
+      const owner = ownerFunctions.get(functionName);
+      assert.ok(owner, `missing owner gate entry for ${functionName}`);
+      const ownerArgumentTypes = String(owner[1]).replaceAll(" ", "");
+      assert.equal(ownerArgumentTypes, expected.argumentTypes);
+      assert.equal(
+        ownerArgumentTypes === "" ? 0 : ownerArgumentTypes.split(",").length,
+        expected.argumentCount,
+      );
+      assert.equal(owner[2], expected.identityArguments);
+      assert.equal(owner[3], expected.functionResult);
+      assert.equal(owner[14], expected.returnsSet);
+      assert.equal(owner[19], expected.sourceSha256);
+      assert.equal(
+        runtimeExecutableFunctions.has(functionName),
+        expected.runtimeCanExecute,
+      );
+    }
   });
 
   test("pins PostgreSQL's one-column RETURNS TABLE catalog semantics", () => {

@@ -29,32 +29,17 @@ import {
   type NotificationProviderRegistry,
   type NotificationReceiptVerifier,
 } from "../lib/reconciledCommunications/service";
+import { createBoundedJsonBody } from "./boundedJsonBody";
 
 export interface ReconciledCommunicationsRouterDependencies {
   service: ReconciledCommunicationService;
   loadReferences: typeof loadDbCommunicationReferences;
 }
 
-function boundedBody(req: Request, res: Response, next: NextFunction): void {
-  if (req.method === "GET" || req.method === "HEAD") {
-    next();
-    return;
-  }
-  let bytes = Number.POSITIVE_INFINITY;
-  try {
-    bytes = Buffer.byteLength(JSON.stringify(req.body ?? {}), "utf8");
-  } catch {
-    res.status(400).json({ error: "Request body must be JSON serializable." });
-    return;
-  }
-  if (bytes > COMMUNICATION_BOUNDS.requestBytes) {
-    res
-      .status(413)
-      .json({ error: "Request body exceeds the communications bound." });
-    return;
-  }
-  next();
-}
+const boundedBody = createBoundedJsonBody(
+  COMMUNICATION_BOUNDS.requestBytes,
+  "communications",
+);
 
 function scopeFor(req: Request): CommunicationScope {
   const actor = getLocalUser(req);

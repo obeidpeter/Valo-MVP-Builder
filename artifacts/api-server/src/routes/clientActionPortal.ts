@@ -26,32 +26,17 @@ import {
   clientActionHttpStatus,
 } from "../lib/clientActionPortal/errors";
 import { ClientActionService } from "../lib/clientActionPortal/service";
+import { createBoundedJsonBody } from "./boundedJsonBody";
 
 export interface ClientActionPortalRouterDependencies {
   service: ClientActionService;
   authorityDirectory?: ClientActionAuthorityDirectorySource;
 }
 
-function boundedBody(req: Request, res: Response, next: NextFunction): void {
-  if (req.method === "GET" || req.method === "HEAD") {
-    next();
-    return;
-  }
-  let bytes = Number.POSITIVE_INFINITY;
-  try {
-    bytes = Buffer.byteLength(JSON.stringify(req.body ?? {}), "utf8");
-  } catch {
-    res.status(400).json({ error: "Request body must be JSON serializable." });
-    return;
-  }
-  if (bytes > CLIENT_ACTION_BOUNDS.requestBodyBytes) {
-    res
-      .status(413)
-      .json({ error: "Request body exceeds the client-action bound." });
-    return;
-  }
-  next();
-}
+const boundedBody = createBoundedJsonBody(
+  CLIENT_ACTION_BOUNDS.requestBodyBytes,
+  "client-action",
+);
 
 function scopeFor(req: Request): ClientActionScope {
   const actor = getLocalUser(req);

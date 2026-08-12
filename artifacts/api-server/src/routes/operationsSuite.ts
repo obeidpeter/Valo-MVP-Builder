@@ -52,6 +52,7 @@ import {
   soleCanonicalProjectExportPackageId,
   type ProjectExportManifestItem,
 } from "../lib/projectExportPackage";
+import { createBoundedJsonBody } from "./boundedJsonBody";
 
 export interface OperationsSuiteProjectGuard {
   assertProject(scope: OperationsScope): Promise<void>;
@@ -575,26 +576,10 @@ function sendKnownError(res: Response, error: unknown): boolean {
   return true;
 }
 
-function boundedBody(req: Request, res: Response, next: NextFunction): void {
-  if (["GET", "HEAD"].includes(req.method)) {
-    next();
-    return;
-  }
-  let bytes: number;
-  try {
-    bytes = Buffer.byteLength(JSON.stringify(req.body ?? {}), "utf8");
-  } catch {
-    res.status(400).json({ error: "Request body must be JSON serializable." });
-    return;
-  }
-  if (bytes > OPERATIONS_SUITE_BOUNDS.requestBodyBytes) {
-    res
-      .status(413)
-      .json({ error: "Request body exceeds the operations bound." });
-    return;
-  }
-  next();
-}
+const boundedBody = createBoundedJsonBody(
+  OPERATIONS_SUITE_BOUNDS.requestBodyBytes,
+  "operations",
+);
 
 type OperationsHandler = (
   service: OperationsSuiteService,

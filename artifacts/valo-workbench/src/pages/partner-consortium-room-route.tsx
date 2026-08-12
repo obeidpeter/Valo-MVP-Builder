@@ -28,6 +28,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
 import { useToast } from "@/hooks/use-toast";
+import { assertAuthorityScopeCurrent } from "@/lib/authority-scope";
 
 const QUERY_ROOT = "partner-consortium-room";
 const CONSORTIUM_QUERY_CAPABILITIES = [
@@ -136,13 +137,11 @@ export default function PartnerConsortiumRoomRoute() {
       ],
       enabled: Boolean(organisationId && actorUserId),
       select: (projects) => {
-        if (
-          activeActorContext.current.organisationId !== organisationId ||
-          activeActorContext.current.actorUserId !== actorUserId ||
-          activeActorContext.current.capabilityKey !== capabilityKey
-        ) {
-          throw new Error("Consortium authority changed while projects loaded");
-        }
+        assertAuthorityScopeCurrent(
+          activeActorContext.current,
+          { organisationId, actorUserId, capabilityKey },
+          "Consortium authority changed while projects loaded",
+        );
         return projects;
       },
     },
@@ -157,15 +156,11 @@ export default function PartnerConsortiumRoomRoute() {
       ],
       enabled: Boolean(organisationId && actorUserId),
       select: (relationships) => {
-        if (
-          activeActorContext.current.organisationId !== organisationId ||
-          activeActorContext.current.actorUserId !== actorUserId ||
-          activeActorContext.current.capabilityKey !== capabilityKey
-        ) {
-          throw new Error(
-            "Consortium authority changed while relationships loaded",
-          );
-        }
+        assertAuthorityScopeCurrent(
+          activeActorContext.current,
+          { organisationId, actorUserId, capabilityKey },
+          "Consortium authority changed while relationships loaded",
+        );
         return relationships;
       },
     },
@@ -242,15 +237,11 @@ export default function PartnerConsortiumRoomRoute() {
         capabilityKey,
       };
       const result = await getSnapshot(requestedScope);
-      if (
-        activeScope.current.organisationId !== requestedScope.organisationId ||
-        activeScope.current.projectId !== requestedScope.projectId ||
-        activeScope.current.relationshipId !== requestedScope.relationshipId ||
-        activeScope.current.actorUserId !== requestedScope.actorUserId ||
-        activeScope.current.capabilityKey !== requestedScope.capabilityKey
-      ) {
-        throw new Error("Consortium scope changed while the room loaded");
-      }
+      assertAuthorityScopeCurrent(
+        activeScope.current,
+        requestedScope,
+        "Consortium scope changed while the room loaded",
+      );
       return result;
     },
     enabled: canView && Boolean(actorUserId),
@@ -275,15 +266,11 @@ export default function PartnerConsortiumRoomRoute() {
         capabilityKey,
       };
       const result = await getParticipants(requestedScope);
-      if (
-        activeScope.current.organisationId !== requestedScope.organisationId ||
-        activeScope.current.projectId !== requestedScope.projectId ||
-        activeScope.current.relationshipId !== requestedScope.relationshipId ||
-        activeScope.current.actorUserId !== requestedScope.actorUserId ||
-        activeScope.current.capabilityKey !== requestedScope.capabilityKey
-      ) {
-        throw new Error("Consortium scope changed while participants loaded");
-      }
+      assertAuthorityScopeCurrent(
+        activeScope.current,
+        requestedScope,
+        "Consortium scope changed while participants loaded",
+      );
       return result;
     },
     enabled: canView && canWrite && Boolean(actorUserId),
@@ -310,19 +297,11 @@ export default function PartnerConsortiumRoomRoute() {
             cache: "no-store",
           },
         );
-        if (
-          activeScope.current.organisationId !==
-            requestedScope.organisationId ||
-          activeScope.current.projectId !== requestedScope.projectId ||
-          activeScope.current.relationshipId !==
-            requestedScope.relationshipId ||
-          activeScope.current.actorUserId !== requestedScope.actorUserId ||
-          activeScope.current.capabilityKey !== requestedScope.capabilityKey
-        ) {
-          throw new Error(
-            "Consortium scope changed while the action completed",
-          );
-        }
+        assertAuthorityScopeCurrent(
+          activeScope.current,
+          requestedScope,
+          "Consortium scope changed while the action completed",
+        );
         return result;
       } finally {
         release?.();

@@ -24,31 +24,16 @@ import {
   consortiumHttpStatus,
 } from "../lib/partnerConsortiumRoom/errors";
 import { PartnerConsortiumRoomService } from "../lib/partnerConsortiumRoom/service";
+import { createBoundedJsonBody } from "./boundedJsonBody";
 
 export interface PartnerConsortiumRoomRouterDependencies {
   service: PartnerConsortiumRoomService;
 }
 
-function boundedBody(req: Request, res: Response, next: NextFunction): void {
-  if (req.method === "GET" || req.method === "HEAD") {
-    next();
-    return;
-  }
-  let bytes = Number.POSITIVE_INFINITY;
-  try {
-    bytes = Buffer.byteLength(JSON.stringify(req.body ?? {}), "utf8");
-  } catch {
-    res.status(400).json({ error: "Request body must be JSON serializable." });
-    return;
-  }
-  if (bytes > CONSORTIUM_BOUNDS.requestBytes) {
-    res
-      .status(413)
-      .json({ error: "Request body exceeds the consortium-room bound." });
-    return;
-  }
-  next();
-}
+const boundedBody = createBoundedJsonBody(
+  CONSORTIUM_BOUNDS.requestBytes,
+  "consortium-room",
+);
 
 function scopeFor(req: Request): ConsortiumScope {
   const actor = getLocalUser(req);
