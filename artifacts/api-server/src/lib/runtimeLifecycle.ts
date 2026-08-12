@@ -73,11 +73,11 @@ async function drainHttpServer(
     server.closeIdleConnections();
   });
   const deadline = new Promise<"forced">((resolve) => {
+    // Keep the deadline referenced so shutdown settles before explicit exit.
     timer = setTimeout(() => {
       server.closeAllConnections();
       resolve("forced");
     }, timeoutMillis);
-    timer.unref();
   });
   try {
     return await Promise.race([closed, deadline]);
@@ -97,8 +97,8 @@ async function closeDatabaseWithin(
         .then(() => "closed" as const)
         .catch(() => "failed" as const),
       new Promise<"timed_out">((resolve) => {
+        // Keep the deadline referenced so shutdown settles before explicit exit.
         timer = setTimeout(() => resolve("timed_out"), timeoutMillis);
-        timer.unref();
       }),
     ]);
   } finally {
