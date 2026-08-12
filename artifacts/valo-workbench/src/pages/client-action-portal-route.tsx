@@ -25,6 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
 import { useToast } from "@/hooks/use-toast";
+import { assertAuthorityScopeCurrent } from "@/lib/authority-scope";
 
 const QUERY_ROOT = "client-action-portal";
 const CLIENT_ACTION_QUERY_CAPABILITIES = [
@@ -105,15 +106,11 @@ export default function ClientActionPortalRoute() {
       ],
       enabled: canAccess && Boolean(actorUserId),
       select: (projects) => {
-        if (
-          activeActorContext.current.organisationId !== organisationId ||
-          activeActorContext.current.actorUserId !== actorUserId ||
-          activeActorContext.current.capabilityKey !== capabilityKey
-        ) {
-          throw new Error(
-            "Client action authority changed while pursuits loaded",
-          );
-        }
+        assertAuthorityScopeCurrent(
+          activeActorContext.current,
+          { organisationId, actorUserId, capabilityKey },
+          "Client action authority changed while pursuits loaded",
+        );
         return projects;
       },
     },
@@ -159,14 +156,11 @@ export default function ClientActionPortalRoute() {
         capabilityKey,
       };
       const result = await getSnapshot(projectId, organisationId);
-      if (
-        activeScope.current.organisationId !== requestedScope.organisationId ||
-        activeScope.current.projectId !== requestedScope.projectId ||
-        activeScope.current.actorUserId !== requestedScope.actorUserId ||
-        activeScope.current.capabilityKey !== requestedScope.capabilityKey
-      ) {
-        throw new Error("Client action authority changed while records loaded");
-      }
+      assertAuthorityScopeCurrent(
+        activeScope.current,
+        requestedScope,
+        "Client action authority changed while records loaded",
+      );
       return result;
     },
     enabled: canView && Boolean(actorUserId),
@@ -194,14 +188,11 @@ export default function ClientActionPortalRoute() {
         ...requestedScope,
         currentUserId,
       });
-      if (
-        activeScope.current.organisationId !== requestedScope.organisationId ||
-        activeScope.current.projectId !== requestedScope.projectId ||
-        activeScope.current.actorUserId !== requestedScope.actorUserId ||
-        activeScope.current.capabilityKey !== requestedScope.capabilityKey
-      ) {
-        throw new Error("Client action scope changed while authorities loaded");
-      }
+      assertAuthorityScopeCurrent(
+        activeScope.current,
+        requestedScope,
+        "Client action scope changed while authorities loaded",
+      );
       return result;
     },
     enabled: canCreateEvidenceRequest && Boolean(actorUserId),
@@ -225,15 +216,11 @@ export default function ClientActionPortalRoute() {
             cache: "no-store",
           },
         );
-        if (
-          activeScope.current.organisationId !==
-            requestedScope.organisationId ||
-          activeScope.current.projectId !== requestedScope.projectId ||
-          activeScope.current.actorUserId !== requestedScope.actorUserId ||
-          activeScope.current.capabilityKey !== requestedScope.capabilityKey
-        ) {
-          throw new Error("Client action scope changed while action completed");
-        }
+        assertAuthorityScopeCurrent(
+          activeScope.current,
+          requestedScope,
+          "Client action scope changed while action completed",
+        );
         return result;
       } finally {
         release?.();

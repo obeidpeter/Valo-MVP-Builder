@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { useToast } from "@/hooks/use-toast";
+import { assertAuthorityScopeCurrent } from "@/lib/authority-scope";
 import PursuitOperationsSuite from "./pursuit-operations-suite";
 import PursuitOperationsSuiteRecorder, {
   type OperationsRecorderCommand,
@@ -1993,13 +1994,11 @@ export default function PursuitOperationsSuiteRoute() {
       ],
       enabled: Boolean(organisationId && actorUserId && hasProjectRead),
       select: (availableProjects) => {
-        if (
-          activeActorContext.current.organisationId !== organisationId ||
-          activeActorContext.current.actorUserId !== actorUserId ||
-          activeActorContext.current.capabilityKey !== capabilityKey
-        ) {
-          throw new Error("Operations authority changed while pursuits loaded");
-        }
+        assertAuthorityScopeCurrent(
+          activeActorContext.current,
+          { organisationId, actorUserId, capabilityKey },
+          "Operations authority changed while pursuits loaded",
+        );
         return availableProjects;
       },
     },
@@ -2057,11 +2056,6 @@ export default function PursuitOperationsSuiteRoute() {
     actorUserId,
     capabilityKey,
   };
-  const readScopeIsCurrent = (requested: typeof activeReadScope.current) =>
-    activeReadScope.current.organisationId === requested.organisationId &&
-    activeReadScope.current.projectId === requested.projectId &&
-    activeReadScope.current.actorUserId === requested.actorUserId &&
-    activeReadScope.current.capabilityKey === requested.capabilityKey;
 
   const suiteQuery = useQuery({
     queryKey: [
@@ -2091,9 +2085,11 @@ export default function PursuitOperationsSuiteRoute() {
         projectTitle: selectedProject?.tenderTitle ?? "Selected pursuit",
         currentUserId: actorUserId,
       });
-      if (!readScopeIsCurrent(requestedScope)) {
-        throw new Error("Operations authority changed while records loaded");
-      }
+      assertAuthorityScopeCurrent(
+        activeReadScope.current,
+        requestedScope,
+        "Operations authority changed while records loaded",
+      );
       return result;
     },
   });
@@ -2120,9 +2116,11 @@ export default function PursuitOperationsSuiteRoute() {
         { responseType: "json", cache: "no-store" },
       );
       const result = adaptOperationsMobileQueuePayload(payload, projectId);
-      if (!readScopeIsCurrent(requestedScope)) {
-        throw new Error("Operations authority changed while queue loaded");
-      }
+      assertAuthorityScopeCurrent(
+        activeReadScope.current,
+        requestedScope,
+        "Operations authority changed while queue loaded",
+      );
       return result;
     },
   });
@@ -2149,9 +2147,11 @@ export default function PursuitOperationsSuiteRoute() {
         { responseType: "json", cache: "no-store" },
       );
       const result = adaptPackageVersionListPayload(payload);
-      if (!readScopeIsCurrent(requestedScope)) {
-        throw new Error("Operations authority changed while packages loaded");
-      }
+      assertAuthorityScopeCurrent(
+        activeReadScope.current,
+        requestedScope,
+        "Operations authority changed while packages loaded",
+      );
       return result;
     },
   });
@@ -2169,18 +2169,16 @@ export default function PursuitOperationsSuiteRoute() {
         staleTime: 0,
         gcTime: 0,
         select: (documents) => {
-          if (
-            !readScopeIsCurrent({
+          assertAuthorityScopeCurrent(
+            activeReadScope.current,
+            {
               organisationId,
               projectId,
               actorUserId,
               capabilityKey,
-            })
-          ) {
-            throw new Error(
-              "Operations authority changed while documents loaded",
-            );
-          }
+            },
+            "Operations authority changed while documents loaded",
+          );
           return adaptProjectDocumentOptions(documents, projectId);
         },
       },
@@ -2206,16 +2204,16 @@ export default function PursuitOperationsSuiteRoute() {
       staleTime: 0,
       gcTime: 0,
       select: (vaultItems) => {
-        if (
-          !readScopeIsCurrent({
+        assertAuthorityScopeCurrent(
+          activeReadScope.current,
+          {
             organisationId,
             projectId,
             actorUserId,
             capabilityKey,
-          })
-        ) {
-          throw new Error("Operations authority changed while Vault loaded");
-        }
+          },
+          "Operations authority changed while Vault loaded",
+        );
         return adaptVaultItemOptions(
           vaultItems,
           clientId,
@@ -2250,17 +2248,11 @@ export default function PursuitOperationsSuiteRoute() {
     const releaseCriticalWorkflow = organisationAccess?.beginCriticalWorkflow();
     try {
       const result = await customFetch(path, options);
-      if (
-        activeMutationScope.current.organisationId !==
-          requestedScope.organisationId ||
-        activeMutationScope.current.projectId !== requestedScope.projectId ||
-        activeMutationScope.current.actorUserId !==
-          requestedScope.actorUserId ||
-        activeMutationScope.current.capabilityKey !==
-          requestedScope.capabilityKey
-      ) {
-        throw new Error("Pursuit changed while the operation was recorded");
-      }
+      assertAuthorityScopeCurrent(
+        activeMutationScope.current,
+        requestedScope,
+        "Pursuit changed while the operation was recorded",
+      );
       return result;
     } finally {
       releaseCriticalWorkflow?.();
