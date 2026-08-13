@@ -10,11 +10,9 @@ import {
   projects,
   retentionRequests,
   auditEvents,
-  appConfig,
   withTenantDatabase,
 } from "@workspace/db";
 import { runRetentionScan } from "./retentionScan";
-import { getActiveConfigRow, APP_CONFIG_ID } from "./appConfig";
 
 /**
  * End-to-end proof of the retention automation scheduler: the runner opens a
@@ -29,24 +27,12 @@ let organisationId: string;
 let concludedOldId: string;
 let concludedRecentId: string;
 let liveOldId: string;
-let originalRetentionDays: number;
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+const MAX_VALID_RETENTION_DAYS = 36_500;
 
 before(async () => {
   const stamp = new Date().toISOString();
-
-  // Pin the retention window to 14 days for a deterministic boundary.
-  await getActiveConfigRow();
-  const [cfg] = await db
-    .select()
-    .from(appConfig)
-    .where(eq(appConfig.id, APP_CONFIG_ID));
-  originalRetentionDays = cfg.retentionDefaultDays;
-  await db
-    .update(appConfig)
-    .set({ retentionDefaultDays: 14 })
-    .where(eq(appConfig.id, APP_CONFIG_ID));
 
   const [organisation] = await db
     .insert(organisations)
@@ -81,8 +67,10 @@ before(async () => {
         clientId,
         tenderTitle: "Concluded past window",
         status: "signed_off",
-        concludedAt: daysAgo(30),
-        createdAt: daysAgo(30),
+        // Remains due for every valid configured retention window, so this
+        // integration proof does not mutate the process-global config row.
+        concludedAt: daysAgo(MAX_VALID_RETENTION_DAYS + 1),
+        createdAt: daysAgo(MAX_VALID_RETENTION_DAYS + 1),
       })
       .returning();
     concludedOldId = concludedOld.id;
@@ -94,8 +82,9 @@ before(async () => {
         clientId,
         tenderTitle: "Concluded but recent",
         status: "exported",
-        concludedAt: daysAgo(5),
-        createdAt: daysAgo(5),
+        // Remains inside even the minimum valid one-day retention window.
+        concludedAt: new Date(),
+        createdAt: new Date(),
       })
       .returning();
     concludedRecentId = concludedRecent.id;
@@ -129,10 +118,6 @@ after(async () => {
     await db.delete(clients).where(eq(clients.id, clientId));
   });
   await db.delete(organisations).where(eq(organisations.id, organisationId));
-  await db
-    .update(appConfig)
-    .set({ retentionDefaultDays: originalRetentionDays })
-    .where(eq(appConfig.id, APP_CONFIG_ID));
 });
 
 async function pendingFor(projectId: string): Promise<number> {
@@ -149,8 +134,9 @@ describe("retention automation scheduler", () => {
   test("fairly scans an inactive tenant and opens only the anchored due engagement", async () => {
     const result = await runRetentionScan({ organisationId, now: new Date() });
 
-    // Both concluded engagements are in scope; only the old one is opened.
-    assert.ok(result.scanned >= 2);
+    // `scanned` is the bounded page of due candidates, not every concluded
+    // engagement inspected by SQL; only the old fixture crosses the window.
+    assert.equal(result.scanned, 1);
     assert.ok(result.opened.some((c) => c.projectId === concludedOldId));
     assert.ok(!result.opened.some((c) => c.projectId === concludedRecentId));
     assert.ok(!result.opened.some((c) => c.projectId === liveOldId));
