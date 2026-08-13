@@ -165,8 +165,8 @@ assert.match(
 );
 assert.match(
   replitMigrationLauncher,
-  /SET search_path = pg_catalog/,
-  "The deployment migration session must pin the PostgreSQL catalog search path",
+  /SET search_path = public, pg_temp[\s\S]*SET search_path = pg_catalog/,
+  "The deployment migration session must scope public resolution to migration execution and restore the catalog-only path",
 );
 assert.match(
   replitMigrationLauncher,
