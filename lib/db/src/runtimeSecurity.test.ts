@@ -151,6 +151,7 @@ function productionAssuranceFunctionProofs() {
       returnType: "record",
       functionResult:
         "TABLE(allowed boolean, remaining integer, reset_at timestamp with time zone)",
+      returnsSet: true,
       runtimeCanExecute: true,
     },
     {
@@ -161,6 +162,7 @@ function productionAssuranceFunctionProofs() {
       identityArguments: "",
       returnType: "bigint",
       functionResult: "bigint",
+      returnsSet: false,
       runtimeCanExecute: false,
     },
   ] as const;
@@ -193,7 +195,7 @@ function productionAssuranceFunctionProofs() {
       identity_arguments: contract.identityArguments,
       return_type: contract.returnType,
       function_result: contract.functionResult,
-      returns_set: false,
+      returns_set: contract.returnsSet,
       owner_name: "synthetic_migration_owner",
       owner_is_schema_owner: true,
       runtime_can_execute: contract.runtimeCanExecute,
@@ -855,6 +857,13 @@ describe("production authenticated rate limiter attestation", () => {
 
   test("pins both the global consume and owner purge routines", () => {
     const proofs = productionAssuranceFunctionProofs();
+    assert.deepEqual(
+      proofs.map((proof) => [proof.function_name, proof.returns_set]),
+      [
+        ["consume_authenticated_actor_rate_limit", true],
+        ["purge_expired_authenticated_rate_limit_buckets", false],
+      ],
+    );
     assert.doesNotThrow(() =>
       assertAuthenticatedRateLimitFunctionAttestation(proofs),
     );
@@ -874,6 +883,14 @@ describe("production authenticated rate limiter attestation", () => {
     ]) {
       const drifted = structuredClone(proofs);
       mutate(drifted[0]!);
+      assert.throws(
+        () => assertAuthenticatedRateLimitFunctionAttestation(drifted),
+        /authenticated rate-limit function catalog is drifted/u,
+      );
+    }
+    for (const proofIndex of proofs.keys()) {
+      const drifted = structuredClone(proofs);
+      drifted[proofIndex]!.returns_set = !drifted[proofIndex]!.returns_set;
       assert.throws(
         () => assertAuthenticatedRateLimitFunctionAttestation(drifted),
         /authenticated rate-limit function catalog is drifted/u,
