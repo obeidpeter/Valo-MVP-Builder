@@ -16,11 +16,11 @@
  * OpenAPI spec version: 2.5.0
  */
 
-export type ProjectCreatePaymentStatus = typeof ProjectCreatePaymentStatus[keyof typeof ProjectCreatePaymentStatus];
+export type StorageDeletionDeadLetterStatus = typeof StorageDeletionDeadLetterStatus[keyof typeof StorageDeletionDeadLetterStatus];
 
 
-export const ProjectCreatePaymentStatus = {
-  not_required: 'not_required',
-  pending: 'pending',
-  confirmed: 'confirmed',
+export const StorageDeletionDeadLetterStatus = {
+  dead_letter: 'dead_letter',
+  queued: 'queued',
+  resolved: 'resolved',
 } as const;

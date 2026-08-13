@@ -62,6 +62,65 @@
       "severity": "high",
       "signal": "valo.storage.deletion_oldest_sampled_age_seconds",
       "condition": "> 3600 for 15m only while valo.storage.deletion_sample_complete = 1",
+      "requiresSignals": ["valo.storage.deletion_sample_complete"],
+      "runbook": "INCIDENT_RESPONSE.md"
+    },
+    {
+      "id": "storage_deletion_worker_stale",
+      "severity": "high",
+      "signal": "valo.storage.deletion_last_success_unixtime_seconds",
+      "condition": "absent for 30m or time() - value > 1800",
+      "runbook": "INCIDENT_RESPONSE.md"
+    },
+    {
+      "id": "storage_deletion_full_cycle_stale",
+      "severity": "high",
+      "signal": "valo.storage.deletion_last_full_cycle_unixtime_seconds",
+      "condition": "absent for 2h or time() - value > 7200",
+      "runbook": "INCIDENT_RESPONSE.md"
+    },
+    {
+      "id": "retention_scan_stale",
+      "severity": "high",
+      "signal": "valo.retention.scan_last_success_unixtime_seconds",
+      "condition": "absent for 36h or time() - value > 129600",
+      "runbook": "INCIDENT_RESPONSE.md"
+    },
+    {
+      "id": "retention_scan_full_cycle_stale",
+      "severity": "high",
+      "signal": "valo.retention.scan_last_full_cycle_unixtime_seconds",
+      "condition": "absent for 7d or time() - value > configured full-cycle objective",
+      "requiresSignals": ["valo.retention.cycle_complete"],
+      "runbook": "INCIDENT_RESPONSE.md"
+    },
+    {
+      "id": "public_intake_purge_stale",
+      "severity": "high",
+      "signal": "valo.intake.purge_last_success_unixtime_seconds",
+      "condition": "absent for 36h or time() - value > 129600",
+      "runbook": "INCIDENT_RESPONSE.md"
+    },
+    {
+      "id": "authenticated_rate_limit_purge_failure",
+      "severity": "high",
+      "signal": "valo.authenticated_rate_limit.purge_run_success",
+      "condition": "< 1 for one completed invocation",
+      "runbook": "INCIDENT_RESPONSE.md"
+    },
+    {
+      "id": "authenticated_rate_limit_purge_stale",
+      "severity": "high",
+      "signal": "valo.authenticated_rate_limit.purge_last_success_unixtime_seconds",
+      "condition": "absent for 2h or time() - value > 7200",
+      "runbook": "INCIDENT_RESPONSE.md"
+    },
+    {
+      "id": "authenticated_rate_limit_purge_full_cycle_stale",
+      "severity": "high",
+      "signal": "valo.authenticated_rate_limit.purge_last_full_cycle_unixtime_seconds",
+      "condition": "absent for 24h or time() - value > 86400",
+      "requiresSignals": ["valo.authenticated_rate_limit.purge_cycle_complete"],
       "runbook": "INCIDENT_RESPONSE.md"
     },
     {
@@ -82,7 +141,14 @@
       "id": "backup_freshness",
       "severity": "critical",
       "signal": "valo.backup.age_hours",
-      "condition": "> configured RPO",
+      "condition": "absent after the first scheduled evidence window or > configured RPO",
+      "runbook": "BACKUP.md"
+    },
+    {
+      "id": "backup_evidence_verifier_stale",
+      "severity": "critical",
+      "signal": "valo.backup.last_success_unixtime_seconds",
+      "condition": "absent for 36h or time() - value > 129600",
       "runbook": "BACKUP.md"
     },
     {
@@ -90,6 +156,14 @@
       "severity": "critical",
       "signal": "valo.audit.anchor_failures",
       "condition": "> 0",
+      "runbook": "INCIDENT_RESPONSE.md"
+    },
+    {
+      "id": "audit_anchor_full_cycle_stale",
+      "severity": "critical",
+      "signal": "valo.audit.anchor_last_success_unixtime_seconds",
+      "condition": "absent for 2h or time() - value > 7200",
+      "requiresSignals": ["valo.audit.anchor_cycle_complete"],
       "runbook": "INCIDENT_RESPONSE.md"
     },
     {

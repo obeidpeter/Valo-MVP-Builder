@@ -39,6 +39,16 @@ import {
   canonicalOpportunityPursuitConflictValue,
   lockOpportunityPursuitConflictBoundary,
 } from "../lib/opportunityPursuitHandoff";
+import {
+  currentProjectReviewerAuthorityTime,
+  isCurrentProjectReviewer,
+  lockProjectReviewerAuthorityBoundary,
+} from "../lib/projectReviewerAuthority";
+import {
+  canonicalProjectDeadline,
+  hasServerManagedProjectCreateField,
+  isUuid,
+} from "../lib/projectMutationPolicy";
 
 const objectStorage = new ObjectStorageService();
 const PAYMENT_CONFIRMATION_ROLE_BINDING_ENABLED = false;
@@ -180,6 +190,7 @@ router.get(
           deadline: p.deadline ?? null,
           segment: p.segment ?? null,
           status: p.status,
+          reviewerId: p.reviewerId ?? null,
           reviewerName: r.reviewerName ?? null,
           slaClass: p.slaClass ?? "standard",
           paymentStatus: p.paymentStatus ?? "not_required",
@@ -206,6 +217,30 @@ router.post(
   "/projects",
   requirePermissionOrLegacy("project:create"),
   async (req: Request, res: Response) => {
+    if (hasServerManagedProjectCreateField(req.body)) {
+      res.status(400).json({
+        error:
+          "Payment and conflict state are server-managed and cannot be supplied when creating a project.",
+      });
+      return;
+    }
+    const rawDeadline =
+      req.body && typeof req.body === "object" && !Array.isArray(req.body)
+        ? (req.body as Record<string, unknown>).deadline
+        : undefined;
+    const canonicalDeadline =
+      rawDeadline === undefined
+        ? undefined
+        : typeof rawDeadline === "string"
+          ? canonicalProjectDeadline(rawDeadline)
+          : null;
+    if (canonicalDeadline === null) {
+      res.status(400).json({
+        error:
+          "Submission deadline must be an explicit RFC 3339 date-time with a Z or numeric offset.",
+      });
+      return;
+    }
     const parsed = CreateProjectBody.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: "Invalid request" });
@@ -218,32 +253,53 @@ router.post(
       });
       return;
     }
+    if (!isUuid(parsed.data.clientId) || !isUuid(parsed.data.reviewerId)) {
+      res.status(400).json({
+        error: "Client and reviewer identifiers must be valid UUIDs.",
+      });
+      return;
+    }
     const organisationId = getOrganisationId(req);
-    const [owningClient] = await db
-      .select({ id: clients.id })
-      .from(clients)
-      .where(
-        and(
-          eq(clients.id, parsed.data.clientId),
-          organisationId
-            ? eq(clients.organisationId, organisationId)
-            : undefined,
-        ),
-      );
-    if (!owningClient) {
-      res.status(404).json({ error: "Not found" });
+    if (!organisationId) {
+      res.status(403).json({ error: "Organisation context is required." });
       return;
     }
     const user = getLocalUser(req);
-    const {
-      paymentStatus: _requestedPaymentStatus,
-      conflictStatus: _requestedConflictStatus,
-      conflictDecision: _requestedConflictDecision,
-      conflictRationale: _requestedConflictRationale,
-      ...createFields
-    } = parsed.data;
-    const created = await db.transaction(
+    const { deadline: _parsedDeadline, ...parsedCreateFields } = parsed.data;
+    const createFields = {
+      ...parsedCreateFields,
+      ...(canonicalDeadline === undefined
+        ? {}
+        : { deadline: canonicalDeadline }),
+    };
+    const outcome = await db.transaction(
       async (tx) => {
+        await lockProjectReviewerAuthorityBoundary(
+          tx,
+          organisationId,
+          parsed.data.reviewerId,
+        );
+        const authorityTime = await currentProjectReviewerAuthorityTime(tx);
+        if (
+          !(await isCurrentProjectReviewer(
+            tx,
+            organisationId,
+            parsed.data.reviewerId,
+            authorityTime,
+          ))
+        ) {
+          return { kind: "reviewer_ineligible" } as const;
+        }
+        const [owningClient] = await tx
+          .select({ id: clients.id })
+          .from(clients)
+          .where(
+            and(
+              eq(clients.id, parsed.data.clientId),
+              eq(clients.organisationId, organisationId),
+            ),
+          );
+        if (!owningClient) return { kind: "client_not_found" } as const;
         const tenderReference = canonicalOpportunityPursuitConflictValue(
           parsed.data.tenderRef,
         );
@@ -306,11 +362,22 @@ router.post(
           objectId: project.id,
           details: project.tenderTitle,
         });
-        return project;
+        return { kind: "created", project } as const;
       },
       { isolationLevel: "read committed" },
     );
-    res.status(201).json(serializeProject(created));
+    if (outcome.kind === "reviewer_ineligible") {
+      res.status(403).json({
+        error:
+          "The named reviewer is not currently eligible in this organisation.",
+      });
+      return;
+    }
+    if (outcome.kind === "client_not_found") {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    res.status(201).json(serializeProject(outcome.project));
   },
 );
 
@@ -372,6 +439,23 @@ router.patch(
   "/projects/:id",
   requirePermissionOrLegacy("project:update"),
   async (req: Request, res: Response) => {
+    const rawDeadline =
+      req.body && typeof req.body === "object" && !Array.isArray(req.body)
+        ? (req.body as Record<string, unknown>).deadline
+        : undefined;
+    const canonicalDeadline =
+      rawDeadline === undefined
+        ? undefined
+        : typeof rawDeadline === "string"
+          ? canonicalProjectDeadline(rawDeadline)
+          : null;
+    if (canonicalDeadline === null) {
+      res.status(400).json({
+        error:
+          "Submission deadline must be an explicit RFC 3339 date-time with a Z or numeric offset.",
+      });
+      return;
+    }
     const parsed = UpdateProjectBody.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: "Invalid request" });
@@ -381,6 +465,22 @@ router.patch(
       res.status(400).json({ error: "No fields to update" });
       return;
     }
+    if (
+      parsed.data.reviewerId !== undefined &&
+      !isUuid(parsed.data.reviewerId)
+    ) {
+      res
+        .status(400)
+        .json({ error: "Reviewer identifier must be a valid UUID." });
+      return;
+    }
+    const { deadline: _parsedDeadline, ...parsedUpdateFields } = parsed.data;
+    const updateFields = {
+      ...parsedUpdateFields,
+      ...(canonicalDeadline === undefined
+        ? {}
+        : { deadline: canonicalDeadline }),
+    };
     const editsResponsiveness = parsed.data.responsivenessReview !== undefined;
     if (editsResponsiveness && !hasRequestPermission(req, "report:sign_off")) {
       res.status(403).json({
@@ -414,15 +514,17 @@ router.patch(
       return;
     }
     const organisationId = getOrganisationId(req);
+    if (!organisationId) {
+      res.status(403).json({ error: "Organisation context is required." });
+      return;
+    }
     const [existing] = await db
       .select()
       .from(projects)
       .where(
         and(
           eq(projects.id, String(req.params.id)),
-          organisationId
-            ? eq(projects.organisationId, organisationId)
-            : undefined,
+          eq(projects.organisationId, organisationId),
         ),
       );
     if (!existing) {
@@ -436,7 +538,6 @@ router.patch(
     }
     if (
       parsed.data.reviewerId !== undefined &&
-      parsed.data.reviewerId !== existing.reviewerId &&
       !hasRequestPermission(req, "project:assign")
     ) {
       res
@@ -460,7 +561,7 @@ router.patch(
         : canonicalOpportunityPursuitConflictValue(parsed.data.lot);
     const next = {
       ...existing,
-      ...parsed.data,
+      ...updateFields,
       tenderRef: nextTenderReference,
       lot: nextLotReference,
     };
@@ -506,8 +607,31 @@ router.patch(
       (parsed.data.conflictStatus === "consented" ||
         parsed.data.conflictStatus === "declined") &&
       existing.conflictStatus !== parsed.data.conflictStatus;
-    const updated = await db.transaction(
+    const outcome = await db.transaction(
       async (tx) => {
+        // Every supplied reviewerId is an assignment. Equality against the
+        // pre-transaction snapshot is not authority: another version-N writer
+        // could change the reviewer before this UPDATE acquires its row lock.
+        // Revalidate the target under the membership lock, then let If-Match
+        // close the project-row race.
+        if (updateFields.reviewerId !== undefined) {
+          await lockProjectReviewerAuthorityBoundary(
+            tx,
+            organisationId,
+            updateFields.reviewerId!,
+          );
+          const authorityTime = await currentProjectReviewerAuthorityTime(tx);
+          if (
+            !(await isCurrentProjectReviewer(
+              tx,
+              organisationId,
+              updateFields.reviewerId!,
+              authorityTime,
+            ))
+          ) {
+            return { kind: "reviewer_ineligible" } as const;
+          }
+        }
         const tenderReference = nextTenderReference;
         if (organisationId && tenderReference) {
           await lockOpportunityPursuitConflictBoundary(
@@ -544,11 +668,13 @@ router.patch(
         const [project] = await tx
           .update(projects)
           .set({
-            ...parsed.data,
-            ...(parsed.data.tenderRef !== undefined
+            ...updateFields,
+            ...(updateFields.tenderRef !== undefined
               ? { tenderRef: nextTenderReference }
               : {}),
-            ...(parsed.data.lot !== undefined ? { lot: nextLotReference } : {}),
+            ...(updateFields.lot !== undefined
+              ? { lot: nextLotReference }
+              : {}),
             ...(editsResponsiveness ? { responsivenessSuggested: false } : {}),
             ...conflictPatch,
             version: sql`${projects.version} + 1`,
@@ -558,12 +684,11 @@ router.patch(
             and(
               eq(projects.id, String(req.params.id)),
               eq(projects.version, expectedVersion),
-              organisationId
-                ? eq(projects.organisationId, organisationId)
-                : undefined,
+              eq(projects.organisationId, organisationId),
             ),
           )
           .returning();
+        if (!project) return { kind: "changed" } as const;
         if (conflict && newlyBlocked) {
           await tx.insert(conflictRecords).values({
             clientId: project.clientId,
@@ -610,19 +735,26 @@ router.patch(
           objectId: project.id,
           details: editsResponsiveness
             ? "Named report approver edited and approved the responsiveness review."
-            : JSON.stringify(parsed.data),
+            : JSON.stringify(updateFields),
         });
-        return project;
+        return { kind: "updated", project } as const;
       },
       { isolationLevel: "read committed" },
     );
-    if (!updated) {
+    if (outcome.kind === "reviewer_ineligible") {
+      res.status(403).json({
+        error:
+          "The named reviewer is not currently eligible in this organisation.",
+      });
+      return;
+    }
+    if (outcome.kind === "changed") {
       res
         .status(409)
         .json({ error: "Project changed; reload before retrying" });
       return;
     }
-    const row = await loadProjectWithJoins(updated.id, organisationId);
+    const row = await loadProjectWithJoins(outcome.project.id, organisationId);
     res.json(
       serializeProject(row!.project, {
         clientName: row!.clientName,

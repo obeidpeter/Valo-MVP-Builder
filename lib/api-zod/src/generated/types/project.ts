@@ -39,7 +39,7 @@ export interface Project {
   segment?: ProjectSegment;
   submissionStatus?: string | null;
   status: ProjectStatus;
-  reviewerId?: string | null;
+  reviewerId: string | null;
   reviewerName?: string | null;
   slaClass?: ProjectSlaClass;
   paymentStatus?: ProjectPaymentStatus;

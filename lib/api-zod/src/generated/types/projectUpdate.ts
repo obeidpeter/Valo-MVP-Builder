@@ -29,7 +29,7 @@ export interface ProjectUpdate {
   issuingEntity?: string;
   tenderRef?: string;
   lot?: string;
-  deadline?: string;
+  deadline?: Date;
   valueBand?: string;
   segment?: ProjectUpdateSegment;
   submissionStatus?: string;

@@ -4,6 +4,8 @@ export interface OnboardingChecklistItem {
   id: string;
   title: string;
   purpose: string;
+  practiceMarkerReceipt: string;
+  /** @deprecated Compatibility-only neutral text; it is not task evidence. */
   completionEvidence: string;
 }
 
@@ -28,79 +30,82 @@ export interface OnboardingJourney {
 
 export const ONBOARDING_POLICY_VERSION = "2026-08-11.2" as const;
 
+const PRACTICE_MARKER_RECEIPT =
+  "Self-recorded practice marker saved; this is not evidence that the described task was completed.";
+
+function practiceItem(
+  item: Omit<
+    OnboardingChecklistItem,
+    "practiceMarkerReceipt" | "completionEvidence"
+  >,
+): OnboardingChecklistItem {
+  return {
+    ...item,
+    practiceMarkerReceipt: PRACTICE_MARKER_RECEIPT,
+    completionEvidence: PRACTICE_MARKER_RECEIPT,
+  };
+}
+
 const CHECKLIST: Readonly<Record<string, OnboardingChecklistItem>> = {
-  access: {
+  access: practiceItem({
     id: "confirm-active-workspace",
     title: "Confirm the active workspace",
     purpose:
       "Verify the organisation banner and your effective role before opening pursuit material.",
-    completionEvidence:
-      "Workspace and role confirmation recorded in the tenant audit trail.",
-  },
-  boundaries: {
+  }),
+  boundaries: practiceItem({
     id: "review-authority-boundaries",
     title: "Review authority boundaries",
     purpose:
       "Understand that findings, drafts and scenarios do not approve evidence or submit a bid.",
-    completionEvidence: "Authority notice acknowledged.",
-  },
-  pursuit: {
+  }),
+  pursuit: practiceItem({
     id: "walk-synthetic-pursuit",
     title: "Walk a synthetic pursuit",
     purpose:
       "Learn the end-to-end workspace without exposing or changing client data.",
-    completionEvidence: "Synthetic tour completed.",
-  },
-  membership: {
+  }),
+  membership: practiceItem({
     id: "review-role-assignments",
     title: "Review role assignments",
     purpose:
       "Check that contributors, reviewers and administrators have the minimum required access.",
-    completionEvidence:
-      "Role review checkpoint acknowledged; no membership is changed by the tour.",
-  },
-  plan: {
+  }),
+  plan: practiceItem({
     id: "plan-first-pursuit",
     title: "Plan the first pursuit",
     purpose:
       "Identify the source owner, bid manager, reviewer and submission operator.",
-    completionEvidence: "Named-responsibility planning checkpoint completed.",
-  },
-  contribute: {
+  }),
+  contribute: practiceItem({
     id: "map-synthetic-evidence",
     title: "Map synthetic evidence",
     purpose: "Practise linking a requirement to a verified evidence span.",
-    completionEvidence: "Synthetic evidence link reviewed.",
-  },
-  review: {
+  }),
+  review: practiceItem({
     id: "review-synthetic-finding",
     title: "Review a synthetic finding",
     purpose:
       "Practise claiming an item and recording a bounded human decision.",
-    completionEvidence:
-      "Synthetic review decision completed; no approval authority is exercised.",
-  },
-  audit: {
+  }),
+  audit: practiceItem({
     id: "inspect-synthetic-receipt",
     title: "Inspect a synthetic receipt",
     purpose:
       "Learn how source versions, named actions and outcome receipts are traced.",
-    completionEvidence: "Synthetic provenance receipt inspected.",
-  },
-  operations: {
+  }),
+  operations: practiceItem({
     id: "triage-synthetic-queue",
     title: "Triage a synthetic operations queue",
     purpose:
       "Practise assignment, SLA and escalation decisions without contacting a lead.",
-    completionEvidence: "Synthetic queue item triaged.",
-  },
-  quality: {
+  }),
+  quality: practiceItem({
     id: "inspect-release-gates",
     title: "Inspect release gates",
     purpose:
       "Review evaluation, evidence and named-approval gates before activation.",
-    completionEvidence: "Synthetic release-gate review completed.",
-  },
+  }),
 };
 
 const ROLE_CHECKLIST: Readonly<Record<OrganisationRole, readonly string[]>> = {

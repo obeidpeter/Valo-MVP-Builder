@@ -57,6 +57,13 @@
       "when": 1786622400000,
       "tag": "0007_storage_lifecycle_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786708800000,
+      "tag": "0008_production_assurance",
+      "breakpoints": true
     }
   ]
 }

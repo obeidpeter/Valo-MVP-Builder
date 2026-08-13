@@ -26,6 +26,7 @@ afterEach(async () => {
 async function serve(input: {
   checkDatabase: (timeoutMillis: number) => Promise<boolean>;
   isAccepting: () => boolean;
+  releaseSha256?: () => string | null;
   readinessTimeoutMillis?: number;
 }): Promise<string> {
   const app = express();
@@ -52,13 +53,19 @@ const readyBody = {
 
 describe("readiness boundary", () => {
   it("returns the frozen unauthenticated GET and HEAD contract", async () => {
+    const releaseSha256 = "a".repeat(64);
     const origin = await serve({
       checkDatabase: async () => true,
       isAccepting: () => true,
+      releaseSha256: () => releaseSha256,
     });
     const getResponse = await fetch(`${origin}/api/readyz`);
     assert.equal(getResponse.status, 200);
     assert.equal(getResponse.headers.get("cache-control"), "private, no-store");
+    assert.equal(
+      getResponse.headers.get("x-valo-release-sha256"),
+      releaseSha256,
+    );
     assert.deepEqual(await getResponse.json(), readyBody);
 
     const headResponse = await fetch(`${origin}/api/readyz`, {
@@ -70,6 +77,20 @@ describe("readiness boundary", () => {
       "private, no-store",
     );
     assert.equal(await headResponse.text(), "");
+  });
+
+  it("never publishes malformed release identity input", async () => {
+    const origin = await serve({
+      checkDatabase: async () => true,
+      isAccepting: () => true,
+      releaseSha256: () => "not-a-release-digest",
+    });
+    const [liveness, readiness] = await Promise.all([
+      fetch(`${origin}/api/healthz`),
+      fetch(`${origin}/api/readyz`),
+    ]);
+    assert.equal(liveness.headers.has("x-valo-release-sha256"), false);
+    assert.equal(readiness.headers.has("x-valo-release-sha256"), false);
   });
 
   it("does not touch the database while starting or draining", async () => {

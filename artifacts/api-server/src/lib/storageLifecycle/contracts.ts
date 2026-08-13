@@ -15,6 +15,8 @@ export const STORAGE_LIFECYCLE_BOUNDS = Object.freeze({
   deletionEnvelopeBytes: 2_048,
   reconciliationBatch: 25,
   maximumAttempts: 5,
+  maximumDeadLetterReplays: 3,
+  terminalRetentionDays: 90,
   deletionProviderTimeoutMs: 30_000,
   deletionRetryBaseSeconds: 300,
   deletionRetryMaximumSeconds: 21_600,

@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "manifestId": "valo-production-schedules/v1",
+  "status": "source_declared_platform_installation_not_evidenced",
+  "timezone": "UTC",
+  "jobs": [
+    {
+      "id": "storage_deletion_reconciliation",
+      "schedule": "*/15 * * * *",
+      "command": "pnpm --filter @workspace/api-server run storage:reconcile-deletions",
+      "timeoutSeconds": 600,
+      "concurrencyPolicy": "forbid",
+      "entrypointStatus": "implemented",
+      "platformScheduleStatus": "not_installed",
+      "activation": "blocked",
+      "fullCycleSignal": "valo.storage.deletion_last_full_cycle_unixtime_seconds",
+      "lastSuccessSignal": "valo.storage.deletion_last_success_unixtime_seconds",
+      "prerequisites": [
+        "provider_in_flight_put_maximum_verified",
+        "terminal_queue_retention_implemented",
+        "audited_dead_letter_replay_implemented",
+        "metrics_and_paging_delivery_verified",
+        "platform_schedule_receipt_retained"
+      ]
+    },
+    {
+      "id": "retention_request_scan",
+      "schedule": "15 1 * * *",
+      "command": "pnpm --filter @workspace/api-server run retention:scan",
+      "timeoutSeconds": 600,
+      "concurrencyPolicy": "forbid",
+      "entrypointStatus": "implemented",
+      "platformScheduleStatus": "not_installed",
+      "activation": "ready_for_platform_install",
+      "fullCycleSignal": "valo.retention.scan_last_full_cycle_unixtime_seconds",
+      "lastSuccessSignal": "valo.retention.scan_last_success_unixtime_seconds",
+      "prerequisites": [
+        "approved_retention_default_configured",
+        "dedicated_scheduler_identity",
+        "metrics_and_paging_delivery_verified",
+        "platform_schedule_receipt_retained"
+      ]
+    },
+    {
+      "id": "public_intake_expiry_purge",
+      "schedule": "45 1 * * *",
+      "command": "pnpm --filter @workspace/db run maintenance:purge:intake",
+      "timeoutSeconds": 300,
+      "concurrencyPolicy": "forbid",
+      "entrypointStatus": "implemented",
+      "platformScheduleStatus": "not_installed",
+      "activation": "blocked",
+      "fullCycleSignal": null,
+      "lastSuccessSignal": "valo.intake.purge_last_success_unixtime_seconds",
+      "prerequisites": [
+        "dedicated_nonsuperuser_maintenance_identity",
+        "explicit_function_execute_grants",
+        "owner_side_acl_audit_passed",
+        "metrics_and_paging_delivery_verified",
+        "platform_schedule_receipt_retained"
+      ]
+    },
+    {
+      "id": "authenticated-rate-limit-bucket-purge",
+      "schedule": "15 * * * *",
+      "command": "pnpm --filter @workspace/db run maintenance:purge:authenticated-rate-limits",
+      "timeoutSeconds": 300,
+      "concurrencyPolicy": "forbid",
+      "entrypointStatus": "implemented",
+      "platformScheduleStatus": "not_installed",
+      "activation": "ready_for_platform_install",
+      "fullCycleSignal": "valo.authenticated_rate_limit.purge_last_full_cycle_unixtime_seconds",
+      "lastSuccessSignal": "valo.authenticated_rate_limit.purge_last_success_unixtime_seconds",
+      "prerequisites": [
+        "exact_database_owner_identity",
+        "forced_rls_global_purge_authority_attested",
+        "application_runtime_execute_denied",
+        "bounded_1000_row_function_verified",
+        "metrics_and_paging_delivery_verified",
+        "platform_schedule_receipt_retained"
+      ]
+    },
+    {
+      "id": "audit_anchor_evidence_verification",
+      "schedule": "5 * * * *",
+      "command": "pnpm --filter @workspace/api-server run verify:audit-anchor-evidence",
+      "timeoutSeconds": 300,
+      "concurrencyPolicy": "forbid",
+      "entrypointStatus": "validator_implemented_anchor_provider_disconnected",
+      "platformScheduleStatus": "not_installed",
+      "activation": "blocked",
+      "fullCycleSignal": "valo.audit.anchor_cycle_complete",
+      "lastSuccessSignal": "valo.audit.anchor_last_success_unixtime_seconds",
+      "prerequisites": [
+        "approved_immutable_anchor_provider",
+        "provider_receipt_signature_verifier",
+        "independently_pinned_evidence_digest",
+        "independently_pinned_retained_obligation_tenant_count_and_digest",
+        "evidence_environment_matches_target",
+        "all_retained_obligation_tenants_in_evidence_cycle",
+        "metrics_and_paging_delivery_verified",
+        "platform_schedule_receipt_retained"
+      ]
+    },
+    {
+      "id": "backup_evidence_verification",
+      "schedule": "30 3 * * *",
+      "command": "pnpm --filter @workspace/api-server run verify:backup-evidence",
+      "timeoutSeconds": 300,
+      "concurrencyPolicy": "forbid",
+      "entrypointStatus": "validator_implemented_backup_provider_disconnected",
+      "platformScheduleStatus": "not_installed",
+      "activation": "blocked",
+      "fullCycleSignal": null,
+      "lastSuccessSignal": "valo.backup.last_success_unixtime_seconds",
+      "prerequisites": [
+        "approved_encrypted_database_backup_provider",
+        "approved_object_inventory_backup_provider",
+        "provider_backup_creation_hook",
+        "independently_pinned_evidence_digest",
+        "evidence_environment_matches_target",
+        "restore_drill_receipt_retained",
+        "metrics_and_paging_delivery_verified",
+        "platform_schedule_receipt_retained"
+      ]
+    }
+  ]
+}

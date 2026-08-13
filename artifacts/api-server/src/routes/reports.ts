@@ -539,6 +539,15 @@ router.post(
     const reviewerName = user?.name || user?.email || "Unknown reviewer";
     const updated = await db.transaction(
       async (tx) => {
+        const clock = await tx.execute(
+          sql`SELECT pg_catalog.clock_timestamp() AS now`,
+        );
+        const signedOffAt = new Date(
+          String((clock.rows[0] as { now?: unknown } | undefined)?.now ?? ""),
+        );
+        if (!Number.isFinite(signedOffAt.valueOf())) {
+          throw new Error("Database clock is unavailable during sign-off");
+        }
         const [signed] = await tx
           .update(reports)
           .set({
@@ -546,9 +555,9 @@ router.post(
             reviewerName,
             attestation: parsed.data.attestation,
             reviewerId: user?.id ?? null,
-            signedOffAt: new Date(),
+            signedOffAt,
             optimisticLockVersion: sql`${reports.optimisticLockVersion} + 1`,
-            updatedAt: new Date(),
+            updatedAt: signedOffAt,
           })
           .where(and(eq(reports.id, report.id), eq(reports.status, "draft")))
           .returning();
@@ -558,8 +567,9 @@ router.post(
           .update(projects)
           .set({
             status: "signed_off",
+            concludedAt: signed.signedOffAt,
             version: sql`${projects.version} + 1`,
-            updatedAt: new Date(),
+            updatedAt: signedOffAt,
           })
           .where(
             and(
@@ -578,6 +588,7 @@ router.post(
           objectType: "report",
           objectId: signed.id,
           details: `by ${reviewerName}`,
+          createdAt: signedOffAt,
         });
         return signed;
       },

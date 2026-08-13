@@ -114,9 +114,12 @@ const CONTRIBUTE: Permission[] = [
 ];
 
 const REVIEW: Permission[] = [
-  ...CONTRIBUTE,
+  ...READ_WORKSPACE,
+  "document:upload",
   "requirement:review",
+  "evidence:write",
   "evidence:approve",
+  "defect:write",
   "defect:review",
   "report:sign_off",
   "draft:review",
@@ -124,8 +127,10 @@ const REVIEW: Permission[] = [
   "intelligence:review",
 ];
 
-const MANAGE_WORK: Permission[] = [
-  ...REVIEW,
+const MANAGE_PORTFOLIO: Permission[] = [
+  ...READ_WORKSPACE,
+  "document:upload",
+  "evidence:write",
   "client:create",
   "client:update",
   "project:create",
@@ -143,6 +148,16 @@ const MANAGE_WORK: Permission[] = [
   "analytics:read",
 ];
 
+const MANAGE_WORK: Permission[] = [...CONTRIBUTE, ...MANAGE_PORTFOLIO];
+
+const PARTNER_PROPOSE: Permission[] = [
+  ...CONTRIBUTE,
+  "requirement:review",
+  "report:export",
+  "package:export",
+  "partner_report:read",
+];
+
 /**
  * Restricted platform administrators intentionally have no client/project or
  * document permissions. Platform administration is not a tenant-data bypass.
@@ -151,7 +166,10 @@ export const ROLE_PERMISSIONS: Readonly<
   Record<OrganisationRole, readonly Permission[]>
 > = {
   client_organisation_owner: [
-    ...MANAGE_WORK,
+    ...MANAGE_PORTFOLIO,
+    // Client owners retain the matrix's final client-approval authority, but
+    // do not inherit evidence/fatal/Valo-quality approval permissions.
+    "report:sign_off",
     "organisation:update",
     "membership:manage",
     "partner_relationship:manage",
@@ -162,7 +180,7 @@ export const ROLE_PERMISSIONS: Readonly<
     "privacy:manage",
   ],
   client_administrator: [
-    ...MANAGE_WORK,
+    ...MANAGE_PORTFOLIO,
     "organisation:update",
     "membership:manage",
     "audit:read",
@@ -170,22 +188,13 @@ export const ROLE_PERMISSIONS: Readonly<
     "configuration:read",
     "privacy:manage",
   ],
-  bid_manager: MANAGE_WORK,
+  bid_manager: [...MANAGE_WORK, "requirement:review"],
   contributor: CONTRIBUTE,
-  client_reviewer_approver: REVIEW,
+  client_reviewer_approver: [...REVIEW, "report:export", "package:export"],
   valo_operations_administrator: [
-    ...CONTRIBUTE,
-    "client:create",
-    "client:update",
-    "project:create",
-    "project:update",
-    "project:assign",
-    "project:delete",
-    "document:delete",
-    "report:generate",
-    "report:export",
-    "package:generate",
-    "package:export",
+    "organisation:read",
+    "membership:read",
+    "partner_relationship:read",
     "billing:read",
     "order:create",
     "privacy:read",
@@ -223,7 +232,7 @@ export const ROLE_PERMISSIONS: Readonly<
     "audit:read",
     "privacy:manage",
   ],
-  consultancy_partner_analyst_reviewer: [...REVIEW, "partner_report:read"],
+  consultancy_partner_analyst_reviewer: PARTNER_PROPOSE,
   read_only_auditor: [
     ...READ_WORKSPACE,
     "partner_report:read",
@@ -232,13 +241,13 @@ export const ROLE_PERMISSIONS: Readonly<
   ],
   valo_analyst: [
     ...CONTRIBUTE,
-    "client:create",
-    "client:update",
-    "project:create",
     "project:update",
     "project:assign",
+    "requirement:review",
     "report:generate",
+    "report:export",
     "package:generate",
+    "package:export",
     "privacy:read",
     "partner_report:read",
     "analytics:read",
@@ -246,6 +255,7 @@ export const ROLE_PERMISSIONS: Readonly<
   ],
   valo_quality_adviser: [
     ...REVIEW,
+    "draft:write",
     "report:export",
     "package:export",
     "privacy:read",
@@ -315,7 +325,9 @@ export function permissionsForRoles(
  * A partner membership proves authority in the partner organisation only. An
  * active relationship may project this deliberately small capability set into
  * a client tenant, but never the partner role's native administrative,
- * approval, release, commercial, privacy, or deletion powers.
+ * approval, sign-off, commercial, privacy, or deletion powers. Confirming an
+ * extracted requirement and exporting an already-signed package remain
+ * available only when the native partner role also carries that permission.
  *
  * Partner co-signing is not yet a persisted, independently-approved workflow,
  * so release permissions are withheld for every partner-derived request. This
@@ -330,14 +342,17 @@ export const PARTNER_DERIVED_PERMISSIONS: ReadonlySet<Permission> = new Set([
   "document:upload",
   "requirement:read",
   "requirement:write",
+  "requirement:review",
   "evidence:read",
   "evidence:write",
   "defect:read",
   "defect:write",
   "report:read",
+  "report:export",
   "draft:read",
   "draft:write",
   "package:read",
+  "package:export",
   "entitlement:read",
   "processing_job:read",
   "evaluation:read",

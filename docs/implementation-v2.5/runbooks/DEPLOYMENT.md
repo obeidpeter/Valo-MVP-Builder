@@ -9,16 +9,36 @@ No production deployment is authorised by this document. Replace bracketed provi
 - CI green: migrations, critical tests/coverage, security/dependency/secret/IaC, AI/injection, render and contract gates.
 - Staging E2E, cross-tenant, accessibility, performance/resilience, restore and rollback evidence accepted.
 - Provider agreements/regions/secrets/health approved; no development adapter can start.
+- Baseline authentication adapter approved with `CLERK_SECRET_KEY` and
+  `CLERK_PUBLISHABLE_KEY` references and
+  `CLERK_ADAPTER_PRODUCTION_APPROVED=true` supplied only in the target; retain
+  named approval evidence rather than inferring approval from configured keys.
+- Both authenticated per-operation and per-actor limiter windows/maxima are
+  reviewed and recorded using the four `AUTHENTICATED_*` policy variables in
+  `../RELEASE_PROVENANCE.md`.
+- Public-intake purge remains disabled until `NODE_ENV=production`,
+  `VALO_MAINTENANCE_EXECUTE=confirmed`, `VALO_MAINTENANCE_DATABASE_URL` and
+  `VALO_MAINTENANCE_DATABASE_ROLE` are installed with non-superuser,
+  non-`BYPASSRLS`, table non-ownership and bounded function-execution proof.
+- Authenticated-limiter purge remains disabled until
+  `VALO_AUTH_RATE_LIMIT_MAINTENANCE_EXECUTE=confirmed`,
+  `VALO_MAINTENANCE_DATABASE_URL` and
+  `VALO_MAINTENANCE_DATABASE_OWNER_ROLE` are installed with function/table
+  ownership, global FORCE-RLS authority and runtime-denial proof. Retain the
+  scheduled workload owner and run evidence in `../OPERATIONAL_SCHEDULES.md`.
 - Current signed Nigeria rule packs and intended feature/entitlement exposure reviewed.
 - Encrypted backup and restore verification within approved RPO; rollback artefact/config available.
 - No unresolved P0/P1 or high/critical security finding; incident/on-call contacts active.
 
 ## Build once
 
-1. Resolve locked dependencies in trusted CI.
+1. Resolve locked dependencies in trusted CI at an exact full commit reachable
+   from protected `main`; follow `../RELEASE_PROVENANCE.md`.
 2. Format/lint/typecheck/test/build all packages.
 3. Generate/compare OpenAPI clients; validate migrations from supported baseline.
-4. Produce signed application/worker/web artefacts, checksums, SBOM and provenance.
+4. Produce application/worker/web artefacts, checksums, CycloneDX SBOM and the
+   machine-verifiable release manifest. Preserve the candidate workflow run and
+   artifact IDs.
 5. Scan final artefacts; store in immutable registry. Do not rebuild per environment.
 
 ## Stage
@@ -27,7 +47,9 @@ No production deployment is authorised by this document. Replace bracketed provi
 2. Capture pre-deploy versions, configuration digests, flag/rule-pack versions and backup status.
 3. Apply backward-compatible expand migrations with the controlled migration identity.
 4. Run migration reconciliation and RLS policy inspection using non-owner app role.
-5. Deploy API/workers/web with flags off; wait for health then readiness.
+5. Inject the exact candidate `VALO_RELEASE_SHA256`, deploy API/workers/web with
+   flags off, then use the deployment-verification workflow to bind liveness,
+   readiness and runtime identity to the candidate.
 6. Run smoke: sign-in/MFA, tenant denial, create engagement, safe test upload/quarantine/job progress, requirement review, evidence/fatal gate, BOQ fixture, package render/sign/export, audit anchor and notification simulator.
 7. Run staging E2E/a11y/performance security subset; verify logs contain no content/secrets.
 8. Approve promotion using the same artefacts.
@@ -309,7 +331,8 @@ the source backup and audit export as private evidence.
 
 1. Announce window and freeze conflicting changes/jobs as designed; do not interrupt deadline-critical work without owner plan.
 2. Verify latest backup, replica/queue health, anchor freshness, provider health and rollback artefacts.
-3. Record current deployment/config/schema/flags/rule packs.
+3. Record current deployment/config/schema/flags/rule packs and the exact
+   candidate workflow, manifest, SBOM, artifact and source digests.
 4. For an unbridged legacy target, execute only the approved legacy bridge
    procedure above. For the current already-bridged Replit target, require the
    exact adopted `0000`-`0002` journal, verify both checked-in production run
@@ -318,7 +341,11 @@ the source backup and audit export as private evidence.
    substitute the unrestricted migration command or a publish schema diff.
    Halt on any journal, source-hash, catalog, reconciliation, or RLS error.
 5. Deploy workers/API/web in compatible order; keep new commercial flags off.
-6. Observe readiness, error/latency, DB connections/locks, queue depth, provider failures, tenant denials and anchor status.
+6. Record the immutable provider deployment ID and run the protected
+   deployment-verification workflow. Halt if the deployed release header,
+   liveness, lifecycle or database readiness differs from the candidate.
+   Observe error/latency, DB connections/locks, queue depth, provider failures,
+   tenant denials and anchor status.
 7. Execute non-destructive production smoke with dedicated test tenant and marked synthetic files.
 8. Enable only approved tenant flags gradually; verify server and UI exposure.
 9. Complete deployment record, links/hashes, actual times, deviations and approvers.

@@ -35,6 +35,8 @@ const PROGRESS_OBJECT_TYPE =
 const EVENT_TYPES = [
   "growth_suite.onboarding_item_completed",
   "growth_suite.onboarding_item_reopened",
+  "growth_suite.onboarding_practice_marker_saved",
+  "growth_suite.onboarding_practice_marker_removed",
 ] as const;
 const MAX_PROGRESS_EVENTS = 512;
 const MAX_DETAILS_CODE_UNITS = 512;
@@ -45,6 +47,8 @@ type ProgressEventType = (typeof EVENT_TYPES)[number];
 
 export interface OnboardingProgress {
   journeyVersion: typeof ONBOARDING_POLICY_VERSION;
+  savedPracticeMarkerItemIds: readonly string[];
+  /** @deprecated Compatibility alias for savedPracticeMarkerItemIds. */
   completedItemIds: readonly string[];
   version: number;
 }
@@ -53,7 +57,7 @@ export interface OnboardingProgressMutation {
   journeyVersion: typeof ONBOARDING_POLICY_VERSION;
   itemId: string;
   expectedVersion: number;
-  completed: boolean;
+  markerSaved: boolean;
 }
 
 export type OnboardingProgressMutationResult =
@@ -190,22 +194,29 @@ function parseEventDetails(
     throw unavailable();
   }
   const record = value as Record<string, unknown>;
-  const keys = Object.keys(record).sort();
+  const legacy =
+    row.eventType === "growth_suite.onboarding_item_completed" ||
+    row.eventType === "growth_suite.onboarding_item_reopened";
+  const expectedKeys = legacy
+    ? "completed|itemId|journeyVersion|previousVersion|schemaVersion"
+    : "itemId|journeyVersion|markerSaved|previousVersion|schemaVersion";
+  const markerSaved = legacy ? record.completed : record.markerSaved;
+  const eventSavesMarker =
+    row.eventType === "growth_suite.onboarding_item_completed" ||
+    row.eventType === "growth_suite.onboarding_practice_marker_saved";
   if (
-    keys.join("|") !==
-      "completed|itemId|journeyVersion|previousVersion|schemaVersion" ||
-    record.schemaVersion !== 1 ||
+    Object.keys(record).sort().join("|") !== expectedKeys ||
+    record.schemaVersion !== (legacy ? 1 : 2) ||
     record.journeyVersion !== ONBOARDING_POLICY_VERSION ||
     typeof record.itemId !== "string" ||
     !ITEM_ID_PATTERN.test(record.itemId) ||
-    typeof record.completed !== "boolean" ||
+    typeof markerSaved !== "boolean" ||
     record.previousVersion !== expectedPreviousVersion ||
-    record.completed !==
-      (row.eventType === "growth_suite.onboarding_item_completed")
+    markerSaved !== eventSavesMarker
   ) {
     throw unavailable();
   }
-  return { itemId: record.itemId, completed: record.completed };
+  return { itemId: record.itemId, completed: markerSaved };
 }
 
 export function reduceOnboardingProgress(
@@ -218,7 +229,7 @@ export function reduceOnboardingProgress(
   ) {
     throw unavailable();
   }
-  const completed = new Set<string>();
+  const savedMarkers = new Set<string>();
   const allowed = new Set(journey.checklist.map(({ id }) => id));
   let previousSeq = -1;
   for (const [index, row] of rows.entries()) {
@@ -226,12 +237,14 @@ export function reduceOnboardingProgress(
     previousSeq = row.seq;
     const event = parseEventDetails(row, index);
     if (!allowed.has(event.itemId)) continue;
-    if (event.completed) completed.add(event.itemId);
-    else completed.delete(event.itemId);
+    if (event.completed) savedMarkers.add(event.itemId);
+    else savedMarkers.delete(event.itemId);
   }
+  const savedPracticeMarkerItemIds = [...savedMarkers].sort();
   return {
     journeyVersion: ONBOARDING_POLICY_VERSION,
-    completedItemIds: [...completed].sort(),
+    savedPracticeMarkerItemIds,
+    completedItemIds: savedPracticeMarkerItemIds,
     version: rows.length,
   };
 }
@@ -452,7 +465,7 @@ export class DrizzleOnboardingProgressRepository implements OnboardingProgressRe
         mutation.journeyVersion !== ONBOARDING_POLICY_VERSION ||
         !ITEM_ID_PATTERN.test(mutation.itemId) ||
         !validExpectedVersion(mutation.expectedVersion) ||
-        typeof mutation.completed !== "boolean"
+        typeof mutation.markerSaved !== "boolean"
       ) {
         return { outcome: "policy_denied" };
       }
@@ -478,36 +491,40 @@ export class DrizzleOnboardingProgressRepository implements OnboardingProgressRe
           ) {
             return { outcome: "policy_denied" };
           }
-          const isComplete = progress.completedItemIds.includes(
-            mutation.itemId,
-          );
-          if (isComplete === mutation.completed) {
+          const markerAlreadySaved =
+            progress.savedPracticeMarkerItemIds.includes(mutation.itemId);
+          if (markerAlreadySaved === mutation.markerSaved) {
             return { outcome: "updated", progress };
           }
           if (progress.version >= MAX_PROGRESS_EVENTS) throw unavailable();
           const details = JSON.stringify({
-            schemaVersion: 1,
+            schemaVersion: 2,
             journeyVersion: ONBOARDING_POLICY_VERSION,
             itemId: mutation.itemId,
             previousVersion: progress.version,
-            completed: mutation.completed,
+            markerSaved: mutation.markerSaved,
           });
           await transaction.appendEvent(
             scope,
             actor.user,
-            mutation.completed
-              ? "growth_suite.onboarding_item_completed"
-              : "growth_suite.onboarding_item_reopened",
+            mutation.markerSaved
+              ? "growth_suite.onboarding_practice_marker_saved"
+              : "growth_suite.onboarding_practice_marker_removed",
             details,
           );
-          const completedItemIds = new Set(progress.completedItemIds);
-          if (mutation.completed) completedItemIds.add(mutation.itemId);
-          else completedItemIds.delete(mutation.itemId);
+          const savedPracticeMarkerItemIds = new Set(
+            progress.savedPracticeMarkerItemIds,
+          );
+          if (mutation.markerSaved)
+            savedPracticeMarkerItemIds.add(mutation.itemId);
+          else savedPracticeMarkerItemIds.delete(mutation.itemId);
+          const markerIds = [...savedPracticeMarkerItemIds].sort();
           return {
             outcome: "updated",
             progress: {
               journeyVersion: ONBOARDING_POLICY_VERSION,
-              completedItemIds: [...completedItemIds].sort(),
+              savedPracticeMarkerItemIds: markerIds,
+              completedItemIds: markerIds,
               version: progress.version + 1,
             },
           };

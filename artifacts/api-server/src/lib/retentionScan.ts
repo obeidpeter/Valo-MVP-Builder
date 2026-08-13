@@ -1,4 +1,14 @@
-import { and, eq, inArray } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  gt,
+  inArray,
+  isNotNull,
+  isNull,
+  lte,
+  notExists,
+} from "drizzle-orm";
 import {
   db,
   organisations,
@@ -14,171 +24,244 @@ import {
 import { getActiveConfig } from "./appConfig";
 import { writeAuditTx } from "./audit";
 
+const ORGANISATION_PAGE = 10;
+const PER_TENANT_PROJECT_PAGE = 100;
+
 export interface RetentionScanRunResult {
-  /** Concluded engagements considered this run. */
+  organisationsScanned: number;
   scanned: number;
-  /** Requests actually opened by this run. */
   opened: RetentionScanCandidate[];
-  /** Candidates skipped because a pending request already existed (dedup / race). */
   skippedExisting: number;
+  missingConclusionAnchors: number;
+  missingConclusionAnchorPagesRemaining: number;
+  tenantPagesRemaining: number;
+  tenantFailures: number;
+  organisationPageTruncated: boolean;
+  cycleComplete: boolean;
+  nextOrganisationCursor: string | null;
+}
+
+export interface RetentionScanOptions {
+  now: Date;
+  organisationId?: string;
+  afterOrganisationId?: string | null;
 }
 
 /**
- * Retention automation runner (Task: Retention automation scheduler).
- *
- * Loads the configured retention window and every concluded engagement, asks
- * the pure {@link planRetentionScan} which ones have passed their retention
- * window, then opens a retention request for each — idempotently. The opening
- * is deliberately the only side effect: it does NOT purge anything. A named
- * admin still completes the request through the existing manual flow, which is
- * where the archive gate and deletion certificate live.
- *
- * Idempotency is layered: the pure scan filters out projects that already have
- * a pending request, and the DB-level partial unique index
- * (`retention_requests_one_pending_per_project`) is the last-line guarantee, so
- * a lost race between overlapping runs surfaces as a caught unique violation
- * rather than a duplicate request.
+ * One bounded, rotating retention scan. Only `projects.concluded_at` starts the
+ * clock: legacy rows without an evidenced conclusion remain visible through a
+ * blocker signal and are never scheduled from a fabricated fallback date.
  */
 export async function runRetentionScan(
-  options: { now?: Date; organisationId?: string } = {},
+  options: RetentionScanOptions,
 ): Promise<RetentionScanRunResult> {
-  const now = options.now ?? new Date();
+  const now = options.now;
+  if (!Number.isFinite(now.valueOf())) throw new Error("Invalid scan time");
+  if (options.organisationId && options.afterOrganisationId) {
+    throw new Error("A direct tenant scan cannot also supply a cursor");
+  }
   const { retentionDefaultDays } = await getActiveConfig();
-
-  // Organisation discovery is the only unscoped read. Every tenant table read,
-  // request insert and audit append below runs with that tenant's transaction-
-  // local RLS context, so FORCE RLS cannot turn the scheduler into a silent
-  // no-op or permit cross-tenant rows to mix.
-  const activeOrganisations = await db
+  if (
+    !Number.isSafeInteger(retentionDefaultDays) ||
+    retentionDefaultDays < 1 ||
+    retentionDefaultDays > 36_500
+  ) {
+    throw new Error("Retention window is invalid");
+  }
+  const afterOrganisationId = options.afterOrganisationId ?? null;
+  const discovered = await db
     .select({ id: organisations.id })
     .from(organisations)
     .where(
       options.organisationId
-        ? and(
-            eq(organisations.status, "active"),
-            eq(organisations.id, options.organisationId),
-          )
-        : eq(organisations.status, "active"),
-    );
-  const aggregate: RetentionScanRunResult = {
+        ? eq(organisations.id, options.organisationId)
+        : afterOrganisationId
+          ? gt(organisations.id, afterOrganisationId)
+          : undefined,
+    )
+    .orderBy(asc(organisations.id))
+    .limit(options.organisationId ? 1 : ORGANISATION_PAGE + 1);
+  const organisationPage = discovered.slice(
+    0,
+    options.organisationId ? 1 : ORGANISATION_PAGE,
+  );
+  const result: RetentionScanRunResult = {
+    organisationsScanned: 0,
     scanned: 0,
     opened: [],
     skippedExisting: 0,
+    missingConclusionAnchors: 0,
+    missingConclusionAnchorPagesRemaining: 0,
+    tenantPagesRemaining: 0,
+    tenantFailures: 0,
+    organisationPageTruncated:
+      !options.organisationId && discovered.length > ORGANISATION_PAGE,
+    cycleComplete: false,
+    nextOrganisationCursor: afterOrganisationId,
   };
+  const eligibleStatuses = [...RETENTION_ELIGIBLE_STATUSES];
+  const cutoff = new Date(
+    now.valueOf() - retentionDefaultDays * 24 * 60 * 60 * 1_000,
+  );
 
-  for (const organisation of activeOrganisations) {
-    const tenantResult = await withTenantDatabase(organisation.id, async () => {
-      const eligibleStatuses = [...RETENTION_ELIGIBLE_STATUSES];
-      const projectRows = await db
-        .select({
-          id: projects.id,
-          organisationId: projects.organisationId,
-          status: projects.status,
-          createdAt: projects.createdAt,
-        })
-        .from(projects)
-        .where(inArray(projects.status, eligibleStatuses));
-
-      const pending = await db
-        .select({ projectId: retentionRequests.projectId })
-        .from(retentionRequests)
-        .where(eq(retentionRequests.status, "pending"));
-      const pendingProjectIds = new Set(pending.map((p) => p.projectId));
-
-      const candidates = planRetentionScan({
-        projects: projectRows.map((p) => ({
-          id: p.id,
-          status: p.status,
-          // No dedicated conclusion timestamp exists, so the engagement's creation
-          // time is the relevant date the retention clock counts from.
-          relevantDate:
-            p.createdAt instanceof Date ? p.createdAt : new Date(p.createdAt),
-          hasPendingRequest: pendingProjectIds.has(p.id),
-        })),
-        retentionDefaultDays,
-        now,
-      });
-
-      const opened: RetentionScanCandidate[] = [];
-      let skippedExisting = 0;
-
-      for (const candidate of candidates) {
-        // Re-check inside a transaction and rely on the partial unique index so two
-        // overlapping runs can never both insert a pending request for one project.
-        try {
-          // Open the request and write its audit event in ONE transaction: the
-          // audit record IS the point of this run, so if the audit write fails the
-          // request insert must roll back too (the next scheduled run retries).
-          // read-committed is required by the audit chain's max-seq read.
-          const created = await db.transaction(
-            async (tx) => {
-              const [existing] = await tx
-                .select({ id: retentionRequests.id })
-                .from(retentionRequests)
-                .where(
-                  and(
-                    eq(retentionRequests.projectId, candidate.projectId),
-                    eq(retentionRequests.status, "pending"),
-                  ),
-                );
-              if (existing) return null;
-              const [row] = await tx
-                .insert(retentionRequests)
-                .values({
-                  organisationId: organisation.id,
-                  projectId: candidate.projectId,
-                  requestedBy: null,
-                  reason:
-                    "Auto-opened by the retention scheduler: the configured retention window has elapsed.",
-                  dueAt: candidate.dueAt,
-                })
-                .returning();
-              await writeAuditTx(tx, {
-                user: null,
-                organisationId: organisation.id,
-                projectId: candidate.projectId,
-                eventType: "retention.auto_requested",
-                objectType: "retention_request",
-                objectId: row.id,
-                details: `scheduler opened; window elapsed ${candidate.dueAt.toISOString()}`,
-              });
-              return row;
-            },
-            { isolationLevel: "read committed" },
-          );
-
-          if (!created) {
-            skippedExisting += 1;
-            continue;
+  for (const organisation of organisationPage) {
+    result.organisationsScanned += 1;
+    try {
+      const tenantResult = await withTenantDatabase(
+        organisation.id,
+        async () => {
+          const missingConclusionRows = await db
+            .select({ id: projects.id })
+            .from(projects)
+            .where(
+              and(
+                inArray(projects.status, eligibleStatuses),
+                isNull(projects.concludedAt),
+              ),
+            )
+            .orderBy(asc(projects.id))
+            .limit(PER_TENANT_PROJECT_PAGE + 1);
+          const candidateRows = await db
+            .select({
+              id: projects.id,
+              status: projects.status,
+              concludedAt: projects.concludedAt,
+            })
+            .from(projects)
+            .where(
+              and(
+                inArray(projects.status, eligibleStatuses),
+                isNotNull(projects.concludedAt),
+                lte(projects.concludedAt, cutoff),
+                notExists(
+                  db
+                    .select({ id: retentionRequests.id })
+                    .from(retentionRequests)
+                    .where(
+                      and(
+                        eq(retentionRequests.projectId, projects.id),
+                        eq(retentionRequests.status, "pending"),
+                      ),
+                    ),
+                ),
+              ),
+            )
+            .orderBy(asc(projects.concludedAt), asc(projects.id))
+            .limit(PER_TENANT_PROJECT_PAGE + 1);
+          const page = candidateRows.slice(0, PER_TENANT_PROJECT_PAGE);
+          const candidates = planRetentionScan({
+            projects: page.map((project) => ({
+              id: project.id,
+              status: project.status,
+              relevantDate: project.concludedAt!,
+              hasPendingRequest: false,
+            })),
+            retentionDefaultDays,
+            now,
+          });
+          const opened: RetentionScanCandidate[] = [];
+          let skippedExisting = 0;
+          for (const candidate of candidates) {
+            try {
+              const created = await db.transaction(
+                async (tx) => {
+                  const [existing] = await tx
+                    .select({ id: retentionRequests.id })
+                    .from(retentionRequests)
+                    .where(
+                      and(
+                        eq(retentionRequests.projectId, candidate.projectId),
+                        eq(retentionRequests.status, "pending"),
+                      ),
+                    );
+                  if (existing) return null;
+                  const [row] = await tx
+                    .insert(retentionRequests)
+                    .values({
+                      organisationId: organisation.id,
+                      projectId: candidate.projectId,
+                      requestedBy: null,
+                      reason:
+                        "Auto-opened by the retention scheduler: the configured window after the evidenced conclusion elapsed.",
+                      dueAt: candidate.dueAt,
+                    })
+                    .returning();
+                  await writeAuditTx(tx, {
+                    user: null,
+                    organisationId: organisation.id,
+                    projectId: candidate.projectId,
+                    eventType: "retention.auto_requested",
+                    objectType: "retention_request",
+                    objectId: row.id,
+                    details: JSON.stringify({
+                      conclusionAnchor: "projects.concluded_at",
+                      windowElapsedAt: candidate.dueAt.toISOString(),
+                    }),
+                    createdAt: now,
+                  });
+                  return row;
+                },
+                { isolationLevel: "read committed" },
+              );
+              if (!created) skippedExisting += 1;
+              else opened.push(candidate);
+            } catch (error) {
+              if (isUniqueViolation(error)) skippedExisting += 1;
+              else throw error;
+            }
           }
-
-          opened.push(candidate);
-        } catch (err) {
-          // A unique-violation here means a concurrent run won the race — that is a
-          // successful dedup, not a failure.
-          if (isUniqueViolation(err)) {
-            skippedExisting += 1;
-            continue;
-          }
-          throw err;
-        }
+          return {
+            scanned: page.length,
+            opened,
+            skippedExisting,
+            missingConclusionAnchors: Math.min(
+              missingConclusionRows.length,
+              PER_TENANT_PROJECT_PAGE,
+            ),
+            missingConclusionAnchorsTruncated:
+              missingConclusionRows.length > PER_TENANT_PROJECT_PAGE,
+            truncated: candidateRows.length > PER_TENANT_PROJECT_PAGE,
+          };
+        },
+      );
+      result.scanned += tenantResult.scanned;
+      result.opened.push(...tenantResult.opened);
+      result.skippedExisting += tenantResult.skippedExisting;
+      result.missingConclusionAnchors += tenantResult.missingConclusionAnchors;
+      if (tenantResult.missingConclusionAnchorsTruncated) {
+        result.missingConclusionAnchorPagesRemaining += 1;
       }
-
-      return { scanned: projectRows.length, opened, skippedExisting };
-    });
-    aggregate.scanned += tenantResult.scanned;
-    aggregate.opened.push(...tenantResult.opened);
-    aggregate.skippedExisting += tenantResult.skippedExisting;
+      if (tenantResult.truncated) result.tenantPagesRemaining += 1;
+      result.nextOrganisationCursor = organisation.id;
+    } catch {
+      result.tenantFailures += 1;
+      // Advance through the bounded page so one broken tenant cannot starve
+      // every later tenant. The cursor wraps to null at cycle end, revisiting
+      // failures on the next cycle.
+      result.nextOrganisationCursor = organisation.id;
+      continue;
+    }
   }
-
-  return aggregate;
+  if (options.organisationId) {
+    result.cycleComplete =
+      result.tenantFailures === 0 &&
+      result.tenantPagesRemaining === 0 &&
+      result.missingConclusionAnchorPagesRemaining === 0;
+    result.nextOrganisationCursor = null;
+  } else {
+    result.cycleComplete =
+      !result.organisationPageTruncated &&
+      result.organisationsScanned === organisationPage.length;
+    if (result.cycleComplete) result.nextOrganisationCursor = null;
+  }
+  return result;
 }
 
-function isUniqueViolation(err: unknown): boolean {
+function isUniqueViolation(error: unknown): boolean {
   return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code?: unknown }).code === "23505"
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "23505"
   );
 }

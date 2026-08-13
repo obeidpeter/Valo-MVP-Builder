@@ -57,6 +57,12 @@ before(async () => {
     })
     .returning();
   organisationId = organisation.id;
+  // Lifecycle obligations survive tenant suspension/offboarding. Discovery
+  // must not silently filter this tenant out.
+  await db
+    .update(organisations)
+    .set({ status: "suspended" })
+    .where(eq(organisations.id, organisationId));
 
   await withTenantDatabase(organisationId, async () => {
     const [client] = await db
@@ -75,6 +81,7 @@ before(async () => {
         clientId,
         tenderTitle: "Concluded past window",
         status: "signed_off",
+        concludedAt: daysAgo(30),
         createdAt: daysAgo(30),
       })
       .returning();
@@ -87,6 +94,7 @@ before(async () => {
         clientId,
         tenderTitle: "Concluded but recent",
         status: "exported",
+        concludedAt: daysAgo(5),
         createdAt: daysAgo(5),
       })
       .returning();
@@ -138,8 +146,8 @@ async function pendingFor(projectId: string): Promise<number> {
 }
 
 describe("retention automation scheduler", () => {
-  test("opens a request only for the concluded engagement past its window", async () => {
-    const result = await runRetentionScan({ organisationId });
+  test("fairly scans an inactive tenant and opens only the anchored due engagement", async () => {
+    const result = await runRetentionScan({ organisationId, now: new Date() });
 
     // Both concluded engagements are in scope; only the old one is opened.
     assert.ok(result.scanned >= 2);
@@ -164,7 +172,7 @@ describe("retention automation scheduler", () => {
   test("is idempotent — a second run opens no duplicate request", async () => {
     // The existing pending request is filtered out before it becomes a
     // candidate, so nothing new is opened and the count stays at one.
-    const result = await runRetentionScan({ organisationId });
+    const result = await runRetentionScan({ organisationId, now: new Date() });
     assert.ok(!result.opened.some((c) => c.projectId === concludedOldId));
     assert.equal(
       await pendingFor(concludedOldId),

@@ -98,7 +98,7 @@ router.post(
 
 router.post(
   "/boq-checks/:id/to-defect",
-  requirePermissionOrLegacy("defect:review"),
+  requirePermissionOrLegacy("defect:write"),
   async (req: Request, res: Response) => {
     const [check] = await db
       .select()

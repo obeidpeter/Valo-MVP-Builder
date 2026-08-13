@@ -73,7 +73,9 @@ class FakeTransaction implements ProgressTransaction {
     _actor: LocalUser,
     eventType:
       | "growth_suite.onboarding_item_completed"
-      | "growth_suite.onboarding_item_reopened",
+      | "growth_suite.onboarding_item_reopened"
+      | "growth_suite.onboarding_practice_marker_saved"
+      | "growth_suite.onboarding_practice_marker_removed",
     eventDetails: string,
   ): Promise<void> {
     this.events.push({
@@ -119,11 +121,12 @@ describe("durable onboarding progress", () => {
         },
       ],
     );
+    assert.deepEqual(progress.savedPracticeMarkerItemIds, []);
     assert.deepEqual(progress.completedItemIds, []);
     assert.equal(progress.version, 3);
   });
 
-  test("serialises a version-bound completion and rejects stale replay", async () => {
+  test("writes a neutral version-bound practice marker and rejects stale replay", async () => {
     const fixture = repository();
     const scope = { organisationId: ORGANISATION_ID, actorUserId: ACTOR_ID };
     const first = await fixture.repository.mutateProgress(
@@ -133,15 +136,28 @@ describe("durable onboarding progress", () => {
         journeyVersion: "2026-08-11.2",
         itemId: "confirm-active-workspace",
         expectedVersion: 0,
-        completed: true,
+        markerSaved: true,
       },
     );
     assert.equal(first.outcome, "updated");
     assert.deepEqual(
-      first.outcome === "updated" ? first.progress.completedItemIds : [],
+      first.outcome === "updated"
+        ? first.progress.savedPracticeMarkerItemIds
+        : [],
       ["confirm-active-workspace"],
     );
     assert.equal(fixture.transaction.lockCount, 1);
+    assert.equal(
+      fixture.transaction.events[0]?.eventType,
+      "growth_suite.onboarding_practice_marker_saved",
+    );
+    assert.deepEqual(JSON.parse(fixture.transaction.events[0]!.details!), {
+      schemaVersion: 2,
+      journeyVersion: "2026-08-11.2",
+      itemId: "confirm-active-workspace",
+      previousVersion: 0,
+      markerSaved: true,
+    });
 
     const replay = await fixture.repository.mutateProgress(
       scope,
@@ -150,7 +166,7 @@ describe("durable onboarding progress", () => {
         journeyVersion: "2026-08-11.2",
         itemId: "review-authority-boundaries",
         expectedVersion: 0,
-        completed: true,
+        markerSaved: true,
       },
     );
     assert.deepEqual(replay, { outcome: "not_found_or_conflict" });

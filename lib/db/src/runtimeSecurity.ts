@@ -13,6 +13,7 @@ const EXPECTED_FORCE_RLS_TABLES = [
   "approvals",
   "audit_anchors",
   "audit_events",
+  "authenticated_rate_limit_buckets",
   "benchmark_consents",
   "boq_checks",
   "boq_exceptions",
@@ -141,7 +142,7 @@ type SpecialTenantTriggerProof = {
   when_clause: string | null;
 };
 
-type TenantGuardFunctionProof = {
+export type TenantGuardFunctionProof = {
   function_name: string;
   language_name: string;
   function_kind: string;
@@ -159,6 +160,7 @@ type TenantGuardFunctionProof = {
   function_result: string;
   returns_set: boolean;
   owner_name: string;
+  owner_is_schema_owner?: boolean;
   runtime_can_execute: boolean;
   function_source: string;
 };
@@ -167,6 +169,81 @@ type IntakeFunctionProof = TenantGuardFunctionProof & {
   owner_is_schema_owner: boolean;
   public_can_execute: boolean;
 };
+
+const EXPECTED_CONTROL_PLANE_LIMITER_FUNCTION = {
+  functionName: "consume_authenticated_actor_rate_limit",
+  argumentCount: 3,
+  argumentTypes: "text, integer, integer",
+  identityArguments:
+    "p_bucket_key_sha256 text, p_window_seconds integer, p_max_requests integer",
+  returnType: "record",
+  functionResult:
+    "TABLE(allowed boolean, remaining integer, reset_at timestamp with time zone)",
+  securityDefiner: true,
+  runtimeCanExecute: true,
+  sourceSha256:
+    "97f97bc16b5773684a9933bc4575916d4086dae9b352eb60d71b5c8478474030",
+} as const;
+
+const EXPECTED_AUTHENTICATED_RATE_PURGE_FUNCTION = {
+  functionName: "purge_expired_authenticated_rate_limit_buckets",
+  argumentCount: 0,
+  argumentTypes: "",
+  identityArguments: "",
+  returnType: "bigint",
+  functionResult: "bigint",
+  securityDefiner: false,
+  runtimeCanExecute: false,
+  sourceSha256:
+    "beeae6ab916be432aa0749085de35145912e9fd0d8277d186485f20c09c625bf",
+} as const;
+
+export function assertAuthenticatedRateLimitFunctionAttestation(
+  functionProofs: TenantGuardFunctionProof[],
+): void {
+  const expectedFunctions = [
+    EXPECTED_CONTROL_PLANE_LIMITER_FUNCTION,
+    EXPECTED_AUTHENTICATED_RATE_PURGE_FUNCTION,
+  ];
+  const byName = new Map(
+    functionProofs.map((proof) => [proof.function_name, proof]),
+  );
+  const malformed = expectedFunctions.some((expected) => {
+    const actual = byName.get(expected.functionName);
+    return (
+      !actual ||
+      actual.language_name !== "plpgsql" ||
+      actual.function_kind !== "f" ||
+      actual.security_definer !== expected.securityDefiner ||
+      actual.leakproof ||
+      actual.strict ||
+      actual.volatility !== "v" ||
+      actual.parallel_safety !== "u" ||
+      actual.function_config !== "search_path=pg_catalog" ||
+      actual.returns_trigger ||
+      actual.argument_count !== expected.argumentCount ||
+      actual.argument_types !== expected.argumentTypes ||
+      actual.identity_arguments !== expected.identityArguments ||
+      actual.return_type !== expected.returnType ||
+      actual.function_result !== expected.functionResult ||
+      actual.returns_set ||
+      actual.owner_name === "valo_app_runtime" ||
+      actual.owner_is_schema_owner !== true ||
+      actual.runtime_can_execute !== expected.runtimeCanExecute ||
+      normalizedFunctionSourceSha256(actual.function_source) !==
+        expected.sourceSha256
+    );
+  });
+  if (
+    functionProofs.length !== expectedFunctions.length ||
+    byName.size !== expectedFunctions.length ||
+    malformed
+  ) {
+    throw new Error(
+      "production authenticated rate-limit function catalog is drifted",
+    );
+  }
+}
 
 type RuntimeTablePrivilegeProof = {
   table_name: string;
@@ -238,6 +315,7 @@ const NO_TABLE_UPDATE = new Set([
 ]);
 const NO_TABLE_DELETE = new Set([
   "audit_events",
+  "authenticated_rate_limit_buckets",
   "break_glass_sessions",
   "legacy_audit_events",
   "legacy_audit_integrity_assessments",
@@ -594,7 +672,30 @@ export function assertRuntimePolicyAttestation(
   policies: RuntimePolicyProof[],
   serverVersionNumber: number,
 ): void {
+  const rateLimitPolicy = policies.filter(
+    (policy) => policy.table_name === "authenticated_rate_limit_buckets",
+  );
+  if (
+    rateLimitPolicy.length !== 1 ||
+    rateLimitPolicy[0]?.policy_name !== "tenant_isolation" ||
+    !rateLimitPolicy[0]?.permissive ||
+    rateLimitPolicy[0]?.command !== "*" ||
+    JSON.stringify(rateLimitPolicy[0]?.role_names) !==
+      JSON.stringify(["PUBLIC"]) ||
+    rateLimitPolicy[0]?.using_expression !==
+      "(organisation_id = valo_security.current_organisation_id())" ||
+    rateLimitPolicy[0]?.check_expression !==
+      "(organisation_id = valo_security.current_organisation_id())"
+  ) {
+    throw new Error("authenticated rate-limit RLS policy is drifted");
+  }
+  // Preserve the pinned v2.5 catalog proof and attest the newly introduced
+  // tenant table independently. This avoids weakening the existing 104-policy
+  // digest into an unpinned shape-only assertion.
   const policyLines = policies
+    .filter(
+      (policy) => policy.table_name !== "authenticated_rate_limit_buckets",
+    )
     .map((policy) =>
       JSON.stringify([
         policy.table_name,
@@ -928,10 +1029,16 @@ export async function assertProductionRuntimeDatabaseSafety(
       can_execute_get_bid_autopsy_contact_handoff: boolean;
       can_execute_purge_bid_autopsy_requests: boolean;
       can_execute_purge_bid_autopsy_rate_limits: boolean;
+      can_execute_purge_authenticated_rate_limit_buckets: boolean;
       can_access_bid_autopsy_request_table: boolean;
       can_access_bid_autopsy_rate_limit_table: boolean;
       can_access_bid_autopsy_request_columns: boolean;
       can_access_bid_autopsy_rate_limit_columns: boolean;
+      can_access_authenticated_actor_rate_limit_table: boolean;
+      can_access_authenticated_actor_rate_limit_columns: boolean;
+      public_can_access_authenticated_actor_rate_limit_table: boolean;
+      public_can_access_authenticated_actor_rate_limit_columns: boolean;
+      authenticated_actor_rate_limit_owner_is_schema_owner: boolean;
       owned_database: string;
       owned_security_schemas: string;
       owned_security_relations: string;
@@ -1073,6 +1180,11 @@ export async function assertProductionRuntimeDatabaseSafety(
           'valo_intake.purge_expired_bid_autopsy_rate_limits()',
           'EXECUTE'
         ) AS can_execute_purge_bid_autopsy_rate_limits,
+        pg_catalog.has_function_privilege(
+          current_user,
+          'valo_security.purge_expired_authenticated_rate_limit_buckets()',
+          'EXECUTE'
+        ) AS can_execute_purge_authenticated_rate_limit_buckets,
         (
           pg_catalog.has_table_privilege(
             current_user,'valo_intake.bid_autopsy_requests','SELECT'
@@ -1145,6 +1257,75 @@ export async function assertProductionRuntimeDatabaseSafety(
               )
             )
         ) AS can_access_bid_autopsy_rate_limit_columns,
+        (
+          pg_catalog.has_table_privilege(
+            current_user,
+            'valo_security.authenticated_actor_rate_limit_buckets',
+            'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+          )
+        ) AS can_access_authenticated_actor_rate_limit_table,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.pg_attribute AS actor_limit_column
+          WHERE actor_limit_column.attrelid =
+              'valo_security.authenticated_actor_rate_limit_buckets'::pg_catalog.regclass
+            AND actor_limit_column.attnum > 0
+            AND NOT actor_limit_column.attisdropped
+            AND (
+              pg_catalog.has_column_privilege(
+                current_user,actor_limit_column.attrelid,
+                actor_limit_column.attnum,'SELECT'
+              ) OR pg_catalog.has_column_privilege(
+                current_user,actor_limit_column.attrelid,
+                actor_limit_column.attnum,'INSERT'
+              ) OR pg_catalog.has_column_privilege(
+                current_user,actor_limit_column.attrelid,
+                actor_limit_column.attnum,'UPDATE'
+              ) OR pg_catalog.has_column_privilege(
+                current_user,actor_limit_column.attrelid,
+                actor_limit_column.attnum,'REFERENCES'
+              )
+            )
+        ) AS can_access_authenticated_actor_rate_limit_columns,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.pg_class AS actor_limit_relation
+          CROSS JOIN LATERAL pg_catalog.aclexplode(
+            COALESCE(
+              actor_limit_relation.relacl,
+              pg_catalog.acldefault('r',actor_limit_relation.relowner)
+            )
+          ) AS actor_limit_acl
+          WHERE actor_limit_relation.oid =
+              'valo_security.authenticated_actor_rate_limit_buckets'::pg_catalog.regclass
+            AND actor_limit_acl.grantee = 0
+            AND actor_limit_acl.privilege_type IN (
+              'SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER'
+            )
+        ) AS public_can_access_authenticated_actor_rate_limit_table,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.pg_attribute AS actor_limit_column
+          CROSS JOIN LATERAL pg_catalog.aclexplode(
+            COALESCE(actor_limit_column.attacl,'{}'::pg_catalog.aclitem[])
+          ) AS actor_limit_acl
+          WHERE actor_limit_column.attrelid =
+              'valo_security.authenticated_actor_rate_limit_buckets'::pg_catalog.regclass
+            AND actor_limit_column.attnum > 0
+            AND NOT actor_limit_column.attisdropped
+            AND actor_limit_acl.grantee = 0
+            AND actor_limit_acl.privilege_type IN (
+              'SELECT','INSERT','UPDATE','REFERENCES'
+            )
+        ) AS public_can_access_authenticated_actor_rate_limit_columns,
+        (
+          SELECT relation.relowner=namespace.nspowner
+          FROM pg_catalog.pg_class AS relation
+          JOIN pg_catalog.pg_namespace AS namespace
+            ON namespace.oid=relation.relnamespace
+          WHERE relation.oid =
+            'valo_security.authenticated_actor_rate_limit_buckets'::pg_catalog.regclass
+        ) AS authenticated_actor_rate_limit_owner_is_schema_owner,
         (SELECT count(*)::text
          FROM pg_catalog.pg_database AS database_record
          WHERE database_record.datname=pg_catalog.current_database()
@@ -1283,11 +1464,11 @@ export async function assertProductionRuntimeDatabaseSafety(
       );
     }
     if (
-      Number(proof.forced_rls_tables) !== 85 ||
-      Number(proof.policies) !== 104
+      Number(proof.forced_rls_tables) !== 86 ||
+      Number(proof.policies) !== 105
     ) {
       throw new Error(
-        "production database RLS catalog is not the v2.5 boundary (85/104)",
+        "production database RLS catalog is not the production-assurance boundary (86/105)",
       );
     }
     if (
@@ -1320,10 +1501,16 @@ export async function assertProductionRuntimeDatabaseSafety(
       !proof.can_execute_get_bid_autopsy_contact_handoff ||
       proof.can_execute_purge_bid_autopsy_requests ||
       proof.can_execute_purge_bid_autopsy_rate_limits ||
+      proof.can_execute_purge_authenticated_rate_limit_buckets ||
       proof.can_access_bid_autopsy_request_table ||
       proof.can_access_bid_autopsy_rate_limit_table ||
       proof.can_access_bid_autopsy_request_columns ||
       proof.can_access_bid_autopsy_rate_limit_columns ||
+      proof.can_access_authenticated_actor_rate_limit_table ||
+      proof.can_access_authenticated_actor_rate_limit_columns ||
+      proof.public_can_access_authenticated_actor_rate_limit_table ||
+      proof.public_can_access_authenticated_actor_rate_limit_columns ||
+      !proof.authenticated_actor_rate_limit_owner_is_schema_owner ||
       Number(proof.owned_database) !== 0 ||
       Number(proof.owned_security_schemas) !== 0 ||
       Number(proof.owned_security_relations) !== 0 ||
@@ -1742,6 +1929,50 @@ export async function assertProductionRuntimeDatabaseSafety(
       WHERE intake_namespace.nspname='valo_intake'
       ORDER BY function_name
     `);
+    const authenticatedRateLimitFunctionProofs =
+      await client.query<TenantGuardFunctionProof>(`
+        SELECT routine.proname::text AS function_name,
+          language.lanname::text AS language_name,
+          routine.prokind::text AS function_kind,
+          routine.prosecdef AS security_definer,
+          routine.proleakproof AS leakproof,
+          routine.proisstrict AS strict,
+          routine.provolatile::text AS volatility,
+          routine.proparallel::text AS parallel_safety,
+          COALESCE(pg_catalog.array_to_string(routine.proconfig,','),'')
+            AS function_config,
+          routine.prorettype='pg_catalog.trigger'::pg_catalog.regtype
+            AS returns_trigger,
+          routine.pronargs::integer AS argument_count,
+          COALESCE((
+            SELECT pg_catalog.string_agg(
+              pg_catalog.format_type(argument_type.type_oid,NULL),
+              ', ' ORDER BY argument_type.ordinality
+            )
+            FROM pg_catalog.unnest(routine.proargtypes::oid[])
+              WITH ORDINALITY AS argument_type(type_oid,ordinality)
+          ), '') AS argument_types,
+          pg_catalog.pg_get_function_identity_arguments(routine.oid)
+            AS identity_arguments,
+          pg_catalog.format_type(routine.prorettype,NULL) AS return_type,
+          pg_catalog.pg_get_function_result(routine.oid) AS function_result,
+          routine.proretset AS returns_set,
+          pg_catalog.pg_get_userbyid(routine.proowner) AS owner_name,
+          routine.proowner=namespace.nspowner AS owner_is_schema_owner,
+          pg_catalog.has_function_privilege(current_user,routine.oid,'EXECUTE')
+            AS runtime_can_execute,
+          routine.prosrc AS function_source
+        FROM pg_catalog.pg_proc AS routine
+        JOIN pg_catalog.pg_namespace AS namespace
+          ON namespace.oid=routine.pronamespace
+        JOIN pg_catalog.pg_language AS language ON language.oid=routine.prolang
+        WHERE namespace.nspname='valo_security'
+          AND routine.proname IN (
+            'consume_authenticated_actor_rate_limit',
+            'purge_expired_authenticated_rate_limit_buckets'
+          )
+        ORDER BY function_name
+      `);
     const graph = graphSummary.rows[0];
     assertTenantGraphAttestation({
       directEdges: directEdges.rows,
@@ -1752,9 +1983,12 @@ export async function assertProductionRuntimeDatabaseSafety(
       tenantParentTriggerCount: graph?.tenant_parent_trigger_count ?? -1,
     });
     assertIntakeFunctionAttestation(intakeFunctionProofs.rows);
+    assertAuthenticatedRateLimitFunctionAttestation(
+      authenticatedRateLimitFunctionProofs.rows,
+    );
     if (
       graph?.public_security_trigger_count !== 116 ||
-      graph.valo_security_function_count !== 9
+      graph.valo_security_function_count !== 11
     ) {
       throw new Error(
         "production database security routine/trigger inventory is drifted",

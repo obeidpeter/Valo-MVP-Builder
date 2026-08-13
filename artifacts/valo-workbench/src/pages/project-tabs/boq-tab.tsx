@@ -151,7 +151,6 @@ function autoMap(header: string[]): Record<FieldKey, string> {
 
 export function BoqTab({ projectId }: { projectId: string }) {
   const canWriteDefects = useOrganisationPermission("defect:write");
-  const canReviewDefects = useOrganisationPermission("defect:review");
   const { data: checks, isLoading } = useListBoqChecks(projectId);
   const runChecks = useRunBoqChecks();
   const toDefect = useBoqCheckToDefect();
@@ -557,7 +556,7 @@ export function BoqTab({ projectId }: { projectId: string }) {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      {canReviewDefects && check.status === "flagged" && (
+                      {canWriteDefects && check.status === "flagged" && (
                         <Button
                           variant="outline"
                           size="sm"

@@ -18,7 +18,9 @@
     "migration:bridge:legacy:evidence:test": "node --test ./scripts/capture-legacy-evidence.test.mjs",
     "migration:bridge:legacy": "node ./scripts/run-legacy-bridge.mjs --execute",
     "migration:bridge:legacy:rehearse": "node ./scripts/legacy-bridge-ci-rehearsal.mjs",
-    "test": "tsx --test src/poolConfig.test.ts src/runtimeSecurity.test.ts && node --test ./scripts/replit-intake-migrations.test.mjs"
+    "maintenance:purge:intake": "node ./scripts/run-intake-purge.mjs",
+    "maintenance:purge:authenticated-rate-limits": "node ./scripts/run-authenticated-rate-limit-purge.mjs",
+    "test": "tsx --test src/poolConfig.test.ts src/runtimeSecurity.test.ts && node --test ./scripts/replit-intake-migrations.test.mjs ./scripts/run-intake-purge.test.mjs ./scripts/run-authenticated-rate-limit-purge.test.mjs"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",

@@ -1,6 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildProductionReadinessSnapshot } from "./productionReadiness";
+import {
+  buildProductionReadinessSnapshot,
+  declaredRequiredProductionAdapterKinds,
+} from "./productionReadiness";
+
+test("production authentication is mandatory without an env declaration", () => {
+  assert.deepEqual(declaredRequiredProductionAdapterKinds(undefined), [
+    "authentication",
+  ]);
+  assert.deepEqual(
+    declaredRequiredProductionAdapterKinds("audit_anchor,authentication"),
+    ["authentication", "audit_anchor"],
+  );
+  assert.throws(
+    () => declaredRequiredProductionAdapterKinds("not-a-real-adapter"),
+    /unknown kinds: not-a-real-adapter/u,
+  );
+});
 
 test("startup readiness separates fatal declarations from feature gates", () => {
   const snapshot = buildProductionReadinessSnapshot(

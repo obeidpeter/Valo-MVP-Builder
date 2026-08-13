@@ -1,0 +1,15 @@
+# The repository owner is the fallback reviewer for every change.
+* @obeidpeter
+
+# High-risk release, data-boundary, and generated-contract surfaces retain an
+# explicit owner even if more specific product ownership is introduced later.
+/.github/ @obeidpeter
+/scripts/ @obeidpeter
+/config/ @obeidpeter
+/lib/db/ @obeidpeter
+/lib/api-spec/ @obeidpeter
+/lib/api-client-react/ @obeidpeter
+/lib/api-zod/ @obeidpeter
+/artifacts/api-server/src/routes/health.ts @obeidpeter
+/artifacts/api-server/.replit-artifact/ @obeidpeter
+/.replit @obeidpeter

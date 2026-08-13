@@ -4318,11 +4318,12 @@ export interface GrowthOnboardingChecklistItem {
      * @maxLength 1000
      */
   purpose: string;
+  practiceMarkerReceipt: 'Self-recorded practice marker saved; this is not evidence that the described task was completed.';
   /**
-     * @minLength 1
-     * @maxLength 1000
+     * Compatibility-only neutral text. It is not evidence that any task was completed.
+     * @deprecated
      */
-  completionEvidence: string;
+  completionEvidence: 'Self-recorded practice marker saved; this is not evidence that the described task was completed.';
 }
 
 export interface GrowthSyntheticTourStep {
@@ -4394,6 +4395,14 @@ export interface GrowthOnboardingProgress {
      * @items.minLength 1
      * @items.maxLength 128
      */
+  savedPracticeMarkerItemIds: string[];
+  /**
+     * Compatibility alias for savedPracticeMarkerItemIds. It does not represent task completion.
+     * @deprecated
+     * @maxItems 512
+     * @items.minLength 1
+     * @items.maxLength 128
+     */
   completedItemIds: string[];
   /** @minimum 0 */
   version: number;
@@ -4405,7 +4414,17 @@ export interface GrowthOnboardingResponse {
   authorityNote: GrowthHumanControlNote;
 }
 
-export interface GrowthOnboardingProgressMutation {
+export type GrowthOnboardingProgressMutation = {
+  journeyVersion: '2026-08-11.2';
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  itemId: string;
+  /** @minimum 0 */
+  expectedVersion: number;
+  markerSaved: boolean;
+} | {
   journeyVersion: '2026-08-11.2';
   /**
      * @minLength 1
@@ -4415,7 +4434,7 @@ export interface GrowthOnboardingProgressMutation {
   /** @minimum 0 */
   expectedVersion: number;
   completed: boolean;
-}
+};
 
 export interface GrowthOnboardingProgressMutationResponse {
   progress: GrowthOnboardingProgress;
@@ -7000,6 +7019,58 @@ export interface User {
   createdAt?: string;
 }
 
+export type OrganisationUserRole = typeof OrganisationUserRole[keyof typeof OrganisationUserRole];
+
+
+export const OrganisationUserRole = {
+  client_organisation_owner: 'client_organisation_owner',
+  client_administrator: 'client_administrator',
+  bid_manager: 'bid_manager',
+  contributor: 'contributor',
+  client_reviewer_approver: 'client_reviewer_approver',
+  valo_operations_administrator: 'valo_operations_administrator',
+  restricted_platform_administrator: 'restricted_platform_administrator',
+  consultancy_partner_administrator: 'consultancy_partner_administrator',
+  consultancy_partner_analyst_reviewer: 'consultancy_partner_analyst_reviewer',
+  read_only_auditor: 'read_only_auditor',
+  valo_analyst: 'valo_analyst',
+  valo_quality_adviser: 'valo_quality_adviser',
+  none: 'none',
+} as const;
+
+export type OrganisationUserStatus = typeof OrganisationUserStatus[keyof typeof OrganisationUserStatus];
+
+
+export const OrganisationUserStatus = {
+  active: 'active',
+  disabled: 'disabled',
+} as const;
+
+export type OrganisationUserMembershipStatus = typeof OrganisationUserMembershipStatus[keyof typeof OrganisationUserMembershipStatus];
+
+
+export const OrganisationUserMembershipStatus = {
+  active: 'active',
+  suspended: 'suspended',
+  revoked: 'revoked',
+} as const;
+
+export interface OrganisationUser {
+  id: string;
+  email: string;
+  name?: string | null;
+  role: OrganisationUserRole;
+  status: OrganisationUserStatus;
+  lastLoginAt?: string | null;
+  createdAt?: string;
+  membershipId: string;
+  membershipStatus: OrganisationUserMembershipStatus;
+  /** @minimum 1 */
+  membershipVersion: number;
+  /** Server-computed current eligibility for named project review in the selected organisation. Absence or false must fail closed. */
+  reviewerEligible: boolean;
+}
+
 export type UserUpdateRole = typeof UserUpdateRole[keyof typeof UserUpdateRole];
 
 
@@ -8097,6 +8168,10 @@ export type RetentionCompletionConflictCommercialFinancialBlockers = {
   entitlementUsage: number;
 };
 
+/**
+ * Legacy generated type retained for source compatibility; the inactive completion operation does not emit this response.
+ * @deprecated
+ */
 export interface RetentionCompletionConflict {
   error: string;
   commercialFinancialBlockers?: RetentionCompletionConflictCommercialFinancialBlockers;
@@ -8114,6 +8189,85 @@ export interface RetentionCompletionUnavailable {
      */
   requiredCoverage: ['project_content_rows', 'object_storage', 'upload_sessions', 'storage_lifecycle_control_rows'];
 }
+
+export interface StorageDeletionOperatorReason {
+  /**
+     * @minLength 8
+     * @maxLength 512
+     */
+  reason: string;
+}
+
+export type StorageDeletionDeadLetterStatus = typeof StorageDeletionDeadLetterStatus[keyof typeof StorageDeletionDeadLetterStatus];
+
+
+export const StorageDeletionDeadLetterStatus = {
+  dead_letter: 'dead_letter',
+  queued: 'queued',
+  resolved: 'resolved',
+} as const;
+
+export type StorageDeletionDeadLetterAggregateType = typeof StorageDeletionDeadLetterAggregateType[keyof typeof StorageDeletionDeadLetterAggregateType];
+
+
+export const StorageDeletionDeadLetterAggregateType = {
+  document: 'document',
+  vault_item: 'vault_item',
+  upload_session: 'upload_session',
+} as const;
+
+export type StorageDeletionDeadLetterReason = typeof StorageDeletionDeadLetterReason[keyof typeof StorageDeletionDeadLetterReason];
+
+
+export const StorageDeletionDeadLetterReason = {
+  record_deleted: 'record_deleted',
+  reference_replaced: 'reference_replaced',
+  lease_expired: 'lease_expired',
+} as const;
+
+export interface StorageDeletionDeadLetter {
+  id: string;
+  /** @minimum 1 */
+  version: number;
+  status: StorageDeletionDeadLetterStatus;
+  /**
+     * @minimum 0
+     * @maximum 3
+     */
+  replayCount: number;
+  /**
+     * @minimum 0
+     * @maximum 5
+     */
+  cycleAttempts: number;
+  terminalAt: string | null;
+  projectId: string | null;
+  aggregateType: StorageDeletionDeadLetterAggregateType;
+  aggregateId: string;
+  reason: StorageDeletionDeadLetterReason;
+  requestedAt: string;
+  /** @pattern ^[0-9a-f]{64}$ */
+  requestSha256: string;
+}
+
+export interface StorageDeletionDeadLetterPage {
+  /** @maxItems 25 */
+  items: StorageDeletionDeadLetter[];
+  /**
+     * @minimum 1
+     * @maximum 25
+     */
+  limit: number;
+  truncated: boolean;
+  nextCursor: string | null;
+}
+
+export const StorageLifecycleUnavailableErrorValue = {
+  error: 'Storage lifecycle persistence is unavailable',
+  code: 'STORAGE_LIFECYCLE_PERSISTENCE_UNAVAILABLE',
+  sideEffectsApplied: false,
+} as const;
+export type StorageLifecycleUnavailableError = typeof StorageLifecycleUnavailableErrorValue;
 
 export interface SeverityWeights {
   /**
@@ -8691,7 +8845,7 @@ export interface Project {
   segment?: ProjectSegment;
   submissionStatus?: string | null;
   status: ProjectStatus;
-  reviewerId?: string | null;
+  reviewerId: string | null;
   reviewerName?: string | null;
   slaClass?: ProjectSlaClass;
   paymentStatus?: ProjectPaymentStatus;
@@ -8808,6 +8962,7 @@ export interface ProjectSummary {
   deadline?: string | null;
   segment?: ProjectSummarySegment;
   status: ProjectSummaryStatus;
+  reviewerId: string | null;
   reviewerName?: string | null;
   slaClass?: ProjectSummarySlaClass;
   paymentStatus?: ProjectSummaryPaymentStatus;
@@ -8841,25 +8996,6 @@ export const ProjectCreateSlaClass = {
   live: 'live',
 } as const;
 
-export type ProjectCreatePaymentStatus = typeof ProjectCreatePaymentStatus[keyof typeof ProjectCreatePaymentStatus];
-
-
-export const ProjectCreatePaymentStatus = {
-  not_required: 'not_required',
-  pending: 'pending',
-  confirmed: 'confirmed',
-} as const;
-
-export type ProjectCreateConflictStatus = typeof ProjectCreateConflictStatus[keyof typeof ProjectCreateConflictStatus];
-
-
-export const ProjectCreateConflictStatus = {
-  clear: 'clear',
-  blocked: 'blocked',
-  consented: 'consented',
-  declined: 'declined',
-} as const;
-
 export interface ProjectCreate {
   clientId: string;
   /** @minLength 1 */
@@ -8873,10 +9009,6 @@ export interface ProjectCreate {
   submissionStatus?: string;
   reviewerId: string;
   slaClass?: ProjectCreateSlaClass;
-  paymentStatus?: ProjectCreatePaymentStatus;
-  conflictStatus?: ProjectCreateConflictStatus;
-  conflictDecision?: string;
-  conflictRationale?: string;
   physicalArchiveInstruction?: string;
   redactionScope?: string;
   restrictedMode?: boolean;
@@ -9813,6 +9945,23 @@ export interface UploadUrlResponse {
   metadata?: UploadUrlRequest;
 }
 
+export type LegacyUploadIssuanceUnavailableCode = typeof LegacyUploadIssuanceUnavailableCode[keyof typeof LegacyUploadIssuanceUnavailableCode];
+
+
+export const LegacyUploadIssuanceUnavailableCode = {
+  LEGACY_UPLOAD_ISSUANCE_NOT_ACTIVATED: 'LEGACY_UPLOAD_ISSUANCE_NOT_ACTIVATED',
+} as const;
+
+export interface LegacyUploadIssuanceUnavailable {
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  error: string;
+  code: LegacyUploadIssuanceUnavailableCode;
+  sideEffectsApplied: false;
+}
+
 export interface DiscardUploadRequest {
   /**
      * @minLength 1
@@ -9873,6 +10022,11 @@ export type PreconditionRequiredResponse = ErrorEnvelope;
  * Authentication, tenant-context resolution or request processing failed unexpectedly
  */
 export type InternalServerErrorResponse = ErrorEnvelope;
+
+/**
+ * Storage lifecycle persistence is unavailable and no operator mutation committed.
+ */
+export type StorageLifecycleUnavailableResponse = StorageLifecycleUnavailableError;
 
 /**
  * AI input was invalid or exceeded the bounded source limit
@@ -10107,6 +10261,21 @@ limit?: CanonicalEvidenceLimitParameter;
 
 export type ListProjectsParams = {
 clientId?: string;
+};
+
+export type ListStorageDeletionDeadLettersParams = {
+/**
+ * @minimum 1
+ * @maximum 25
+ */
+limit?: number;
+/**
+ * Opaque continuation cursor from the preceding page.
+ * @minLength 1
+ * @maxLength 192
+ * @pattern ^[A-Za-z0-9_-]+$
+ */
+cursor?: string;
 };
 
 export type GetMonthlyCostReportParams = {

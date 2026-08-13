@@ -16,6 +16,7 @@ import type {
   OnboardingProgress,
 } from "@/components/growth-suite/growth-suite-contract";
 import { GrowthOnboardingJourney } from "@/components/growth-suite/onboarding-journey";
+import { navigationForRole, platformFeatureFlags } from "@/lib/platform-access";
 import { LeadOperationsInbox } from "@/components/growth-suite/lead-operations-inbox";
 import { GrowthOfferCatalogue } from "@/components/growth-suite/offer-catalogue";
 import { PageHeader, StatusPanel } from "@/components/platform-states";
@@ -26,10 +27,99 @@ import { useToast } from "@/hooks/use-toast";
 const QUERY_ROOT = "growth-suite";
 const ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/u;
 
-async function getGrowthOnboarding(): Promise<GrowthOnboardingResponse> {
-  return customFetch("/api/growth-suite/onboarding", {
-    responseType: "json",
+function normalisedAuthorityRoles(roles: readonly string[]): string[] {
+  return [...new Set(roles)].sort();
+}
+
+export function growthAuthorityFingerprint(input: {
+  actorUserId: string;
+  membershipId: string;
+  organisationVersion: number;
+  accessExpiresAt: string | null;
+  roles: readonly string[];
+  permissions: readonly string[];
+}): string {
+  return JSON.stringify({
+    actorUserId: input.actorUserId,
+    membershipId: input.membershipId,
+    organisationVersion: input.organisationVersion,
+    accessExpiresAt: input.accessExpiresAt,
+    roles: normalisedAuthorityRoles(input.roles),
+    permissions: [...new Set(input.permissions)].sort(),
   });
+}
+
+const ONBOARDING_LIVE_DESTINATIONS = new Set([
+  "/projects",
+  "/evidence-readiness",
+  "/sbd",
+  "/reports",
+  "/organisation-settings",
+]);
+
+export function growthOnboardingDestinations(input: {
+  roles: readonly string[];
+  permissions: readonly string[];
+  accessSource: "membership" | "partner" | null;
+}): Array<{ href: string; label: string }> {
+  if (input.accessSource !== "membership") return [];
+  return navigationForRole(
+    input.roles,
+    platformFeatureFlags(),
+    input.permissions,
+    input.accessSource,
+  )
+    .filter(
+      ({ href, state }) =>
+        state === "active" && ONBOARDING_LIVE_DESTINATIONS.has(href),
+    )
+    .slice(0, 3)
+    .map(({ href, label }) => ({ href, label }));
+}
+
+export function assertGrowthOnboardingAuthority(
+  response: GrowthOnboardingResponse,
+  expectedRoles: readonly string[],
+): GrowthOnboardingResponse {
+  const actual = normalisedAuthorityRoles(
+    Array.isArray(response?.journey?.derivedFromRoles)
+      ? response.journey.derivedFromRoles
+      : [],
+  );
+  const expected = normalisedAuthorityRoles(expectedRoles);
+  const checklistIds = new Set(
+    response?.journey?.checklist?.map(({ id }) => id) ?? [],
+  );
+  const markerIds = response?.progress?.savedPracticeMarkerItemIds;
+  const legacyMarkerIds = response?.progress?.completedItemIds;
+  if (
+    actual.length !== expected.length ||
+    !actual.every((role, index) => role === expected[index]) ||
+    response.journey.policyVersion !== response.progress.journeyVersion ||
+    !Array.isArray(markerIds) ||
+    !markerIds.every((id) => typeof id === "string") ||
+    new Set(markerIds).size !== markerIds.length ||
+    markerIds.some((id) => !checklistIds.has(id)) ||
+    checklistIds.size !== response.journey.checklist.length ||
+    !Array.isArray(legacyMarkerIds) ||
+    legacyMarkerIds.length !== markerIds.length ||
+    !legacyMarkerIds.every((id, index) => id === markerIds[index])
+  ) {
+    throw new Error("Growth onboarding authority changed");
+  }
+  return response;
+}
+
+async function getGrowthOnboarding(
+  expectedRoles: readonly string[],
+): Promise<GrowthOnboardingResponse> {
+  const response = await customFetch<GrowthOnboardingResponse>(
+    "/api/growth-suite/onboarding",
+    {
+      responseType: "json",
+    },
+  );
+  return assertGrowthOnboardingAuthority(response, expectedRoles);
 }
 
 async function getGrowthOffers(): Promise<GrowthOffersResponse> {
@@ -142,6 +232,7 @@ export function GrowthOperationsView({
   onRequestContactHandoff,
   onDismissContactHandoff,
   onOnboardingToggle,
+  onboardingDestinations = [],
 }: {
   onboarding: OnboardingJourney;
   onboardingProgress: OnboardingProgress;
@@ -161,7 +252,8 @@ export function GrowthOperationsView({
     purpose: LeadContactHandoffPurpose,
   ) => void;
   onDismissContactHandoff?: () => void;
-  onOnboardingToggle?: (itemId: string, completed: boolean) => void;
+  onOnboardingToggle?: (itemId: string, markerSaved: boolean) => void;
+  onboardingDestinations?: readonly { href: string; label: string }[];
 }) {
   return (
     <div className="mx-auto w-full max-w-7xl space-y-10 p-5 sm:p-8">
@@ -189,6 +281,7 @@ export function GrowthOperationsView({
         progress={onboardingProgress}
         mutationPending={mutationPending}
         onToggle={onOnboardingToggle}
+        liveDestinations={onboardingDestinations}
       />
       <GrowthOfferCatalogue
         catalogueVersion={catalogueVersion}
@@ -204,12 +297,14 @@ export default function GrowthOperationsPage() {
   const queryClient = useQueryClient();
   const meQuery = useGetMe();
   const organisationId = access?.activeOrganisation?.id ?? "";
+  const actorUserId = meQuery.data?.id ?? "";
   const roles = access?.effectiveRoles ?? [];
   const permissions = access?.effectivePermissions ?? [];
   const directMembership =
     access?.activeOrganisation?.accessSource === "membership";
   const canView = Boolean(
     organisationId &&
+    actorUserId &&
     directMembership &&
     permissions.includes("organisation:read"),
   );
@@ -220,10 +315,29 @@ export default function GrowthOperationsPage() {
       ["valo_operations_administrator", "valo_analyst"].includes(role),
     ),
   );
-  const queryPrefix = [QUERY_ROOT, organisationId] as const;
+  const onboardingDestinations = growthOnboardingDestinations({
+    roles,
+    permissions,
+    accessSource: access?.activeOrganisation?.accessSource ?? null,
+  });
+  const authorityFingerprint = growthAuthorityFingerprint({
+    actorUserId,
+    membershipId: access?.activeOrganisation?.membershipId ?? "",
+    organisationVersion: access?.activeOrganisation?.version ?? 0,
+    accessExpiresAt: access?.activeOrganisation?.accessExpiresAt ?? null,
+    roles,
+    permissions,
+  });
+  const authorityScopeKey = `${organisationId}:${authorityFingerprint}`;
+  const queryPrefix = [
+    QUERY_ROOT,
+    organisationId,
+    authorityFingerprint,
+  ] as const;
+  const onboardingQueryKey = [...queryPrefix, "onboarding"] as const;
   const onboardingQuery = useQuery({
-    queryKey: [...queryPrefix, "onboarding"],
-    queryFn: getGrowthOnboarding,
+    queryKey: onboardingQueryKey,
+    queryFn: () => getGrowthOnboarding(roles),
     enabled: canView,
   });
   const offersQuery = useQuery({
@@ -242,8 +356,8 @@ export default function GrowthOperationsPage() {
     string | null
   >(null);
   const handoffAbortRef = useRef<AbortController | null>(null);
-  const activeOrganisationIdRef = useRef(organisationId);
-  activeOrganisationIdRef.current = organisationId;
+  const activeAuthorityScopeRef = useRef(authorityScopeKey);
+  activeAuthorityScopeRef.current = authorityScopeKey;
 
   const clearContactHandoff = () => {
     handoffAbortRef.current?.abort();
@@ -255,7 +369,7 @@ export default function GrowthOperationsPage() {
   useEffect(() => {
     clearContactHandoff();
     return () => handoffAbortRef.current?.abort();
-  }, [organisationId]);
+  }, [authorityScopeKey]);
 
   useEffect(() => {
     if (!leadContactHandoff) return;
@@ -283,33 +397,41 @@ export default function GrowthOperationsPage() {
   const onboardingMutation = useMutation({
     mutationFn: ({
       itemId,
-      completed,
+      markerSaved,
+      journeyVersion,
+      expectedVersion,
     }: {
       itemId: string;
-      completed: boolean;
+      markerSaved: boolean;
+      journeyVersion: string;
+      expectedVersion: number;
+      queryKey: readonly unknown[];
     }): Promise<GrowthOnboardingMutationResponse> =>
       customFetch("/api/growth-suite/onboarding/progress", {
         method: "POST",
         body: JSON.stringify({
-          journeyVersion: onboardingQuery.data?.journey.policyVersion,
+          journeyVersion,
           itemId,
-          expectedVersion: onboardingQuery.data?.progress.version,
-          completed,
+          expectedVersion,
+          markerSaved,
         }),
         responseType: "json",
       }),
-    onSuccess: (response) => {
-      queryClient.setQueryData<GrowthOnboardingResponse>(
-        [...queryPrefix, "onboarding"],
-        (current) =>
-          current ? { ...current, progress: response.progress } : current,
-      );
-      toast({ title: "Onboarding checkpoint recorded" });
+    onSuccess: (_response, variables) => {
+      // The mutation receipt does not carry the authority-derived journey.
+      // Never install it into an old role-scoped cache: the exact GET validates
+      // current derived roles, policy and marker membership before display.
+      void queryClient.invalidateQueries({ queryKey: variables.queryKey });
+      toast({
+        title: variables.markerSaved
+          ? "Self-recorded practice marker saved"
+          : "Self-recorded practice marker removed",
+      });
     },
-    onError: () => {
-      mutationError("Onboarding checkpoint could not be recorded")();
+    onError: (_error, variables) => {
+      mutationError("Onboarding practice marker could not be recorded")();
       void queryClient.invalidateQueries({
-        queryKey: [...queryPrefix, "onboarding"],
+        queryKey: variables.queryKey,
       });
     },
   });
@@ -354,7 +476,7 @@ export default function GrowthOperationsPage() {
       return;
     }
     clearContactHandoff();
-    const requestOrganisationId = organisationId;
+    const requestAuthorityScope = authorityScopeKey;
     const releaseCriticalWorkflow = access?.beginCriticalWorkflow();
     const controller = new AbortController();
     handoffAbortRef.current = controller;
@@ -372,7 +494,7 @@ export default function GrowthOperationsPage() {
       );
       if (
         controller.signal.aborted ||
-        activeOrganisationIdRef.current !== requestOrganisationId
+        activeAuthorityScopeRef.current !== requestAuthorityScope
       ) {
         return;
       }
@@ -382,7 +504,7 @@ export default function GrowthOperationsPage() {
       });
       if (
         controller.signal.aborted ||
-        activeOrganisationIdRef.current !== requestOrganisationId
+        activeAuthorityScopeRef.current !== requestAuthorityScope
       ) {
         return;
       }
@@ -402,6 +524,28 @@ export default function GrowthOperationsPage() {
     }
   };
 
+  if (meQuery.isLoading) {
+    return (
+      <div className="p-5 sm:p-8">
+        <StatusPanel
+          state="pending"
+          title="Resolving your identity"
+          description="Growth operations remain unavailable until the current actor and organisation authority are bound."
+        />
+      </div>
+    );
+  }
+  if (meQuery.isError || (organisationId && directMembership && !actorUserId)) {
+    return (
+      <div className="p-5 sm:p-8">
+        <StatusPanel
+          state="error"
+          title="Current identity could not be resolved"
+          description="No onboarding progress or role-derived destination is shown without an exact current actor."
+        />
+      </div>
+    );
+  }
   if (!canView) {
     return (
       <div className="p-5 sm:p-8">
@@ -466,11 +610,12 @@ export default function GrowthOperationsPage() {
       <GrowthOperationsView
         onboarding={onboardingQuery.data.journey}
         onboardingProgress={onboardingQuery.data.progress}
+        onboardingDestinations={onboardingDestinations}
         catalogueVersion={offersQuery.data.catalogueVersion}
         offers={offersQuery.data.items}
         leads={leadsQuery.data?.items}
         currentUserId={meQuery.data?.id}
-        scopeKey={organisationId}
+        scopeKey={authorityScopeKey}
         leadContactHandoff={leadContactHandoff}
         handoffPendingLeadId={handoffPendingLeadId}
         canOperateLeads={canOperateLeads && !leadsQuery.isError}
@@ -486,8 +631,14 @@ export default function GrowthOperationsPage() {
           void requestContactHandoff(leadId, expectedVersion, purpose);
         }}
         onDismissContactHandoff={clearContactHandoff}
-        onOnboardingToggle={(itemId, completed) =>
-          onboardingMutation.mutate({ itemId, completed })
+        onOnboardingToggle={(itemId, markerSaved) =>
+          onboardingMutation.mutate({
+            itemId,
+            markerSaved,
+            journeyVersion: onboardingQuery.data.journey.policyVersion,
+            expectedVersion: onboardingQuery.data.progress.version,
+            queryKey: onboardingQueryKey,
+          })
         }
       />
     </>

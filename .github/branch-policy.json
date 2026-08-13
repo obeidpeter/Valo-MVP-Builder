@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "status": "desired_state_requires_github_application",
+  "branch": "main",
+  "owner": "@obeidpeter",
+  "pullRequest": {
+    "required": true,
+    "requiredApprovingReviewCount": 1,
+    "requireCodeOwnerReview": true,
+    "dismissStaleApprovals": true,
+    "requireApprovalOfMostRecentPush": true,
+    "requireConversationResolution": true
+  },
+  "requiredStatusChecks": {
+    "strict": true,
+    "checks": [
+      {
+        "context": "CI / verify",
+        "workflow": ".github/workflows/ci.yml",
+        "job": "verify"
+      },
+      {
+        "context": "CodeQL / analyse",
+        "workflow": ".github/workflows/codeql.yml",
+        "job": "analyse"
+      },
+      {
+        "context": "Dependency review / dependency-review",
+        "workflow": ".github/workflows/dependency-review.yml",
+        "job": "dependency-review"
+      }
+    ]
+  },
+  "history": {
+    "blockForcePushes": true,
+    "blockDeletions": true
+  },
+  "administration": {
+    "enforceForAdministrators": true,
+    "bypassActors": []
+  },
+  "releaseEnvironments": {
+    "staging": {
+      "requiredReviewers": 1,
+      "allowedDeploymentBranches": ["main"]
+    },
+    "production": {
+      "requiredReviewers": 1,
+      "preventSelfReview": true,
+      "allowedDeploymentBranches": ["main"]
+    }
+  }
+}

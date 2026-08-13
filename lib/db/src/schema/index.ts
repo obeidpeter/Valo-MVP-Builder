@@ -13,6 +13,7 @@ import {
   foreignKey,
   check,
   index,
+  primaryKey,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -324,6 +325,10 @@ export const projects = pgTable(
     segment: text("segment"),
     submissionStatus: text("submission_status"),
     status: text("status").notNull().default("intake"),
+    // Set exactly once when the project first enters a concluded state. The
+    // retention clock must never fall back to creation/update time because
+    // neither is evidence of when delivery actually concluded.
+    concludedAt: timestamp("concluded_at", { withTimezone: true }),
     reviewerId: uuid("reviewer_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -668,6 +673,13 @@ export const notificationEvents = pgTable(
     availableAt: timestamp("available_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    // Internal storage deletion intents use these bounded-cycle controls.
+    // Other notification channels retain the zero/null defaults.
+    storageReplayCount: integer("storage_replay_count").notNull().default(0),
+    storageCycleAttempts: integer("storage_cycle_attempts")
+      .notNull()
+      .default(0),
+    storageTerminalAt: timestamp("storage_terminal_at", { withTimezone: true }),
     createdBy: uuid("created_by").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -681,6 +693,61 @@ export const notificationEvents = pgTable(
       .where(
         sql`${t.channel} = 'internal_storage' AND ${t.template} = 'valo.storage-deletion-intent/v1' AND ${t.status} IN ('queued', 'retry_wait')`,
       ),
+    index("notification_events_storage_terminal_retention_idx")
+      .on(t.organisationId, t.storageTerminalAt, t.id)
+      .where(
+        sql`${t.channel} = 'internal_storage' AND ${t.template} = 'valo.storage-deletion-intent/v1' AND ${t.status} IN ('completed', 'cancelled') AND ${t.storageTerminalAt} IS NOT NULL`,
+      ),
+    check(
+      "notification_events_storage_replay_count_bound",
+      sql`${t.storageReplayCount} BETWEEN 0 AND 3`,
+    ),
+    check(
+      "notification_events_storage_cycle_attempts_bound",
+      sql`${t.storageCycleAttempts} BETWEEN 0 AND 5`,
+    ),
+  ],
+);
+
+/**
+ * Shared post-authentication fixed-window limiter. The opaque key is a SHA-256
+ * digest over the bounded policy dimensions; no raw identity or address is
+ * persisted. Every consume/cleanup query runs in the caller's tenant tx.
+ */
+export const authenticatedRateLimitBuckets = pgTable(
+  "authenticated_rate_limit_buckets",
+  {
+    organisationId: uuid("organisation_id")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "cascade" }),
+    bucketKeySha256: text("bucket_key_sha256").notNull(),
+    windowStartedAt: timestamp("window_started_at", {
+      withTimezone: true,
+    }).notNull(),
+    requestCount: integer("request_count").notNull().default(1),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({
+      name: "authenticated_rate_limit_buckets_pk",
+      columns: [t.organisationId, t.bucketKeySha256, t.windowStartedAt],
+    }),
+    index("authenticated_rate_limit_buckets_expiry_idx").on(
+      t.expiresAt,
+      t.organisationId,
+    ),
+    check(
+      "authenticated_rate_limit_buckets_key_sha256_check",
+      sql`${t.bucketKeySha256} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "authenticated_rate_limit_buckets_request_count_check",
+      sql`${t.requestCount} BETWEEN 1 AND 1000000`,
+    ),
+    check(
+      "authenticated_rate_limit_buckets_window_check",
+      sql`${t.expiresAt} > ${t.windowStartedAt}`,
+    ),
   ],
 );
 
@@ -754,6 +821,19 @@ export const appConfig = pgTable("app_config", {
     "storage_lifecycle_lease_expires_at",
     { withTimezone: true },
   ),
+  storageLifecycleCycleIncomplete: boolean("storage_lifecycle_cycle_incomplete")
+    .notNull()
+    .default(false),
+  retentionScanCursorOrganisationId: uuid(
+    "retention_scan_cursor_organisation_id",
+  ),
+  retentionScanLeaseOwner: text("retention_scan_lease_owner"),
+  retentionScanLeaseExpiresAt: timestamp("retention_scan_lease_expires_at", {
+    withTimezone: true,
+  }),
+  retentionScanCycleIncomplete: boolean("retention_scan_cycle_incomplete")
+    .notNull()
+    .default(false),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .notNull(),

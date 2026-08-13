@@ -26,6 +26,19 @@ import {
   type SlaClass,
 } from "../lib/deterministic";
 import { getActiveConfig } from "../lib/appConfig";
+import { createBoundedJsonBody } from "./boundedJsonBody";
+import { parseExpectedVersion } from "../lib/permissions";
+import {
+  listStorageDeletionDeadLetters,
+  replayStorageDeletionDeadLetter,
+  resolveStorageDeletionDeadLetter,
+  StorageLifecycleRepositoryError,
+  type StoredStorageDeletionIntent,
+} from "../lib/storageLifecycle/repository";
+import {
+  STORAGE_LIFECYCLE_UNAVAILABLE_RECEIPT,
+  storageLifecycleErrorStatus,
+} from "../lib/storageLifecycle/operatorHttp";
 
 const router: IRouter = Router();
 
@@ -36,6 +49,43 @@ const ACTIVE_STATUSES = [
   "defects",
   "reporting",
 ];
+const storageLifecycleOperatorBody = createBoundedJsonBody(2_048, "operations");
+
+function serializeStorageDeadLetter(event: StoredStorageDeletionIntent) {
+  return {
+    id: event.id,
+    version: event.version,
+    status: event.status,
+    replayCount: event.replayCount,
+    cycleAttempts: event.cycleAttempts,
+    terminalAt: event.terminalAt?.toISOString() ?? null,
+    projectId: event.envelope.projectId,
+    aggregateType: event.envelope.aggregateType,
+    aggregateId: event.envelope.aggregateId,
+    reason: event.envelope.reason,
+    requestedAt: event.envelope.requestedAt,
+    requestSha256: event.envelope.requestSha256,
+  };
+}
+
+function storageOperatorReason(body: unknown): string | null {
+  if (
+    !body ||
+    typeof body !== "object" ||
+    Array.isArray(body) ||
+    Object.keys(body).length !== 1 ||
+    !("reason" in body) ||
+    typeof body.reason !== "string"
+  ) {
+    return null;
+  }
+  const reason = body.reason.trim();
+  return reason.length >= 8 && reason.length <= 512 ? reason : null;
+}
+
+function sendStorageLifecycleUnavailable(res: Response): void {
+  res.status(503).json(STORAGE_LIFECYCLE_UNAVAILABLE_RECEIPT);
+}
 
 router.get(
   "/workflow/alerts",
@@ -301,6 +351,110 @@ router.get(
     res.json(rows.map(serializeRetention));
   },
 );
+
+router.get(
+  "/storage-lifecycle/dead-letters",
+  requirePermissionOrLegacy("retention:manage"),
+  async (req: Request, res: Response) => {
+    res.set("Cache-Control", "private, no-store");
+    const organisationId = getOrganisationId(req);
+    const rawLimit = req.query.limit;
+    const rawCursor = req.query.cursor;
+    const limit = rawLimit === undefined ? 25 : Number(rawLimit);
+    if (
+      !organisationId ||
+      !Number.isSafeInteger(limit) ||
+      limit < 1 ||
+      limit > 25 ||
+      (rawCursor !== undefined && typeof rawCursor !== "string")
+    ) {
+      res.status(400).json({ error: "A valid tenant and limit are required" });
+      return;
+    }
+    try {
+      const page = await listStorageDeletionDeadLetters(
+        organisationId,
+        limit,
+        rawCursor,
+      );
+      res.json({
+        items: page.items.map(serializeStorageDeadLetter),
+        limit: page.limit,
+        truncated: page.truncated,
+        nextCursor: page.nextCursor,
+      });
+    } catch (error) {
+      if (error instanceof StorageLifecycleRepositoryError) {
+        if (error.code === "persistence_unavailable") {
+          sendStorageLifecycleUnavailable(res);
+          return;
+        }
+        res.status(storageLifecycleErrorStatus(error.code)).json({
+          error: "Storage lifecycle queue is unavailable",
+        });
+        return;
+      }
+      throw error;
+    }
+  },
+);
+
+for (const action of ["replay", "resolve"] as const) {
+  router.post(
+    `/storage-lifecycle/dead-letters/:id/${action}`,
+    storageLifecycleOperatorBody,
+    requirePermissionOrLegacy("retention:manage"),
+    async (req: Request, res: Response) => {
+      res.set("Cache-Control", "private, no-store");
+      const organisationId = getOrganisationId(req);
+      const actor = getLocalUser(req);
+      const expectedVersion = parseExpectedVersion(req.header("if-match"));
+      const reason = storageOperatorReason(req.body);
+      if (expectedVersion === null) {
+        res.status(428).json({ error: "A valid If-Match version is required" });
+        return;
+      }
+      if (!organisationId || !actor || !reason) {
+        res.status(400).json({ error: "Invalid lifecycle operator request" });
+        return;
+      }
+      try {
+        const command = {
+          organisationId,
+          eventId: String(req.params.id),
+          expectedVersion,
+          reason,
+          actor,
+        };
+        const updated =
+          action === "replay"
+            ? await replayStorageDeletionDeadLetter(command)
+            : await resolveStorageDeletionDeadLetter(command);
+        res.set("ETag", `"${updated.version}"`);
+        res.json(serializeStorageDeadLetter(updated));
+      } catch (error) {
+        if (error instanceof StorageLifecycleRepositoryError) {
+          if (error.code === "persistence_unavailable") {
+            sendStorageLifecycleUnavailable(res);
+            return;
+          }
+          res.status(storageLifecycleErrorStatus(error.code)).json({
+            error:
+              error.code === "stale_version"
+                ? "The dead letter changed; refresh before retrying"
+                : error.code === "invalid_state"
+                  ? "The dead letter is not eligible for this action"
+                  : error.code === "not_found"
+                    ? "Dead letter not found"
+                    : "Invalid lifecycle operator request",
+          });
+          return;
+        }
+        throw error;
+      }
+    },
+  );
+}
 
 /**
  * Retention completion is deliberately unavailable in this release. Blob

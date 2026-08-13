@@ -1,0 +1,6 @@
+# Keep repository and generated evidence inputs byte-stable across build hosts.
+* text=auto eol=lf
+
+# Native Windows command scripts require CRLF for reliable cmd.exe parsing.
+*.bat text eol=crlf
+*.cmd text eol=crlf
