@@ -50,8 +50,14 @@ import type {
   BidAutopsyRequestAccepted,
   BidAutopsyRequestCreate,
   BoqCheck,
+  BoqExceptionResolutionRequest,
+  BoqExceptionResolutionUpdated,
   BoqRunRequest,
   BoqRunResult,
+  BoqVerificationRunCreated,
+  BoqVerificationRunDetail,
+  BoqVerificationRunRequest,
+  BoqVerificationSnapshot,
   BreakGlassSession,
   BreakGlassSessionCreate,
   CanonicalEvidenceOptionList,
@@ -6855,6 +6861,310 @@ export const useBoqCheckToDefect = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getBoqCheckToDefectMutationOptions(options));
+    }
+
+export const getGetBoqVerificationUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/projects/${projectId}/boq-verification`
+}
+
+/**
+ * @summary Read the commercial BOQ verification register for a pursuit
+ */
+export const getBoqVerification = async (projectId: string, options?: RequestInit): Promise<BoqVerificationSnapshot> => {
+
+  return customFetch<BoqVerificationSnapshot>(getGetBoqVerificationUrl(projectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBoqVerificationQueryKey = (projectId: string,) => {
+    return [
+    `/api/projects/${projectId}/boq-verification`
+    ] as const;
+    }
+
+
+export const getGetBoqVerificationQueryOptions = <TData = Awaited<ReturnType<typeof getBoqVerification>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapRepositoryUnavailableResponse>>(projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBoqVerification>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBoqVerificationQueryKey(projectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBoqVerification>>> = ({ signal }) => getBoqVerification(projectId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: projectId !== null && projectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBoqVerification>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBoqVerificationQueryResult = NonNullable<Awaited<ReturnType<typeof getBoqVerification>>>
+export type GetBoqVerificationQueryError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapRepositoryUnavailableResponse>
+
+
+/**
+ * @summary Read the commercial BOQ verification register for a pursuit
+ */
+
+export function useGetBoqVerification<TData = Awaited<ReturnType<typeof getBoqVerification>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapRepositoryUnavailableResponse>>(
+ projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBoqVerification>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBoqVerificationQueryOptions(projectId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateBoqVerificationRunUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/projects/${projectId}/boq-verification/runs`
+}
+
+/**
+ * Deterministic arithmetic verification only. The server pins the rule policy, binds the run to the current cleared version of a governed project document, and records every exception for named-human resolution. A passing run is not a pricing, responsiveness or award opinion.
+ * @summary Verify client-supplied BOQ figures against the pinned Nigeria rule pack
+ */
+export const createBoqVerificationRun = async (projectId: string,
+    boqVerificationRunRequest: BoqVerificationRunRequest, options?: RequestInit): Promise<BoqVerificationRunCreated> => {
+
+  return customFetch<BoqVerificationRunCreated>(getCreateBoqVerificationRunUrl(projectId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(boqVerificationRunRequest)
+  }
+);}
+
+
+
+
+export const getCreateBoqVerificationRunMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | void | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBoqVerificationRun>>, TError,{projectId: string;data: BodyType<BoqVerificationRunRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createBoqVerificationRun>>, TError,{projectId: string;data: BodyType<BoqVerificationRunRequest>}, TContext> => {
+
+const mutationKey = ['createBoqVerificationRun'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBoqVerificationRun>>, {projectId: string;data: BodyType<BoqVerificationRunRequest>}> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  createBoqVerificationRun(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateBoqVerificationRunMutationResult = NonNullable<Awaited<ReturnType<typeof createBoqVerificationRun>>>
+    export type CreateBoqVerificationRunMutationBody = BodyType<BoqVerificationRunRequest>
+    export type CreateBoqVerificationRunMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | void | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Verify client-supplied BOQ figures against the pinned Nigeria rule pack
+ */
+export const useCreateBoqVerificationRun = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | void | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBoqVerificationRun>>, TError,{projectId: string;data: BodyType<BoqVerificationRunRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createBoqVerificationRun>>,
+        TError,
+        {projectId: string;data: BodyType<BoqVerificationRunRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateBoqVerificationRunMutationOptions(options));
+    }
+
+export const getGetBoqVerificationRunUrl = (projectId: string,
+    runId: string,) => {
+
+
+
+
+  return `/api/projects/${projectId}/boq-verification/runs/${runId}`
+}
+
+/**
+ * @summary Read one verification run with its exception register
+ */
+export const getBoqVerificationRun = async (projectId: string,
+    runId: string, options?: RequestInit): Promise<BoqVerificationRunDetail> => {
+
+  return customFetch<BoqVerificationRunDetail>(getGetBoqVerificationRunUrl(projectId,runId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBoqVerificationRunQueryKey = (projectId: string,
+    runId: string,) => {
+    return [
+    `/api/projects/${projectId}/boq-verification/runs/${runId}`
+    ] as const;
+    }
+
+
+export const getGetBoqVerificationRunQueryOptions = <TData = Awaited<ReturnType<typeof getBoqVerificationRun>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapRepositoryUnavailableResponse>>(projectId: string,
+    runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBoqVerificationRun>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBoqVerificationRunQueryKey(projectId,runId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBoqVerificationRun>>> = ({ signal }) => getBoqVerificationRun(projectId,runId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: projectId !== null && projectId !== undefined && runId !== null && runId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBoqVerificationRun>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBoqVerificationRunQueryResult = NonNullable<Awaited<ReturnType<typeof getBoqVerificationRun>>>
+export type GetBoqVerificationRunQueryError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapRepositoryUnavailableResponse>
+
+
+/**
+ * @summary Read one verification run with its exception register
+ */
+
+export function useGetBoqVerificationRun<TData = Awaited<ReturnType<typeof getBoqVerificationRun>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapRepositoryUnavailableResponse>>(
+ projectId: string,
+    runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBoqVerificationRun>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBoqVerificationRunQueryOptions(projectId,runId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getResolveBoqVerificationExceptionUrl = (projectId: string,
+    exceptionId: string,) => {
+
+
+
+
+  return `/api/projects/${projectId}/boq-verification/exceptions/${exceptionId}/resolution`
+}
+
+/**
+ * @summary Record a named-human resolution or waiver for one exception
+ */
+export const resolveBoqVerificationException = async (projectId: string,
+    exceptionId: string,
+    boqExceptionResolutionRequest: BoqExceptionResolutionRequest, options?: RequestInit): Promise<BoqExceptionResolutionUpdated> => {
+
+  return customFetch<BoqExceptionResolutionUpdated>(getResolveBoqVerificationExceptionUrl(projectId,exceptionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(boqExceptionResolutionRequest)
+  }
+);}
+
+
+
+
+export const getResolveBoqVerificationExceptionMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PreconditionRequiredResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveBoqVerificationException>>, TError,{projectId: string;exceptionId: string;data: BodyType<BoqExceptionResolutionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolveBoqVerificationException>>, TError,{projectId: string;exceptionId: string;data: BodyType<BoqExceptionResolutionRequest>}, TContext> => {
+
+const mutationKey = ['resolveBoqVerificationException'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolveBoqVerificationException>>, {projectId: string;exceptionId: string;data: BodyType<BoqExceptionResolutionRequest>}> = (props) => {
+          const {projectId,exceptionId,data} = props ?? {};
+
+          return  resolveBoqVerificationException(projectId,exceptionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolveBoqVerificationExceptionMutationResult = NonNullable<Awaited<ReturnType<typeof resolveBoqVerificationException>>>
+    export type ResolveBoqVerificationExceptionMutationBody = BodyType<BoqExceptionResolutionRequest>
+    export type ResolveBoqVerificationExceptionMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PreconditionRequiredResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Record a named-human resolution or waiver for one exception
+ */
+export const useResolveBoqVerificationException = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PreconditionRequiredResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveBoqVerificationException>>, TError,{projectId: string;exceptionId: string;data: BodyType<BoqExceptionResolutionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resolveBoqVerificationException>>,
+        TError,
+        {projectId: string;exceptionId: string;data: BodyType<BoqExceptionResolutionRequest>},
+        TContext
+      > => {
+      return useMutation(getResolveBoqVerificationExceptionMutationOptions(options));
     }
 
 export const getConfirmProjectPaymentUrl = (id: string,) => {
