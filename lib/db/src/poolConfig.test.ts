@@ -80,14 +80,27 @@ describe("runtime database pool configuration", () => {
     );
   });
 
-  it("keeps a timed-out readiness query single-flight until it settles", async () => {
+  it("keeps a timed-out readiness query single-flight until it settles", async (context) => {
     let finish: (() => void) | undefined;
     let runs = 0;
+    const dependencyHandles = new Set<NodeJS.Timeout>();
+    context.after(() => {
+      for (const handle of dependencyHandles) clearInterval(handle);
+    });
     const check = createSingleFlightReadinessProbe(
       () =>
         new Promise<void>((resolve) => {
           runs += 1;
-          finish = resolve;
+          // A real database request keeps a socket referenced while it is in
+          // flight. Model that here so the probe's intentionally unref'ed
+          // deadline timer can fire when this test runs in isolation.
+          const dependencyHandle = setInterval(() => undefined, 60_000);
+          dependencyHandles.add(dependencyHandle);
+          finish = () => {
+            clearInterval(dependencyHandle);
+            dependencyHandles.delete(dependencyHandle);
+            resolve();
+          };
         }),
       { cacheMillis: 0 },
     );
