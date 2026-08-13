@@ -842,6 +842,17 @@ describe("production public-intake least privilege attestation", () => {
 });
 
 describe("production authenticated rate limiter attestation", () => {
+  test("handles columns without explicit ACL arrays", () => {
+    assert.match(
+      runtimeSecuritySource,
+      /pg_catalog\.aclexplode\(\s*actor_limit_column\.attacl\s*\)/u,
+    );
+    assert.doesNotMatch(
+      runtimeSecuritySource,
+      /COALESCE\(\s*actor_limit_column\.attacl\s*,\s*'\{\}'::pg_catalog\.aclitem\[\]/u,
+    );
+  });
+
   test("pins both the global consume and owner purge routines", () => {
     const proofs = productionAssuranceFunctionProofs();
     assert.doesNotThrow(() =>

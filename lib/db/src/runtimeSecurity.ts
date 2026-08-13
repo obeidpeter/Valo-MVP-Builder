@@ -1307,7 +1307,7 @@ export async function assertProductionRuntimeDatabaseSafety(
           SELECT 1
           FROM pg_catalog.pg_attribute AS actor_limit_column
           CROSS JOIN LATERAL pg_catalog.aclexplode(
-            COALESCE(actor_limit_column.attacl,'{}'::pg_catalog.aclitem[])
+            actor_limit_column.attacl
           ) AS actor_limit_acl
           WHERE actor_limit_column.attrelid =
               'valo_security.authenticated_actor_rate_limit_buckets'::pg_catalog.regclass
