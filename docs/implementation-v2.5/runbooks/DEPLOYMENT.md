@@ -314,7 +314,7 @@ the source backup and audit export as private evidence.
    procedure above. For the current already-bridged Replit target, require the
    exact adopted `0000`-`0002` journal, verify both checked-in production run
    paths name `scripts/start-replit-production.mjs`, and let its bounded
-   `migration:replit:intake` implementation apply `0003`-`0006`. Never
+   `migration:replit:intake` implementation apply `0003`-`0007`. Never
    substitute the unrestricted migration command or a publish schema diff.
    Halt on any journal, source-hash, catalog, reconciliation, or RLS error.
 5. Deploy workers/API/web in compatible order; keep new commercial flags off.
