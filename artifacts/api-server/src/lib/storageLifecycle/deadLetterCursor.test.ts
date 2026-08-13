@@ -4,6 +4,7 @@ import {
   decodeStorageDeadLetterCursor,
   encodeStorageDeadLetterCursor,
   STORAGE_DEAD_LETTER_CURSOR_MAX_LENGTH,
+  StorageDeadLetterCursorError,
 } from "./deadLetterCursor";
 
 const terminalAt = new Date("2026-08-13T12:34:56.789Z");
@@ -24,6 +25,10 @@ test("dead-letter cursor rejects noncanonical, extra-field and invalid anchors",
   const encodeRaw = (value: unknown) =>
     Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
   for (const invalid of [
+    null,
+    1,
+    [encodeRaw({ terminalAt: terminalAt.toISOString(), id })],
+    { cursor: encodeRaw({ terminalAt: terminalAt.toISOString(), id }) },
     "",
     "=padding",
     "a".repeat(STORAGE_DEAD_LETTER_CURSOR_MAX_LENGTH + 1),
@@ -32,6 +37,9 @@ test("dead-letter cursor rejects noncanonical, extra-field and invalid anchors",
     encodeRaw({ terminalAt: terminalAt.toISOString(), id: "not-a-uuid" }),
     Buffer.from([0xff]).toString("base64url"),
   ]) {
-    assert.throws(() => decodeStorageDeadLetterCursor(invalid));
+    assert.throws(
+      () => decodeStorageDeadLetterCursor(invalid),
+      StorageDeadLetterCursorError,
+    );
   }
 });

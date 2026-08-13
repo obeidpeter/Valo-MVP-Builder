@@ -417,7 +417,7 @@ export async function listStorageDeletionDeadLetters(
   }
   let after = null;
   try {
-    after = cursor ? decodeStorageDeadLetterCursor(cursor) : null;
+    after = cursor === undefined ? null : decodeStorageDeadLetterCursor(cursor);
   } catch (error) {
     if (error instanceof StorageDeadLetterCursorError) {
       throw new StorageLifecycleRepositoryError("invalid_scope");

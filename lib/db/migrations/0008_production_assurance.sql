@@ -24,9 +24,12 @@ ALTER TABLE "notification_events"
     CHECK ("storage_cycle_attempts" BETWEEN 0 AND 5);
 --> statement-breakpoint
 -- FORCE RLS also applies to the table owner. Temporarily return to ordinary
--- owner-bypass semantics so this owner-only migration can backfill every
--- tenant while runtime callers remain subject to ENABLED RLS throughout.
+-- owner-bypass semantics on both sides of the count join so this owner-only
+-- migration can backfill every tenant while runtime callers remain subject to
+-- ENABLED RLS throughout.
 ALTER TABLE "notification_events" NO FORCE ROW LEVEL SECURITY;
+--> statement-breakpoint
+ALTER TABLE "notification_attempts" NO FORCE ROW LEVEL SECURITY;
 --> statement-breakpoint
 WITH "legacy_storage_attempt_counts" AS (
   SELECT
@@ -54,6 +57,8 @@ UPDATE "notification_events" AS "event"
       END
   FROM "legacy_storage_attempt_counts" AS "counts"
   WHERE "event"."id" = "counts"."id";
+--> statement-breakpoint
+ALTER TABLE "notification_attempts" FORCE ROW LEVEL SECURITY;
 --> statement-breakpoint
 ALTER TABLE "notification_events" FORCE ROW LEVEL SECURITY;
 --> statement-breakpoint

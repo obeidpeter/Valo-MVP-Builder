@@ -35,9 +35,10 @@ export function encodeStorageDeadLetterCursor(
 }
 
 export function decodeStorageDeadLetterCursor(
-  value: string,
+  value: unknown,
 ): StorageDeadLetterCursor {
   if (
+    typeof value !== "string" ||
     value.length < 1 ||
     value.length > STORAGE_DEAD_LETTER_CURSOR_MAX_LENGTH ||
     !BASE64URL.test(value)

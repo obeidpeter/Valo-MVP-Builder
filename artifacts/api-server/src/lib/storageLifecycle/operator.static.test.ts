@@ -51,11 +51,20 @@ test("dead-letter replay is bounded, CAS protected and audited", () => {
 });
 
 test("dead-letter listing uses a strict opaque stable continuation cursor", () => {
+  const decoder = readFileSync(
+    new URL("./deadLetterCursor.ts", import.meta.url),
+    "utf8",
+  );
   const list = repository.slice(
     repository.indexOf("listStorageDeletionDeadLetters"),
     repository.indexOf("function operatorReason"),
   );
+  assert.match(decoder, /typeof value !== "string" \|\|\s*value\.length < 1/u);
   assert.match(list, /decodeStorageDeadLetterCursor\(cursor\)/u);
+  assert.match(
+    list,
+    /cursor === undefined \? null : decodeStorageDeadLetterCursor\(cursor\)/u,
+  );
   assert.match(
     list,
     /gt\(notificationEvents\.storageTerminalAt, after\.terminalAt\)[\s\S]*eq\(notificationEvents\.storageTerminalAt, after\.terminalAt\)[\s\S]*gt\(notificationEvents\.id, after\.id\)/u,
