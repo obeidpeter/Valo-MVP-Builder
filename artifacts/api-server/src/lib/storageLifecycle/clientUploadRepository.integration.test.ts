@@ -1004,21 +1004,43 @@ test("five signer-live source states sweep to exact terminal status and path mat
 });
 
 test("tenant-scoped PostgreSQL access cannot observe a peer upload session", async () => {
-  const hidden = await withTenantDatabase(organisationId, () =>
-    db
-      .select()
-      .from(uploadSessions)
-      .where(eq(uploadSessions.id, secondTenantLeaseId)),
+  const roleName = `valo_upload_rls_probe_${randomUUID().replaceAll("-", "")}`;
+  assert.match(roleName, /^[a-z][a-z0-9_]{0,62}$/u);
+  const roleIdentifier = `"${roleName}"`;
+
+  await db.execute(
+    sql.raw(
+      `CREATE ROLE ${roleIdentifier} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS`,
+    ),
   );
-  const visible = await withTenantDatabase(secondOrganisationId, () =>
-    db
-      .select()
-      .from(uploadSessions)
-      .where(eq(uploadSessions.id, secondTenantLeaseId)),
-  );
-  assert.equal(hidden.length, 0);
-  assert.equal(visible.length, 1);
-  assert.equal(visible[0]?.organisationId, secondOrganisationId);
+  try {
+    await db.execute(
+      sql.raw(`GRANT USAGE ON SCHEMA public TO ${roleIdentifier}`),
+    );
+    await db.execute(
+      sql.raw(
+        `GRANT SELECT ON TABLE public.upload_sessions TO ${roleIdentifier}`,
+      ),
+    );
+    const selectAsRlsRole = (tenantId: string) =>
+      withTenantDatabase(tenantId, async () => {
+        await db.execute(sql.raw(`SET LOCAL ROLE ${roleIdentifier}`));
+        await db.execute(sql`SET LOCAL row_security = on`);
+        return db
+          .select()
+          .from(uploadSessions)
+          .where(eq(uploadSessions.id, secondTenantLeaseId));
+      });
+
+    const hidden = await selectAsRlsRole(organisationId);
+    const visible = await selectAsRlsRole(secondOrganisationId);
+    assert.equal(hidden.length, 0);
+    assert.equal(visible.length, 1);
+    assert.equal(visible[0]?.organisationId, secondOrganisationId);
+  } finally {
+    await db.execute(sql.raw(`DROP OWNED BY ${roleIdentifier}`));
+    await db.execute(sql.raw(`DROP ROLE ${roleIdentifier}`));
+  }
 });
 
 test("current authority revocation after issuance denies finalization before storage", async () => {

@@ -13,6 +13,6 @@ test("legacy project writers canonicalise and lock tender identity before confli
   assert.match(source, /tenderRef: tenderReference,[\s\S]*?lot: lotReference/u);
   assert.match(
     source,
-    /regexp_replace\(normalize\(pg_catalog\.btrim\(\$\{projects\.tenderRef\}\), NFC\)[\s\S]*?regexp_replace\(normalize\(pg_catalog\.btrim\(pg_catalog\.coalesce\(\$\{projects\.lot\}, ''\)\), NFC\)/u,
+    /regexp_replace\(normalize\(pg_catalog\.btrim\(\$\{projects\.tenderRef\}\), NFC\)[\s\S]*?regexp_replace\(normalize\(pg_catalog\.btrim\(coalesce\(\$\{projects\.lot\}, ''\)\), NFC\)/u,
   );
 });

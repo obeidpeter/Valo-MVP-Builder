@@ -86,7 +86,7 @@ async function findSameTenderConflict(
     .where(
       and(
         sql`pg_catalog.regexp_replace(normalize(pg_catalog.btrim(${projects.tenderRef}), NFC), '[[:space:]]+', ' ', 'g') = ${tenderReference}`,
-        sql`pg_catalog.regexp_replace(normalize(pg_catalog.btrim(pg_catalog.coalesce(${projects.lot}, '')), NFC), '[[:space:]]+', ' ', 'g') = ${lotReference ?? ""}`,
+        sql`pg_catalog.regexp_replace(normalize(pg_catalog.btrim(coalesce(${projects.lot}, '')), NFC), '[[:space:]]+', ' ', 'g') = ${lotReference ?? ""}`,
         inArray(projects.status, [
           "intake",
           "extraction",
