@@ -162,6 +162,63 @@ export async function collectStreamWithLimit(
   return Buffer.concat(chunks, observedBytes);
 }
 
+const MAX_PUBLIC_OBJECT_KEY_CODE_UNITS = 512;
+// One or more slash-separated segments of word characters, dots and hyphens.
+// A segment must contain at least one non-dot character, which excludes the
+// "." and ".." traversal segments without banning ordinary file extensions.
+const PUBLIC_OBJECT_KEY_SEGMENT = /^[\w.-]*[\w-][\w.-]*$/u;
+
+/**
+ * A caller-supplied public-object key is servable only when it is a bounded,
+ * already-normalised relative key: no empty/dot-only segments, no leading or
+ * doubled slashes, no backslashes, and only conservative segment characters.
+ * Anything else fails closed as not-found rather than being normalised.
+ */
+export function isServablePublicObjectKey(filePath: string): boolean {
+  if (
+    typeof filePath !== "string" ||
+    filePath.length === 0 ||
+    filePath.length > MAX_PUBLIC_OBJECT_KEY_CODE_UNITS
+  ) {
+    return false;
+  }
+  return filePath
+    .split("/")
+    .every((segment) => PUBLIC_OBJECT_KEY_SEGMENT.test(segment));
+}
+
+function withTrailingSlash(path: string): string {
+  return path.endsWith("/") ? path : `${path}/`;
+}
+
+/**
+ * The public search namespace must never be able to reach the private,
+ * tenant-prefixed namespace. Overlap in either direction (equality, a public
+ * path inside the private dir, or a public path that is a parent of the
+ * private dir) would let the ACL-free public route serve tenant documents,
+ * so it is rejected fail-closed before any lookup.
+ */
+export function assertPublicSearchPathsDisjointFromPrivateDir(
+  publicSearchPaths: ReadonlyArray<string>,
+  privateObjectDir: string,
+): void {
+  const privateDir = withTrailingSlash(privateObjectDir);
+  for (const searchPath of publicSearchPaths) {
+    const publicPath = withTrailingSlash(searchPath);
+    if (
+      publicPath === privateDir ||
+      publicPath.startsWith(privateDir) ||
+      privateDir.startsWith(publicPath)
+    ) {
+      throw new Error(
+        "PUBLIC_OBJECT_SEARCH_PATHS overlaps PRIVATE_OBJECT_DIR. The public " +
+          "object route performs no ACL checks, so the public and private " +
+          "storage namespaces must be disjoint.",
+      );
+    }
+  }
+}
+
 export class ObjectStorageService {
   constructor() {}
 
@@ -181,6 +238,10 @@ export class ObjectStorageService {
           "tool and set PUBLIC_OBJECT_SEARCH_PATHS env var (comma-separated paths).",
       );
     }
+    assertPublicSearchPathsDisjointFromPrivateDir(
+      paths,
+      this.getPrivateObjectDir(),
+    );
     return paths;
   }
 
@@ -196,6 +257,9 @@ export class ObjectStorageService {
   }
 
   async searchPublicObject(filePath: string): Promise<File | null> {
+    if (!isServablePublicObjectKey(filePath)) {
+      return null;
+    }
     for (const searchPath of this.getPublicObjectSearchPaths()) {
       const fullPath = `${searchPath}/${filePath}`;
 
