@@ -179,6 +179,7 @@ const EXPECTED_CONTROL_PLANE_LIMITER_FUNCTION = {
   returnType: "record",
   functionResult:
     "TABLE(allowed boolean, remaining integer, reset_at timestamp with time zone)",
+  returnsSet: true,
   securityDefiner: true,
   runtimeCanExecute: true,
   sourceSha256:
@@ -192,6 +193,7 @@ const EXPECTED_AUTHENTICATED_RATE_PURGE_FUNCTION = {
   identityArguments: "",
   returnType: "bigint",
   functionResult: "bigint",
+  returnsSet: false,
   securityDefiner: false,
   runtimeCanExecute: false,
   sourceSha256:
@@ -226,7 +228,7 @@ export function assertAuthenticatedRateLimitFunctionAttestation(
       actual.identity_arguments !== expected.identityArguments ||
       actual.return_type !== expected.returnType ||
       actual.function_result !== expected.functionResult ||
-      actual.returns_set ||
+      actual.returns_set !== expected.returnsSet ||
       actual.owner_name === "valo_app_runtime" ||
       actual.owner_is_schema_owner !== true ||
       actual.runtime_can_execute !== expected.runtimeCanExecute ||
