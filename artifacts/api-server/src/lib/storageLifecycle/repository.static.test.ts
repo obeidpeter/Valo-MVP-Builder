@@ -45,7 +45,10 @@ test("reconciliation rechecks all references before the idempotent delete", () =
     rowLock,
   );
   assert.ok(pathLock >= 0 && rowLock > pathLock && pathRecheck > rowLock);
-  assert.match(source, /event\.envelope\.requestSha256 !==[\s\S]*candidate\.envelope\.requestSha256/u);
+  assert.match(
+    source,
+    /event\.envelope\.requestSha256 !==[\s\S]*candidate\.envelope\.requestSha256/u,
+  );
   assert.match(source, /availableAt: nextAttemptAt \?\? input\.now/u);
   assert.match(source, /storage\.deletion_retry_scheduled/u);
   assert.match(source, /storage\.deletion_dead_lettered/u);

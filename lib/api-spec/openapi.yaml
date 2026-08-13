@@ -3868,8 +3868,10 @@ paths:
         "404": { $ref: "#/components/responses/ClientActionUploadNotFound" }
         "409": { $ref: "#/components/responses/ClientActionUploadConflict" }
         "410": { $ref: "#/components/responses/ClientActionUploadExpired" }
-        "413": { $ref: "#/components/responses/ClientActionUploadCapacityExceeded" }
-        "500": { $ref: "#/components/responses/ClientActionUploadInternalError" }
+        "413":
+          { $ref: "#/components/responses/ClientActionUploadCapacityExceeded" }
+        "500":
+          { $ref: "#/components/responses/ClientActionUploadInternalError" }
         "503": { $ref: "#/components/responses/ClientActionUploadUnavailable" }
   /projects/{id}/client-actions/evidence-requests/{recordId}/slots/{slotId}/upload-leases/{leaseId}/finalize:
     post:
@@ -3924,9 +3926,12 @@ paths:
         "404": { $ref: "#/components/responses/ClientActionUploadNotFound" }
         "409": { $ref: "#/components/responses/ClientActionUploadConflict" }
         "410": { $ref: "#/components/responses/ClientActionUploadExpired" }
-        "413": { $ref: "#/components/responses/ClientActionUploadCapacityExceeded" }
-        "422": { $ref: "#/components/responses/ClientActionUploadIntakeRejected" }
-        "500": { $ref: "#/components/responses/ClientActionUploadInternalError" }
+        "413":
+          { $ref: "#/components/responses/ClientActionUploadCapacityExceeded" }
+        "422":
+          { $ref: "#/components/responses/ClientActionUploadIntakeRejected" }
+        "500":
+          { $ref: "#/components/responses/ClientActionUploadInternalError" }
         "503": { $ref: "#/components/responses/ClientActionUploadUnavailable" }
   /projects/{id}/client-actions/evidence-requests/{recordId}/slots/{slotId}/documents:
     post:
@@ -6431,12 +6436,11 @@ components:
         recordId: { type: string, format: uuid }
         slotId: { type: string, format: uuid }
         intentId: { type: string, format: uuid }
-        recordVersion:
-          { type: integer, minimum: 1, maximum: 9007199254740991 }
+        recordVersion: { type: integer, minimum: 1, maximum: 9007199254740991 }
         objectPath:
           type: string
           maxLength: 512
-          pattern: '^/objects/tenants/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/uploads/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+          pattern: "^/objects/tenants/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/uploads/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
         uploadUrl:
           type: string
           format: uri
@@ -6460,10 +6464,7 @@ components:
         expiresAt: { type: string, format: date-time }
         replayed: { type: boolean }
         lateRewriteClosure:
-          {
-            type: string,
-            const: bounded-cushion-and-post-expiry-reconcile,
-          }
+          { type: string, const: bounded-cushion-and-post-expiry-reconcile }
         rawFileAcceptedByApi: { type: boolean, const: false }
         externalMessageSentByValo: { type: boolean, const: false }
     ClientActionUploadLeaseReplayGrant:
@@ -6507,8 +6508,7 @@ components:
         recordId: { type: string, format: uuid }
         slotId: { type: string, format: uuid }
         intentId: { type: string, format: uuid }
-        recordVersion:
-          { type: integer, minimum: 1, maximum: 9007199254740991 }
+        recordVersion: { type: integer, minimum: 1, maximum: 9007199254740991 }
         documentId: { type: string, format: uuid }
         documentVersionId: { type: string, format: uuid }
         filename: { type: string, minLength: 1, maxLength: 255 }
