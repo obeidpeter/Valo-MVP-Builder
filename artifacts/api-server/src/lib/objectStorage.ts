@@ -299,13 +299,8 @@ export class ObjectStorageService {
     ttlSec = 900,
     notAfter?: Date,
   ): Promise<string> {
+    // getPrivateObjectDir already throws when the env var is unset.
     const privateObjectDir = this.getPrivateObjectDir();
-    if (!privateObjectDir) {
-      throw new Error(
-        "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
-          "tool and set PRIVATE_OBJECT_DIR env var.",
-      );
-    }
 
     const uuid =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -344,10 +339,7 @@ export class ObjectStorageService {
     }
 
     const entityId = parts.slice(1).join("/");
-    let entityDir = this.getPrivateObjectDir();
-    if (!entityDir.endsWith("/")) {
-      entityDir = `${entityDir}/`;
-    }
+    const entityDir = withTrailingSlash(this.getPrivateObjectDir());
     const objectEntityPath = `${entityDir}${entityId}`;
     const { bucketName, objectName } = parseObjectPath(objectEntityPath);
     const bucket = objectStorageClient.bucket(bucketName);
@@ -599,10 +591,7 @@ export class ObjectStorageService {
     const url = new URL(rawPath);
     const rawObjectPath = url.pathname;
 
-    let objectEntityDir = this.getPrivateObjectDir();
-    if (!objectEntityDir.endsWith("/")) {
-      objectEntityDir = `${objectEntityDir}/`;
-    }
+    const objectEntityDir = withTrailingSlash(this.getPrivateObjectDir());
 
     if (!rawObjectPath.startsWith(objectEntityDir)) {
       return rawObjectPath;

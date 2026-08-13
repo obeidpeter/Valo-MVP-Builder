@@ -11,10 +11,15 @@ import {
   type WorkInboxKind,
   type WorkInboxSnapshot,
 } from "./contracts";
+import {
+  RETAINER_ENVELOPE_SCHEMA,
+  RETAINER_TASK_PREFIX,
+} from "../commercialRetainer/contracts";
+import { OPERATIONS_ENVELOPE_SCHEMA } from "../operationsSuite/contracts";
 
-const OPERATIONS_SCHEMA = "valo.operations-suite/v1";
-const RETAINER_SCHEMA = "valo.retainer-service-request@v1";
-const RETAINER_PREFIX = "[RETAINER-DESK:v1:";
+const OPERATIONS_SCHEMA: string = OPERATIONS_ENVELOPE_SCHEMA;
+const RETAINER_SCHEMA: string = RETAINER_ENVELOPE_SCHEMA;
+const RETAINER_PREFIX = RETAINER_TASK_PREFIX;
 const MAX_ENVELOPE_CODE_UNITS = 524_288;
 const MAX_ENVELOPE_BYTES = 2_097_152;
 const BUSINESS_TIME_ZONE = "Africa/Lagos" as const;

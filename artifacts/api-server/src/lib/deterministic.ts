@@ -104,7 +104,10 @@ export function mulToKobo(a: number, b: number): bigint | null {
   const sa = parseScaled(a);
   const sb = parseScaled(b);
   if (sa === null || sb === null) return null;
-  return rescale({ digits: sa.digits * sb.digits, scale: sa.scale + sb.scale }, 2);
+  return rescale(
+    { digits: sa.digits * sb.digits, scale: sa.scale + sb.scale },
+    2,
+  );
 }
 
 /** Kobo back to a display number (exact for any realistic BOQ magnitude). */
@@ -113,7 +116,9 @@ export const koboToSafeNumber = (kobo: bigint | null): number | null => {
   if (kobo === null) return null;
   const n = Number(kobo);
   if (!Number.isSafeInteger(n)) {
-    throw new Error("Currency amount exceeds safe integer range for kobo persistence");
+    throw new Error(
+      "Currency amount exceeds safe integer range for kobo persistence",
+    );
   }
   return n;
 };
@@ -122,20 +127,50 @@ const koboAbs = (k: bigint): bigint => (k < 0n ? -k : k);
 const koboDisplay = (kobo: bigint): string => koboToNumber(kobo).toFixed(2);
 
 const WORD_UNITS: Record<string, number> = {
-  zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
-  eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13,
-  fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18,
+  zero: 0,
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+  thirteen: 13,
+  fourteen: 14,
+  fifteen: 15,
+  sixteen: 16,
+  seventeen: 17,
+  eighteen: 18,
   nineteen: 19,
 };
 const WORD_TENS: Record<string, number> = {
-  twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70,
-  eighty: 80, ninety: 90,
+  twenty: 20,
+  thirty: 30,
+  forty: 40,
+  fifty: 50,
+  sixty: 60,
+  seventy: 70,
+  eighty: 80,
+  ninety: 90,
 };
 const WORD_SCALES: Record<string, number> = {
-  thousand: 1000, million: 1_000_000, billion: 1_000_000_000,
+  thousand: 1000,
+  million: 1_000_000,
+  billion: 1_000_000_000,
 };
 
-const FRACTION_MARKERS = new Set(["kobo", "cent", "cents", "centime", "centimes"]);
+const FRACTION_MARKERS = new Set([
+  "kobo",
+  "cent",
+  "cents",
+  "centime",
+  "centimes",
+]);
 
 function tokenizeAmountWords(input: string): string[] {
   return input
@@ -194,7 +229,11 @@ export function wordsToKobo(input: string | null | undefined): bigint | null {
     while (start > 0) {
       const tok = tokens[start - 1];
       const tokValue =
-        tok in WORD_UNITS ? WORD_UNITS[tok] : tok in WORD_TENS ? WORD_TENS[tok] : null;
+        tok in WORD_UNITS
+          ? WORD_UNITS[tok]
+          : tok in WORD_TENS
+            ? WORD_TENS[tok]
+            : null;
       if (tokValue === null || value + tokValue >= 100) break;
       value += tokValue;
       start--;
@@ -249,7 +288,10 @@ export function runBoqChecks(
     declared: number;
     declaredKobo: bigint;
   }[] = [];
-  const addToSection = (section: string | null | undefined, amountKobo: bigint) => {
+  const addToSection = (
+    section: string | null | undefined,
+    amountKobo: bigint,
+  ) => {
     if (section == null || section === "") return;
     sectionSums.set(section, (sectionSums.get(section) ?? 0n) + amountKobo);
   };
@@ -295,8 +337,10 @@ export function runBoqChecks(
         extension,
         computedExtension: null,
         quantityRaw: quantity == null ? null : String(quantity),
-        unitRateKobo: unitRate == null ? null : koboToSafeNumber(toKobo(unitRate)),
-        extensionKobo: extension == null ? null : koboToSafeNumber(toKobo(extension)),
+        unitRateKobo:
+          unitRate == null ? null : koboToSafeNumber(toKobo(unitRate)),
+        extensionKobo:
+          extension == null ? null : koboToSafeNumber(toKobo(extension)),
         computedExtensionKobo: null,
         checkType: "blank_line",
         finding: "Priced line has no quantity, rate, or extension.",
@@ -326,8 +370,10 @@ export function runBoqChecks(
             extension,
             computedExtension,
             quantityRaw: quantity == null ? null : String(quantity),
-            unitRateKobo: unitRate == null ? null : koboToSafeNumber(toKobo(unitRate)),
-            extensionKobo: extension == null ? null : koboToSafeNumber(toKobo(extension)),
+            unitRateKobo:
+              unitRate == null ? null : koboToSafeNumber(toKobo(unitRate)),
+            extensionKobo:
+              extension == null ? null : koboToSafeNumber(toKobo(extension)),
             computedExtensionKobo: koboToSafeNumber(computedKobo),
             checkType: "extension_mismatch",
             finding: `Extension ${extension} does not equal quantity × rate (${koboDisplay(
@@ -345,7 +391,12 @@ export function runBoqChecks(
     }
 
     // Suspicious zero: priced line with a description but zero/blank rate.
-    if (description && description.trim().length > 0 && hasRate && unitRate === 0) {
+    if (
+      description &&
+      description.trim().length > 0 &&
+      hasRate &&
+      unitRate === 0
+    ) {
       findings.push({
         lineRef,
         description,
@@ -354,10 +405,14 @@ export function runBoqChecks(
         extension,
         computedExtension,
         quantityRaw: quantity == null ? null : String(quantity),
-        unitRateKobo: unitRate == null ? null : koboToSafeNumber(toKobo(unitRate)),
-        extensionKobo: extension == null ? null : koboToSafeNumber(toKobo(extension)),
+        unitRateKobo:
+          unitRate == null ? null : koboToSafeNumber(toKobo(unitRate)),
+        extensionKobo:
+          extension == null ? null : koboToSafeNumber(toKobo(extension)),
         computedExtensionKobo:
-          computedExtension == null ? null : koboToSafeNumber(toKobo(computedExtension)),
+          computedExtension == null
+            ? null
+            : koboToSafeNumber(toKobo(computedExtension)),
         checkType: "suspicious_zero",
         finding: "Line item has a description but a zero unit rate.",
         severity: "scoring_risk",
@@ -384,10 +439,14 @@ export function runBoqChecks(
           extension,
           computedExtension,
           quantityRaw: quantity == null ? null : String(quantity),
-          unitRateKobo: unitRate == null ? null : koboToSafeNumber(toKobo(unitRate)),
-          extensionKobo: extension == null ? null : koboToSafeNumber(toKobo(extension)),
+          unitRateKobo:
+            unitRate == null ? null : koboToSafeNumber(toKobo(unitRate)),
+          extensionKobo:
+            extension == null ? null : koboToSafeNumber(toKobo(extension)),
           computedExtensionKobo:
-            computedExtension == null ? null : koboToSafeNumber(toKobo(computedExtension)),
+            computedExtension == null
+              ? null
+              : koboToSafeNumber(toKobo(computedExtension)),
           checkType: "words_vs_figures",
           finding: `Amount in words ("${row.amountInWords.trim()}" = ${koboDisplay(
             wordsKobo,
@@ -461,7 +520,11 @@ export function runBoqChecks(
 export interface RiskInput {
   defects: { severity: Severity; status: string }[];
   requirements: { id: string; isMandatory: boolean; reviewStatus: string }[];
-  evidence: { requirementId: string; evidenceStatus: string; suggested: boolean }[];
+  evidence: {
+    requirementId: string;
+    evidenceStatus: string;
+    suggested: boolean;
+  }[];
 }
 
 /**
@@ -541,7 +604,9 @@ export function computeRisk(
 
   const mandatoryReqIds = new Set(
     input.requirements
-      .filter((r) => r.isMandatory && !UNCOUNTED_REVIEW_STATUSES.has(r.reviewStatus))
+      .filter(
+        (r) => r.isMandatory && !UNCOUNTED_REVIEW_STATUSES.has(r.reviewStatus),
+      )
       .map((r) => r.id),
   );
   const penalisedReqIds = new Set<string>();
@@ -575,7 +640,8 @@ export function computeRisk(
     );
   }
   parts.push(`Computed score ${score}/100 → ${band.toUpperCase()} band.`);
-  if (hasFatal) parts.push("At least one fatal defect forces the CRITICAL band.");
+  if (hasFatal)
+    parts.push("At least one fatal defect forces the CRITICAL band.");
 
   return { score, band, explanation: parts.join(" "), distribution };
 }
@@ -596,7 +662,13 @@ export function computeRisk(
  *  - ok:       comfortably in date
  *  - unknown:  no parseable expiry date on record
  */
-export type ExpiryBand = "expired" | "critical" | "warning" | "upcoming" | "ok" | "unknown";
+export type ExpiryBand =
+  | "expired"
+  | "critical"
+  | "warning"
+  | "upcoming"
+  | "ok"
+  | "unknown";
 
 export interface ExpiryTelemetry {
   band: ExpiryBand;
@@ -621,7 +693,8 @@ export function computeExpiry(
   renewalLeadDays?: number | null,
 ): ExpiryTelemetry {
   const expiryMs = expiryDate ? Date.parse(expiryDate) : NaN;
-  const todayMs = typeof today === "string" ? Date.parse(today) : today.getTime();
+  const todayMs =
+    typeof today === "string" ? Date.parse(today) : today.getTime();
   if (Number.isNaN(expiryMs) || Number.isNaN(todayMs)) {
     return { band: "unknown", daysToExpiry: null };
   }
@@ -645,7 +718,7 @@ export function computeExpiry(
  * "fatal" one — the doctrine does not let a named reviewer attest to a package
  * that still carries an open showstopper.
  */
-export const SIGN_OFF_BLOCKING_SEVERITIES: ReadonlySet<Severity> = new Set([
+export const SIGN_OFF_BLOCKING_SEVERITIES: ReadonlySet<string> = new Set([
   "fatal",
   "likely_fatal",
 ]);
@@ -660,7 +733,7 @@ export const SIGN_OFF_BLOCKING_SEVERITIES: ReadonlySet<Severity> = new Set([
  * sign-off is permitted); the caller enforces the block with no override path.
  */
 export function blockingSignOffDefects<
-  T extends { severity: Severity; status: string },
+  T extends { severity: string; status: string },
 >(defects: T[]): T[] {
   return defects.filter(
     (d) => d.status === "open" && SIGN_OFF_BLOCKING_SEVERITIES.has(d.severity),
@@ -736,7 +809,8 @@ export function paymentGateSatisfied(input: {
   paymentFounderConfirmedBy?: string | null;
   paymentAdvisorConfirmedBy?: string | null;
 }): boolean {
-  if (!input.paymentStatus || input.paymentStatus === "not_required") return true;
+  if (!input.paymentStatus || input.paymentStatus === "not_required")
+    return true;
   return (
     input.paymentStatus === "confirmed" &&
     input.paymentConfirmedByFounder === true &&
@@ -754,18 +828,25 @@ export function paymentGateSatisfied(input: {
  * states also require the TRD control fields that make the process warranty
  * auditable.
  */
-export function validateProjectTransition(input: WorkflowGateInput): WorkflowGateResult {
+export function validateProjectTransition(
+  input: WorkflowGateInput,
+): WorkflowGateResult {
   const fromIndex = STATUS_ORDER.indexOf(input.fromStatus);
   const toIndex = STATUS_ORDER.indexOf(input.toStatus);
-  if (fromIndex < 0 || toIndex < 0) return { ok: false, reason: "Unknown project status." };
+  if (fromIndex < 0 || toIndex < 0)
+    return { ok: false, reason: "Unknown project status." };
   if (input.fromStatus === input.toStatus) return { ok: true };
   if (input.fromStatus === "archived") {
-    return { ok: false, reason: "Archived engagements cannot be reopened by status edit." };
+    return {
+      ok: false,
+      reason: "Archived engagements cannot be reopened by status edit.",
+    };
   }
 
   const forwardOne = toIndex === fromIndex + 1;
   const remediationBack =
-    fromIndex > toIndex && ["review", "defects", "reporting"].includes(input.toStatus);
+    fromIndex > toIndex &&
+    ["review", "defects", "reporting"].includes(input.toStatus);
   const archive = input.toStatus === "archived";
   if (!forwardOne && !remediationBack && !archive) {
     return {
@@ -776,23 +857,34 @@ export function validateProjectTransition(input: WorkflowGateInput): WorkflowGat
 
   if (PRODUCTION_STATUSES.has(input.toStatus)) {
     if (!input.reviewerId) {
-      return { ok: false, reason: "A named reviewer is required before production work starts." };
+      return {
+        ok: false,
+        reason: "A named reviewer is required before production work starts.",
+      };
     }
-    if (input.conflictStatus === "blocked" || input.conflictStatus === "declined") {
+    if (
+      input.conflictStatus === "blocked" ||
+      input.conflictStatus === "declined"
+    ) {
       return { ok: false, reason: "Conflict check is not clear or consented." };
     }
     if (!paymentGateSatisfied(input)) {
-      return { ok: false, reason: "Payment gate is not satisfied by dual confirmation." };
+      return {
+        ok: false,
+        reason: "Payment gate is not satisfied by dual confirmation.",
+      };
     }
   }
 
   if (
     (input.toStatus === "exported" || input.toStatus === "archived") &&
-    (!input.physicalArchiveInstruction || input.physicalArchiveInstruction.trim().length === 0)
+    (!input.physicalArchiveInstruction ||
+      input.physicalArchiveInstruction.trim().length === 0)
   ) {
     return {
       ok: false,
-      reason: "Physical archive return/destroy instruction is required before close/export.",
+      reason:
+        "Physical archive return/destroy instruction is required before close/export.",
     };
   }
 
@@ -811,11 +903,14 @@ function addBusinessDays(date: Date, days: number): Date {
 }
 
 export function computeSlaDueAt(start: Date, slaClass: SlaClass): Date {
-  if (slaClass === "live") return new Date(start.getTime() + 48 * 60 * 60 * 1000);
+  if (slaClass === "live")
+    return new Date(start.getTime() + 48 * 60 * 60 * 1000);
   return addBusinessDays(start, 5);
 }
 
-export function computeRedTeamDueAt(deadline: string | null | undefined): Date | null {
+export function computeRedTeamDueAt(
+  deadline: string | null | undefined,
+): Date | null {
   if (!deadline) return null;
   const parsed = Date.parse(deadline);
   if (Number.isNaN(parsed)) return null;
@@ -867,8 +962,13 @@ export interface RetentionScanCandidate {
  * elapsed. The clock is inclusive at the boundary (>= window) so a request is
  * opened the moment the window is reached, never a day late.
  */
-export function planRetentionScan(input: RetentionScanInput): RetentionScanCandidate[] {
-  if (!Number.isFinite(input.retentionDefaultDays) || input.retentionDefaultDays <= 0) {
+export function planRetentionScan(
+  input: RetentionScanInput,
+): RetentionScanCandidate[] {
+  if (
+    !Number.isFinite(input.retentionDefaultDays) ||
+    input.retentionDefaultDays <= 0
+  ) {
     return [];
   }
   const windowMs = input.retentionDefaultDays * MS_PER_DAY;
@@ -878,7 +978,10 @@ export function planRetentionScan(input: RetentionScanInput): RetentionScanCandi
     .filter((p) => !p.hasPendingRequest)
     .map((p) => ({ project: p, dueAtMs: p.relevantDate.getTime() + windowMs }))
     .filter(({ dueAtMs }) => Number.isFinite(dueAtMs) && dueAtMs <= nowMs)
-    .map(({ project, dueAtMs }) => ({ projectId: project.id, dueAt: new Date(dueAtMs) }));
+    .map(({ project, dueAtMs }) => ({
+      projectId: project.id,
+      dueAt: new Date(dueAtMs),
+    }));
 }
 
 // ---------------------------------------------------------------------------

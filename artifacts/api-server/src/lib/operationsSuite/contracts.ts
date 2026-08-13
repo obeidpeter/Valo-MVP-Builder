@@ -523,3 +523,5 @@ export interface OperationsMobileQueue {
   maxItems: 250;
   items: OperationsMobileQueueItem[];
 }
+
+export const OPERATIONS_ENVELOPE_SCHEMA = "valo.operations-suite/v1" as const;

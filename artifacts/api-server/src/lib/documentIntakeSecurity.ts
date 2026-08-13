@@ -9,24 +9,12 @@ import {
   type UploadInspectionPolicy,
   type UploadInspectionResult,
 } from "./uploadInspection";
+import { positiveInteger } from "./envInteger";
 
 const DEFAULT_MAX_PAGES = 2_000;
 const DEFAULT_MAX_ARCHIVE_ENTRIES = 1_000;
 const DEFAULT_MAX_ARCHIVE_EXPANDED_BYTES = 500 * 1024 * 1024;
 const DEFAULT_MAX_COMPRESSION_RATIO = 100;
-
-function positiveInteger(
-  name: string,
-  raw: string | undefined,
-  fallback: number,
-): number {
-  if (!raw?.trim()) return fallback;
-  const value = Number(raw);
-  if (!Number.isSafeInteger(value) || value < 1) {
-    throw new Error(`${name} must be a positive integer`);
-  }
-  return value;
-}
 
 export function getDocumentIntakePolicy(): UploadInspectionPolicy {
   return {

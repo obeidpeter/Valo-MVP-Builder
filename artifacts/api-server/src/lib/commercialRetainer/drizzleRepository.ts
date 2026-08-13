@@ -47,6 +47,7 @@ import {
   COMMERCIAL_RETAINER_PRICE_BOOK_NAME,
   COMMERCIAL_RETAINER_PRICE_BOOK_VERSION,
   CommercialRetainerError,
+  RETAINER_ENVELOPE_SCHEMA,
   RETAINER_TASK_PREFIX,
   type CommercialEntitlement,
   type CommercialInvoice,
@@ -85,7 +86,6 @@ const ENTITLEMENT_PROVISIONED_EVENT = "commercial.entitlement_provisioned.v1";
 const RETAINER_CREATED_EVENT = "retainer.request_created.v1";
 const RETAINER_MUTATED_EVENT = "retainer.request_mutated.v1";
 const PAYMENT_PROVIDER = "manual-evidence-v1";
-const RETAINER_ENVELOPE_SCHEMA = "valo.retainer-service-request@v1";
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SHA256 = /^[a-f0-9]{64}$/;
