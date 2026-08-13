@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import {
   currentTenantDatabaseOrganisation,
   db,
@@ -45,8 +44,7 @@ import {
 export const STORAGE_DELETION_CHANNEL = "internal_storage" as const;
 export const STORAGE_DELETION_PROVIDER = "valo-object-storage" as const;
 
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+import { UUID_PATTERN as UUID } from "../identifierPatterns";
 
 type StorageLifecycleTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -143,16 +141,7 @@ async function withStoragePersistenceBoundary<T>(
   }
 }
 
-function deterministicUuid(seed: string): string {
-  const bytes = Buffer.from(
-    createHash("sha256").update(seed).digest("hex").slice(0, 32),
-    "hex",
-  );
-  bytes[6] = (bytes[6]! & 0x0f) | 0x40;
-  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
-  const hex = bytes.toString("hex");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
+import { deterministicUuidFromBytes as deterministicUuid } from "../deterministicUuid";
 
 function assertTenant(organisationId: string): void {
   if (

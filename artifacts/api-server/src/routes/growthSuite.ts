@@ -32,7 +32,7 @@ import {
 
 const CONTROL_CHARACTER = /[\u0000-\u001f\u007f]/u;
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:@-]*$/u;
-const SHA256 = /^[0-9a-f]{64}$/u;
+import { SHA256_HEX_PATTERN as SHA256 } from "../lib/identifierPatterns";
 const CONTACT_HANDOFF_PURPOSES = new Set<LeadContactHandoffPurpose>([
   "initial_follow_up",
   "qualification_call",
@@ -49,11 +49,7 @@ export interface GrowthSuiteRouterOptions {
   resolveActorUserId?: (req: Request) => string | undefined;
 }
 
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
+import { isPlainRecord } from "../lib/typeGuards";
 
 function hasExactKeys(
   value: Record<string, unknown>,

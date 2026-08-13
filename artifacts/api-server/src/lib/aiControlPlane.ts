@@ -51,7 +51,7 @@ export interface AiHumanReviewRiskDecision {
 }
 
 const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
-const SHA256 = /^[a-f0-9]{64}$/;
+import { SHA256_HEX_PATTERN as SHA256 } from "./identifierPatterns";
 const RFC3339_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
 const AI_CAPABILITIES = new Set<string>(AI_CAPABILITY_IDS);
 const CAPABILITY_POLICY_SNAPSHOT = Object.freeze(

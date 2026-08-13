@@ -19,9 +19,10 @@ import {
 export const CLAIMS_DESK_AUTHORITY_NOTE =
   "This desk records bounded human workflow evidence only. It does not reach a legal conclusion, certify entitlement or valuation, set a price, dispatch a notice, mutate an invoice or payment, or act autonomously.";
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
+import {
+  SHA256_HEX_PATTERN as SHA256_PATTERN,
+  UUID_PATTERN,
+} from "../identifierPatterns";
 const IDEMPOTENCY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/u;
 const REFERENCE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ./_():#-]{0,79}$/u;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
@@ -232,13 +233,8 @@ export function claimsDeskSha256(value: unknown): string {
     .digest("hex");
 }
 
-export function deterministicClaimsDeskUuid(seed: string): string {
-  const hex = createHash("sha256")
-    .update(seed, "utf8")
-    .digest("hex")
-    .slice(0, 32);
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
-}
+import { deterministicUuidFromHex } from "../deterministicUuid";
+export const deterministicClaimsDeskUuid = deterministicUuidFromHex;
 
 export interface ClaimsDeskTransitionDecision {
   fromStatus: ClaimsDeskRecord["status"];

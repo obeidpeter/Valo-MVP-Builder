@@ -1,8 +1,7 @@
 import type { LocalUser } from "../../middlewares/auth";
 import type { AccessContext } from "../../middlewares/tenancy";
 
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+import { UUID_PATTERN as UUID } from "../identifierPatterns";
 const CONTROL = /[\u0000-\u001f\u007f\ud800-\udfff]/u;
 
 export const CLIENT_UPLOAD_REQUEST_BODY_BYTES = 4_096;

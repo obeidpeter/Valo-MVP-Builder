@@ -70,9 +70,10 @@ import {
 } from "./service";
 import { promoteEvidenceRenewalWithStorageLifecycle } from "./approvalLifecycle";
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
+import {
+  SHA256_HEX_PATTERN as SHA256_PATTERN,
+  UUID_PATTERN,
+} from "../identifierPatterns";
 const AUDIT_EVENT_PREFIX = "evidence_renewal." as const;
 const AUDIT_OBJECT_TYPE = "evidence_renewal_plan" as const;
 const MAX_AUDIT_RECEIPT_CODE_UNITS = 1_024;

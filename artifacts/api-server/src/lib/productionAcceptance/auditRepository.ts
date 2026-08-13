@@ -33,10 +33,11 @@ import { verifyProductionAcceptanceEvidenceDigest } from "./service";
 const EVENT_TYPE = "production_acceptance.evidence_recorded" as const;
 const OBJECT_TYPE = "production_acceptance.evidence" as const;
 const REPOSITORY_SCHEMA = "valo.production-acceptance-repository/v1" as const;
-const SHA256 = /^[0-9a-f]{64}$/u;
+import {
+  SHA256_HEX_PATTERN as SHA256,
+  UUID_PATTERN as UUID,
+} from "../identifierPatterns";
 const IDEMPOTENCY = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/u;
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const MAX_EVENT_CODE_UNITS = 10_000;
 const MAX_EVENT_BYTES = 20_000;
 const MAX_SET_BYTES = 4_000_000;
@@ -69,11 +70,7 @@ function assertScope(scope: ProductionAcceptanceScope): void {
   }
 }
 
-function isPlain(value: unknown): value is Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
+import { isPlainRecord as isPlain } from "../typeGuards";
 
 function parseEnvelope(value: string): StoredEvidenceEnvelope {
   let parsed: unknown;

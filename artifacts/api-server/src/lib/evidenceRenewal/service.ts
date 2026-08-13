@@ -21,9 +21,10 @@ export const EVIDENCE_RENEWAL_AUTHORITY_NOTE =
   "This register records a receipt-backed internal due reminder and named-human evidence-renewal workflow. It does not send an external message, contact an issuer or client, approve a pursuit, or claim delivery outside Valo.";
 
 export const ZERO_SHA256 = "0".repeat(64);
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
+import {
+  SHA256_HEX_PATTERN as SHA256_PATTERN,
+  UUID_PATTERN,
+} from "../identifierPatterns";
 const IDEMPOTENCY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/u;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
 const ISO_TIMESTAMP_PATTERN =
@@ -274,13 +275,8 @@ export function evidenceRenewalSha256(value: unknown): string {
     .digest("hex");
 }
 
-export function deterministicEvidenceRenewalUuid(seed: string): string {
-  const hex = createHash("sha256")
-    .update(seed, "utf8")
-    .digest("hex")
-    .slice(0, 32);
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
-}
+import { deterministicUuidFromHex } from "../deterministicUuid";
+export const deterministicEvidenceRenewalUuid = deterministicUuidFromHex;
 
 function eventWithoutReceipt(event: PersistedEvidenceRenewalEvent) {
   const { receiptSha256: _receiptSha256, ...content } = event;

@@ -159,18 +159,13 @@ const ENVIRONMENT_SET = new Set<string>([
   "recovery_rehearsal",
 ]);
 const OUTCOME_SET = new Set<string>(["passed", "failed"]);
-const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+import {
+  SHA256_HEX_PATTERN as SHA256_PATTERN,
+  UUID_PATTERN,
+} from "../identifierPatterns";
 const IDEMPOTENCY_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._:-]{15,127}$/u;
 
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return false;
-  }
-  const prototype = Object.getPrototypeOf(value) as object | null;
-  return prototype === Object.prototype || prototype === null;
-}
+import { isPlainRecord } from "../typeGuards";
 
 function hasExactKeys(
   value: Record<string, unknown>,

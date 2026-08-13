@@ -17,8 +17,7 @@ import { OperationsSuiteError } from "./errors";
 import type { OperationsSuiteStore } from "./store";
 
 const TITLE_PREFIX = "[OPS:";
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+import { UUID_PATTERN } from "../identifierPatterns";
 const MAX_ENVELOPE_CODE_UNITS = 524_288;
 const MAX_ENVELOPE_BYTES = 2_097_152;
 const MAX_LIST_BYTES = 8_388_608;

@@ -1,5 +1,4 @@
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+import { UUID_PATTERN as UUID } from "../identifierPatterns";
 const BASE64URL = /^[A-Za-z0-9_-]+$/u;
 export const STORAGE_DEAD_LETTER_CURSOR_MAX_LENGTH = 192;
 

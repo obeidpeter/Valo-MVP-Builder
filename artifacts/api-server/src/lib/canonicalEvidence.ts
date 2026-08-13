@@ -4,9 +4,10 @@ import { db } from "@workspace/db";
 export const CANONICAL_EVIDENCE_DEFAULT_LIMIT = 50;
 export const CANONICAL_EVIDENCE_MAX_LIMIT = 100;
 
-const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+import {
+  SHA256_HEX_PATTERN as SHA256_PATTERN,
+  UUID_PATTERN,
+} from "./identifierPatterns";
 
 export interface CanonicalEvidenceOption {
   documentId: string;

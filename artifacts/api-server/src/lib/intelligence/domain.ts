@@ -79,7 +79,7 @@ export const UNREVIEWED: HumanReview = Object.freeze({
 });
 
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
-const SHA256_PATTERN = /^[a-f0-9]{64}$/;
+import { SHA256_HEX_PATTERN as SHA256_PATTERN } from "../identifierPatterns";
 const MAX_CITATION_QUOTE_CHARS = 20_000;
 const MAX_CITATION_SECTION_CHARS = 2_000;
 const ISO_INSTANT_PATTERN =

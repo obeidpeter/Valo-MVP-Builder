@@ -51,9 +51,10 @@ import { hashOpportunityPursuitHandoff } from "./service";
 
 const EVENT_TYPE = "opportunity_source.pursuit_handoff_confirmed" as const;
 const OBJECT_TYPE = "opportunity_source.pursuit_handoff" as const;
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const SHA256 = /^[0-9a-f]{64}$/u;
+import {
+  SHA256_HEX_PATTERN as SHA256,
+  UUID_PATTERN as UUID,
+} from "../identifierPatterns";
 const CONTROL = /[\u0000-\u001f\u007f]/u;
 const ACTIVE_CONFLICT_STATUSES = [
   "intake",
@@ -125,11 +126,7 @@ function exactIso(value: unknown): value is string {
   return Number.isFinite(parsed.getTime()) && parsed.toISOString() === value;
 }
 
-function plain(value: unknown): value is Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
+import { isPlainRecord as plain } from "../typeGuards";
 
 function exactKeys(
   value: Record<string, unknown>,

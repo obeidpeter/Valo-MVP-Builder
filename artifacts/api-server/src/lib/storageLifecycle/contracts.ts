@@ -27,9 +27,10 @@ export const STORAGE_LIFECYCLE_BOUNDS = Object.freeze({
   lateRewriteClosure: "bounded-cushion-and-post-expiry-reconcile",
 });
 
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const SHA256 = /^[0-9a-f]{64}$/u;
+import {
+  SHA256_HEX_PATTERN as SHA256,
+  UUID_PATTERN as UUID,
+} from "../identifierPatterns";
 const MIME =
   /^[a-z0-9][a-z0-9!#$&^_.+-]{0,63}\/[a-z0-9][a-z0-9!#$&^_.+-]{0,126}$/u;
 const CONTROL = /[\u0000-\u001f\u007f\ud800-\udfff]/u;

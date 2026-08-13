@@ -20,8 +20,7 @@ import {
   validClientActionAuthorityName,
 } from "./authorityPolicy";
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+import { UUID_PATTERN } from "../identifierPatterns";
 function denied(message: string): never {
   throw new ClientActionError("scope_denied", message);
 }

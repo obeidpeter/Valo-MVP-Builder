@@ -27,9 +27,10 @@ const PLAN_CREATED = "ai_shadow.plan_created" as const;
 const OBSERVATION_RECORDED = "ai_shadow.observation_recorded" as const;
 const PLAN_CLOSED = "ai_shadow.plan_closed" as const;
 const EVENT_SCHEMA = "valo.ai-shadow-audit-event/v1" as const;
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const SHA256 = /^[a-f0-9]{64}$/u;
+import {
+  SHA256_HEX_PATTERN as SHA256,
+  UUID_PATTERN as UUID,
+} from "../identifierPatterns";
 const IDEMPOTENCY = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/u;
 const READ_ROLES = [
   "valo_operations_administrator",
@@ -76,11 +77,7 @@ function fail(message = "AI shadow repository is unavailable"): never {
   throw new AiShadowProgrammeError("repository_unavailable", message);
 }
 
-function plain(value: unknown): value is Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
+import { isPlainRecord as plain } from "../typeGuards";
 
 function exact(value: Record<string, unknown>, keys: string[]): boolean {
   const actual = Object.keys(value).sort();

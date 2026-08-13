@@ -21,11 +21,7 @@ const INPUT_KEYS = [
   "sourceContentSha256",
 ] as const;
 
-function isPlain(value: unknown): value is Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
+import { isPlainRecord as isPlain } from "../typeGuards";
 
 function exactKeys(
   value: Record<string, unknown>,

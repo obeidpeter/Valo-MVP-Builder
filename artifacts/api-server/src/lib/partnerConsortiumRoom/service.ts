@@ -17,9 +17,10 @@ import {
 } from "./contracts";
 import { ConsortiumError } from "./errors";
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
+import {
+  SHA256_HEX_PATTERN as SHA256_PATTERN,
+  UUID_PATTERN,
+} from "../identifierPatterns";
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
 export const CONSORTIUM_ENVELOPE_SCHEMA =
@@ -175,16 +176,7 @@ function digest(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
-function deterministicUuid(seed: string): string {
-  const bytes = Buffer.from(
-    createHash("sha256").update(seed).digest("hex").slice(0, 32),
-    "hex",
-  );
-  bytes[6] = (bytes[6]! & 0x0f) | 0x40;
-  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
-  const hex = bytes.toString("hex");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
+import { deterministicUuidFromBytes as deterministicUuid } from "../deterministicUuid";
 
 function clone<T>(value: T): T {
   return structuredClone(value);

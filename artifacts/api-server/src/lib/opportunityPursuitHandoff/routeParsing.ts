@@ -18,11 +18,7 @@ const KEYS = [
   "confirmationNote",
 ] as const;
 
-function plain(value: unknown): value is Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
+import { isPlainRecord as plain } from "../typeGuards";
 
 export function parseOpportunityPursuitHandoffBody(
   value: unknown,

@@ -63,9 +63,10 @@ import {
   type IssueClientUploadLeaseCommand,
 } from "./clientUpload";
 
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const SHA256 = /^[0-9a-f]{64}$/u;
+import {
+  SHA256_HEX_PATTERN as SHA256,
+  UUID_PATTERN as UUID,
+} from "../identifierPatterns";
 const ACCEPTED_CLIENT_UPLOAD_MIME = new Set([
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

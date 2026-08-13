@@ -51,9 +51,10 @@ type ConsortiumTx = Parameters<
 type WorkTaskRow = typeof workTasks.$inferSelect;
 
 export const CONSORTIUM_TITLE_PREFIX = "[CONSORTIUM-ROOM:v1:" as const;
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
+import {
+  SHA256_HEX_PATTERN as SHA256_PATTERN,
+  UUID_PATTERN,
+} from "../identifierPatterns";
 const ROOM_STATUSES = [
   "draft",
   "active",

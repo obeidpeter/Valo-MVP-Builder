@@ -232,9 +232,10 @@ export interface DurableWorkerRepository {
   recover(input: RepositoryRecoverInput): Promise<WorkerTransition | null>;
 }
 
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const SHA256 = /^[a-f0-9]{64}$/;
+import {
+  SHA256_HEX_PATTERN as SHA256,
+  UUID_V1_5_PATTERN as UUID,
+} from "./identifierPatterns";
 const CONTROL = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const CAPABILITY = /^[a-z][a-z0-9_.:-]{1,95}@v[1-9][0-9]{0,5}$/;
 
