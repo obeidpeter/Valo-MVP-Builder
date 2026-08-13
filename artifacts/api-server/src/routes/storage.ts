@@ -172,9 +172,13 @@ router.post(
 /**
  * GET /storage/public-objects/*
  *
- * Serve public assets from PUBLIC_OBJECT_SEARCH_PATHS.
- * These are unconditionally public — no authentication or ACL checks.
- * IMPORTANT: Always provide this endpoint when object storage is set up.
+ * Serve shared public assets from PUBLIC_OBJECT_SEARCH_PATHS. The route is
+ * mounted behind session authentication but applies no tenant or ACL check,
+ * so it may only ever reach the public namespace: keys are validated as
+ * bounded normalised relative paths and the search paths are asserted
+ * disjoint from PRIVATE_OBJECT_DIR before any provider lookup. Nothing in
+ * the application writes under the public namespace; objects appear there
+ * only through out-of-band operator publication.
  */
 router.get(
   "/storage/public-objects/*filePath",

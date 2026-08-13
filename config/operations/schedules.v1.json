@@ -39,7 +39,12 @@
         "dedicated_scheduler_identity",
         "metrics_and_paging_delivery_verified",
         "platform_schedule_receipt_retained"
-      ]
+      ],
+      "inProcessRunner": {
+        "available": true,
+        "optInEnvironmentVariable": "VALO_INPROCESS_SCHEDULES",
+        "runner": "scripts/run-inprocess-schedules.mjs"
+      }
     },
     {
       "id": "public_intake_expiry_purge",
@@ -78,7 +83,12 @@
         "bounded_1000_row_function_verified",
         "metrics_and_paging_delivery_verified",
         "platform_schedule_receipt_retained"
-      ]
+      ],
+      "inProcessRunner": {
+        "available": true,
+        "optInEnvironmentVariable": "VALO_INPROCESS_SCHEDULES",
+        "runner": "scripts/run-inprocess-schedules.mjs"
+      }
     },
     {
       "id": "audit_anchor_evidence_verification",

@@ -9785,6 +9785,267 @@ export interface BoqRunResult {
   checks: BoqCheck[];
 }
 
+/**
+ * One client-supplied commercial line. All figures are decimal strings; the server never accepts floating-point money.
+ */
+export interface BoqVerificationLine {
+  /** @maxLength 120 */
+  id: string;
+  /** @maxLength 120 */
+  lotId: string;
+  /**
+     * @minLength 3
+     * @maxLength 3
+     */
+  currency: string;
+  /** @maxLength 40 */
+  quantity: string;
+  /** @maxLength 40 */
+  unitRate: string;
+  /** @maxLength 40 */
+  displayedExtension: string;
+  /** @maxLength 40 */
+  formulaExtension?: string | null;
+  hidden?: boolean;
+  mergedPricingCell?: boolean;
+  /** @maxLength 120 */
+  sourceUnit?: string | null;
+  /** @maxLength 120 */
+  pricingUnit?: string | null;
+  /** @maxLength 40 */
+  conversionNumerator?: string | null;
+  /** @maxLength 40 */
+  conversionDenominator?: string | null;
+  /** @maxLength 40 */
+  convertedQuantity?: string | null;
+}
+
+export type BoqVerificationLotBidSecurityBasis = typeof BoqVerificationLotBidSecurityBasis[keyof typeof BoqVerificationLotBidSecurityBasis];
+
+
+export const BoqVerificationLotBidSecurityBasis = {
+  net: 'net',
+  gross: 'gross',
+} as const;
+
+export type BoqVerificationLotBidSecurity = {
+  /**
+     * @minimum 0
+     * @maximum 10000
+     */
+  rateBasisPoints: number;
+  basis: BoqVerificationLotBidSecurityBasis;
+  /** @maxLength 40 */
+  declaredAmount: string;
+} | null;
+
+export interface BoqVerificationLot {
+  /** @maxLength 120 */
+  lotId: string;
+  /**
+     * @minLength 3
+     * @maxLength 3
+     */
+  currency: string;
+  /** @maxLength 40 */
+  declaredNet: string;
+  /**
+     * @minimum 0
+     * @maximum 10000
+     */
+  discountRateBasisPoints: number;
+  /** @maxLength 40 */
+  declaredDiscount: string;
+  /** @maxLength 40 */
+  declaredTaxableBase: string;
+  /**
+     * @minimum 0
+     * @maximum 10000
+     */
+  vatRateBasisPoints: number;
+  /** @maxLength 40 */
+  declaredVat: string;
+  /** @maxLength 40 */
+  declaredGross: string;
+  /**
+     * @minimum 0
+     * @maximum 10000
+     */
+  whtRateBasisPoints?: number;
+  /** @maxLength 40 */
+  declaredWht?: string | null;
+  /** @maxLength 40 */
+  declaredNetPayable: string;
+  bidSecurity?: BoqVerificationLotBidSecurity;
+}
+
+/**
+ * The rule policy is never part of the request; the server pins the effective-dated Nigeria rule pack and records its id on the run.
+ */
+export interface BoqVerificationRunRequest {
+  /** Governed project document the verified figures were taken from. */
+  documentId: string;
+  /**
+     * @minItems 1
+     * @maxItems 2000
+     */
+  lines: BoqVerificationLine[];
+  /**
+     * @minItems 1
+     * @maxItems 50
+     */
+  lots: BoqVerificationLot[];
+}
+
+export type BoqVerificationRunStatus = typeof BoqVerificationRunStatus[keyof typeof BoqVerificationRunStatus];
+
+
+export const BoqVerificationRunStatus = {
+  passed: 'passed',
+  exceptions_recorded: 'exceptions_recorded',
+} as const;
+
+export type BoqVerificationRunComputedLotTotalsMinor = {[key: string]: string};
+
+export interface BoqVerificationRun {
+  id: string;
+  organisationId: string;
+  projectId: string;
+  documentVersionId: string;
+  rulePackId: string;
+  verifierVersion: string;
+  workbookManifest: string;
+  status: BoqVerificationRunStatus;
+  exceptionCount: number;
+  passed: boolean;
+  computedLotTotalsMinor: BoqVerificationRunComputedLotTotalsMinor;
+  startedByUserId?: string | null;
+  startedAt: string;
+  completedAt?: string | null;
+  version: number;
+}
+
+export type BoqVerificationExceptionExceptionCode = typeof BoqVerificationExceptionExceptionCode[keyof typeof BoqVerificationExceptionExceptionCode];
+
+
+export const BoqVerificationExceptionExceptionCode = {
+  invalid_decimal: 'invalid_decimal',
+  extension_mismatch: 'extension_mismatch',
+  formula_display_mismatch: 'formula_display_mismatch',
+  hidden_priced_row: 'hidden_priced_row',
+  merged_pricing_cell: 'merged_pricing_cell',
+  currency_mismatch: 'currency_mismatch',
+  unit_conversion_missing: 'unit_conversion_missing',
+  unit_conversion_mismatch: 'unit_conversion_mismatch',
+  lot_net_mismatch: 'lot_net_mismatch',
+  discount_mismatch: 'discount_mismatch',
+  taxable_base_mismatch: 'taxable_base_mismatch',
+  vat_mismatch: 'vat_mismatch',
+  wht_rule_disabled: 'wht_rule_disabled',
+  wht_mismatch: 'wht_mismatch',
+  gross_total_mismatch: 'gross_total_mismatch',
+  net_payable_mismatch: 'net_payable_mismatch',
+  bid_security_mismatch: 'bid_security_mismatch',
+} as const;
+
+export type BoqVerificationExceptionSeverity = typeof BoqVerificationExceptionSeverity[keyof typeof BoqVerificationExceptionSeverity];
+
+
+export const BoqVerificationExceptionSeverity = {
+  fatal: 'fatal',
+  likely_fatal: 'likely_fatal',
+  scoring_risk: 'scoring_risk',
+} as const;
+
+export type BoqVerificationExceptionStatus = typeof BoqVerificationExceptionStatus[keyof typeof BoqVerificationExceptionStatus];
+
+
+export const BoqVerificationExceptionStatus = {
+  open: 'open',
+  resolved: 'resolved',
+  waived: 'waived',
+} as const;
+
+export interface BoqVerificationException {
+  id: string;
+  boqRunId: string;
+  lotReference?: string | null;
+  cellReference?: string | null;
+  exceptionCode: BoqVerificationExceptionExceptionCode;
+  severity: BoqVerificationExceptionSeverity;
+  expectedMinor?: string | null;
+  actualMinor?: string | null;
+  currency?: string | null;
+  finding: string;
+  status: BoqVerificationExceptionStatus;
+  resolutionReason?: string | null;
+  resolvedByUserId?: string | null;
+  resolvedAt?: string | null;
+  version: number;
+}
+
+export interface BoqVerificationSnapshot {
+  organisationId: string;
+  projectId: string;
+  projectStatus: string;
+  rulePackId: string;
+  verifierVersion: string;
+  runs: BoqVerificationRun[];
+  openExceptionCount: number;
+  generatedAt: string;
+  authorityNote: string;
+}
+
+export interface BoqVerificationRunDetail {
+  run: BoqVerificationRun;
+  exceptions: BoqVerificationException[];
+  authorityNote: string;
+}
+
+export type BoqVerificationRunCreatedOutcome = typeof BoqVerificationRunCreatedOutcome[keyof typeof BoqVerificationRunCreatedOutcome];
+
+
+export const BoqVerificationRunCreatedOutcome = {
+  created: 'created',
+} as const;
+
+export interface BoqVerificationRunCreated {
+  outcome: BoqVerificationRunCreatedOutcome;
+  run: BoqVerificationRun;
+  exceptions: BoqVerificationException[];
+  authorityNote: string;
+}
+
+export type BoqExceptionResolutionRequestStatus = typeof BoqExceptionResolutionRequestStatus[keyof typeof BoqExceptionResolutionRequestStatus];
+
+
+export const BoqExceptionResolutionRequestStatus = {
+  resolved: 'resolved',
+  waived: 'waived',
+} as const;
+
+export interface BoqExceptionResolutionRequest {
+  status: BoqExceptionResolutionRequestStatus;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  reason: string;
+}
+
+export type BoqExceptionResolutionUpdatedOutcome = typeof BoqExceptionResolutionUpdatedOutcome[keyof typeof BoqExceptionResolutionUpdatedOutcome];
+
+
+export const BoqExceptionResolutionUpdatedOutcome = {
+  updated: 'updated',
+} as const;
+
+export interface BoqExceptionResolutionUpdated {
+  outcome: BoqExceptionResolutionUpdatedOutcome;
+  exception: BoqVerificationException;
+  authorityNote: string;
+}
+
 export interface ResponsivenessResult {
   review: string;
   model?: string;

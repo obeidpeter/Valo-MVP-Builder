@@ -22,11 +22,22 @@ const SYNTHETIC_CASE_IDS = [
   "NG-FMOH-2026-014-lab-equipment",
   "NG-NIPEX-2026-ML-0042-marine",
   "NG-FMW-2026-road-rehab",
+  "NG-PHCDA-2026-021-consumables",
+  "NG-TCN-2026-108-substation",
+  "NG-UBEC-2026-055-classrooms",
+  "NG-NIPEX-2026-DR-0087-drilling",
+  "NG-FMWR-2026-042-boreholes",
+  "NG-FIRS-2026-077-ict",
+  "NG-NDDC-2026-019-shoreline",
+  "NG-DSS-2026-090-catering",
+  "NG-NNPC-2026-PL-033-pipeline",
+  "NG-REA-2026-064-minigrid",
+  "NG-FAAN-2026-112-groundhandling",
 ] as const;
 
 export const CURRENT_CORPUS_MANIFEST: EvalCorpusManifest = {
   schemaVersion: 1,
-  corpusVersion: "gate0-inline-synthetic-v1",
+  corpusVersion: "gate0-inline-synthetic-v2",
   purpose: "non_production_self_check",
   limitations: [
     "Inline synthetic-style text only; no retained source-document artefacts.",

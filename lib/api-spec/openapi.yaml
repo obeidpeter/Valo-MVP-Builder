@@ -2185,6 +2185,136 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Defect"
+  /projects/{projectId}/boq-verification:
+    get:
+      tags: [BOQ]
+      operationId: getBoqVerification
+      summary: Read the commercial BOQ verification register for a pursuit
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdParam"
+      responses:
+        "200":
+          description: Bounded run register under the pinned rule pack.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoqVerificationSnapshot"
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/RoadmapRepositoryUnavailable" }
+  /projects/{projectId}/boq-verification/runs:
+    post:
+      tags: [BOQ]
+      operationId: createBoqVerificationRun
+      summary: Verify client-supplied BOQ figures against the pinned Nigeria rule pack
+      description: >-
+        Deterministic arithmetic verification only. The server pins the rule
+        policy, binds the run to the current cleared version of a governed
+        project document, and records every exception for named-human
+        resolution. A passing run is not a pricing, responsiveness or award
+        opinion.
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BoqVerificationRunRequest"
+      responses:
+        "201":
+          description: Run recorded with its exception register.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoqVerificationRunCreated"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422":
+          description: The verification result exceeded a bounded register limit and no run was recorded.
+        "503": { $ref: "#/components/responses/RoadmapRepositoryUnavailable" }
+  /projects/{projectId}/boq-verification/runs/{runId}:
+    get:
+      tags: [BOQ]
+      operationId: getBoqVerificationRun
+      summary: Read one verification run with its exception register
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdParam"
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Run detail.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoqVerificationRunDetail"
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/RoadmapRepositoryUnavailable" }
+  /projects/{projectId}/boq-verification/exceptions/{exceptionId}/resolution:
+    post:
+      tags: [BOQ]
+      operationId: resolveBoqVerificationException
+      summary: Record a named-human resolution or waiver for one exception
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdParam"
+        - name: exceptionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IfMatchVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BoqExceptionResolutionRequest"
+      responses:
+        "200":
+          description: Resolution recorded against the exact exception version.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+            ETag:
+              $ref: "#/components/headers/VersionETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoqExceptionResolutionUpdated"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "503": { $ref: "#/components/responses/RoadmapRepositoryUnavailable" }
   /projects/{id}/payment-confirmations:
     post:
       operationId: confirmProjectPayment
@@ -15600,6 +15730,241 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BoqCheck"
+    BoqVerificationLine:
+      type: object
+      description: >-
+        One client-supplied commercial line. All figures are decimal strings;
+        the server never accepts floating-point money.
+      required: [id, lotId, currency, quantity, unitRate, displayedExtension]
+      properties:
+        id: { type: string, maxLength: 120 }
+        lotId: { type: string, maxLength: 120 }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        quantity: { type: string, maxLength: 40 }
+        unitRate: { type: string, maxLength: 40 }
+        displayedExtension: { type: string, maxLength: 40 }
+        formulaExtension: { type: string, maxLength: 40, nullable: true }
+        hidden: { type: boolean }
+        mergedPricingCell: { type: boolean }
+        sourceUnit: { type: string, maxLength: 120, nullable: true }
+        pricingUnit: { type: string, maxLength: 120, nullable: true }
+        conversionNumerator: { type: string, maxLength: 40, nullable: true }
+        conversionDenominator: { type: string, maxLength: 40, nullable: true }
+        convertedQuantity: { type: string, maxLength: 40, nullable: true }
+    BoqVerificationLot:
+      type: object
+      required:
+        [
+          lotId,
+          currency,
+          declaredNet,
+          discountRateBasisPoints,
+          declaredDiscount,
+          declaredTaxableBase,
+          vatRateBasisPoints,
+          declaredVat,
+          declaredGross,
+          declaredNetPayable,
+        ]
+      properties:
+        lotId: { type: string, maxLength: 120 }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        declaredNet: { type: string, maxLength: 40 }
+        discountRateBasisPoints: { type: integer, minimum: 0, maximum: 10000 }
+        declaredDiscount: { type: string, maxLength: 40 }
+        declaredTaxableBase: { type: string, maxLength: 40 }
+        vatRateBasisPoints: { type: integer, minimum: 0, maximum: 10000 }
+        declaredVat: { type: string, maxLength: 40 }
+        declaredGross: { type: string, maxLength: 40 }
+        whtRateBasisPoints: { type: integer, minimum: 0, maximum: 10000 }
+        declaredWht: { type: string, maxLength: 40, nullable: true }
+        declaredNetPayable: { type: string, maxLength: 40 }
+        bidSecurity:
+          type: object
+          nullable: true
+          required: [rateBasisPoints, basis, declaredAmount]
+          properties:
+            rateBasisPoints: { type: integer, minimum: 0, maximum: 10000 }
+            basis:
+              type: string
+              enum: [net, gross]
+            declaredAmount: { type: string, maxLength: 40 }
+    BoqVerificationRunRequest:
+      type: object
+      description: >-
+        The rule policy is never part of the request; the server pins the
+        effective-dated Nigeria rule pack and records its id on the run.
+      required: [documentId, lines, lots]
+      properties:
+        documentId:
+          type: string
+          format: uuid
+          description: Governed project document the verified figures were taken from.
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 2000
+          items:
+            $ref: "#/components/schemas/BoqVerificationLine"
+        lots:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/BoqVerificationLot"
+    BoqVerificationRun:
+      type: object
+      required:
+        [
+          id,
+          organisationId,
+          projectId,
+          documentVersionId,
+          rulePackId,
+          verifierVersion,
+          workbookManifest,
+          status,
+          exceptionCount,
+          passed,
+          computedLotTotalsMinor,
+          startedAt,
+          version,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        organisationId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        documentVersionId: { type: string, format: uuid }
+        rulePackId: { type: string }
+        verifierVersion: { type: string }
+        workbookManifest: { type: string }
+        status:
+          type: string
+          enum: [passed, exceptions_recorded]
+        exceptionCount: { type: integer }
+        passed: { type: boolean }
+        computedLotTotalsMinor:
+          type: object
+          additionalProperties: { type: string }
+        startedByUserId: { type: string, format: uuid, nullable: true }
+        startedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time, nullable: true }
+        version: { type: integer }
+    BoqVerificationException:
+      type: object
+      required:
+        [id, boqRunId, exceptionCode, severity, finding, status, version]
+      properties:
+        id: { type: string, format: uuid }
+        boqRunId: { type: string, format: uuid }
+        lotReference: { type: string, nullable: true }
+        cellReference: { type: string, nullable: true }
+        exceptionCode:
+          type: string
+          enum:
+            [
+              invalid_decimal,
+              extension_mismatch,
+              formula_display_mismatch,
+              hidden_priced_row,
+              merged_pricing_cell,
+              currency_mismatch,
+              unit_conversion_missing,
+              unit_conversion_mismatch,
+              lot_net_mismatch,
+              discount_mismatch,
+              taxable_base_mismatch,
+              vat_mismatch,
+              wht_rule_disabled,
+              wht_mismatch,
+              gross_total_mismatch,
+              net_payable_mismatch,
+              bid_security_mismatch,
+            ]
+        severity:
+          type: string
+          enum: [fatal, likely_fatal, scoring_risk]
+        expectedMinor: { type: string, nullable: true }
+        actualMinor: { type: string, nullable: true }
+        currency: { type: string, nullable: true }
+        finding: { type: string }
+        status:
+          type: string
+          enum: [open, resolved, waived]
+        resolutionReason: { type: string, nullable: true }
+        resolvedByUserId: { type: string, format: uuid, nullable: true }
+        resolvedAt: { type: string, format: date-time, nullable: true }
+        version: { type: integer }
+    BoqVerificationSnapshot:
+      type: object
+      required:
+        [
+          organisationId,
+          projectId,
+          projectStatus,
+          rulePackId,
+          verifierVersion,
+          runs,
+          openExceptionCount,
+          generatedAt,
+          authorityNote,
+        ]
+      properties:
+        organisationId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        projectStatus: { type: string }
+        rulePackId: { type: string }
+        verifierVersion: { type: string }
+        runs:
+          type: array
+          items:
+            $ref: "#/components/schemas/BoqVerificationRun"
+        openExceptionCount: { type: integer }
+        generatedAt: { type: string, format: date-time }
+        authorityNote: { type: string }
+    BoqVerificationRunDetail:
+      type: object
+      required: [run, exceptions, authorityNote]
+      properties:
+        run:
+          $ref: "#/components/schemas/BoqVerificationRun"
+        exceptions:
+          type: array
+          items:
+            $ref: "#/components/schemas/BoqVerificationException"
+        authorityNote: { type: string }
+    BoqVerificationRunCreated:
+      type: object
+      required: [outcome, run, exceptions, authorityNote]
+      properties:
+        outcome:
+          type: string
+          enum: [created]
+        run:
+          $ref: "#/components/schemas/BoqVerificationRun"
+        exceptions:
+          type: array
+          items:
+            $ref: "#/components/schemas/BoqVerificationException"
+        authorityNote: { type: string }
+    BoqExceptionResolutionRequest:
+      type: object
+      required: [status, reason]
+      properties:
+        status:
+          type: string
+          enum: [resolved, waived]
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    BoqExceptionResolutionUpdated:
+      type: object
+      required: [outcome, exception, authorityNote]
+      properties:
+        outcome:
+          type: string
+          enum: [updated]
+        exception:
+          $ref: "#/components/schemas/BoqVerificationException"
+        authorityNote: { type: string }
     ResponsivenessResult:
       type: object
       required: [review]

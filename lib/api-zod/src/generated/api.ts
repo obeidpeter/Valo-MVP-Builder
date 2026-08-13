@@ -3111,6 +3111,287 @@ export const BoqCheckToDefectResponse = zod.object({
 
 
 /**
+ * @summary Read the commercial BOQ verification register for a pursuit
+ */
+export const GetBoqVerificationParams = zod.object({
+  "projectId": zod.coerce.string().uuid()
+})
+
+export const GetBoqVerificationResponse = zod.object({
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "projectStatus": zod.string(),
+  "rulePackId": zod.string(),
+  "verifierVersion": zod.string(),
+  "runs": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "documentVersionId": zod.string().uuid(),
+  "rulePackId": zod.string(),
+  "verifierVersion": zod.string(),
+  "workbookManifest": zod.string(),
+  "status": zod.enum(['passed', 'exceptions_recorded']),
+  "exceptionCount": zod.number(),
+  "passed": zod.boolean(),
+  "computedLotTotalsMinor": zod.record(zod.string(), zod.string()),
+  "startedByUserId": zod.string().uuid().nullish(),
+  "startedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullish(),
+  "version": zod.number()
+})),
+  "openExceptionCount": zod.number(),
+  "generatedAt": zod.coerce.date(),
+  "authorityNote": zod.string()
+})
+
+
+/**
+ * Deterministic arithmetic verification only. The server pins the rule policy, binds the run to the current cleared version of a governed project document, and records every exception for named-human resolution. A passing run is not a pricing, responsiveness or award opinion.
+ * @summary Verify client-supplied BOQ figures against the pinned Nigeria rule pack
+ */
+export const CreateBoqVerificationRunParams = zod.object({
+  "projectId": zod.coerce.string().uuid()
+})
+
+export const createBoqVerificationRunBodyLinesItemIdMax = 120;
+
+export const createBoqVerificationRunBodyLinesItemLotIdMax = 120;
+
+export const createBoqVerificationRunBodyLinesItemCurrencyMin = 3;
+export const createBoqVerificationRunBodyLinesItemCurrencyMax = 3;
+
+export const createBoqVerificationRunBodyLinesItemQuantityMax = 40;
+
+export const createBoqVerificationRunBodyLinesItemUnitRateMax = 40;
+
+export const createBoqVerificationRunBodyLinesItemDisplayedExtensionMax = 40;
+
+export const createBoqVerificationRunBodyLinesItemFormulaExtensionMax = 40;
+
+export const createBoqVerificationRunBodyLinesItemSourceUnitMax = 120;
+
+export const createBoqVerificationRunBodyLinesItemPricingUnitMax = 120;
+
+export const createBoqVerificationRunBodyLinesItemConversionNumeratorMax = 40;
+
+export const createBoqVerificationRunBodyLinesItemConversionDenominatorMax = 40;
+
+export const createBoqVerificationRunBodyLinesItemConvertedQuantityMax = 40;
+
+export const createBoqVerificationRunBodyLinesMax = 2000;
+
+export const createBoqVerificationRunBodyLotsItemLotIdMax = 120;
+
+export const createBoqVerificationRunBodyLotsItemCurrencyMin = 3;
+export const createBoqVerificationRunBodyLotsItemCurrencyMax = 3;
+
+export const createBoqVerificationRunBodyLotsItemDeclaredNetMax = 40;
+
+export const createBoqVerificationRunBodyLotsItemDiscountRateBasisPointsMin = 0;
+export const createBoqVerificationRunBodyLotsItemDiscountRateBasisPointsMax = 10000;
+
+export const createBoqVerificationRunBodyLotsItemDeclaredDiscountMax = 40;
+
+export const createBoqVerificationRunBodyLotsItemDeclaredTaxableBaseMax = 40;
+
+export const createBoqVerificationRunBodyLotsItemVatRateBasisPointsMin = 0;
+export const createBoqVerificationRunBodyLotsItemVatRateBasisPointsMax = 10000;
+
+export const createBoqVerificationRunBodyLotsItemDeclaredVatMax = 40;
+
+export const createBoqVerificationRunBodyLotsItemDeclaredGrossMax = 40;
+
+export const createBoqVerificationRunBodyLotsItemWhtRateBasisPointsMin = 0;
+export const createBoqVerificationRunBodyLotsItemWhtRateBasisPointsMax = 10000;
+
+export const createBoqVerificationRunBodyLotsItemDeclaredWhtMax = 40;
+
+export const createBoqVerificationRunBodyLotsItemDeclaredNetPayableMax = 40;
+
+export const createBoqVerificationRunBodyLotsItemBidSecurityRateBasisPointsMin = 0;
+export const createBoqVerificationRunBodyLotsItemBidSecurityRateBasisPointsMax = 10000;
+
+export const createBoqVerificationRunBodyLotsItemBidSecurityDeclaredAmountMax = 40;
+
+export const createBoqVerificationRunBodyLotsMax = 50;
+
+
+
+export const CreateBoqVerificationRunBody = zod.object({
+  "documentId": zod.string().uuid().describe('Governed project document the verified figures were taken from.'),
+  "lines": zod.array(zod.object({
+  "id": zod.string().max(createBoqVerificationRunBodyLinesItemIdMax),
+  "lotId": zod.string().max(createBoqVerificationRunBodyLinesItemLotIdMax),
+  "currency": zod.string().min(createBoqVerificationRunBodyLinesItemCurrencyMin).max(createBoqVerificationRunBodyLinesItemCurrencyMax),
+  "quantity": zod.string().max(createBoqVerificationRunBodyLinesItemQuantityMax),
+  "unitRate": zod.string().max(createBoqVerificationRunBodyLinesItemUnitRateMax),
+  "displayedExtension": zod.string().max(createBoqVerificationRunBodyLinesItemDisplayedExtensionMax),
+  "formulaExtension": zod.string().max(createBoqVerificationRunBodyLinesItemFormulaExtensionMax).nullish(),
+  "hidden": zod.boolean().optional(),
+  "mergedPricingCell": zod.boolean().optional(),
+  "sourceUnit": zod.string().max(createBoqVerificationRunBodyLinesItemSourceUnitMax).nullish(),
+  "pricingUnit": zod.string().max(createBoqVerificationRunBodyLinesItemPricingUnitMax).nullish(),
+  "conversionNumerator": zod.string().max(createBoqVerificationRunBodyLinesItemConversionNumeratorMax).nullish(),
+  "conversionDenominator": zod.string().max(createBoqVerificationRunBodyLinesItemConversionDenominatorMax).nullish(),
+  "convertedQuantity": zod.string().max(createBoqVerificationRunBodyLinesItemConvertedQuantityMax).nullish()
+}).describe('One client-supplied commercial line. All figures are decimal strings; the server never accepts floating-point money.')).min(1).max(createBoqVerificationRunBodyLinesMax),
+  "lots": zod.array(zod.object({
+  "lotId": zod.string().max(createBoqVerificationRunBodyLotsItemLotIdMax),
+  "currency": zod.string().min(createBoqVerificationRunBodyLotsItemCurrencyMin).max(createBoqVerificationRunBodyLotsItemCurrencyMax),
+  "declaredNet": zod.string().max(createBoqVerificationRunBodyLotsItemDeclaredNetMax),
+  "discountRateBasisPoints": zod.number().min(createBoqVerificationRunBodyLotsItemDiscountRateBasisPointsMin).max(createBoqVerificationRunBodyLotsItemDiscountRateBasisPointsMax),
+  "declaredDiscount": zod.string().max(createBoqVerificationRunBodyLotsItemDeclaredDiscountMax),
+  "declaredTaxableBase": zod.string().max(createBoqVerificationRunBodyLotsItemDeclaredTaxableBaseMax),
+  "vatRateBasisPoints": zod.number().min(createBoqVerificationRunBodyLotsItemVatRateBasisPointsMin).max(createBoqVerificationRunBodyLotsItemVatRateBasisPointsMax),
+  "declaredVat": zod.string().max(createBoqVerificationRunBodyLotsItemDeclaredVatMax),
+  "declaredGross": zod.string().max(createBoqVerificationRunBodyLotsItemDeclaredGrossMax),
+  "whtRateBasisPoints": zod.number().min(createBoqVerificationRunBodyLotsItemWhtRateBasisPointsMin).max(createBoqVerificationRunBodyLotsItemWhtRateBasisPointsMax).optional(),
+  "declaredWht": zod.string().max(createBoqVerificationRunBodyLotsItemDeclaredWhtMax).nullish(),
+  "declaredNetPayable": zod.string().max(createBoqVerificationRunBodyLotsItemDeclaredNetPayableMax),
+  "bidSecurity": zod.object({
+  "rateBasisPoints": zod.number().min(createBoqVerificationRunBodyLotsItemBidSecurityRateBasisPointsMin).max(createBoqVerificationRunBodyLotsItemBidSecurityRateBasisPointsMax),
+  "basis": zod.enum(['net', 'gross']),
+  "declaredAmount": zod.string().max(createBoqVerificationRunBodyLotsItemBidSecurityDeclaredAmountMax)
+}).nullish()
+})).min(1).max(createBoqVerificationRunBodyLotsMax)
+}).describe('The rule policy is never part of the request; the server pins the effective-dated Nigeria rule pack and records its id on the run.')
+
+export const CreateBoqVerificationRunResponse = zod.object({
+  "outcome": zod.enum(['created']),
+  "run": zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "documentVersionId": zod.string().uuid(),
+  "rulePackId": zod.string(),
+  "verifierVersion": zod.string(),
+  "workbookManifest": zod.string(),
+  "status": zod.enum(['passed', 'exceptions_recorded']),
+  "exceptionCount": zod.number(),
+  "passed": zod.boolean(),
+  "computedLotTotalsMinor": zod.record(zod.string(), zod.string()),
+  "startedByUserId": zod.string().uuid().nullish(),
+  "startedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullish(),
+  "version": zod.number()
+}),
+  "exceptions": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "boqRunId": zod.string().uuid(),
+  "lotReference": zod.string().nullish(),
+  "cellReference": zod.string().nullish(),
+  "exceptionCode": zod.enum(['invalid_decimal', 'extension_mismatch', 'formula_display_mismatch', 'hidden_priced_row', 'merged_pricing_cell', 'currency_mismatch', 'unit_conversion_missing', 'unit_conversion_mismatch', 'lot_net_mismatch', 'discount_mismatch', 'taxable_base_mismatch', 'vat_mismatch', 'wht_rule_disabled', 'wht_mismatch', 'gross_total_mismatch', 'net_payable_mismatch', 'bid_security_mismatch']),
+  "severity": zod.enum(['fatal', 'likely_fatal', 'scoring_risk']),
+  "expectedMinor": zod.string().nullish(),
+  "actualMinor": zod.string().nullish(),
+  "currency": zod.string().nullish(),
+  "finding": zod.string(),
+  "status": zod.enum(['open', 'resolved', 'waived']),
+  "resolutionReason": zod.string().nullish(),
+  "resolvedByUserId": zod.string().uuid().nullish(),
+  "resolvedAt": zod.coerce.date().nullish(),
+  "version": zod.number()
+})),
+  "authorityNote": zod.string()
+})
+
+
+/**
+ * @summary Read one verification run with its exception register
+ */
+export const GetBoqVerificationRunParams = zod.object({
+  "projectId": zod.coerce.string().uuid(),
+  "runId": zod.coerce.string().uuid()
+})
+
+export const GetBoqVerificationRunResponse = zod.object({
+  "run": zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "documentVersionId": zod.string().uuid(),
+  "rulePackId": zod.string(),
+  "verifierVersion": zod.string(),
+  "workbookManifest": zod.string(),
+  "status": zod.enum(['passed', 'exceptions_recorded']),
+  "exceptionCount": zod.number(),
+  "passed": zod.boolean(),
+  "computedLotTotalsMinor": zod.record(zod.string(), zod.string()),
+  "startedByUserId": zod.string().uuid().nullish(),
+  "startedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullish(),
+  "version": zod.number()
+}),
+  "exceptions": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "boqRunId": zod.string().uuid(),
+  "lotReference": zod.string().nullish(),
+  "cellReference": zod.string().nullish(),
+  "exceptionCode": zod.enum(['invalid_decimal', 'extension_mismatch', 'formula_display_mismatch', 'hidden_priced_row', 'merged_pricing_cell', 'currency_mismatch', 'unit_conversion_missing', 'unit_conversion_mismatch', 'lot_net_mismatch', 'discount_mismatch', 'taxable_base_mismatch', 'vat_mismatch', 'wht_rule_disabled', 'wht_mismatch', 'gross_total_mismatch', 'net_payable_mismatch', 'bid_security_mismatch']),
+  "severity": zod.enum(['fatal', 'likely_fatal', 'scoring_risk']),
+  "expectedMinor": zod.string().nullish(),
+  "actualMinor": zod.string().nullish(),
+  "currency": zod.string().nullish(),
+  "finding": zod.string(),
+  "status": zod.enum(['open', 'resolved', 'waived']),
+  "resolutionReason": zod.string().nullish(),
+  "resolvedByUserId": zod.string().uuid().nullish(),
+  "resolvedAt": zod.coerce.date().nullish(),
+  "version": zod.number()
+})),
+  "authorityNote": zod.string()
+})
+
+
+/**
+ * @summary Record a named-human resolution or waiver for one exception
+ */
+export const ResolveBoqVerificationExceptionParams = zod.object({
+  "projectId": zod.coerce.string().uuid(),
+  "exceptionId": zod.coerce.string().uuid()
+})
+
+export const resolveBoqVerificationExceptionHeaderIfMatchRegExp = new RegExp('^(?:W/)?"?[1-9][0-9]*"?$');
+
+
+export const ResolveBoqVerificationExceptionHeader = zod.object({
+  "If-Match": zod.string().regex(resolveBoqVerificationExceptionHeaderIfMatchRegExp).describe('Current positive integer resource version, optionally quoted or weakly prefixed.')
+})
+
+export const resolveBoqVerificationExceptionBodyReasonMax = 500;
+
+
+
+export const ResolveBoqVerificationExceptionBody = zod.object({
+  "status": zod.enum(['resolved', 'waived']),
+  "reason": zod.string().min(1).max(resolveBoqVerificationExceptionBodyReasonMax)
+})
+
+export const ResolveBoqVerificationExceptionResponse = zod.object({
+  "outcome": zod.enum(['updated']),
+  "exception": zod.object({
+  "id": zod.string().uuid(),
+  "boqRunId": zod.string().uuid(),
+  "lotReference": zod.string().nullish(),
+  "cellReference": zod.string().nullish(),
+  "exceptionCode": zod.enum(['invalid_decimal', 'extension_mismatch', 'formula_display_mismatch', 'hidden_priced_row', 'merged_pricing_cell', 'currency_mismatch', 'unit_conversion_missing', 'unit_conversion_mismatch', 'lot_net_mismatch', 'discount_mismatch', 'taxable_base_mismatch', 'vat_mismatch', 'wht_rule_disabled', 'wht_mismatch', 'gross_total_mismatch', 'net_payable_mismatch', 'bid_security_mismatch']),
+  "severity": zod.enum(['fatal', 'likely_fatal', 'scoring_risk']),
+  "expectedMinor": zod.string().nullish(),
+  "actualMinor": zod.string().nullish(),
+  "currency": zod.string().nullish(),
+  "finding": zod.string(),
+  "status": zod.enum(['open', 'resolved', 'waived']),
+  "resolutionReason": zod.string().nullish(),
+  "resolvedByUserId": zod.string().uuid().nullish(),
+  "resolvedAt": zod.coerce.date().nullish(),
+  "version": zod.number()
+}),
+  "authorityNote": zod.string()
+})
+
+
+/**
  * @summary Record one leg of the dual payment confirmation (server-derived identity)
  */
 export const ConfirmProjectPaymentParams = zod.object({

@@ -10,6 +10,7 @@ import requirementsRouter from "./requirements";
 import evidenceRouter from "./evidence";
 import defectsRouter from "./defects";
 import boqRouter from "./boq";
+import { createBoqVerificationRouter } from "./boqVerification";
 import riskRouter from "./risk";
 import reportsRouter from "./reports";
 import auditRouter from "./audit";
@@ -109,6 +110,7 @@ const commercialRetainerRouter = createCommercialRetainerRouter({
 });
 const partnerConsortiumRoomRouter = createDefaultPartnerConsortiumRoomRouter();
 const claimsDeskRouter = createClaimsDeskRouter();
+const boqVerificationRouter = createBoqVerificationRouter();
 
 const router: IRouter = Router();
 
@@ -149,6 +151,7 @@ router.use(requirementsRouter);
 router.use(evidenceRouter);
 router.use(defectsRouter);
 router.use(boqRouter);
+router.use(boqVerificationRouter);
 router.use(riskRouter);
 router.use(reportsRouter);
 router.use(auditRouter);

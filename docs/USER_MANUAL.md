@@ -1,275 +1,286 @@
 # Valo Bid Autopsy Workbench — User Manual
 
-_A plain-language guide to every screen, button, and rule in the application._
+_A plain-language guide to the application: every surface, every screen, and the rules you will meet along the way._
+
+This manual describes the application as it is actually built today. Where a capability is deliberately switched off — and Valo switches things off on purpose until they are safe and commercially activated — the manual says so, because a greyed-out button with a reason is part of the design, not a bug.
 
 ---
 
 ## 1. What Valo is
 
-Valo is an internal tool for **forensic tender review**. You give it a client's tender (what the government or agency asked for) and the client's bid (what they submitted, or plan to submit). Valo helps you find every requirement in the tender, check whether the bid answers each one, catch the defects that get bids disqualified in Nigeria — missing certificates, expired documents, arithmetic errors in the Bill of Quantities, formatting breaches — and produce a signed, professional report.
+Valo is a workbench for **forensic tender review** in the Nigerian market. You give it a client's tender (what the government, agency, or operator asked for) and the client's bid (what they submitted or plan to submit). Valo helps a named human team find every requirement, check whether the bid answers each one, catch the defects that get bids disqualified — missing certificates, expired documents, arithmetic errors in the Bill of Quantities, formatting breaches — and produce a signed, professional report with an audit trail behind every finding.
 
-Four principles run through everything, and they explain most of the rules you'll bump into:
+Five principles run through everything and explain most of the rules you will bump into:
 
-1. **The computer checks; a named human decides.** AI reads documents and _suggests_ requirements, evidence, and defects — but nothing counts until a named reviewer confirms it. Suggestions are always visually separated from confirmed findings.
-2. **Everything that must be exactly right is done by ordinary tested code, not AI.** Arithmetic, risk scores, expiry dates, and workflow rules are deterministic — the same inputs always give the same answer.
-3. **No claim without evidence.** A capability claim can't be marked usable without a linked evidence document. A "present" evidence ruling points at an excerpt. The report traces findings to sources.
-4. **Client confidentiality is the #1 risk.** Hence the NDA gate before any upload, the tamper-evident audit log, and the deletion workflow that only issues a certificate when everything is actually gone.
+1. **The computer checks; a named human decides.** AI and deterministic engines _suggest_; nothing counts until a named reviewer confirms it, and the reviewer's identity stays on the record. Suggestions are always visually separated from confirmed findings.
+2. **Everything that must be exactly right is ordinary tested code, not AI.** Arithmetic, tax reconciliation, risk scores, expiry dates, and workflow rules are deterministic — the same inputs always give the same answer. Money is never handled as floating-point numbers.
+3. **No claim without evidence, and absence is never clearance.** An empty list means "the endpoint returned no records", not "everything is fine" — the screens say this in so many words. A capability claim is unusable until evidence is linked and approved.
+4. **Tenant boundaries are absolute.** Every organisation's data is isolated at the database level. Your organisation choice scopes everything you see, and the server re-checks it on every request — the interface never has the final word on permissions.
+5. **Nothing external happens silently.** Valo never sends a message, executes a payment, submits a bid, scrapes a website, or deletes data on its own. Where such a capability exists in the interface, it records _intent and evidence_ and tells you explicitly that no external effect occurred.
 
-If a button seems blocked, one of these principles is almost always the reason — and section 12 has a cheat-sheet for exactly which rule you've hit and how to satisfy it.
-
----
-
-## 2. Signing in, roles, and who can do what
-
-Sign in from the landing page (email-based sign-in). The **first person ever to sign in becomes the admin automatically**. Everyone after that is created with **no role** and sees an "awaiting access approval" state until an admin assigns them a role in **Settings**.
-
-| Role                   | Can do                                                                                                                                                                                      |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Admin**              | Everything: all reviewer/analyst work, plus manage users, delete projects and documents, manage the retention-request queue, see the Settings page, monthly cost and access-review reports. |
-| **Reviewer / Analyst** | All day-to-day work: clients, projects, documents, requirements, evidence, defects, BOQ, risk, reports, sign-offs.                                                                          |
-| **None**               | Nothing — waiting for approval.                                                                                                                                                             |
-
-An admin can also **disable** an account (Settings → Personnel Management), which blocks sign-in immediately.
+If a button seems blocked, one of these principles is almost always the reason — section 21 is a cheat-sheet for exactly which rule you have hit.
 
 ---
 
-## 3. Finding your way around
+## 2. The three surfaces
 
-The left sidebar has five destinations:
+The application is split into three strictly separated surfaces:
 
-- **Dashboard** — portfolio overview and alerts. Start here each morning.
-- **Clients** — the companies you work for: their NDA status, Certificate Vault, and Capability Library.
-- **Projects** — one project = one engagement = one tender/bid pair under review.
-- **SBD Corpus** — your library of Standard Bidding Document templates and agency quirks.
-- **Settings** _(admins only)_ — people, scoring/report configuration, and retention workflows.
+| Surface       | Who sees it                  | What it contains                                                                                     |
+| ------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------- |
+| **Public**    | Anyone, no sign-in           | The marketing site, legal notices, and one form: **Request a Bid Autopsy**. No workspace code loads. |
+| **Access**    | People signing in            | `/sign-in`, invitation acceptance, and the SSO return page, powered by the identity provider.        |
+| **Workspace** | Signed-in, provisioned users | Everything else. Requires a valid session, an organisation, and a role.                              |
 
-Almost all of your working time is spent inside a single project's page, which has nine tabs. Section 6 walks through them in the order you'd actually use them.
+On any non-public page the browser tab is titled "Secure access | Valo" so workspace content never leaks into browser history or link previews.
 
----
+### The public site
 
-## 4. Dashboard
+Visitors see a landing page pitched at Nigerian public-sector, oil-and-gas (NipeX/NCDMB) and donor-funded bid teams, with a permanent disclaimer that Valo does not guarantee any award. Supporting pages — Product, Solutions, How It Works, Security, About, Contact, Privacy, Terms — are read-only. The sample "defect register" on the landing page is labelled fictional.
 
-Four headline numbers: **Active Projects**, **Material Defect Rate** (share of reviewed bids with fatal or likely-fatal defects), **Packages Shared** (signed-off reports), and **Paid Mandates**.
-
-Below them, two alert feeds appear when there is something to act on:
-
-- **Operations Alerts** — red **SLA breach** entries (a project has been open longer than its service class allows: 5 working days standard, 48 hours for live tenders) and amber **red-team due** entries (a project's tender deadline is within 72 hours — time for the final hostile review pass; these disappear once the deadline passes).
-- **Certificate Renewal Radar** — client vault artefacts that are expired or expiring: **expired**, **≤3 days** (critical), **≤14 days** (warning), and **upcoming** (≤30 days, or earlier if the artefact has a longer renewal lead time — a certificate that takes 60 days to renew shows up 60 days out). Click any row to jump to that client.
-
-A **Gate 0 Readiness** panel tracks the founder's commercial gate metrics (decision-maker conversations against the ≥8 threshold, mandate quality) alongside the technical ones.
-
-Then a list of recent projects with their risk band, requirement and defect counts.
+The only thing an anonymous visitor can submit is the **Bid Autopsy request form** (`/request-bid-autopsy`): contact name, company, business email and telephone, tender category, bid stage, optional deadline, preferred contact method, and a privacy acknowledgement. The form takes **no documents** — deliberately. Scope, conflicts and NDA are handled by a human before any document changes hands. On success you get a request reference on screen; a retry of an unchanged submission safely reuses the same reference.
 
 ---
 
-## 5. Clients
+## 3. Signing in and choosing your organisation
 
-Create a client before creating projects for them. Each client page holds three things:
+1. **Sign in** at `/sign-in`. Valo is invitation-only: an administrator invites you, and you activate the invitation at `/accept-invitation`. Passwords, MFA, recovery and active sessions are managed by the identity provider (see your **Account** page later).
+2. **Organisation selection.** After sign-in Valo resolves which organisations you belong to. If you have exactly one, it is selected automatically. If you have several, a full-screen **"Select an organisation"** gate lists each one with its type (Client organisation / Valo operations / Consultancy partner), your roles in it, whether your access is a direct membership or a **partner relationship**, and any expiry date on your access.
+3. **Your role home.** Valo then lands you where your role works: internal staff land on the Command Centre; client roles land on the Client workspace (or Pursuits); partner roles land on the Partner workspace; auditors land on Evidence & readiness; restricted platform administrators land on Security & audit.
 
-**NDA status** — `pending`, `signed`, or `not_required`. This is the intake gate: **you cannot upload a single document to any of this client's projects until the NDA status is `signed` or `not_required`.** Attempts while pending are refused and logged. This is deliberate — no client papers ever sit in the system without a signed NDA.
+**Switching organisations** later is done from the switcher in the header (or the mobile menu). Switching wipes every cached record from the previous organisation before anything new loads. Switching is temporarily refused while a write is in flight — finish or cancel the in-progress action first.
 
-**Certificate Vault** — the client's long-lived compliance artefacts (CAC certificate, tax clearance, PENCOM, ITF, NSITF, etc.) with issue/expiry dates and an optional **renewal lead time** in days. The Vault drives the renewal radar on the dashboard. You can link a vault item to a document already uploaded in one of the client's projects — the file then _belongs to the vault_: it survives even if the project it came from is later deleted or purged. Duplicate files (same fingerprint) are flagged.
-
-**Capability Library** — verifiable claims about the client (past projects, key personnel, equipment, certifications). Each claim can link to an evidence document and be approved by a named verifier. A claim is only **claimable** (usable in future drafting) when it has _both_ an evidence link _and_ approval — the system derives this; you can't set it by hand. Approval without evidence is refused.
-
----
-
-## 6. Projects — the autopsy workflow
-
-### 6.1 Creating a project
-
-Projects → **New Project**. You must pick a client and a **named reviewer** — a project cannot exist without one. Fill in the tender title, issuing entity, tender reference, lot, deadline, and:
-
-- **SLA class** — `standard` (5 working days) or `live` (48 hours). Sets the SLA clock.
-- **Payment gate** — `not_required`, `pending`, or `confirmed`. See §6.3.
-- **Physical archive instruction** — what happens to hard-copy originals (return/destroy). You can add it later, but the project can never be exported or archived without it.
-- **Restricted mode** and **redaction scope** — for sensitive engagements. If restricted mode is on, record the redaction scope; the report will carry a limitation banner automatically.
-
-**Conflict check:** if another active project has the _same tender reference and lot_, the new project is created in **Blocked-Conflict** state — you're reviewing two bidders on the same tender, which needs disclosure. Resolve it on the Overview tab by setting conflict status to `consented` (with the decision and rationale recorded) or `declined`. One caution: consent covers _that_ tender only — if you later change the project's tender reference or lot onto a different tender that also conflicts, it re-blocks and needs fresh consent.
-
-### 6.2 Overview tab — readiness gate and governance
-
-**Project Readiness Gate** — a live checklist of twelve checks (payment/governance, conflict, documents, extraction, requirements, Gate 0 scorecard, evidence, BOQ, defects, risk, report, export). Each card is **Ready**, **Needs review**, or **Blocked**, with a one-line explanation and a button that takes you to the right tab. The "Next action" banner at the top always names the first thing standing between you and sign-off. When every required check is green, the project is ready for the sign-off path.
-
-**Governance & Gates** — the project's status and control fields. Status moves **one step at a time**: `intake → extraction → review → defects → reporting → signed_off → exported → archived` (you can also move backwards to review/defects/reporting for remediation). Moving forward into any production status requires: a named reviewer, a conflict status that is clear or consented, and a satisfied payment gate. Export and archive additionally require the physical archive instruction. Archived is terminal. If a transition is refused, the error message names the exact rule; the refusal is also written to the audit log.
-
-**Payment confirmation** — when the payment gate is `confirmed`, two _different people_ must each press their confirmation button: **Confirm as founder** and **Confirm as advisor**. The system records who confirmed and when, and refuses to let the same person confirm both legs. (Older projects confirmed before this rule show "Legacy confirmation — no identity recorded" with a re-confirm button.)
-
-**Notifications** — log client communications (deadline reminder, payment confirmation, certificate renewal, report ready) with the channel used. The system writes out the actual message text from the project's data, so the log shows what was communicated, not just a template name.
-
-**Retention Request** — starts the deletion workflow for this engagement (see §9).
-
-### 6.3 Documents tab
-
-> **AI availability:** production AI is default-off and is not approved for
-> activation in the current release. Model-backed extraction, requirement,
-> evidence, defect and responsiveness actions return a safe unavailable state
-> unless every global, capability, tenant, release-evidence, provider, privacy,
-> region, budget and model gate passes. The current external adapter is denied
-> for Restricted Mode projects. Continue with the manual review paths below
-> when an AI action is unavailable.
-
-Upload the tender, the bid, and supporting files. Rules and features:
-
-- **Uploads are locked** until the client's NDA status is `signed`/`not_required`, and while the project's conflict status is blocked/declined.
-- Every file gets a **SHA-256 fingerprint** at intake — a tamper-evidence manifest. The **verify** action re-downloads the file and re-checks the fingerprint at any time.
-- Set each document's **type** — `tender`, `bid`, `boq`, `certificate`, `evidence`, `other`. The readiness gate requires at least one tender and one bid document; BOQ checks look for a `boq` document.
-- Set each document's **redaction status** — `excluded` (default: not used for AI extraction at all), `redacted`, or `included`. Only included/redacted documents are read by the extraction engine. This is your control over what the model ever sees.
-- New uploads remain **excluded** and are not sent to a parser or model. An authorised reviewer must first make the document eligible and explicitly start extraction. The badge then tells you how it went:
-  - `text ready 90%` — read from the PDF's embedded text.
-  - `OCR 60% — verify` — the document was scanned, so a model transcription was used; treat it as a draft and verify against the source pages.
-  - `no text (paste?)` — unsupported format; paste the text manually.
-  - `failed` — hover for the reason, and use the retry button.
-- Deleting a document (admin only) also deletes its stored file — unless a Certificate Vault item points at it, in which case the file is kept for the vault.
-
-### 6.4 Requirements tab
-
-The heart of the autopsy: what does the tender demand?
-
-- **Run Extraction**, when the control plane is available, sends only the selected eligible documents through the bounded AI gateway. It returns a candidate list of requirements — each with category (eligibility, administrative, technical, financial-format, other), a mandatory flag, expected evidence, and an exact named-source quote. All arrive as **suggested**. When unavailable, add requirements manually.
-- **Nothing counts until you rule on it.** For each suggestion: **Confirm** it, **Edit** it (your edit is kept alongside the engine's original wording, so the diff is visible), or **Reject** it. You can also **Add** requirements the engine missed — those count as engine misses on the scorecard.
-- **Merge** near-duplicate extractions into one requirement — both source citations are preserved, so nothing loses its trace back to the tender.
-- The **Gate 0 Scorecard** strip shows _mandatory recall_: of all the mandatory requirements a human confirmed, what share did the engine surface by itself? The business target is ≥85%. This is measured, not asserted — the underlying records are exportable and recomputable.
-
-### 6.5 Evidence tab
-
-For every confirmed requirement: does the bid answer it?
-
-- **AI-suggest**, when available, proposes evidence mappings with exact named-source excerpts from the bid; otherwise map manually.
-- Each mapping gets a status: `present` (with the supporting excerpt), `missing`, `expired`, `unclear`, `not_applicable`, or `pending`.
-- The readiness gate demands every confirmed **mandatory** requirement have resolved evidence (`present` or `not_applicable`) before sign-off.
-
-### 6.6 BOQ Lite tab
-
-Deterministic arithmetic verification of the Bill of Quantities — no AI anywhere in this tab.
-
-- Load rows by **uploading a CSV/XLSX** (with column mapping — tell it which column is quantity, rate, extension, amount-in-words) or pasting data.
-- **Run Checks** verifies, in exact kobo arithmetic with zero tolerance: quantity × rate = extension for each line, section sums, the grand total against the declared total, and **words-vs-figures** (the amount written in words against the figures, kobo-aware).
-- Every discrepancy becomes a flagged finding citing the exact line. You can **promote a finding to the defect register** in one click, resolve it, or waive it. The readiness gate wants zero still-flagged findings if a BOQ document exists.
-
-### 6.7 Defects tab
-
-The defect register — everything wrong with the bid.
-
-- **AI-suggest**, when available, proposes defects from reviewed requirements and confirmed evidence; each is typed against the versioned taxonomy (`omission`, `expiry`, `arithmetic`, `formatting`, `responsiveness`, `eligibility`, `unsupported_claim`, `validity`) and given a severity. Authorised reviewers can add or edit defects and can supersede them through a governed decision; defect records are immutable and cannot be deleted.
-- **Severities**, in plain language:
-  - `fatal` — certain disqualification if submitted as-is.
-  - `likely_fatal` — disqualification probable, at the evaluator's discretion.
-  - `scoring_risk` — survives compliance but loses evaluation points.
-  - `cosmetic` — polish only.
-- **Statuses:** `suggested` (unconfirmed AI — counts for nothing), `open` (confirmed and live), `remediated`, `waived`.
-- **The one unbreakable rule:** a report can never be signed off while any `open` fatal or likely-fatal defect exists. There is no override. Resolve it, or waive it with your name on the waiver.
-
-### 6.8 Risk tab
-
-The disqualification-risk score, computed by documented arithmetic (never by AI):
-
-- Each confirmed live defect adds its weight — by default fatal 40, likely-fatal 25, scoring-risk 10, cosmetic 3 — plus 5 per mandatory requirement without resolved evidence. Capped at 100. Admins can adjust the weights and band cutoffs in **Settings → Scoring & Risk Bands**; new scores use the new settings while historic signed reports keep the figures they were signed with.
-- **Default bands:** `critical` at ≥70 (or automatically if _any_ fatal defect is open, regardless of score), `high` ≥40, `medium` ≥15, otherwise `low`.
-- A named reviewer can **override the band** — the override requires a written note and the reviewer's name, and the report will show both the computed and the overridden band.
-
-### 6.9 Reports tab
-
-- **Draft Responsiveness Review** — when AI is available, asks for a bounded narrative preview based only on reviewed requirements and defects. It lands as a _suggested_ narrative on the project, clearly marked pending named-human confirmation. Use the manual narrative path while AI is unavailable.
-- **Generate Report** — assembles the DOCX: document control block (with the engine, prompt-pack, model, and defect-taxonomy versions that produced it), table of contents, engagement summary (with the redaction limitation banner where applicable), requirement matrix with an evidence-trace annex, defect register (confirmed findings separated from unconfirmed suggestions), risk score with method note, responsiveness review, BOQ annex, remediation plan, copies manifest, signature/seal checklist, sign-off page, and the process warranty.
-- **Sign Off** — the named-reviewer attestation. Blocked while open fatal/likely-fatal defects exist. Once signed, the report can be **downloaded as DOCX or PDF**.
-- **Export ZIP** _(admin)_ — the full engagement package: all registers as CSV, the document manifest with fingerprints, the scorecard, the audit trail, project metadata, and the signed report. Requires a signed-off report and the physical archive instruction. Exporting moves the project to `exported`.
-
-### 6.10 Audit tab
-
-Every action on the project — views, uploads, rulings, transitions, denials, sign-offs, exports — with who and when. The log is **append-only and hash-chained**: each entry is cryptographically linked to the previous one, so any after-the-fact tampering with history is detectable by the verification tool. Nothing is ever deleted from it, even by the deletion workflow.
+Things you might see instead of the workspace, all deliberate: **Account disabled**, **Pending organisation access** (you exist but no organisation has admitted you), **Pending access** (registered identity, no role yet), and **Role configuration unsupported** (the server granted a role this app version does not know — contact an administrator rather than guessing).
 
 ---
 
-## 7. SBD Corpus
+## 4. Finding your way around
 
-Your library of BPP Standard Bidding Document templates. Create templates by code and category (goods, works, consultancy, non-consultancy, special); attach **annotations** recording agency-specific quirks ("Agency X wants the bid security on the bank's letterhead, not the template form"). Templates version cleanly: **New version** clones a template as the next draft; **activating** a version automatically supersedes the previously active one, so there is exactly one active version per code. A template's code can't be edited after creation — that's what keeps its version history in one line.
+The left sidebar shows only what your role, permissions and organisation type allow, grouped under four headings:
 
----
+- **Workspace** — Command Centre, Pursuits, Opportunity Sources, Intelligence Centre, Client workspace, Client Action Room, Partner workspace, Consortium Room.
+- **Delivery** — Compliance (SBD corpus), Evidence Library, Pursuit Operations, Field Companion, Reviews, Reports.
+- **Oversight** — Clients, Getting Started & Offers, Billing & entitlements, Commercial & Retainer, Commercial & Claims Desk, Notifications, Communication Receipts.
+- **Administration** — Security & audit, Privacy Operations, Production Acceptance, AI Shadow Programme, Organisation Settings, Platform Operations.
 
-## 8. Settings (admins)
+Items marked with an amber **"Pending"** chip are technically present but not commercially activated (section 20 explains feature flags).
 
-- **Scoring & Risk Bands** — adjust the severity weights and band cutoffs the risk score uses. Changes apply to new computations only; historic signed reports are never rescored.
-- **Report Template & Retention** — the firm name and confidentiality legend printed on reports, and the default retention window.
-- **Personnel Management** — assign roles (`admin`, `reviewer`, `analyst`, `none`) and enable/disable accounts.
-- **Retention Workflows** — the queue of deletion requests (see §9). Requests can be opened and reviewed, but completion is activation-gated in this release. Historic completed records continue to show their certificate.
+**Global search** — press **Ctrl/⌘ + K** (or click the header search box). It searches navigation by name and, if you can see Pursuits, searches your authorised pursuits by tender title, client name or tender reference.
 
----
+**Times** are shown in **West Africa Time (WAT)** wherever deadlines matter.
 
-## 9. Requesting engagement deletion (completion unavailable)
-
-When a client asks for their data to be deleted (or the retention period ends):
-
-1. On the project's **Overview tab**, open a **Retention Request** with a reason. One open request per project; the due date defaults to 14 days out (the NDPR-aligned window). A scheduled scan (`retention:scan`, run in the deploy environment) also auto-opens requests for engagements that reach the 12-month retention mark — it only _opens_ them; deletion always remains a human admin decision.
-2. An **admin** can review the request in **Settings → Retention Workflows**. Pending requests show **Activation required** instead of a completion control.
-3. The completion API returns `503 RETENTION_COMPLETION_NOT_ACTIVATED`. It deletes no blobs or database rows, does not change the project or request, writes no refusal audit event, and issues no deletion certificate.
-4. Reactivation requires a durable two-phase **detach → reconcile → certify** workflow. It must cover project content rows, object storage, `upload_sessions`, storage-lifecycle/deletion-intent control rows, legal holds, and records governed by a separate financial or statutory retention basis. A certificate may be issued only after reconciliation has proved every required deletion and retention outcome.
-5. Historic certificates remain visible for already-completed records. Do not represent a pending request or the current `503` refusal as evidence that deletion occurred.
-
-Direct project deletion is not a substitute for a deletion certificate. Keep the retention request pending and follow the approved privacy escalation process until completion is reactivated.
+**Offline** — if your connection drops, a banner appears, mutation buttons disable themselves, and each governed console explains that no cached state should be trusted as current. The one place designed for offline work is the **Field Companion** (section 12).
 
 ---
 
-## 10. Costs
+## 5. Roles, permissions and access sources — the short version
 
-Every AI call records its token usage. The project Overview shows the engagement's **estimated model cost** in naira, and admins can pull a monthly per-engagement variance report (against the ₦15–30k unit-cost assumption) from `/api/analytics/cost?month=YYYY-MM`. Rates are configurable by environment variables (`LLM_COST_INPUT_KOBO_PER_1K`, `LLM_COST_OUTPUT_KOBO_PER_1K`).
+Valo has many precise roles; you only need the shape:
 
----
+- **Internal (Valo) roles** — analysts, quality advisers, operations administrators, and a deliberately restricted platform administrator. These see the Command Centre, operations consoles and administration surfaces.
+- **Client roles** — organisation owner, administrator, bid lead, contributor, reviewer/approver, auditor. These see their own pursuits, the client portal and client action room.
+- **Partner roles** — consultancy partner administrators and analyst/reviewers. These see the partner workspace and, through the organisation switcher, the client contexts their relationship grants.
+- **Auditors** — read-only roles that land on Evidence & readiness and can read audit surfaces.
 
-## 11. Security and confidentiality, briefly
+Two further distinctions matter in practice:
 
-- Nothing is stored without an NDA-cleared client; every access is logged; the log is tamper-evident.
-- Tender documents are treated as **hostile input**: text inside a document can never change what the system does — instructions embedded in a PDF are just data on a page. This is enforced by code and continuously tested against a corpus of attack documents.
-- AI output is schema-checked before it can touch the database: invented defect types are dropped, references outside the engagement are stripped, and nothing the model says becomes a finding without a human ruling.
-- Admins can export a **monthly access review** (who touched which client's documents, when) from `/api/audit/access-review?month=YYYY-MM` — also available as CSV.
+1. **Permission-gated buttons.** Even inside a page you can see, individual actions appear only with the matching server permission (for example `defect:write` to run BOQ checks, `evidence:approve` to confirm evidence, `report:sign_off` to sign a report). If a colleague has a button you lack, that is the reason.
+2. **Direct membership vs partner-derived access.** Nine sensitive workspaces — Getting Started & Offers, Opportunity Sources, Client Action Room, Production Acceptance, AI Shadow Programme, Field Companion, Privacy Operations, Commercial & Retainer, and Claims Desk — require a **direct membership** in the selected organisation. Partner-derived and emergency access are refused there by design, and each page says so.
 
----
-
-## 12. "Why is this blocked?" — cheat-sheet
-
-| You're trying to…               | It's blocked because…                   | Fix                                                                                                            |
-| ------------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Upload a document               | Client NDA is `pending`                 | Set NDA status to `signed`/`not_required` on the client                                                        |
-| Upload a document               | Conflict status is `blocked`/`declined` | Resolve the conflict on Overview (consent with rationale, or decline and stop)                                 |
-| Move status forward             | No named reviewer                       | Assign a reviewer                                                                                              |
-| Move status forward             | Payment gate unsatisfied                | Set payment to `not_required`, or `confirmed` **plus** founder + advisor confirmations by two different people |
-| Confirm second payment leg      | You confirmed the first leg             | A different person must confirm the other leg                                                                  |
-| Run extraction                  | No included documents                   | Set at least one document's redaction status to `included`/`redacted`                                          |
-| Sign off a report               | Open fatal/likely-fatal defect          | Resolve or waive it — there is no override                                                                     |
-| Export ZIP / archive            | No physical archive instruction         | Record the return/destroy instruction on Overview                                                              |
-| Export ZIP                      | No signed-off report                    | Generate and sign off a report first                                                                           |
-| Complete a retention request    | Completion is activation-gated          | Keep the request pending; use the approved privacy escalation process. No data or certificate changed          |
-| Open a second retention request | One is already pending                  | Review or wait on the existing request; do not treat it as completed                                           |
-| Save an empty edit              | No fields changed                       | Change something before saving                                                                                 |
+Every access decision is enforced by the server; the sidebar merely reflects it.
 
 ---
 
-## 13. Glossary
+## 6. The Command Centre (internal roles)
 
-| Term                     | Meaning                                                                                                                               |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| **Autopsy**              | Forensic review of a tender/bid pair to find disqualification risks                                                                   |
-| **Engagement / Project** | One tender/bid review for one client                                                                                                  |
-| **Mandatory recall**     | Share of human-confirmed mandatory requirements the AI surfaced by itself (85% is Gate-0 only; production requires at least 95%)      |
-| **Fatal-block rule**     | No sign-off while a confirmed fatal/likely-fatal defect is open — enforced in code                                                    |
-| **Readiness gate**       | The twelve-check dashboard on a project's Overview tab                                                                                |
-| **SLA class**            | Turnaround commitment: standard = 5 working days, live = 48 hours                                                                     |
-| **Red-team window**      | Final hostile review pass in the 72 hours before the tender deadline                                                                  |
-| **Certificate Vault**    | A client's long-lived compliance artefacts with expiry tracking                                                                       |
-| **Claimable**            | A capability claim that has both evidence and named approval                                                                          |
-| **BOQ**                  | Bill of Quantities — priced schedule of works/goods, verified in exact kobo                                                           |
-| **Provenance stamp**     | The engine/prompt/model/taxonomy versions recorded on every report                                                                    |
-| **Deletion certificate** | A formal statement issued only after a governed workflow has proved what was deleted and retained; new issuance is currently disabled |
-| **Audit chain**          | The append-only, hash-linked log of every action in the system                                                                        |
+Your morning page. It shows, in order:
+
+- **My Work** — your personal inbox of owned work plus unassigned work you may pick up, grouped Overdue / Today / Upcoming / Unscheduled in WAT. It is read-only by design and fails closed: if it cannot load, it says so rather than showing an empty list.
+- **Attention snapshot** — four signal cards: review-SLA breaches, recorded deadlines passed, conflict blocks, and material findings.
+- **Pursuit decisions and next actions** — a prioritised list; each row names why it needs you ("Review SLA breached", "Conflict decision blocks intake", "N fatal finding(s) recorded", "Payment confirmation pending") and links straight into the pursuit.
+- **Submission deadline register**, **workflow exceptions**, **evidence validity exceptions**, and **Gate 0 readiness** metric cards.
+
+If a data source fails to load, the dashboard shows a distinct failure panel and warns — repeatedly, on purpose — that an unavailable count must not be read as zero.
 
 ---
 
-## Appendix — for whoever operates the deployment
+## 7. Clients, the Certificate Vault and the Capability Library
 
-Not needed for day-to-day use; kept here so the knowledge isn't tribal.
+**Clients** (`/clients`) is a card grid of client organisations with NDA status, segment, sector and project count. With `client:create` you can add a client, including the Gate-0 relationship metrics (decision-maker talks, junior contacts).
 
-- **After schema changes** (pulling new code): run `pnpm --filter @workspace/db run push` in the deploy environment.
-- **Before merging model or prompt changes**, run `pnpm --filter @workspace/api-server prove:ship`. It is an offline compatibility gate only. Do not commit client/model outputs or treat it as production approval. Production requires the private evidence contract, an authorised adjudicated holdout, and the separate shadow/evaluation runner described in `docs/ai-overhaul/DEPLOYMENT_ACCEPTANCE.md`.
-- **Audit chain verification**: `pnpm --filter @workspace/api-server verify:audit`.
-- **CI** runs on every push/PR: secret scan, typecheck, all tests (with a throwaway database), the offline proof suites, the eval-harness gates, and both production builds. A red CI is a stop signal, not a suggestion.
-- The defect taxonomy is versioned; changes go through the process in `docs/DEFECT_TAXONOMY.md`.
+Each **client detail page** contains, besides the editable profile:
+
+- **Certificate Vault** — the register of compliance artefacts every Nigerian bid keeps needing: CAC registration, FIRS tax clearance, PENCOM, ITF, NSITF, group life insurance, audited accounts, BPP/CCSP, NCDMB/NipeX registrations, sector licences, ISO certificates, bond facilities. Each row shows issuer, dates, a renewal lead, a colour-coded expiry badge ("Expired 12d ago", "34d left"), and optionally a linked source document with its SHA-256 hash. Vault seeding is a standard step of every new engagement.
+- **Capability Library** — claims about past projects, personnel, equipment and certifications. **A claim is unusable in drafts until an evidence document is linked and the claim approved.** Unsupported claims are flagged, never silently filled in.
+
+---
+
+## 8. Pursuits — the register and the workspace
+
+### The register (`/projects`)
+
+A filterable table of all tender projects: search, status, risk, client, reviewer, WAT deadline windows, and sort options, all kept in the URL so you can share a filtered view. With `project:create`, **New Project** collects the client, tender identity, WAT submission deadline, the assigned reviewer (only active, current, directly-authorised reviewers are offered), SLA class, physical-archive and redaction instructions, and a **Restricted mode** switch for highly sensitive engagements.
+
+**Every project starts payment-pending.** This is the commercial gate: analytical work can proceed, but release actions stay blocked until payment is confirmed by **two different named people** (founder and advisor legs) on the project's Overview tab.
+
+### The pursuit workspace (`/projects/:id`)
+
+The header shows status, risk band and outcome, plus the **Mandate Quality** selector (autopsy-only / assisted bid / retainer). Nine tabs:
+
+1. **Overview & next actions** — the **Project Readiness Gate** (a live checklist with a "next action" jump button; it refuses to rule at all if any underlying register failed to load), project metadata including model cost so far, the **Governance & Gates** card (status, SLA class, archive and redaction instructions, restricted mode, read-only conflict and payment state, and the two payment-confirmation legs), a per-project **notification log** (deadline reminders, payment confirmations, certificate renewals, report-ready notices — recorded, not dispatched), and for authorised users a **Retention Request** entry point.
+2. **Tender documents** — the document register with type, redaction status, extraction status and an integrity **Verify** action that re-hashes the stored object. Documents arrive **excluded** from processing by default; a reviewer must deliberately include (or redact) them before extraction can read them. **New generic uploads are deliberately disabled** ("Upload unavailable") until the durable-lease upload path is verified; governed uploads happen through the Client Action Room (section 14).
+3. **Requirements** — the requirement matrix. **AI Extraction** proposes requirements with grounded source quotes; each row shows its origin (engine vs manual), confidence, and review state. Reviewers confirm (✓), reject (✗), or edit — an edited row keeps the engine's original proposal visible. A **Gate 0 scorecard** tracks mandatory-requirement recall against the 85% gate. **Merge** lets you combine duplicate requirements; linked evidence and defects move to the surviving row.
+4. **Evidence & compliance** — the evidence map binding requirements to documents with a status (present / missing / expired / unclear / not applicable / pending) and a verbatim excerpt. **Auto-Map** suggests bindings; only holders of `evidence:approve` can confirm them.
+5. **BOQ** — the Bill-of-Quantities verifier, in two layers:
+   - **Arithmetic checks (BOQ Lite).** Load figures by uploading a CSV/XLSX or pasting rows, map the columns (item ref, quantity, rate, amount…), optionally enter the declared grand total, and run. Tolerance defaults to zero — one kobo of drift is a finding. Any flagged row can be pushed to the defect register with one click.
+   - **Commercial verification.** The deeper layer reconciles a whole lot against the **pinned Nigeria rule pack** (`ng-commercial-boq/v1`): line extensions, lot net, discount, taxable base, **VAT at 7.5%**, gross, net payable and bid security, all in exact kobo arithmetic. You select the governed source document the figures came from, enter the declared totals from the bid schedule, and run. Every discrepancy becomes a recorded **exception** with an exact expected/actual amount and a severity; exceptions stay open until a defect reviewer records a named resolution or waiver with a reason. Withholding-tax verification is deliberately disabled pending legal sign-off of category rates — declaring WHT raises its own exception rather than being silently accepted. Each run is stored permanently with the rule-pack version and the document version it verified, so a pass is reproducible — and a pass is an arithmetic statement, never a pricing or award opinion.
+6. **Issues & red team** — the defect register (suggested / open / remediated / waived; severities fatal → cosmetic; types from omission to validity). A red banner counts open fatal and likely-fatal defects: report sign-off is blocked until each has a persisted remediation, waiver or reclassification. Severity can be raised but never lowered once recorded, and only reviewers change severity.
+7. **Risk review** — the computed disqualification-risk band and score, plus a reviewer-only override that requires both a band and a written justification, and shows who set any active override.
+8. **Package & export** — report generation, the version table, sign-off (a fixed attestation recorded against a named reviewer), and DOCX/PDF/ZIP downloads that are only offered on signed-off versions. Blocked sign-offs and exports explain themselves ("Resolve any open fatal defects…", "Confirm physical archive instructions…").
+9. **Activity & audit** — the tamper-evident event timeline. Records from the migrated legacy system are amber-badged "Legacy v1 archive" with their integrity status, distinct from "Active v2 chain record" rows.
+
+---
+
+## 9. Compliance corpus — Standard Bidding Documents (`/sbd`)
+
+A normalised library of Nigerian Standard Bidding Documents: code, category (Goods / Works / Consultancy / Non-Consultancy / Special), version, status (draft / active / superseded) and issuing circular. Reviewers can add templates, create new versions, and record **agency-format annotations** — the BPP/NNPC-style quirks ("ITB 12.1 must be answered in the agency's own table format") that keep disqualifying bids. Use this corpus to normalise requirements once and reuse them across pursuits.
+
+---
+
+## 10. Intelligence Centre (`/intelligence`)
+
+The decision-support console. It requires the full set of read permissions over the underlying sources — if you lack any, the page tells you and loads nothing.
+
+What you will find: pursuit-scoped evidence metrics, the current runtime level, restricted-mode and "production model execution is disabled" notices where applicable, a **review inbox** where a reviewer with `intelligence:review` claims an item and records a decision (both actions carry exact source-version hashes — if the source changed under you, the claim is refused as stale), and the **decision-support catalogue** of capabilities. The closing "decision contract" is worth reading once: suggestions may be wrong; open the named source; your identity stays on the decision; Valo does not approve evidence, waive findings, set prices, predict awards or submit bids.
+
+---
+
+## 11. Operations consoles (internal roles)
+
+**Reviews (`/operations`)** — connected signals (tracked engagements, SLA breaches, red-team due, expired evidence), a "requires attention" list linking into pursuits, and the read-only **AI control plane** evidence: the global kill switch, release-gate blockers in plain English, the capability policy grid, budget state, and recent AI/evaluation runs. The console is honest about queues that are only partially wired.
+
+**Pursuit Operations (`/pursuit-operations`)** — the working suite for the operational side of a pursuit: authorised opportunity intake, the work board, the client evidence request room, the submission war room and visual package QA, credential verification, pre-bid/site-visit mission control, and post-award delivery control. Every board carries its "human authority" boundary note, and a **low-bandwidth mobile queue** (`?view=mobile`) exists for field conditions.
+
+---
+
+## 12. Field Companion (`/field-companion`) — offline notes done safely
+
+For site visits and delivery runs where connectivity is unreliable. Drafts (site-visit notes, delivery receipt notes, checklist progress) are **encrypted locally in your browser**, partitioned to your identity and your organisation, and **expire after seven days, non-extendable**. There is no background sync and no file/photo capture — this is a draft-only boundary.
+
+When you are back online and hold `project:update`, a **promotion review** lets you copy one draft into one compatible governed work item after inspecting a field-level diff; the draft then records its receipt hash but remains local and is explicitly "not evidence". A destructive wipe control (`WIPE MY DRAFTS`) deletes your local key and drafts on that browser.
+
+One warning the page makes itself: a shared browser profile is not a security boundary — use your own OS/browser profile on shared devices.
+
+---
+
+## 13. Getting Started & Offers, and Opportunity Sources
+
+**Getting Started & Offers (`/growth-operations`)** — three things: a **lead operations inbox** for qualifying interest before conversion (assignment, SLA, status decisions, a purpose-bound contact hand-off, and conversion _proposals_ — no CRM, no messaging, no autonomous anything); a **first-pursuit onboarding** checklist with self-recorded practice markers and a synthetic guided tour; and the **versioned offer catalogue** — per-SKU scope cards with explicit inclusions and exclusions, and "Human quote required · External manual payment only" on every card.
+
+**Opportunity Sources (`/opportunity-sources`)** — a bounded, manual pilot register of official tender sources. You record an official source URL, work the review inbox (accept/reject with a written reason, version-guarded), and hand an accepted opportunity to a pursuit — which requires a client and an independent reviewer and surfaces conflicts before anything is created. There is **no scraping or acquisition adapter**, source text is treated as untrusted, and the register has a lifetime cap per organisation; intake stops at capacity pending a reviewed retention migration.
+
+---
+
+## 14. The client-facing rooms
+
+**Client workspace (`/portal`)** — a read-only summary for client roles: open pursuits, fatal-blocker counts, workflow alerts, evidence expiry, deadlines in WAT, and recorded next steps. It appears when the client-portal feature flag is activated; until then the page says "Client portal requires activation".
+
+**Client Action Room (`/client-actions`)** — the governed way documents get from a client into a pursuit. An authorised person creates a **bounded evidence request** naming a recipient from a server-supplied directory; the recipient performs a **governed upload into that exact request slot** (a lease is issued, the object uploaded, then finalised — only one governed upload may be in flight at a time); reviewers accept or request changes; and released-package **acknowledgements** are recorded against an exact package version. No email or free-form messaging happens here, and the room closes for new requests once the pursuit is signed off, exported or archived.
+
+---
+
+## 15. Partner workspaces
+
+**Partner workspace (`/partner`)** — read-only signals for consultancy partners: assigned client relationships (identified by client identifier, with lifecycle badges, co-signing requirements and QA responsibility text), the selected tenant's pursuits, and evidence expiry. Client contexts are entered only through the global organisation switcher, so the tenant boundary stays intact.
+
+**Consortium Room (`/consortium-room`)** — a bounded coordination ledger for exactly one active partner relationship and one client-owned project: a bilateral **responsibility matrix** (maker-checker on both sides) and a **QA/co-sign checklist**. Initialising a room requires naming both coordinators from a server-authorised directory. Released pursuits are read-only. There is no external messaging and no settlement here.
+
+Both pages appear when the partner-workspace feature flag is activated.
+
+---
+
+## 16. Evidence & readiness, renewals, and the reports directory
+
+**Evidence Library (`/evidence-readiness`)** — the portfolio exception view: fatal-defect projects, conflict blocks, pending payment gates, expired evidence, and the expiry-window register. Its standing panel says the important thing: portfolio signals are not a release decision.
+
+**Evidence renewals (`/evidence-renewals`)** — governed renewal plans per pursuit: create a plan, stage a canonical replacement document, review the affected-pursuit impact, and record an **independent verifier decision**. Every action produces a hash receipt and confirms "no external message sent".
+
+**Reports (`/reports`)** — a portfolio directory of report records with version counts and latest status, linking into each pursuit. Rows whose register failed to load say "Unavailable" and are excluded from counts. Report presence is not submission readiness — generation, sign-off and export stay project-scoped.
+
+---
+
+## 17. Commercial surfaces
+
+**Billing & entitlements (`/billing`)** — a transparency page. Until commercial activation it makes no orders, invoices, payments or grants, and its capability cards say precisely what is unavailable, blocked, partial or pending.
+
+**Commercial & Retainer (`/commercial-retainer`)** — the human-controlled quote-to-cash ledger: fixed offers, maker-checker approval, manual invoice records, payment **evidence** records (no payment provider is connected), entitlements, and retainer service requests. The page verifies its own safety contract on load — automatic pricing disallowed, no payment provider, no external messaging, maker-checker required — and refuses to render a snapshot that violates it.
+
+**Commercial & Claims Desk (`/claims-desk`)** — the post-award claims and contract-events ledger: register contract events, notice deadlines, variations, claims, payment certificates and obligations, with evidence bindings to governed documents and version-guarded maker-checker transitions. Every write returns a receipt hash. The desk records evidence and positions; it cannot dispatch notices, determine legal entitlement, price work, or touch invoices and payments.
+
+---
+
+## 18. Notifications and communication receipts
+
+**Notifications (`/notifications`)** — a status console. The global dispatcher is not connected, and the page's six channel cards say exactly what is active (manual record) and what is not (email, WhatsApp, in-app, failure queue, digests). Per-project notification logging lives on the pursuit Overview tab.
+
+**Communication Receipts (`/communications`)** — the reconciled communications hub, for when human-sent external communication needs evidence: queue an approved intent (approved templates only), record every external attempt **before** its effect, and check provider receipts. Its mottoes are the design: "Receipt is authority", "Human-controlled effects". Nothing is claimed as delivered without a verified receipt.
+
+---
+
+## 19. Administration
+
+**Security & audit (`/app/security`)** — the stored legacy-migration integrity assessment (what was preserved, what discontinuities are known), security queue coverage (break-glass access is deliberately not exposed here), and the **monthly access review**: who touched what, when, with each row marked as a legacy-archive or active-chain record.
+
+**Privacy Operations (`/privacy-operations`)** — minimised privacy evidence plus three named-human workflows: DSR triage, consent-withdrawal evidence, and legal-hold review, each version-guarded and optionally citing a governed document. The centre records evidence; it does not establish identity, decide legal rights, release holds, or execute deletion.
+
+**Production Acceptance (`/production-acceptance`)** — the release evidence console for the most senior internal roles: tenant scope, immutable digests, release-candidate binding, expiry windows, and an evidence form bound to the expected release SHA-256 with a named owner. Its safe state is spelled out: **no-go**. It cannot deploy, restore or roll back anything.
+
+**AI Shadow Programme (`/ai-shadow`)** — a no-output evaluation evidence pilot: version-bound plans, hash-only observations, and independent closure. The client hard-fails any response that does not preserve "production activation granted: false". A clean result makes a capability _eligible for governance review_ — nothing more.
+
+**Organisation Settings (`/organisation-settings`)** — membership administration for the selected organisation: grant access by internal user ID with a role inside your delegation ceiling, set membership and role end dates (WAT end-of-day), suspend/reactivate, and edit access windows — with guards against locking yourself out or removing the last active administrator. Version conflicts reload the record rather than overwriting someone else's change.
+
+**Platform Operations (`/settings`)** — internal platform administrators only: severity weights and risk-band cutoffs, report template text and default retention, the read-only legacy personnel table (real access changes happen in Organisation Settings), and the retention-request queue — where the table itself warns that retention **completion** is unavailable: requests are opened and reviewed, but no data is deleted and no certificate issued yet.
+
+**Account (`/account`)** — your own profile: current organisation context and effective roles, plus the identity provider's panel for password, MFA, sessions and recovery. Organisation access is granted by administrators, never self-service.
+
+---
+
+## 20. Feature flags — what "Pending" means
+
+Some workspaces are built, tested and gated behind server-checked feature flags that are off until commercial activation: the **Client workspace**, **Partner workspace/Consortium Room**, **Billing & entitlements**, and **Notifications/Communication Receipts**. Where a flag is off you may still see the nav item with an amber **Pending** chip and a page explaining that the capability is technically present but not commercially activated. A flag can never bypass a permission, evidence, conflict, privacy or readiness gate.
+
+---
+
+## 21. "Why is this blocked?" — the cheat sheet
+
+| What you see                                             | The rule you have hit                                                                                                                                        |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| "Upload unavailable" on Tender documents                 | Generic signed uploads are disabled until the durable-lease path is verified. Use the governed Client Action Room upload.                                    |
+| "Payment confirmation pending" / release actions blocked | The commercial gate: two different named people must confirm payment on the Overview tab.                                                                    |
+| NDA / conflict banner on a pursuit                       | Intake is blocked until the NDA gate is resolved or a named conflict decision is recorded.                                                                   |
+| Sign-off refuses                                         | Open fatal or likely-fatal defects without a persisted remediation/waiver, unresolved archive instructions, or another readiness check — the toast names it. |
+| "Direct … membership required"                           | You are on partner-derived or emergency access; nine workspaces accept only direct memberships (section 5).                                                  |
+| Amber "Pending" chip                                     | Feature flag not commercially activated (section 20).                                                                                                        |
+| "Released pursuit is read-only"                          | Signed-off, exported or archived projects are immutable except through their explicit exception paths.                                                       |
+| A 409 "changed in another session"                       | Optimistic concurrency: someone else edited the record. The page reloads it; re-apply your change.                                                           |
+| "Workspace switching is temporarily blocked"             | A write is in flight; finish or cancel it, then switch organisations.                                                                                        |
+| Empty list with careful wording                          | Deliberate: absence of records is never presented as compliance, readiness or delivery.                                                                      |
+| Buttons disabled while a banner says you are offline     | Mutations pause offline everywhere except Field Companion drafts.                                                                                            |
+| "Send notification" permanently disabled                 | No notification dispatcher is connected; only manual records exist.                                                                                          |
+
+---
+
+## 22. Quick reference — statuses and badges
+
+- **Requirement rows**: suggested → confirmed / edited / rejected; origin engine or manual; mandatory chip; grounded quotes expandable.
+- **Evidence**: present / missing / expired / unclear / not applicable / pending; suggested rows need a ✓ from an approver.
+- **Defects**: suggested / open / remediated / waived; severity fatal / likely fatal / scoring risk / cosmetic (raise-only).
+- **BOQ commercial exceptions**: open / resolved / waived, each with code (e.g. `extension_mismatch`, `vat_mismatch`, `bid_security_mismatch`), severity, and exact expected/actual kobo amounts.
+- **Documents**: redaction excluded / redacted / included; extraction states including "security quarantined"; integrity Verified / FAILED.
+- **Reports**: draft → signed-off; downloads only on signed-off versions.
+- **Memberships**: Active / Scheduled / Expired / Suspended / Revoked, with access windows in WAT.
+- **Audit rows**: "Active v2 chain record" vs amber "Legacy v1 archive · integrity status".
+
+---
+
+_If something in this manual disagrees with what the application does, trust the application and its on-screen wording — then report the discrepancy so the manual is corrected. The screens are written to be authoritative about their own boundaries._

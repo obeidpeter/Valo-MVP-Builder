@@ -13,14 +13,18 @@ const [
   signals,
   synthetic,
   schedules,
+  workerActivation,
   apiPackage,
   dbPackage,
   reconciler,
+  workerFoundation,
+  outbox,
 ] = await Promise.all([
   json("config/observability/alerts.v2.5.json"),
   json("config/observability/signals.v1.json"),
   json("config/observability/synthetic-alerts.v1.json"),
   json("config/operations/schedules.v1.json"),
+  json("config/operations/worker-activation.v1.json"),
   json("artifacts/api-server/package.json"),
   json("lib/db/package.json"),
   readFile(
@@ -28,6 +32,14 @@ const [
       root,
       "artifacts/api-server/src/lib/storageLifecycle/reconciler.ts",
     ),
+    "utf8",
+  ),
+  readFile(
+    resolve(root, "artifacts/api-server/src/lib/durableWorkerFoundation.ts"),
+    "utf8",
+  ),
+  readFile(
+    resolve(root, "artifacts/api-server/src/lib/transactionalOutbox.ts"),
     "utf8",
   ),
 ]);
@@ -214,6 +226,21 @@ const expectedCommands = new Map([
     "pnpm --filter @workspace/api-server run verify:backup-evidence",
   ],
 ]);
+const inProcessRunnerSource = await readFile(
+  resolve(root, "scripts/run-inprocess-schedules.mjs"),
+  "utf8",
+);
+assert.match(
+  inProcessRunnerSource,
+  /IN_PROCESS_SCHEDULES_ENVIRONMENT_KEY = "VALO_INPROCESS_SCHEDULES"/u,
+  "The in-process runner must gate on the declared opt-in variable",
+);
+assert.match(
+  inProcessRunnerSource,
+  /prerequisites cannot be waived/u,
+  "The in-process runner must refuse jobs that are not ready for install",
+);
+
 const scheduleIds = new Set();
 for (const job of schedules.jobs ?? []) {
   assert.equal(scheduleIds.has(job.id), false, `Duplicate schedule ${job.id}`);
@@ -230,6 +257,23 @@ for (const job of schedules.jobs ?? []) {
   );
   assert.ok(["blocked", "ready_for_platform_install"].includes(job.activation));
   assert.ok(Array.isArray(job.prerequisites) && job.prerequisites.length > 0);
+  if (job.activation === "ready_for_platform_install") {
+    assert.deepEqual(
+      job.inProcessRunner,
+      {
+        available: true,
+        optInEnvironmentVariable: "VALO_INPROCESS_SCHEDULES",
+        runner: "scripts/run-inprocess-schedules.mjs",
+      },
+      `${job.id} must declare the bounded in-process runner it is served by`,
+    );
+  } else {
+    assert.equal(
+      job.inProcessRunner,
+      undefined,
+      `${job.id} is blocked and must not advertise an in-process runner`,
+    );
+  }
   for (const signalName of [job.fullCycleSignal, job.lastSuccessSignal]) {
     if (signalName) {
       assert.ok(
@@ -272,6 +316,67 @@ assert.match(
   /platformScheduleDeclaredInRepository:\s*true/u,
   "Storage lifecycle metadata must acknowledge the source manifest",
 );
+
+assert.equal(
+  workerActivation.status,
+  "preconditions_open_control_router_unmounted",
+  "The worker control plane must not claim activation without evidenced preconditions",
+);
+assert.equal(workerActivation.controlRouterMounted, false);
+const workerPreconditionIds = new Set();
+for (const precondition of workerActivation.preconditions ?? []) {
+  assert.equal(
+    workerPreconditionIds.has(precondition.id),
+    false,
+    `Duplicate worker precondition ${precondition.id}`,
+  );
+  workerPreconditionIds.add(precondition.id);
+  assert.ok(precondition.description, `${precondition.id} needs a description`);
+  assert.ok(
+    precondition.boundStatusFlag,
+    `${precondition.id} must bind a source status flag`,
+  );
+  assert.ok(["open", "satisfied"].includes(precondition.status));
+  if (precondition.status === "satisfied") {
+    assert.ok(
+      typeof precondition.evidence === "string" && precondition.evidence,
+      `${precondition.id} cannot be satisfied without named evidence`,
+    );
+  } else {
+    assert.equal(
+      precondition.evidence,
+      null,
+      `${precondition.id} is open and must not carry evidence`,
+    );
+  }
+}
+assert.deepEqual(
+  [...workerPreconditionIds].sort(),
+  [
+    "budget_settlement_implemented",
+    "control_router_publication_reviewed",
+    "provider_governance_verified",
+    "trusted_receipt_verification_implemented",
+    "workload_identity_connected",
+  ],
+  "The tracked worker preconditions must stay the reviewed set",
+);
+// While any precondition stays open, the source status flags it binds must
+// still declare the capability off — the manifest cannot drift ahead of code.
+if (
+  (workerActivation.preconditions ?? []).some(
+    (precondition) => precondition.status === "open",
+  )
+) {
+  assert.match(
+    workerFoundation,
+    /userAuthenticatedControlRouteMounted:\s*false/u,
+    "Worker control router must stay unmounted while preconditions are open",
+  );
+  assert.match(workerFoundation, /workloadIdentityConnected:\s*false/u);
+  assert.match(workerFoundation, /externalProviderInvocationAllowed:\s*false/u);
+  assert.match(outbox, /trustedReceiptVerificationImplemented:\s*false/u);
+}
 
 console.log(
   `operational controls valid: ${signalByName.size} signals, ` +

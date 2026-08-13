@@ -1,5 +1,6 @@
 import { pathToFileURL } from "node:url";
 import { runReplitIntakeMigrations } from "../lib/db/scripts/replit-intake-migrations.mjs";
+import { maybeStartInProcessSchedules } from "./run-inprocess-schedules.mjs";
 
 const API_SERVER_ENTRYPOINT = new URL(
   "../artifacts/api-server/dist/index.mjs",
@@ -23,9 +24,13 @@ export function formatReplitProductionStartupError(error) {
 export async function startReplitProduction({
   environment = process.env,
   runMigrations = runReplitIntakeMigrations,
+  startSchedules = maybeStartInProcessSchedules,
   importApiServer = () => import(API_SERVER_ENTRYPOINT.href),
 } = {}) {
   await runMigrations(environment);
+  // An explicitly opted-in, misconfigured schedule selection refuses startup
+  // before the API serves traffic; with no opt-in this is a no-op.
+  await startSchedules({ environment });
   await importApiServer();
 }
 
