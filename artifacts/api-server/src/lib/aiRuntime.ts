@@ -18,6 +18,7 @@ import {
   type AiRuntimeEnvironment,
 } from "./aiPolicy";
 import { canonicalJson, sha256, AI_PROMPT_REGISTRY } from "./aiPromptRegistry";
+import { attestDeployedRetrievalRegistry } from "./aiRetrievalRegistry";
 import {
   evaluateAiRelease,
   type AiReleaseGateInput,
@@ -46,11 +47,6 @@ export interface AiRuntimeReleaseGateStatus {
 }
 
 const MAX_RELEASE_EVIDENCE_BYTES = 5 * 1024 * 1024;
-// There is deliberately no env-var escape hatch. Production retrieval/index
-// versions must eventually come from a deployed, tenant-isolated registry
-// whose live identity can be attested, not from operator-authored labels.
-const DEPLOYED_RETRIEVAL_REGISTRY_AVAILABLE = false;
-const RETRIEVAL_REGISTRY_BLOCKER = "retrieval_registry_unavailable";
 
 function expectedSchemaSetVersion(): string {
   return sha256(
@@ -88,21 +84,24 @@ export function configuredAiExpectedVersions(
   runtime: AiRuntimeConfiguration,
   _variables: NodeJS.ProcessEnv = process.env,
 ): AiReleaseVersions {
+  // Retrieval and index identities come only from the deployed-registry
+  // attestation (see aiRetrievalRegistry.ts); operator-authored labels are
+  // structurally ignored, so an unavailable registry yields empty versions.
+  const registry = attestDeployedRetrievalRegistry();
   return {
     model: runtime.modelConfiguration.model,
     modelConfiguration: runtime.modelConfiguration.configurationVersion,
     prompt: PROMPT_PACK_VERSION,
     promptRegistry: expectedPromptSetVersion(),
     schema: expectedSchemaSetVersion(),
-    retrieval: "",
-    index: "",
+    retrieval: registry.available ? registry.retrievalVersion : "",
+    index: registry.available ? registry.indexVersion : "",
   };
 }
 
 function productionRegistryBlockers(): string[] {
-  return DEPLOYED_RETRIEVAL_REGISTRY_AVAILABLE
-    ? []
-    : [RETRIEVAL_REGISTRY_BLOCKER];
+  const registry = attestDeployedRetrievalRegistry();
+  return registry.available ? [] : [registry.blocker];
 }
 
 export function configuredAiReleaseRuntimeMismatchCodes(
