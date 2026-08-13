@@ -5,6 +5,7 @@ import {
   getListBoqChecksQueryKey,
   getListDefectsQueryKey,
   useListDocuments,
+  getListDocumentsQueryKey,
   useGetBoqVerification,
   getGetBoqVerificationQueryKey,
   useGetBoqVerificationRun,
@@ -661,7 +662,7 @@ function CommercialVerificationSection({
   const { data: snapshot, isLoading: snapshotLoading } =
     useGetBoqVerification(projectId);
   const { data: documents } = useListDocuments(projectId, {
-    query: { enabled: canRun },
+    query: { queryKey: getListDocumentsQueryKey(projectId), enabled: canRun },
   });
   const createRun = useCreateBoqVerificationRun();
 
