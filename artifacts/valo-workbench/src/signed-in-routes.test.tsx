@@ -105,7 +105,7 @@ vi.mock("@workspace/api-client-react", async (importOriginal) => {
         return {
           journey: {
             policyVersion: "route-test-v1",
-            derivedFromRoles: ["valo_operations_administrator"],
+            derivedFromRoles: [currentRole],
             checklist: [],
             syntheticTour: {
               dataClassification: "synthetic_non_customer",
@@ -116,6 +116,7 @@ vi.mock("@workspace/api-client-react", async (importOriginal) => {
           },
           progress: {
             journeyVersion: "route-test-v1",
+            savedPracticeMarkerItemIds: [],
             completedItemIds: [],
             version: 0,
           },

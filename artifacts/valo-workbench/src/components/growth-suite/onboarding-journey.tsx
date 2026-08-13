@@ -147,9 +147,9 @@ export function GrowthOnboardingJourney({
       {liveDestinations.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">
+            <h3 className="text-base font-semibold leading-none tracking-tight">
               Continue in your live workspace
-            </CardTitle>
+            </h3>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="max-w-3xl text-sm leading-6 text-muted-foreground">

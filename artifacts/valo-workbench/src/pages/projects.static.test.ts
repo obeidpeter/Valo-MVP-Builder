@@ -1,7 +1,11 @@
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const source = readFileSync(new URL("./projects.tsx", import.meta.url), "utf8");
+const source = readFileSync(
+  resolve(process.cwd(), "src", "pages", "projects.tsx"),
+  "utf8",
+);
 
 describe("project register source controls", () => {
   it("does not claim creation-time authority over the commercial gate", () => {
