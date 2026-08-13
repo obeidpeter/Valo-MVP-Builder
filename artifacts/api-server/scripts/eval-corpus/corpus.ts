@@ -1049,4 +1049,767 @@ Note: Site visit is recommended before bid submission.`,
       },
     ],
   },
+  {
+    id: "NG-PHCDA-2026-021-consumables",
+    title: "Supply of medical consumables to primary healthcare centres",
+    documentText: `PRIMARY HEALTH CARE DEVELOPMENT AGENCY — TENDER NG-PHCDA-2026-021: MEDICAL CONSUMABLES
+
+Section A: Eligibility
+A1  Bidders MUST possess a valid CAC certificate of incorporation with certified true copies of Forms CAC 2 and CAC 7.
+A2  Bidders MUST submit a current Tax Clearance Certificate for the three (3) preceding years expiring 31 December.
+A3  Bidders MUST provide evidence of PENCOM compliance certificate valid through the current year.
+A4  Bidders MUST submit an ITF compliance certificate.
+A5  Bidders MUST provide a NAFDAC product registration certificate for every listed consumable.
+A6  Bidders MUST submit an Interim Registration Report (IRR) or evidence of registration on the BPP National Database of Contractors.
+
+Section B: Commercial
+B1  A bid security of 2% of the bid sum issued by a bank or insurer approved by the Central Bank of Nigeria is mandatory.
+B2  Bidders should submit evidence of similar supplies to public health institutions in the last five (5) years.`,
+    groundTruth: [
+      {
+        id: "cac-forms",
+        label: "CAC incorporation with Forms CAC 2 and CAC 7",
+        mandatory: true,
+        match: [
+          ["cac", "incorporation"],
+          ["cac 2", "cac 7", "certificate"],
+        ],
+      },
+      {
+        id: "tax-clearance",
+        label: "Tax Clearance Certificate for three preceding years",
+        mandatory: true,
+        match: [["tax clearance"], ["three", "3", "years"]],
+      },
+      {
+        id: "pencom",
+        label: "PENCOM compliance certificate",
+        mandatory: true,
+        match: [["pencom"], ["compliance", "certificate"]],
+      },
+      {
+        id: "itf",
+        label: "ITF compliance certificate",
+        mandatory: true,
+        match: [["itf"], ["compliance", "certificate"]],
+      },
+      {
+        id: "nafdac",
+        label: "NAFDAC product registration for each consumable",
+        mandatory: true,
+        match: [["nafdac"], ["registration", "certificate", "product"]],
+      },
+      {
+        id: "bpp-database",
+        label: "IRR / BPP National Database of Contractors registration",
+        mandatory: true,
+        match: [
+          ["irr", "interim registration", "national database"],
+          ["bpp", "registration", "contractors"],
+        ],
+      },
+      {
+        id: "bid-security",
+        label: "Bid security of 2% of bid sum (CBN-approved issuer)",
+        mandatory: true,
+        match: [
+          ["bid security", "bid bond"],
+          ["2%", "2 %", "central bank"],
+        ],
+      },
+      {
+        id: "similar-supplies",
+        label: "Similar supplies to public health institutions (desirable)",
+        mandatory: false,
+        match: [["similar suppl"], ["five", "5", "years"]],
+      },
+    ],
+  },
+  {
+    id: "NG-TCN-2026-108-substation",
+    title: "Rehabilitation of a 132/33kV transmission substation",
+    documentText: `TRANSMISSION COMPANY — TENDER NG-TCN-2026-108: 132/33KV SUBSTATION REHABILITATION
+
+Clause 2.1  Bidders MUST be registered with the Corporate Affairs Commission and submit the certificate of incorporation.
+Clause 2.2  Bidders MUST submit evidence of NSITF compliance certificate.
+Clause 2.3  Bidders MUST provide audited financial statements for the last three (3) financial years signed by a licensed auditor.
+Clause 2.4  Bidders MUST hold a valid electrical contractor licence issued by NEMSA in the appropriate class.
+Clause 2.5  Bidders MUST submit a sworn affidavit disclosing whether any officer of the procuring entity is a former or present director or shareholder of the bidder.
+Clause 3.1  Bidders MUST provide a method statement and outage management plan for works on energised networks.
+Clause 3.2  Bidders should include CVs of the proposed project manager and lead protection engineer.`,
+    groundTruth: [
+      {
+        id: "cac",
+        label: "CAC certificate of incorporation",
+        mandatory: true,
+        match: [
+          ["corporate affairs", "cac"],
+          ["incorporation", "certificate"],
+        ],
+      },
+      {
+        id: "nsitf",
+        label: "NSITF compliance certificate",
+        mandatory: true,
+        match: [["nsitf"], ["compliance", "certificate"]],
+      },
+      {
+        id: "audited-accounts",
+        label: "Audited financial statements, last three years",
+        mandatory: true,
+        match: [
+          ["audited financial", "audited accounts"],
+          ["three", "3"],
+        ],
+      },
+      {
+        id: "nemsa-licence",
+        label: "NEMSA electrical contractor licence",
+        mandatory: true,
+        match: [["nemsa"], ["licence", "license", "contractor"]],
+      },
+      {
+        id: "affidavit",
+        label: "Sworn affidavit of disclosure (directors/shareholders)",
+        mandatory: true,
+        match: [["affidavit"], ["disclos", "director", "shareholder"]],
+      },
+      {
+        id: "method-statement",
+        label: "Method statement and outage management plan",
+        mandatory: true,
+        match: [
+          ["method statement"],
+          ["outage", "plan", "energised", "energized"],
+        ],
+      },
+      {
+        id: "cvs",
+        label: "CVs of project manager and protection engineer (desirable)",
+        mandatory: false,
+        match: [
+          ["cv", "cvs"],
+          ["project manager", "protection engineer"],
+        ],
+      },
+    ],
+  },
+  {
+    id: "NG-UBEC-2026-055-classrooms",
+    title:
+      "Construction of classroom blocks under the basic education programme",
+    documentText: `UNIVERSAL BASIC EDUCATION BOARD — TENDER NG-UBEC-2026-055: CLASSROOM BLOCKS
+
+1.  Bidders MUST submit a certificate of incorporation with CAC status report not older than three (3) months.
+2.  Bidders MUST submit current Tax Clearance, PENCOM, ITF and NSITF compliance certificates. Failure to provide any one shall render the bid non-responsive.
+3.  Bidders MUST provide evidence of registration on the National Database of Federal Contractors (BPP) with an Interim Registration Report.
+4.  Bidders MUST submit a company profile with verifiable evidence of at least two (2) completed building projects of similar scope, including letters of award and completion certificates.
+5.  Bidders MUST provide a bank reference letter and evidence of financial capability of not less than NGN 50,000,000.
+6.  Bidders MUST complete the priced Bill of Quantities in ink, sign every page, and shall not alter the quantities.
+7.  Bidders should attach a work programme showing completion within twenty-six (26) weeks.`,
+    groundTruth: [
+      {
+        id: "cac-status",
+        label: "CAC incorporation + status report within 3 months",
+        mandatory: true,
+        match: [
+          ["incorporation", "cac"],
+          ["status report", "three", "3 months"],
+        ],
+      },
+      {
+        id: "statutory-certs",
+        label: "Tax Clearance, PENCOM, ITF, NSITF certificates",
+        mandatory: true,
+        match: [["tax clearance"], ["pencom"], ["itf"], ["nsitf"]],
+      },
+      {
+        id: "bpp-irr",
+        label: "BPP National Database registration with IRR",
+        mandatory: true,
+        match: [
+          ["national database", "bpp"],
+          ["interim registration", "irr", "registration"],
+        ],
+      },
+      {
+        id: "similar-projects",
+        label:
+          "Two completed similar building projects with award/completion letters",
+        mandatory: true,
+        match: [
+          ["two", "2"],
+          ["completed", "similar"],
+          ["award", "completion certificate"],
+        ],
+      },
+      {
+        id: "financial-capability",
+        label: "Bank reference + financial capability >= NGN 50,000,000",
+        mandatory: true,
+        match: [
+          ["bank reference"],
+          ["50,000,000", "50000000", "financial capability"],
+        ],
+      },
+      {
+        id: "priced-boq",
+        label: "Priced BOQ in ink, every page signed, quantities unaltered",
+        mandatory: true,
+        match: [
+          ["bill of quantities", "boq"],
+          ["ink", "sign", "signed"],
+        ],
+      },
+      {
+        id: "work-programme",
+        label: "Work programme within 26 weeks (desirable)",
+        mandatory: false,
+        match: [
+          ["work programme", "programme"],
+          ["26", "twenty-six"],
+        ],
+      },
+    ],
+  },
+  {
+    id: "NG-NIPEX-2026-DR-0087-drilling",
+    title: "Provision of drilling fluids and mud engineering services",
+    documentText: `NIPEX TENDER NG-NIPEX-2026-DR-0087: DRILLING FLUIDS AND MUD ENGINEERING
+
+ITT 4.1  Tenderers MUST be prequalified in the relevant NipeX product/service category and submit their NJQS certificate.
+ITT 4.2  Tenderers MUST hold a valid DPR (NUPRC) permit for the service category.
+ITT 4.3  Tenderers MUST submit a valid Nigerian Content Equipment Certificate or NCDMB NOGIC JQS registration evidence.
+ITT 4.4  Tenderers MUST submit a Nigerian Content Plan demonstrating compliance with the NOGICD Act minimum levels.
+ITT 5.1  Tenderers MUST provide an HSE policy and past three (3) years TRIR statistics.
+ITT 5.2  Tenderers MUST confirm ability to provide a parent company guarantee where the tendering entity is a subsidiary.
+ITT 6.1  Tenderers should provide details of in-country laboratory facilities for mud testing.`,
+    groundTruth: [
+      {
+        id: "njqs",
+        label: "NipeX NJQS prequalification certificate",
+        mandatory: true,
+        match: [
+          ["njqs", "nipex"],
+          ["prequalified", "certificate"],
+        ],
+      },
+      {
+        id: "regulator-permit",
+        label: "Valid DPR/NUPRC permit",
+        mandatory: true,
+        match: [["dpr", "nuprc"], ["permit"]],
+      },
+      {
+        id: "ncdmb",
+        label:
+          "Nigerian Content Equipment Certificate / NOGIC JQS registration",
+        mandatory: true,
+        match: [
+          ["ncdmb", "nogic", "nigerian content equipment"],
+          ["certificate", "registration", "jqs"],
+        ],
+      },
+      {
+        id: "nc-plan",
+        label: "Nigerian Content Plan (NOGICD Act)",
+        mandatory: true,
+        match: [["nigerian content plan"], ["nogicd", "act", "compliance"]],
+      },
+      {
+        id: "hse-trir",
+        label: "HSE policy + three years TRIR statistics",
+        mandatory: true,
+        match: [["hse"], ["trir", "statistics", "three"]],
+      },
+      {
+        id: "pcg",
+        label: "Parent company guarantee confirmation",
+        mandatory: true,
+        match: [["parent company guarantee"], ["subsidiary", "confirm"]],
+      },
+      {
+        id: "lab",
+        label: "In-country mud-testing laboratory details (desirable)",
+        mandatory: false,
+        match: [
+          ["laboratory", "lab"],
+          ["in-country", "mud"],
+        ],
+      },
+    ],
+  },
+  {
+    id: "NG-FMWR-2026-042-boreholes",
+    title: "Drilling of solar-powered boreholes in rural communities",
+    documentText: `FEDERAL MINISTRY OF WATER RESOURCES — TENDER NG-FMWR-2026-042: SOLAR-POWERED BOREHOLES
+
+C1  Bidders MUST submit evidence of company registration with CAC.
+C2  Bidders MUST submit a current Tax Clearance Certificate reflecting annual turnover.
+C3  Bidders MUST provide a valid borehole drillers licence issued by the relevant water regulatory authority.
+C4  Bidders MUST submit evidence of ownership or lease of at least one (1) functional drilling rig, with photographs and registration papers.
+C5  Bidders MUST provide a hydrogeological survey methodology and water quality testing plan referencing SON NIS 554 drinking water standard.
+C6  A bid security of NGN 2,500,000 in the form of a bank guarantee is mandatory and must remain valid for 120 days.
+C7  Bidders should describe a community handover and maintenance training plan.`,
+    groundTruth: [
+      {
+        id: "cac",
+        label: "CAC company registration",
+        mandatory: true,
+        match: [["cac", "company registration"], ["registration"]],
+      },
+      {
+        id: "tax",
+        label: "Current Tax Clearance Certificate",
+        mandatory: true,
+        match: [["tax clearance"], ["certificate", "current"]],
+      },
+      {
+        id: "drillers-licence",
+        label: "Borehole drillers licence",
+        mandatory: true,
+        match: [
+          ["drillers licence", "drillers license", "borehole"],
+          ["licence", "license"],
+        ],
+      },
+      {
+        id: "rig",
+        label: "Ownership/lease of a functional drilling rig with evidence",
+        mandatory: true,
+        match: [
+          ["drilling rig", "rig"],
+          ["ownership", "lease", "photograph"],
+        ],
+      },
+      {
+        id: "hydro-survey",
+        label:
+          "Hydrogeological survey methodology + NIS 554 water quality plan",
+        mandatory: true,
+        match: [["hydrogeological"], ["nis 554", "water quality", "son"]],
+      },
+      {
+        id: "bid-security",
+        label: "Bid security NGN 2,500,000 bank guarantee, 120 days",
+        mandatory: true,
+        match: [
+          ["bid security", "bank guarantee"],
+          ["2,500,000", "120 days"],
+        ],
+      },
+      {
+        id: "handover",
+        label: "Community handover and maintenance training plan (desirable)",
+        mandatory: false,
+        match: [["handover", "maintenance training"], ["community"]],
+      },
+    ],
+  },
+  {
+    id: "NG-FIRS-2026-077-ict",
+    title: "Supply and deployment of data-centre infrastructure",
+    documentText: `REVENUE SERVICE — TENDER NG-FIRS-2026-077: DATA CENTRE INFRASTRUCTURE
+
+D1  Bidders MUST submit certificate of incorporation and CAC forms showing current directors.
+D2  Bidders MUST submit valid Tax Clearance, PENCOM, ITF and NSITF certificates.
+D3  Bidders MUST be registered with NITDA as an indigenous ICT company or partner with one, evidenced by a registration certificate.
+D4  Bidders MUST provide OEM authorisation letters for all proposed hardware, addressed to this tender by reference number.
+D5  Bidders MUST submit evidence of at least two (2) Tier III data-centre deployments with client references.
+D6  Bidders MUST include a three (3) year on-site support and SLA proposal with guaranteed 99.98% availability.
+D7  Bidders should include ISO 27001 certification of their managed-services operation.`,
+    groundTruth: [
+      {
+        id: "cac-directors",
+        label: "Incorporation certificate + CAC forms with current directors",
+        mandatory: true,
+        match: [["incorporation", "cac"], ["directors"]],
+      },
+      {
+        id: "statutory",
+        label: "Tax Clearance, PENCOM, ITF, NSITF certificates",
+        mandatory: true,
+        match: [["tax clearance"], ["pencom"], ["itf"], ["nsitf"]],
+      },
+      {
+        id: "nitda",
+        label: "NITDA indigenous ICT registration (or partner)",
+        mandatory: true,
+        match: [["nitda"], ["registration", "indigenous", "certificate"]],
+      },
+      {
+        id: "oem-letters",
+        label: "OEM authorisation letters referencing this tender",
+        mandatory: true,
+        match: [["oem"], ["authorisation", "authorization", "letter"]],
+      },
+      {
+        id: "tier-iii",
+        label: "Two Tier III data-centre deployments with references",
+        mandatory: true,
+        match: [
+          ["tier iii", "tier 3"],
+          ["two", "2", "deployments"],
+        ],
+      },
+      {
+        id: "sla",
+        label: "Three-year support/SLA at 99.98% availability",
+        mandatory: true,
+        match: [
+          ["sla", "service level"],
+          ["99.98", "availability"],
+        ],
+      },
+      {
+        id: "iso27001",
+        label: "ISO 27001 certification (desirable)",
+        mandatory: false,
+        match: [["iso 27001", "27001"]],
+      },
+    ],
+  },
+  {
+    id: "NG-NDDC-2026-019-shoreline",
+    title: "Shoreline protection and reclamation works",
+    documentText: `NIGER DELTA DEVELOPMENT COMMISSION — TENDER NG-NDDC-2026-019: SHORELINE PROTECTION
+
+S1  Bidders MUST submit CAC incorporation documents and a sworn affidavit that the company is not in receivership.
+S2  Bidders MUST submit three (3) years Tax Clearance and audited accounts.
+S3  Bidders MUST provide a current COREN registration for the lead civil engineer.
+S4  Bidders MUST submit an Environmental Impact Assessment compliance plan referencing the EIA Act.
+S5  Bidders MUST provide evidence of ownership or lease agreements for marine plant (dredgers, barges) intended for the works.
+S6  A bid security of 2% of the bid price from a reputable bank is mandatory; bids without it shall be rejected.
+S7  Bidders MUST attend the mandatory pre-bid site visit; a site meeting attendance certificate will be issued.
+S8  Bidders should include a community relations and local employment plan.`,
+    groundTruth: [
+      {
+        id: "cac-affidavit",
+        label: "CAC incorporation + affidavit of no receivership",
+        mandatory: true,
+        match: [
+          ["cac", "incorporation"],
+          ["affidavit", "receivership"],
+        ],
+      },
+      {
+        id: "tax-audited",
+        label: "Three years Tax Clearance and audited accounts",
+        mandatory: true,
+        match: [["tax clearance"], ["audited", "accounts", "three"]],
+      },
+      {
+        id: "coren",
+        label: "COREN registration for lead civil engineer",
+        mandatory: true,
+        match: [["coren"], ["engineer", "registration"]],
+      },
+      {
+        id: "eia",
+        label: "EIA compliance plan",
+        mandatory: true,
+        match: [
+          ["environmental impact", "eia"],
+          ["compliance", "plan", "act"],
+        ],
+      },
+      {
+        id: "marine-plant",
+        label: "Ownership/lease of marine plant (dredgers, barges)",
+        mandatory: true,
+        match: [
+          ["dredger", "barge", "marine plant"],
+          ["ownership", "lease"],
+        ],
+      },
+      {
+        id: "bid-security",
+        label: "Bid security 2% of bid price",
+        mandatory: true,
+        match: [
+          ["bid security", "bid bond"],
+          ["2%", "2 %"],
+        ],
+      },
+      {
+        id: "site-visit",
+        label: "Mandatory pre-bid site visit attendance",
+        mandatory: true,
+        match: [["site visit"], ["mandatory", "attendance", "pre-bid"]],
+      },
+      {
+        id: "community-plan",
+        label: "Community relations and local employment plan (desirable)",
+        mandatory: false,
+        match: [["community relations", "local employment"]],
+      },
+    ],
+  },
+  {
+    id: "NG-DSS-2026-090-catering",
+    title: "Provision of catering services for a training institution",
+    documentText: `FEDERAL TRAINING INSTITUTION — TENDER NG-DSS-2026-090: CATERING SERVICES
+
+K1  Bidders MUST submit evidence of registration with the CAC.
+K2  Bidders MUST provide a current Tax Clearance Certificate and evidence of VAT registration with FIRS (TIN).
+K3  Bidders MUST hold valid food-handler medical certificates for all serving staff, renewable every six (6) months.
+K4  Bidders MUST provide a NAFDAC-compliant food safety and hygiene plan (HACCP based).
+K5  Bidders MUST submit evidence of at least two (2) institutional catering contracts of not less than 500 covers per day.
+K6  Bidders MUST provide a sample four (4) week menu cycle priced per head in Naira.
+K7  Bidders should provide staff training records for food safety in the last twelve (12) months.`,
+    groundTruth: [
+      {
+        id: "cac",
+        label: "CAC registration",
+        mandatory: true,
+        match: [["cac"], ["registration"]],
+      },
+      {
+        id: "tax-vat",
+        label: "Tax Clearance + VAT/TIN registration with FIRS",
+        mandatory: true,
+        match: [["tax clearance"], ["vat", "tin", "firs"]],
+      },
+      {
+        id: "food-handler",
+        label: "Food-handler medical certificates (6-monthly)",
+        mandatory: true,
+        match: [
+          ["food-handler", "food handler", "medical certificate"],
+          ["six", "6", "months"],
+        ],
+      },
+      {
+        id: "haccp",
+        label: "NAFDAC-compliant food safety plan (HACCP)",
+        mandatory: true,
+        match: [
+          ["haccp", "food safety"],
+          ["nafdac", "hygiene", "plan"],
+        ],
+      },
+      {
+        id: "contracts",
+        label: "Two institutional catering contracts >= 500 covers/day",
+        mandatory: true,
+        match: [
+          ["institutional catering", "catering contract"],
+          ["500", "two", "2"],
+        ],
+      },
+      {
+        id: "menu",
+        label: "Priced four-week menu cycle in Naira",
+        mandatory: true,
+        match: [["menu"], ["four", "4", "week"]],
+      },
+      {
+        id: "training-records",
+        label: "Food-safety training records (desirable)",
+        mandatory: false,
+        match: [
+          ["training records", "training"],
+          ["twelve", "12", "months"],
+        ],
+      },
+    ],
+  },
+  {
+    id: "NG-NNPC-2026-PL-033-pipeline",
+    title: "Pipeline right-of-way surveillance and integrity patrols",
+    documentText: `PIPELINE OPERATOR — TENDER NG-NNPC-2026-PL-033: RIGHT-OF-WAY SURVEILLANCE
+
+P1  Tenderers MUST submit CAC incorporation documents and current NJQS product code registration.
+P2  Tenderers MUST provide a valid private guard company licence issued by the Nigeria Security and Civil Defence Corps (NSCDC).
+P3  Tenderers MUST submit a Nigerian Content Plan and evidence of NOGIC JQS registration.
+P4  Tenderers MUST provide a communications and incident escalation matrix with guaranteed thirty (30) minute reporting of confirmed encroachment.
+P5  Tenderers MUST provide evidence of a functional operations base within the right-of-way corridor states.
+P6  Tenderers MUST submit three (3) years audited accounts and insurance covering personnel deployed on patrols.
+P7  Tenderers should describe community engagement arrangements with host communities along the corridor.`,
+    groundTruth: [
+      {
+        id: "cac-njqs",
+        label: "CAC incorporation + NJQS product code registration",
+        mandatory: true,
+        match: [["cac", "incorporation"], ["njqs"]],
+      },
+      {
+        id: "nscdc",
+        label: "NSCDC private guard company licence",
+        mandatory: true,
+        match: [
+          ["nscdc", "civil defence"],
+          ["licence", "license", "guard"],
+        ],
+      },
+      {
+        id: "nc-plan",
+        label: "Nigerian Content Plan + NOGIC JQS registration",
+        mandatory: true,
+        match: [["nigerian content"], ["nogic", "jqs", "registration"]],
+      },
+      {
+        id: "escalation",
+        label: "Incident escalation matrix, 30-minute reporting",
+        mandatory: true,
+        match: [
+          ["escalation", "incident"],
+          ["thirty", "30", "minute"],
+        ],
+      },
+      {
+        id: "ops-base",
+        label: "Functional operations base within corridor states",
+        mandatory: true,
+        match: [
+          ["operations base", "base"],
+          ["corridor", "states"],
+        ],
+      },
+      {
+        id: "accounts-insurance",
+        label: "Three years audited accounts + patrol personnel insurance",
+        mandatory: true,
+        match: [["audited accounts", "audited"], ["insurance"]],
+      },
+      {
+        id: "community",
+        label: "Host community engagement (desirable)",
+        mandatory: false,
+        match: [["community engagement", "host communities"]],
+      },
+    ],
+  },
+  {
+    id: "NG-REA-2026-064-minigrid",
+    title: "Design, supply and installation of solar hybrid mini-grids",
+    documentText: `RURAL ELECTRIFICATION AGENCY — TENDER NG-REA-2026-064: SOLAR HYBRID MINI-GRIDS
+
+M1  Bidders MUST submit certificate of incorporation, Tax Clearance, PENCOM, ITF and NSITF certificates.
+M2  Bidders MUST provide a NERC mini-grid permit or evidence of a pending application acknowledged by NERC.
+M3  Bidders MUST submit manufacturer authorisation and IEC type-test certificates for PV modules and inverters.
+M4  Bidders MUST submit a single-line diagram and energy yield assessment for each site, prepared by a COREN-registered engineer.
+M5  Bidders MUST provide evidence of one (1) completed mini-grid of at least 100kWp in sub-Saharan Africa.
+M6  A bid security of NGN 5,000,000 is mandatory, valid for ninety (90) days beyond bid validity.
+M7  Bidders should include a five (5) year operations and maintenance proposal with local technician training.`,
+    groundTruth: [
+      {
+        id: "statutory",
+        label: "Incorporation + Tax/PENCOM/ITF/NSITF certificates",
+        mandatory: true,
+        match: [["incorporation"], ["tax clearance"], ["pencom"]],
+      },
+      {
+        id: "nerc",
+        label: "NERC mini-grid permit or acknowledged application",
+        mandatory: true,
+        match: [["nerc"], ["permit", "application"]],
+      },
+      {
+        id: "iec-certs",
+        label: "Manufacturer authorisation + IEC type-test certificates",
+        mandatory: true,
+        match: [["iec"], ["type-test", "type test", "manufacturer"]],
+      },
+      {
+        id: "sld-yield",
+        label: "Single-line diagram + energy yield by COREN engineer",
+        mandatory: true,
+        match: [
+          ["single-line", "single line"],
+          ["energy yield", "coren"],
+        ],
+      },
+      {
+        id: "track-record",
+        label: "One completed >=100kWp mini-grid in sub-Saharan Africa",
+        mandatory: true,
+        match: [
+          ["100kwp", "100 kwp", "mini-grid"],
+          ["completed", "one", "1"],
+        ],
+      },
+      {
+        id: "bid-security",
+        label: "Bid security NGN 5,000,000, 90 days beyond validity",
+        mandatory: true,
+        match: [["bid security"], ["5,000,000", "ninety", "90"]],
+      },
+      {
+        id: "om-proposal",
+        label: "Five-year O&M with technician training (desirable)",
+        mandatory: false,
+        match: [
+          ["operations and maintenance", "o&m", "maintenance"],
+          ["five", "5", "year"],
+        ],
+      },
+    ],
+  },
+  {
+    id: "NG-FAAN-2026-112-groundhandling",
+    title: "Concession of ground support equipment maintenance services",
+    documentText: `AIRPORTS AUTHORITY — TENDER NG-FAAN-2026-112: GSE MAINTENANCE SERVICES
+
+G1  Bidders MUST submit CAC incorporation documents, Tax Clearance and evidence of remittance of statutory pensions.
+G2  Bidders MUST hold a valid NCAA approval or authorisation relevant to ground support operations.
+G3  Bidders MUST provide OEM training certificates for technicians on at least two (2) GSE families in the fleet list.
+G4  Bidders MUST provide an aviation-specific liability insurance certificate of not less than USD 1,000,000 or Naira equivalent.
+G5  Bidders MUST submit a spare-parts sourcing plan with guaranteed AOG response of four (4) hours at the designated airports.
+G6  Bidders MUST complete the priced schedule in the exact format provided; altered formats shall be rejected as non-responsive.
+G7  Bidders should describe an apprenticeship arrangement with a recognised aviation training institution.`,
+    groundTruth: [
+      {
+        id: "cac-tax",
+        label: "CAC incorporation + Tax Clearance + pension remittance",
+        mandatory: true,
+        match: [["cac", "incorporation"], ["tax clearance"], ["pension"]],
+      },
+      {
+        id: "ncaa",
+        label: "NCAA approval/authorisation for ground support",
+        mandatory: true,
+        match: [["ncaa"], ["approval", "authorisation", "authorization"]],
+      },
+      {
+        id: "oem-training",
+        label: "OEM technician training on two GSE families",
+        mandatory: true,
+        match: [["oem"], ["training", "technician"], ["two", "2"]],
+      },
+      {
+        id: "insurance",
+        label: "Aviation liability insurance >= USD 1,000,000",
+        mandatory: true,
+        match: [
+          ["liability insurance", "insurance"],
+          ["1,000,000", "usd"],
+        ],
+      },
+      {
+        id: "aog",
+        label: "Spare-parts plan with 4-hour AOG response",
+        mandatory: true,
+        match: [
+          ["aog", "spare-parts", "spare parts"],
+          ["four", "4", "hour"],
+        ],
+      },
+      {
+        id: "priced-schedule",
+        label: "Priced schedule in exact format (alterations non-responsive)",
+        mandatory: true,
+        match: [
+          ["priced schedule", "exact format"],
+          ["non-responsive", "rejected", "altered"],
+        ],
+      },
+      {
+        id: "apprenticeship",
+        label: "Apprenticeship with aviation training institution (desirable)",
+        mandatory: false,
+        match: [["apprenticeship"], ["training institution"]],
+      },
+    ],
+  },
 ];
