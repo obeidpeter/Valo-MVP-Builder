@@ -28,6 +28,9 @@ import intelligenceRouter from "./intelligence";
 import { createGrowthSuiteRouter } from "./growthSuite";
 import { createClientActionPortalRouter } from "./clientActionPortal";
 import { createOpportunitySourceNetworkRouter } from "./opportunitySourceNetwork";
+import { createOpportunityPursuitHandoffRouter } from "./opportunityPursuitHandoff";
+import { createEvidenceRenewalRouter } from "./evidenceRenewal";
+import { createClientActionUploadRouter } from "./clientActionUpload";
 import { createProductionAcceptanceRouter } from "./productionAcceptance";
 import { createAiShadowProgrammeRouter } from "./aiShadowProgramme";
 import { createDisconnectedReconciledCommunicationsRouter } from "./reconciledCommunications";
@@ -59,6 +62,9 @@ import {
 import { AuditProductionAcceptanceRepository } from "../lib/productionAcceptance";
 import { createCommercialRetainerService } from "../lib/commercialRetainer/service";
 import { createDrizzleCommercialRetainerRepository } from "../lib/commercialRetainer/drizzleRepository";
+import { GovernedClientUploadService } from "../lib/storageLifecycle/clientUpload";
+import { DrizzleGovernedClientUploadRepository } from "../lib/storageLifecycle/clientUploadRepository";
+import { isGovernedClientUploadActivated } from "../lib/storageLifecycle/activation";
 
 const operationsSuiteGuards = createDbOperationsSuiteGuards();
 const operationsSuiteRouter = createOperationsSuiteRouter({
@@ -77,6 +83,14 @@ const clientActionPortalRouter = createClientActionPortalRouter({
   }),
 });
 const opportunitySourceNetworkRouter = createOpportunitySourceNetworkRouter();
+const opportunityPursuitHandoffRouter = createOpportunityPursuitHandoffRouter();
+const evidenceRenewalRouter = createEvidenceRenewalRouter();
+const clientActionUploadRouter = createClientActionUploadRouter({
+  service: new GovernedClientUploadService(
+    new DrizzleGovernedClientUploadRepository(),
+    ({ organisationId }) => isGovernedClientUploadActivated(organisationId),
+  ),
+});
 const productionAcceptanceRouter = createProductionAcceptanceRouter({
   repository: new AuditProductionAcceptanceRepository(),
 });
@@ -134,9 +148,12 @@ router.use(operationsSuiteRouter);
 router.use(growthSuiteRouter);
 router.use("/commercial-retainer", commercialRetainerRouter);
 router.use(clientActionPortalRouter);
+router.use(clientActionUploadRouter);
 router.use(partnerConsortiumRoomRouter);
 router.use(reconciledCommunicationsRouter);
 router.use(opportunitySourceNetworkRouter);
+router.use(opportunityPursuitHandoffRouter);
+router.use(evidenceRenewalRouter);
 router.use(productionAcceptanceRouter);
 router.use(privacyOperationsRouter);
 router.use(claimsDeskRouter);

@@ -78,7 +78,7 @@ test("discard holds the same lock across reference check and deletion", () => {
   assert.ok(referenceAt > discardAt, "discard must use the complete inventory");
 });
 
-test("document deletion holds the object lock through row and blob deletion", () => {
+test("document deletion holds the object lock through row deletion and durable cleanup enqueue", () => {
   const deleteRouteAt = documentsSource.indexOf(
     'router.delete(\n  "/documents/:id"',
   );
@@ -99,8 +99,8 @@ test("document deletion holds the object lock through row and blob deletion", ()
     "storagePathReferenceKinds(",
     rowDeleteAt,
   );
-  const blobDeleteAt = documentsSource.indexOf(
-    "objectStorage.deleteObjectEntity(",
+  const enqueueAt = documentsSource.indexOf(
+    "enqueueStorageDeletionIntent({",
     referenceAt,
   );
   assert.ok(deleteRouteAt >= 0, "document delete route missing");
@@ -113,8 +113,14 @@ test("document deletion holds the object lock through row and blob deletion", ()
     "remaining references must be rechecked",
   );
   assert.ok(
-    blobDeleteAt > referenceAt,
-    "blob deletion must follow the recheck",
+    enqueueAt > referenceAt,
+    "durable deletion enqueue must follow the recheck",
+  );
+  const routeSource = documentsSource.slice(deleteRouteAt);
+  assert.doesNotMatch(
+    routeSource,
+    /objectStorage\.deleteObjectEntity\(/,
+    "document deletion must not remove storage inline",
   );
 });
 
@@ -157,5 +163,5 @@ test("report and vault reference mutations use the shared object lock", () => {
   assert.ok(vaultDeleteAt >= 0 && vaultDeleteLockAt > vaultDeleteAt);
   assert.ok(vaultRowDeleteAt > vaultDeleteLockAt);
   assert.doesNotMatch(vaultSource, /deleteObjectEntity\(/);
-  assert.match(vaultSource, /retained pending durable storage reconciliation/);
+  assert.match(vaultSource, /queued for durable storage reconciliation/);
 });

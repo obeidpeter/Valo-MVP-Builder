@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useSearchParams } from "wouter";
 import {
   customFetch,
@@ -13,6 +13,13 @@ import {
   type ClientActionAuthorityDirectory,
   type ClientActionSnapshot,
 } from "@/components/client-action-portal/client-action-contract";
+import {
+  ClientActionUploadFlowError,
+  runClientActionUpload,
+  type ClientActionUploadProgress,
+  type RunClientActionUploadInput,
+} from "@/components/client-action-portal/client-action-upload-flow";
+import { assertClientActionUploadTargetCurrent } from "@/components/client-action-portal/client-action-upload-scope";
 import {
   ClientActionWorkspace,
   type ClientActionMutation,
@@ -76,11 +83,18 @@ export default function ClientActionPortalRoute() {
   const meQuery = useGetMe();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [uploadInFlight, setUploadInFlight] = useState(false);
+  const uploadInFlightRef = useRef(false);
   const organisationId = access?.activeOrganisation?.id ?? "";
   const directMembership =
     access?.activeOrganisation?.accessSource === "membership" &&
     access.activeOrganisation.membershipOrganisationId === organisationId;
   const permissions = access?.effectivePermissions ?? [];
+  const membershipId = access?.activeOrganisation?.membershipId ?? "";
+  const membershipOrganisationId =
+    access?.activeOrganisation?.membershipOrganisationId ?? "";
+  const accessSource = access?.activeOrganisation?.accessSource ?? "";
+  const accessVersion = String(access?.activeOrganisation?.version ?? "");
   const actorUserId = meQuery.data?.id ?? "";
   const capabilityKey = capabilityFingerprint(permissions);
   const canAccess = Boolean(
@@ -165,6 +179,28 @@ export default function ClientActionPortalRoute() {
     },
     enabled: canView && Boolean(actorUserId),
   });
+  const activeSnapshot = useRef<ClientActionSnapshot | undefined>(undefined);
+  activeSnapshot.current = snapshotQuery.data;
+  const activeUploadScope = useRef({
+    organisationId,
+    projectId,
+    actorUserId,
+    capabilityKey,
+    membershipId,
+    membershipOrganisationId,
+    accessSource,
+    accessVersion,
+  });
+  activeUploadScope.current = {
+    organisationId,
+    projectId,
+    actorUserId,
+    capabilityKey,
+    membershipId,
+    membershipOrganisationId,
+    accessSource,
+    accessVersion,
+  };
   const authorityQueryKey = [
     QUERY_ROOT,
     "authorities",
@@ -240,6 +276,92 @@ export default function ClientActionPortalRoute() {
       void queryClient.invalidateQueries({ queryKey });
     },
   });
+  const uploadExactIntent = async (
+    input: RunClientActionUploadInput,
+    onProgress: (progress: ClientActionUploadProgress) => void,
+  ) => {
+    if (uploadInFlightRef.current) {
+      throw new ClientActionUploadFlowError(
+        "Another governed upload is still active. Wait for its authoritative result before starting a different slot.",
+        "checking",
+        "reload_scope",
+        false,
+      );
+    }
+    uploadInFlightRef.current = true;
+    const requestedScope = { ...activeUploadScope.current };
+    const assertCurrent = () => {
+      assertAuthorityScopeCurrent(
+        activeUploadScope.current,
+        requestedScope,
+        "Client action upload authority or tenant changed",
+      );
+      assertClientActionUploadTargetCurrent(
+        activeSnapshot.current,
+        input.binding,
+        requestedScope.actorUserId,
+      );
+    };
+    setUploadInFlight(true);
+    const release = access?.beginCriticalWorkflow();
+    try {
+      const receipt = await runClientActionUpload(input, {
+        assertCurrent,
+        onProgress,
+        issueLease: ({ binding, idempotencyKey }) =>
+          customFetch<unknown>(
+            `/api/projects/${encodeURIComponent(binding.projectId)}/client-actions/evidence-requests/${encodeURIComponent(binding.recordId)}/slots/${encodeURIComponent(binding.slotId)}/upload-leases`,
+            {
+              method: "POST",
+              headers: { "Idempotency-Key": idempotencyKey },
+              body: JSON.stringify({
+                expectedVersion: binding.expectedRecordVersion,
+                intentId: binding.intentId,
+              }),
+              responseType: "json",
+              cache: "no-store",
+            },
+          ),
+        putSignedObject: (uploadUrl, init) => fetch(uploadUrl, init),
+        finalize: ({ binding, lease, idempotencyKey }) =>
+          customFetch<unknown>(
+            `/api/projects/${encodeURIComponent(binding.projectId)}/client-actions/evidence-requests/${encodeURIComponent(binding.recordId)}/slots/${encodeURIComponent(binding.slotId)}/upload-leases/${encodeURIComponent(lease.leaseId)}/finalize`,
+            {
+              method: "POST",
+              headers: { "Idempotency-Key": idempotencyKey },
+              body: JSON.stringify({
+                expectedVersion: binding.expectedRecordVersion,
+                intentId: binding.intentId,
+              }),
+              responseType: "json",
+              cache: "no-store",
+            },
+          ),
+      });
+      toast({
+        title: "Governed evidence uploaded",
+        description:
+          "Secure intake attached the exact file to this request slot. No external message or package transfer was performed.",
+      });
+      void queryClient.invalidateQueries({ queryKey });
+      return receipt;
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Governed upload did not complete",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Reload the exact request slot before retrying.",
+      });
+      void queryClient.invalidateQueries({ queryKey });
+      throw error;
+    } finally {
+      release?.();
+      uploadInFlightRef.current = false;
+      setUploadInFlight(false);
+    }
+  };
 
   if (!canAccess) {
     return (
@@ -308,7 +430,7 @@ export default function ClientActionPortalRoute() {
             id="client-action-project"
             className="min-h-11 min-w-64 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             value={projectId}
-            disabled={mutation.isPending}
+            disabled={mutation.isPending || uploadInFlight}
             onChange={(event) => {
               const next = new URLSearchParams(searchParams);
               next.set("project", event.currentTarget.value);
@@ -365,9 +487,10 @@ export default function ClientActionPortalRoute() {
       ) : null}
       {snapshotQuery.data && actorUserId ? (
         <ClientActionWorkspace
-          key={`${organisationId}:${projectId}:${actorUserId}:${capabilityKey}`}
+          key={`${organisationId}:${membershipId}:${accessVersion}:${projectId}:${actorUserId}:${capabilityKey}`}
           snapshot={snapshotQuery.data}
           currentUserId={actorUserId}
+          membershipId={membershipId}
           canReview={permissions.includes("evidence:approve")}
           canCreateEvidenceRequest={canCreateEvidenceRequest}
           authorityOptions={authoritiesQuery.data?.items ?? []}
@@ -378,8 +501,13 @@ export default function ClientActionPortalRoute() {
                 ? "loading"
                 : "ready"
           }
-          pending={mutation.isPending}
+          pending={mutation.isPending || uploadInFlight}
           onMutate={(input) => mutation.mutate(input)}
+          canUpload={
+            directMembership && permissions.includes("document:upload")
+          }
+          onUpload={uploadExactIntent}
+          onReload={() => snapshotQuery.refetch()}
         />
       ) : null}
     </div>

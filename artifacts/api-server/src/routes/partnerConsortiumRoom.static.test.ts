@@ -11,10 +11,6 @@ const retentionRoute = readFileSync(
   new URL("./operations.ts", import.meta.url),
   "utf8",
 );
-const retentionIntegration = readFileSync(
-  new URL("./operations.retention.integration.test.ts", import.meta.url),
-  "utf8",
-);
 
 test("default consortium router is mounted only inside the tenant resource boundary", () => {
   assert.match(routeIndex, /createDefaultPartnerConsortiumRoomRouter/u);
@@ -50,16 +46,9 @@ test("consortium route has no external, legal, commercial, or destructive action
   assert.match(source, /createDefaultPartnerConsortiumRoomRouter/u);
 });
 
-test("governed retention purges and certifies consortium room envelopes", () => {
-  assert.match(
-    retentionRoute,
-    /CONSORTIUM_ROOM_TASK_PREFIX = "\[CONSORTIUM-ROOM:v1:"/u,
-  );
-  assert.match(
-    retentionRoute,
-    /like\(workTasks\.title, `\$\{CONSORTIUM_ROOM_TASK_PREFIX\}%`\)/u,
-  );
-  assert.match(retentionRoute, /consortium_rooms=\$\{purgedConsortiumRooms\}/u);
-  assert.match(retentionIntegration, /valo\.partner-consortium-room\/v1/u);
-  assert.match(retentionIntegration, /consortium_rooms=1/u);
+test("retention completion leaves consortium envelopes untouched while activation is gated", () => {
+  assert.match(retentionRoute, /RETENTION_COMPLETION_NOT_ACTIVATED/u);
+  assert.match(retentionRoute, /durable_two_phase_detach_reconcile_certify/u);
+  assert.doesNotMatch(retentionRoute, /CONSORTIUM_ROOM_TASK_PREFIX/u);
+  assert.doesNotMatch(retentionRoute, /consortium_rooms=/u);
 });

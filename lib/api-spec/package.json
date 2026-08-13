@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "codegen": "orval --config ./orval.config.ts && node ./patch-generated-client.mjs && pnpm -w run typecheck:libs"
+    "codegen": "orval --config ./orval.config.ts && node ./patch-generated-client.mjs && pnpm -w run typecheck:libs",
+    "test": "node --test ./roadmap-api-parity.test.mjs"
   },
   "devDependencies": {
     "orval": "^8.18.0"

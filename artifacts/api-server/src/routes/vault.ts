@@ -11,6 +11,7 @@ import { serializeVaultItem } from "../lib/serializers";
 import { writeAudit } from "../lib/audit";
 import { computeExpiry, type ExpiryBand } from "../lib/deterministic";
 import { lockStagedUploadObject } from "../lib/stagedUploadLock";
+import { enqueueStorageDeletionIntent } from "../lib/storageLifecycle/repository";
 
 const router: IRouter = Router();
 
@@ -307,12 +308,25 @@ router.patch(
       lockedExisting.objectPath &&
       lockedExisting.objectPath !== updated.objectPath
     ) {
-      // Do not delete storage inside the request DB transaction: a later audit
-      // or commit failure could restore the old reference after bytes were
-      // irreversibly removed. A durable post-commit deletion-intent reconciler
-      // must perform final-owner purge.
-      previousObjectDisposition =
-        "retained pending durable storage reconciliation";
+      const organisationId = getOrganisationId(req);
+      if (!organisationId) {
+        throw new Error(
+          "Active organisation is required for durable vault cleanup",
+        );
+      }
+      const intent = await enqueueStorageDeletionIntent({
+        organisationId,
+        // Vault artefacts are client-owned and may serve several pursuits.
+        // Keep their deletion queue independent of any one project cascade.
+        projectId: null,
+        objectPath: lockedExisting.objectPath,
+        aggregateType: "vault_item",
+        aggregateId: lockedExisting.id,
+        reason: "reference_replaced",
+        requestedAt: new Date(),
+        actor: getLocalUser(req),
+      });
+      previousObjectDisposition = `queued for durable deletion reconciliation (${intent.id})`;
     }
     await writeAudit({
       user: getLocalUser(req),
@@ -360,8 +374,26 @@ router.delete(
       return;
     }
     const objectDisposition = deleted.objectPath
-      ? "retained pending durable storage reconciliation"
+      ? "queued for durable storage reconciliation"
       : "no linked object";
+    if (deleted.objectPath) {
+      const organisationId = getOrganisationId(req);
+      if (!organisationId) {
+        throw new Error(
+          "Active organisation is required for durable vault cleanup",
+        );
+      }
+      await enqueueStorageDeletionIntent({
+        organisationId,
+        projectId: null,
+        objectPath: deleted.objectPath,
+        aggregateType: "vault_item",
+        aggregateId: deleted.id,
+        reason: "record_deleted",
+        requestedAt: new Date(),
+        actor: getLocalUser(req),
+      });
+    }
     await writeAudit({
       user: getLocalUser(req),
       organisationId: getOrganisationId(req),

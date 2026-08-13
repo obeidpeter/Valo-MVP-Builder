@@ -66,6 +66,21 @@ import type {
   ClientAcknowledgementInput,
   ClientActionAuthorityDirectory,
   ClientActionSnapshot,
+  ClientActionUploadBadRequestResponse,
+  ClientActionUploadCapacityExceededResponse,
+  ClientActionUploadConflictResponse,
+  ClientActionUploadExpiredResponse,
+  ClientActionUploadFinalizationCreatedReceipt,
+  ClientActionUploadFinalizationReplayReceipt,
+  ClientActionUploadForbiddenResponse,
+  ClientActionUploadIntakeRejectedResponse,
+  ClientActionUploadInternalErrorResponse,
+  ClientActionUploadLeaseCreatedGrant,
+  ClientActionUploadLeaseReplayGrant,
+  ClientActionUploadLeaseRequest,
+  ClientActionUploadNotFoundResponse,
+  ClientActionUploadUnauthorizedResponse,
+  ClientActionUploadUnavailableResponse,
   ClientAttachDocumentInput,
   ClientCreate,
   ClientDocumentSummary,
@@ -116,6 +131,17 @@ import type {
   EvidenceCreate,
   EvidenceItem,
   EvidenceMapResult,
+  EvidenceRenewalAuthorityList,
+  EvidenceRenewalCapacityExceededResponse,
+  EvidenceRenewalConflictResponse,
+  EvidenceRenewalCreateDraft,
+  EvidenceRenewalCreateSuccess,
+  EvidenceRenewalNotFoundResponse,
+  EvidenceRenewalReviewDraft,
+  EvidenceRenewalSnapshot,
+  EvidenceRenewalStageDraft,
+  EvidenceRenewalUnavailableResponse,
+  EvidenceRenewalUpdateSuccess,
   EvidenceUpdate,
   ExpectedVersionRequest,
   ExtractRequest,
@@ -174,6 +200,8 @@ import type {
   OperationsCredentialVerificationRecord,
   OperationsEvidenceDecision,
   OperationsEvidenceRequestRecord,
+  OperationsFieldDraftPromotionReceipt,
+  OperationsFieldDraftPromotionRequest,
   OperationsForbiddenResponse,
   OperationsMissionRecord,
   OperationsMobileQueue,
@@ -192,6 +220,9 @@ import type {
   OperationsVisualQaReportRecord,
   OperationsWorkApprovalDecision,
   OperationsWorkItemRecord,
+  OpportunityPursuitHandoffConfirmation,
+  OpportunityPursuitHandoffPreparation,
+  OpportunityPursuitHandoffResult,
   OpportunitySourceCandidate,
   OpportunitySourceDecision,
   OpportunitySourceInput,
@@ -236,7 +267,7 @@ import type {
   ResponsivenessResult,
   RetainerRequestAction,
   RetainerRequestMutationResponse,
-  RetentionCompletionConflict,
+  RetentionCompletionUnavailable,
   RetentionRequest,
   RetentionRequestCreate,
   RiskAssessment,
@@ -3189,11 +3220,12 @@ export const getCompleteRetentionRequestUrl = (id: string,) => {
 }
 
 /**
- * @summary Complete a retention request and issue a deletion certificate
+ * This release fails closed because blob deletion and relational deletion cannot yet be certified as one durable two-phase detach/reconcile/certify outcome. After authentication and retention permission checks, this operation performs no ID lookup, deletion, database mutation, audit write or certificate issuance and returns only the strict 503 refusal envelope.
+ * @summary Report that certified retention completion is not activated
  */
-export const completeRetentionRequest = async (id: string, options?: RequestInit): Promise<RetentionRequest> => {
+export const completeRetentionRequest = async (id: string, options?: RequestInit): Promise<RetentionCompletionUnavailable> => {
 
-  return customFetch<RetentionRequest>(getCompleteRetentionRequestUrl(id),
+  return customFetch<RetentionCompletionUnavailable>(getCompleteRetentionRequestUrl(id),
   {
     ...options,
     method: 'POST'
@@ -3205,7 +3237,7 @@ export const completeRetentionRequest = async (id: string, options?: RequestInit
 
 
 
-export const getCompleteRetentionRequestMutationOptions = <TError = ErrorType<NotFoundResponse | RetentionCompletionConflict | ErrorEnvelope>,
+export const getCompleteRetentionRequestMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | RetentionCompletionUnavailable>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeRetentionRequest>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof completeRetentionRequest>>, TError,{id: string}, TContext> => {
 
@@ -3234,12 +3266,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CompleteRetentionRequestMutationResult = NonNullable<Awaited<ReturnType<typeof completeRetentionRequest>>>
 
-    export type CompleteRetentionRequestMutationError = ErrorType<NotFoundResponse | RetentionCompletionConflict | ErrorEnvelope>
+    export type CompleteRetentionRequestMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | RetentionCompletionUnavailable>
 
     /**
- * @summary Complete a retention request and issue a deletion certificate
+ * @summary Report that certified retention completion is not activated
  */
-export const useCompleteRetentionRequest = <TError = ErrorType<NotFoundResponse | RetentionCompletionConflict | ErrorEnvelope>,
+export const useCompleteRetentionRequest = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | RetentionCompletionUnavailable>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeRetentionRequest>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof completeRetentionRequest>>,
@@ -8830,6 +8862,80 @@ export const useAddOperationsWorkItemComment = <TError = ErrorType<OperationsBad
       return useMutation(getAddOperationsWorkItemCommentMutationOptions(options));
     }
 
+export const getPromoteFieldDraftToOperationsWorkItemUrl = (id: string,
+    recordId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/operations-suite/work-items/${recordId}/field-draft-promotions`
+}
+
+/**
+ * Copies only the named operator's explicitly selected fields into one existing governed work item under target-version compare-and-swap. Each tenant, project, draft ID and draft-version tuple may be promoted to the target only once, even with a fresh Idempotency-Key. The response is a content-free receipt: no authoritative evidence is created and Valo cannot delete the browser-local encrypted draft.
+ * @summary Promote reviewed fields from one encrypted local draft revision
+ */
+export const promoteFieldDraftToOperationsWorkItem = async (id: string,
+    recordId: string,
+    operationsFieldDraftPromotionRequest: OperationsFieldDraftPromotionRequest, idempotencyKey: string, options?: RequestInit): Promise<OperationsFieldDraftPromotionReceipt> => {
+
+  return customFetch<OperationsFieldDraftPromotionReceipt>(getPromoteFieldDraftToOperationsWorkItemUrl(id,recordId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey, ...options?.headers },
+    body: JSON.stringify(operationsFieldDraftPromotionRequest)
+  }
+);}
+
+
+
+
+export const getPromoteFieldDraftToOperationsWorkItemMutationOptions = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof promoteFieldDraftToOperationsWorkItem>>, TError,{id: string;recordId: string;data: BodyType<OperationsFieldDraftPromotionRequest>;idempotencyKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof promoteFieldDraftToOperationsWorkItem>>, TError,{id: string;recordId: string;data: BodyType<OperationsFieldDraftPromotionRequest>;idempotencyKey: string}, TContext> => {
+
+const mutationKey = ['promoteFieldDraftToOperationsWorkItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof promoteFieldDraftToOperationsWorkItem>>, {id: string;recordId: string;data: BodyType<OperationsFieldDraftPromotionRequest>;idempotencyKey: string}> = (props) => {
+          const {id,recordId,data,idempotencyKey} = props ?? {};
+
+          return  promoteFieldDraftToOperationsWorkItem(id,recordId,data,idempotencyKey,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PromoteFieldDraftToOperationsWorkItemMutationResult = NonNullable<Awaited<ReturnType<typeof promoteFieldDraftToOperationsWorkItem>>>
+    export type PromoteFieldDraftToOperationsWorkItemMutationBody = BodyType<OperationsFieldDraftPromotionRequest>
+    export type PromoteFieldDraftToOperationsWorkItemMutationError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>
+
+    /**
+ * @summary Promote reviewed fields from one encrypted local draft revision
+ */
+export const usePromoteFieldDraftToOperationsWorkItem = <TError = ErrorType<OperationsBadRequestResponse | UnauthorizedResponse | OperationsForbiddenResponse | OperationsNotFoundResponse | OperationsConflictResponse | OperationsPayloadTooLargeResponse | OperationsPolicyDeniedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof promoteFieldDraftToOperationsWorkItem>>, TError,{id: string;recordId: string;data: BodyType<OperationsFieldDraftPromotionRequest>;idempotencyKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof promoteFieldDraftToOperationsWorkItem>>,
+        TError,
+        {id: string;recordId: string;data: BodyType<OperationsFieldDraftPromotionRequest>;idempotencyKey: string},
+        TContext
+      > => {
+      return useMutation(getPromoteFieldDraftToOperationsWorkItemMutationOptions(options));
+    }
+
 export const getDecideOperationsWorkItemApprovalUrl = (id: string,
     recordId: string,) => {
 
@@ -11058,6 +11164,160 @@ export const useCreateClientUploadIntent = <TError = ErrorType<BadRequestRespons
       return useMutation(getCreateClientUploadIntentMutationOptions(options));
     }
 
+export const getIssueClientActionUploadLeaseUrl = (id: string,
+    recordId: string,
+    slotId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/client-actions/evidence-requests/${recordId}/slots/${slotId}/upload-leases`
+}
+
+/**
+ * The named current direct recipient requests a 15-minute lease for the latest active, acknowledged request-slot intent at the exact record version. The 4,096-byte JSON body carries identity metadata only; raw file bytes are accepted only by the returned signed object-storage PUT URL, never by this API. Issuance is server-disabled by default and returns 503 until every platform, provider and tenant activation gate is verified; publishing this contract does not activate production use. Once activated, the signed window is at most 840 seconds and closes before the database lease; bounded post-expiry reconciliation is still required and is not a provider-level create-only guarantee. Reuse of Idempotency-Key is allowed only for the exact tenant, actor, request, slot, intent, version and declared file material. Valo sends no external message and exposes no generic client upload portal.
+ * @summary Issue a purpose-bound direct-to-storage upload lease
+ */
+export const issueClientActionUploadLease = async (id: string,
+    recordId: string,
+    slotId: string,
+    clientActionUploadLeaseRequest: ClientActionUploadLeaseRequest, idempotencyKey: string, options?: RequestInit): Promise<ClientActionUploadLeaseReplayGrant | ClientActionUploadLeaseCreatedGrant> => {
+
+  return customFetch<ClientActionUploadLeaseReplayGrant | ClientActionUploadLeaseCreatedGrant>(getIssueClientActionUploadLeaseUrl(id,recordId,slotId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey, ...options?.headers },
+    body: JSON.stringify(clientActionUploadLeaseRequest)
+  }
+);}
+
+
+
+
+export const getIssueClientActionUploadLeaseMutationOptions = <TError = ErrorType<ClientActionUploadBadRequestResponse | ClientActionUploadUnauthorizedResponse | ClientActionUploadForbiddenResponse | ClientActionUploadNotFoundResponse | ClientActionUploadConflictResponse | ClientActionUploadExpiredResponse | ClientActionUploadCapacityExceededResponse | ClientActionUploadInternalErrorResponse | ClientActionUploadUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof issueClientActionUploadLease>>, TError,{id: string;recordId: string;slotId: string;data: BodyType<ClientActionUploadLeaseRequest>;idempotencyKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof issueClientActionUploadLease>>, TError,{id: string;recordId: string;slotId: string;data: BodyType<ClientActionUploadLeaseRequest>;idempotencyKey: string}, TContext> => {
+
+const mutationKey = ['issueClientActionUploadLease'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof issueClientActionUploadLease>>, {id: string;recordId: string;slotId: string;data: BodyType<ClientActionUploadLeaseRequest>;idempotencyKey: string}> = (props) => {
+          const {id,recordId,slotId,data,idempotencyKey} = props ?? {};
+
+          return  issueClientActionUploadLease(id,recordId,slotId,data,idempotencyKey,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type IssueClientActionUploadLeaseMutationResult = NonNullable<Awaited<ReturnType<typeof issueClientActionUploadLease>>>
+    export type IssueClientActionUploadLeaseMutationBody = BodyType<ClientActionUploadLeaseRequest>
+    export type IssueClientActionUploadLeaseMutationError = ErrorType<ClientActionUploadBadRequestResponse | ClientActionUploadUnauthorizedResponse | ClientActionUploadForbiddenResponse | ClientActionUploadNotFoundResponse | ClientActionUploadConflictResponse | ClientActionUploadExpiredResponse | ClientActionUploadCapacityExceededResponse | ClientActionUploadInternalErrorResponse | ClientActionUploadUnavailableResponse>
+
+    /**
+ * @summary Issue a purpose-bound direct-to-storage upload lease
+ */
+export const useIssueClientActionUploadLease = <TError = ErrorType<ClientActionUploadBadRequestResponse | ClientActionUploadUnauthorizedResponse | ClientActionUploadForbiddenResponse | ClientActionUploadNotFoundResponse | ClientActionUploadConflictResponse | ClientActionUploadExpiredResponse | ClientActionUploadCapacityExceededResponse | ClientActionUploadInternalErrorResponse | ClientActionUploadUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof issueClientActionUploadLease>>, TError,{id: string;recordId: string;slotId: string;data: BodyType<ClientActionUploadLeaseRequest>;idempotencyKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof issueClientActionUploadLease>>,
+        TError,
+        {id: string;recordId: string;slotId: string;data: BodyType<ClientActionUploadLeaseRequest>;idempotencyKey: string},
+        TContext
+      > => {
+      return useMutation(getIssueClientActionUploadLeaseMutationOptions(options));
+    }
+
+export const getFinalizeClientActionUploadLeaseUrl = (id: string,
+    recordId: string,
+    slotId: string,
+    leaseId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/client-actions/evidence-requests/${recordId}/slots/${slotId}/upload-leases/${leaseId}/finalize`
+}
+
+/**
+ * Revalidates the current direct recipient, project, request, latest active slot intent, exact record version, idempotency identity, lease and expiry before downloading the staged object once for exact size, SHA-256, MIME, signature and malware inspection. Successful create-only promotion is registered atomically as one document and version, attached only to the exact slot, and returned as a receipt; extraction is not started. The request contains no file bytes, sends no external message and cannot be used as a generic upload portal. Rejected or ambiguous storage dispositions fail closed and are reconciled by the governed lifecycle.
+ * @summary Inspect and atomically finalize a governed client upload
+ */
+export const finalizeClientActionUploadLease = async (id: string,
+    recordId: string,
+    slotId: string,
+    leaseId: string,
+    clientActionUploadLeaseRequest: ClientActionUploadLeaseRequest, idempotencyKey: string, options?: RequestInit): Promise<ClientActionUploadFinalizationReplayReceipt | ClientActionUploadFinalizationCreatedReceipt> => {
+
+  return customFetch<ClientActionUploadFinalizationReplayReceipt | ClientActionUploadFinalizationCreatedReceipt>(getFinalizeClientActionUploadLeaseUrl(id,recordId,slotId,leaseId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey, ...options?.headers },
+    body: JSON.stringify(clientActionUploadLeaseRequest)
+  }
+);}
+
+
+
+
+export const getFinalizeClientActionUploadLeaseMutationOptions = <TError = ErrorType<ClientActionUploadBadRequestResponse | ClientActionUploadUnauthorizedResponse | ClientActionUploadForbiddenResponse | ClientActionUploadNotFoundResponse | ClientActionUploadConflictResponse | ClientActionUploadExpiredResponse | ClientActionUploadCapacityExceededResponse | ClientActionUploadIntakeRejectedResponse | ClientActionUploadInternalErrorResponse | ClientActionUploadUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof finalizeClientActionUploadLease>>, TError,{id: string;recordId: string;slotId: string;leaseId: string;data: BodyType<ClientActionUploadLeaseRequest>;idempotencyKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof finalizeClientActionUploadLease>>, TError,{id: string;recordId: string;slotId: string;leaseId: string;data: BodyType<ClientActionUploadLeaseRequest>;idempotencyKey: string}, TContext> => {
+
+const mutationKey = ['finalizeClientActionUploadLease'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof finalizeClientActionUploadLease>>, {id: string;recordId: string;slotId: string;leaseId: string;data: BodyType<ClientActionUploadLeaseRequest>;idempotencyKey: string}> = (props) => {
+          const {id,recordId,slotId,leaseId,data,idempotencyKey} = props ?? {};
+
+          return  finalizeClientActionUploadLease(id,recordId,slotId,leaseId,data,idempotencyKey,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FinalizeClientActionUploadLeaseMutationResult = NonNullable<Awaited<ReturnType<typeof finalizeClientActionUploadLease>>>
+    export type FinalizeClientActionUploadLeaseMutationBody = BodyType<ClientActionUploadLeaseRequest>
+    export type FinalizeClientActionUploadLeaseMutationError = ErrorType<ClientActionUploadBadRequestResponse | ClientActionUploadUnauthorizedResponse | ClientActionUploadForbiddenResponse | ClientActionUploadNotFoundResponse | ClientActionUploadConflictResponse | ClientActionUploadExpiredResponse | ClientActionUploadCapacityExceededResponse | ClientActionUploadIntakeRejectedResponse | ClientActionUploadInternalErrorResponse | ClientActionUploadUnavailableResponse>
+
+    /**
+ * @summary Inspect and atomically finalize a governed client upload
+ */
+export const useFinalizeClientActionUploadLease = <TError = ErrorType<ClientActionUploadBadRequestResponse | ClientActionUploadUnauthorizedResponse | ClientActionUploadForbiddenResponse | ClientActionUploadNotFoundResponse | ClientActionUploadConflictResponse | ClientActionUploadExpiredResponse | ClientActionUploadCapacityExceededResponse | ClientActionUploadIntakeRejectedResponse | ClientActionUploadInternalErrorResponse | ClientActionUploadUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof finalizeClientActionUploadLease>>, TError,{id: string;recordId: string;slotId: string;leaseId: string;data: BodyType<ClientActionUploadLeaseRequest>;idempotencyKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof finalizeClientActionUploadLease>>,
+        TError,
+        {id: string;recordId: string;slotId: string;leaseId: string;data: BodyType<ClientActionUploadLeaseRequest>;idempotencyKey: string},
+        TContext
+      > => {
+      return useMutation(getFinalizeClientActionUploadLeaseMutationOptions(options));
+    }
+
 export const getAttachClientEvidenceDocumentUrl = (id: string,
     recordId: string,
     slotId: string,) => {
@@ -11725,6 +11985,532 @@ export const useDecideOpportunitySourceCandidate = <TError = ErrorType<BadReques
         TContext
       > => {
       return useMutation(getDecideOpportunitySourceCandidateMutationOptions(options));
+    }
+
+export const getPrepareOpportunityPursuitHandoffUrl = (candidateId: string,) => {
+
+
+
+
+  return `/api/opportunity-sources/${candidateId}/pursuit-handoff`
+}
+
+/**
+ * Revalidates the accepted source, tender, clients, lots, eligible reviewer directory and same-tender conflict boundary. The immutable register is capped at 250 lifetime handoff receipts per organisation and has no in-app archive. Confirmation must stop before capacity until a reviewed retention/storage migration is approved; audit events must never be deleted merely to recover capacity.
+ * @summary Prepare an accepted source for named-human pursuit confirmation
+ */
+export const prepareOpportunityPursuitHandoff = async (candidateId: string, options?: RequestInit): Promise<OpportunityPursuitHandoffPreparation> => {
+
+  return customFetch<OpportunityPursuitHandoffPreparation>(getPrepareOpportunityPursuitHandoffUrl(candidateId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPrepareOpportunityPursuitHandoffQueryKey = (candidateId: string,) => {
+    return [
+    `/api/opportunity-sources/${candidateId}/pursuit-handoff`
+    ] as const;
+    }
+
+
+export const getPrepareOpportunityPursuitHandoffQueryOptions = <TData = Awaited<ReturnType<typeof prepareOpportunityPursuitHandoff>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(candidateId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof prepareOpportunityPursuitHandoff>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPrepareOpportunityPursuitHandoffQueryKey(candidateId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof prepareOpportunityPursuitHandoff>>> = ({ signal }) => prepareOpportunityPursuitHandoff(candidateId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: candidateId !== null && candidateId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof prepareOpportunityPursuitHandoff>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type PrepareOpportunityPursuitHandoffQueryResult = NonNullable<Awaited<ReturnType<typeof prepareOpportunityPursuitHandoff>>>
+export type PrepareOpportunityPursuitHandoffQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+
+/**
+ * @summary Prepare an accepted source for named-human pursuit confirmation
+ */
+
+export function usePrepareOpportunityPursuitHandoff<TData = Awaited<ReturnType<typeof prepareOpportunityPursuitHandoff>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(
+ candidateId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof prepareOpportunityPursuitHandoff>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getPrepareOpportunityPursuitHandoffQueryOptions(candidateId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getConfirmOpportunityPursuitHandoffUrl = (candidateId: string,) => {
+
+
+
+
+  return `/api/opportunity-sources/${candidateId}/pursuit-handoff/confirm`
+}
+
+/**
+ * A named maker confirms the official source after reopening it and names a different eligible pursuit reviewer. Client, tender, optional lot and same-tender conflict versions are rechecked inside the write boundary. The 16,384-byte request creates only an intake-state pursuit and never activates a pursuit or performs a provider fetch. The immutable register is capped at 250 lifetime handoff receipts per organisation and has no in-app archive; a reviewed retention/storage migration is required before recovering capacity, and audit events must never be deleted.
+ * @summary Create one intake-state pursuit from a revalidated source
+ */
+export const confirmOpportunityPursuitHandoff = async (candidateId: string,
+    opportunityPursuitHandoffConfirmation: OpportunityPursuitHandoffConfirmation, idempotencyKey: string, options?: RequestInit): Promise<OpportunityPursuitHandoffResult> => {
+
+  return customFetch<OpportunityPursuitHandoffResult>(getConfirmOpportunityPursuitHandoffUrl(candidateId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey, ...options?.headers },
+    body: JSON.stringify(opportunityPursuitHandoffConfirmation)
+  }
+);}
+
+
+
+
+export const getConfirmOpportunityPursuitHandoffMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmOpportunityPursuitHandoff>>, TError,{candidateId: string;data: BodyType<OpportunityPursuitHandoffConfirmation>;idempotencyKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmOpportunityPursuitHandoff>>, TError,{candidateId: string;data: BodyType<OpportunityPursuitHandoffConfirmation>;idempotencyKey: string}, TContext> => {
+
+const mutationKey = ['confirmOpportunityPursuitHandoff'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmOpportunityPursuitHandoff>>, {candidateId: string;data: BodyType<OpportunityPursuitHandoffConfirmation>;idempotencyKey: string}> = (props) => {
+          const {candidateId,data,idempotencyKey} = props ?? {};
+
+          return  confirmOpportunityPursuitHandoff(candidateId,data,idempotencyKey,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmOpportunityPursuitHandoffMutationResult = NonNullable<Awaited<ReturnType<typeof confirmOpportunityPursuitHandoff>>>
+    export type ConfirmOpportunityPursuitHandoffMutationBody = BodyType<OpportunityPursuitHandoffConfirmation>
+    export type ConfirmOpportunityPursuitHandoffMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Create one intake-state pursuit from a revalidated source
+ */
+export const useConfirmOpportunityPursuitHandoff = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmOpportunityPursuitHandoff>>, TError,{candidateId: string;data: BodyType<OpportunityPursuitHandoffConfirmation>;idempotencyKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof confirmOpportunityPursuitHandoff>>,
+        TError,
+        {candidateId: string;data: BodyType<OpportunityPursuitHandoffConfirmation>;idempotencyKey: string},
+        TContext
+      > => {
+      return useMutation(getConfirmOpportunityPursuitHandoffMutationOptions(options));
+    }
+
+export const getGetEvidenceRenewalSnapshotUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/projects/${projectId}/evidence-renewals`
+}
+
+/**
+ * Returns a bounded receipt-backed internal renewal register. Internal reminders are register records only; Valo sends no external message and records no external delivery receipt.
+ * @summary Read the project evidence-renewal register
+ */
+export const getEvidenceRenewalSnapshot = async (projectId: string, options?: RequestInit): Promise<EvidenceRenewalSnapshot> => {
+
+  return customFetch<EvidenceRenewalSnapshot>(getGetEvidenceRenewalSnapshotUrl(projectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEvidenceRenewalSnapshotQueryKey = (projectId: string,) => {
+    return [
+    `/api/projects/${projectId}/evidence-renewals`
+    ] as const;
+    }
+
+
+export const getGetEvidenceRenewalSnapshotQueryOptions = <TData = Awaited<ReturnType<typeof getEvidenceRenewalSnapshot>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | EvidenceRenewalNotFoundResponse | EvidenceRenewalConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | EvidenceRenewalUnavailableResponse>>(projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEvidenceRenewalSnapshot>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEvidenceRenewalSnapshotQueryKey(projectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEvidenceRenewalSnapshot>>> = ({ signal }) => getEvidenceRenewalSnapshot(projectId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: projectId !== null && projectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEvidenceRenewalSnapshot>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEvidenceRenewalSnapshotQueryResult = NonNullable<Awaited<ReturnType<typeof getEvidenceRenewalSnapshot>>>
+export type GetEvidenceRenewalSnapshotQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | EvidenceRenewalNotFoundResponse | EvidenceRenewalConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | EvidenceRenewalUnavailableResponse>
+
+
+/**
+ * @summary Read the project evidence-renewal register
+ */
+
+export function useGetEvidenceRenewalSnapshot<TData = Awaited<ReturnType<typeof getEvidenceRenewalSnapshot>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | EvidenceRenewalNotFoundResponse | EvidenceRenewalConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | EvidenceRenewalUnavailableResponse>>(
+ projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEvidenceRenewalSnapshot>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEvidenceRenewalSnapshotQueryOptions(projectId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateEvidenceRenewalPlanUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/projects/${projectId}/evidence-renewals`
+}
+
+/**
+ * Creates an internal due reminder and immutable plan receipt after validating current direct evidence-write authority, a distinct eligible verifier, the canonical vault item and all same-client non-archived affected pursuits. It sends no external message or delivery.
+ * @summary Create one owner-and-verifier renewal plan
+ */
+export const createEvidenceRenewalPlan = async (projectId: string,
+    evidenceRenewalCreateDraft: EvidenceRenewalCreateDraft, options?: RequestInit): Promise<EvidenceRenewalCreateSuccess> => {
+
+  return customFetch<EvidenceRenewalCreateSuccess>(getCreateEvidenceRenewalPlanUrl(projectId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(evidenceRenewalCreateDraft)
+  }
+);}
+
+
+
+
+export const getCreateEvidenceRenewalPlanMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | EvidenceRenewalNotFoundResponse | EvidenceRenewalConflictResponse | RoadmapCapacityExceededResponse | EvidenceRenewalCapacityExceededResponse | InternalServerErrorResponse | EvidenceRenewalUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEvidenceRenewalPlan>>, TError,{projectId: string;data: BodyType<EvidenceRenewalCreateDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createEvidenceRenewalPlan>>, TError,{projectId: string;data: BodyType<EvidenceRenewalCreateDraft>}, TContext> => {
+
+const mutationKey = ['createEvidenceRenewalPlan'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createEvidenceRenewalPlan>>, {projectId: string;data: BodyType<EvidenceRenewalCreateDraft>}> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  createEvidenceRenewalPlan(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateEvidenceRenewalPlanMutationResult = NonNullable<Awaited<ReturnType<typeof createEvidenceRenewalPlan>>>
+    export type CreateEvidenceRenewalPlanMutationBody = BodyType<EvidenceRenewalCreateDraft>
+    export type CreateEvidenceRenewalPlanMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | EvidenceRenewalNotFoundResponse | EvidenceRenewalConflictResponse | RoadmapCapacityExceededResponse | EvidenceRenewalCapacityExceededResponse | InternalServerErrorResponse | EvidenceRenewalUnavailableResponse>
+
+    /**
+ * @summary Create one owner-and-verifier renewal plan
+ */
+export const useCreateEvidenceRenewalPlan = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | EvidenceRenewalNotFoundResponse | EvidenceRenewalConflictResponse | RoadmapCapacityExceededResponse | EvidenceRenewalCapacityExceededResponse | InternalServerErrorResponse | EvidenceRenewalUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEvidenceRenewalPlan>>, TError,{projectId: string;data: BodyType<EvidenceRenewalCreateDraft>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createEvidenceRenewalPlan>>,
+        TError,
+        {projectId: string;data: BodyType<EvidenceRenewalCreateDraft>},
+        TContext
+      > => {
+      return useMutation(getCreateEvidenceRenewalPlanMutationOptions(options));
+    }
+
+export const getListEvidenceRenewalAuthoritiesUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/projects/${projectId}/evidence-renewals/authorities`
+}
+
+/**
+ * Returns bounded current direct tenant members eligible for evidence-write ownership or evidence-approve verification. It includes names and user IDs only and performs no messaging.
+ * @summary List current direct owners and independent verifiers
+ */
+export const listEvidenceRenewalAuthorities = async (projectId: string, options?: RequestInit): Promise<EvidenceRenewalAuthorityList> => {
+
+  return customFetch<EvidenceRenewalAuthorityList>(getListEvidenceRenewalAuthoritiesUrl(projectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEvidenceRenewalAuthoritiesQueryKey = (projectId: string,) => {
+    return [
+    `/api/projects/${projectId}/evidence-renewals/authorities`
+    ] as const;
+    }
+
+
+export const getListEvidenceRenewalAuthoritiesQueryOptions = <TData = Awaited<ReturnType<typeof listEvidenceRenewalAuthorities>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | EvidenceRenewalNotFoundResponse | EvidenceRenewalConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | EvidenceRenewalUnavailableResponse>>(projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEvidenceRenewalAuthorities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEvidenceRenewalAuthoritiesQueryKey(projectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEvidenceRenewalAuthorities>>> = ({ signal }) => listEvidenceRenewalAuthorities(projectId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: projectId !== null && projectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEvidenceRenewalAuthorities>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListEvidenceRenewalAuthoritiesQueryResult = NonNullable<Awaited<ReturnType<typeof listEvidenceRenewalAuthorities>>>
+export type ListEvidenceRenewalAuthoritiesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | EvidenceRenewalNotFoundResponse | EvidenceRenewalConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | EvidenceRenewalUnavailableResponse>
+
+
+/**
+ * @summary List current direct owners and independent verifiers
+ */
+
+export function useListEvidenceRenewalAuthorities<TData = Awaited<ReturnType<typeof listEvidenceRenewalAuthorities>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | EvidenceRenewalNotFoundResponse | EvidenceRenewalConflictResponse | RoadmapCapacityExceededResponse | InternalServerErrorResponse | EvidenceRenewalUnavailableResponse>>(
+ projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEvidenceRenewalAuthorities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListEvidenceRenewalAuthoritiesQueryOptions(projectId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStageEvidenceRenewalReplacementUrl = (projectId: string,
+    planId: string,) => {
+
+
+
+
+  return `/api/projects/${projectId}/evidence-renewals/${planId}/staged-replacement`
+}
+
+/**
+ * The assigned owner records one current canonical document/version receipt under If-Match. Staging creates no vault_item_version and changes no vault projection; it preserves the canonical document identity, version, hash and expected vault-item version in the renewal ledger for independent review.
+ * @summary Record a canonical replacement document in the renewal ledger
+ */
+export const stageEvidenceRenewalReplacement = async (projectId: string,
+    planId: string,
+    evidenceRenewalStageDraft: EvidenceRenewalStageDraft, ifMatch: string, options?: RequestInit): Promise<EvidenceRenewalUpdateSuccess> => {
+
+  return customFetch<EvidenceRenewalUpdateSuccess>(getStageEvidenceRenewalReplacementUrl(projectId,planId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'If-Match': ifMatch, ...options?.headers },
+    body: JSON.stringify(evidenceRenewalStageDraft)
+  }
+);}
+
+
+
+
+export const getStageEvidenceRenewalReplacementMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | EvidenceRenewalNotFoundResponse | EvidenceRenewalConflictResponse | RoadmapCapacityExceededResponse | PreconditionRequiredResponse | EvidenceRenewalCapacityExceededResponse | InternalServerErrorResponse | EvidenceRenewalUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof stageEvidenceRenewalReplacement>>, TError,{projectId: string;planId: string;data: BodyType<EvidenceRenewalStageDraft>;ifMatch: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof stageEvidenceRenewalReplacement>>, TError,{projectId: string;planId: string;data: BodyType<EvidenceRenewalStageDraft>;ifMatch: string}, TContext> => {
+
+const mutationKey = ['stageEvidenceRenewalReplacement'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof stageEvidenceRenewalReplacement>>, {projectId: string;planId: string;data: BodyType<EvidenceRenewalStageDraft>;ifMatch: string}> = (props) => {
+          const {projectId,planId,data,ifMatch} = props ?? {};
+
+          return  stageEvidenceRenewalReplacement(projectId,planId,data,ifMatch,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StageEvidenceRenewalReplacementMutationResult = NonNullable<Awaited<ReturnType<typeof stageEvidenceRenewalReplacement>>>
+    export type StageEvidenceRenewalReplacementMutationBody = BodyType<EvidenceRenewalStageDraft>
+    export type StageEvidenceRenewalReplacementMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | EvidenceRenewalNotFoundResponse | EvidenceRenewalConflictResponse | RoadmapCapacityExceededResponse | PreconditionRequiredResponse | EvidenceRenewalCapacityExceededResponse | InternalServerErrorResponse | EvidenceRenewalUnavailableResponse>
+
+    /**
+ * @summary Record a canonical replacement document in the renewal ledger
+ */
+export const useStageEvidenceRenewalReplacement = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | EvidenceRenewalNotFoundResponse | EvidenceRenewalConflictResponse | RoadmapCapacityExceededResponse | PreconditionRequiredResponse | EvidenceRenewalCapacityExceededResponse | InternalServerErrorResponse | EvidenceRenewalUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof stageEvidenceRenewalReplacement>>, TError,{projectId: string;planId: string;data: BodyType<EvidenceRenewalStageDraft>;ifMatch: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof stageEvidenceRenewalReplacement>>,
+        TError,
+        {projectId: string;planId: string;data: BodyType<EvidenceRenewalStageDraft>;ifMatch: string},
+        TContext
+      > => {
+      return useMutation(getStageEvidenceRenewalReplacementMutationOptions(options));
+    }
+
+export const getReviewEvidenceRenewalReplacementUrl = (projectId: string,
+    planId: string,) => {
+
+
+
+
+  return `/api/projects/${projectId}/evidence-renewals/${planId}/review`
+}
+
+/**
+ * A distinct assigned evidence approver reviews under If-Match. Approval freshly revalidates the canonical document, hash and version and updates vault_items with an exact version CAS. Rejection records a terminal rejected receipt without promoting any document, even if the staged candidate has drifted. Both outcomes resolve only the internal register reminder and send no external message.
+ * @summary Independently approve or reject a staged replacement
+ */
+export const reviewEvidenceRenewalReplacement = async (projectId: string,
+    planId: string,
+    evidenceRenewalReviewDraft: EvidenceRenewalReviewDraft, ifMatch: string, options?: RequestInit): Promise<EvidenceRenewalUpdateSuccess> => {
+
+  return customFetch<EvidenceRenewalUpdateSuccess>(getReviewEvidenceRenewalReplacementUrl(projectId,planId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'If-Match': ifMatch, ...options?.headers },
+    body: JSON.stringify(evidenceRenewalReviewDraft)
+  }
+);}
+
+
+
+
+export const getReviewEvidenceRenewalReplacementMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | EvidenceRenewalNotFoundResponse | EvidenceRenewalConflictResponse | RoadmapCapacityExceededResponse | PreconditionRequiredResponse | EvidenceRenewalCapacityExceededResponse | InternalServerErrorResponse | EvidenceRenewalUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewEvidenceRenewalReplacement>>, TError,{projectId: string;planId: string;data: BodyType<EvidenceRenewalReviewDraft>;ifMatch: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewEvidenceRenewalReplacement>>, TError,{projectId: string;planId: string;data: BodyType<EvidenceRenewalReviewDraft>;ifMatch: string}, TContext> => {
+
+const mutationKey = ['reviewEvidenceRenewalReplacement'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewEvidenceRenewalReplacement>>, {projectId: string;planId: string;data: BodyType<EvidenceRenewalReviewDraft>;ifMatch: string}> = (props) => {
+          const {projectId,planId,data,ifMatch} = props ?? {};
+
+          return  reviewEvidenceRenewalReplacement(projectId,planId,data,ifMatch,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewEvidenceRenewalReplacementMutationResult = NonNullable<Awaited<ReturnType<typeof reviewEvidenceRenewalReplacement>>>
+    export type ReviewEvidenceRenewalReplacementMutationBody = BodyType<EvidenceRenewalReviewDraft>
+    export type ReviewEvidenceRenewalReplacementMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | EvidenceRenewalNotFoundResponse | EvidenceRenewalConflictResponse | RoadmapCapacityExceededResponse | PreconditionRequiredResponse | EvidenceRenewalCapacityExceededResponse | InternalServerErrorResponse | EvidenceRenewalUnavailableResponse>
+
+    /**
+ * @summary Independently approve or reject a staged replacement
+ */
+export const useReviewEvidenceRenewalReplacement = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | EvidenceRenewalNotFoundResponse | EvidenceRenewalConflictResponse | RoadmapCapacityExceededResponse | PreconditionRequiredResponse | EvidenceRenewalCapacityExceededResponse | InternalServerErrorResponse | EvidenceRenewalUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewEvidenceRenewalReplacement>>, TError,{projectId: string;planId: string;data: BodyType<EvidenceRenewalReviewDraft>;ifMatch: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewEvidenceRenewalReplacement>>,
+        TError,
+        {projectId: string;planId: string;data: BodyType<EvidenceRenewalReviewDraft>;ifMatch: string},
+        TContext
+      > => {
+      return useMutation(getReviewEvidenceRenewalReplacementMutationOptions(options));
     }
 
 export const getGetReconciledCommunicationsUrl = (id: string,) => {
@@ -14473,7 +15259,4 @@ export function useGetStorageObject<TData = Awaited<ReturnType<typeof getStorage
 
   return withQueryKey(query, queryOptions.queryKey);
 }
-
-
-
 

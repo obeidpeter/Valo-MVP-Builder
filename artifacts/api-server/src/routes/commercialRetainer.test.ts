@@ -82,27 +82,18 @@ test("commercial routes are mounted only after authenticated tenant database sco
   assert.equal(COMMERCIAL_RETAINER_MANIFEST.openApiPublished, true);
 });
 
-test("governed retention purges retainer content but withholds certification for financial rows", async () => {
+test("retention completion leaves retainer and financial rows untouched while activation is gated", async () => {
   const source = await readFile(
     new URL("./operations.ts", import.meta.url),
     "utf8",
   );
   assert.equal(RETAINER_TASK_PREFIX, "[RETAINER-DESK:v1:");
-  assert.ok(
-    source.includes("like(workTasks.title, `${RETAINER_TASK_PREFIX}%`)"),
-  );
-  assert.ok(source.includes("retainer_service_requests="));
-  const financialPreflight = source.indexOf(
-    "const financialBlockers = await commercialFinancialRetentionBlockers",
-  );
-  const blobPurge = source.indexOf("const plan = await planProjectBlobPurge");
-  assert.ok(financialPreflight >= 0 && financialPreflight < blobPurge);
-  assert.match(source, /FROM orders/u);
-  assert.match(source, /FROM invoices AS invoice/u);
-  assert.match(source, /FROM payments AS payment/u);
-  assert.match(source, /FROM entitlements AS entitlement/u);
-  assert.match(source, /FROM entitlement_usage AS usage/u);
-  assert.match(source, /certificate_withheld_until_approved_financial_policy/u);
+  assert.match(source, /RETENTION_COMPLETION_NOT_ACTIVATED/u);
+  assert.match(source, /sideEffectsApplied: false/u);
+  assert.doesNotMatch(source, /RETAINER_TASK_PREFIX/u);
+  assert.doesNotMatch(source, /retainer_service_requests=/u);
+  assert.doesNotMatch(source, /commercialFinancialRetentionBlockers/u);
+  assert.doesNotMatch(source, /planProjectBlobPurge|purgeBlobs/u);
 });
 
 test("private manifest response is no-store and advertises blocked integrations", async () => {

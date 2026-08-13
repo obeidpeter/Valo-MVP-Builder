@@ -5,6 +5,7 @@ import {
   packageVersions,
   partnerBranding,
   reports,
+  uploadSessions,
   vaultItems,
 } from "@workspace/db";
 import { and, eq, ne, or } from "drizzle-orm";
@@ -15,7 +16,8 @@ export type StoragePathReferenceKind =
   | "vault_item"
   | "report"
   | "package_version"
-  | "partner_branding";
+  | "partner_branding"
+  | "upload_session";
 
 /**
  * Return every persisted tenant artefact category that still owns a storage
@@ -24,7 +26,10 @@ export type StoragePathReferenceKind =
  */
 export async function storagePathReferenceKinds(
   objectPath: string,
-  options?: { excludeDocumentId?: string },
+  options?: {
+    excludeDocumentId?: string;
+    excludeUploadSessionId?: string;
+  },
 ): Promise<StoragePathReferenceKind[]> {
   const references: StoragePathReferenceKind[] = [];
 
@@ -84,6 +89,35 @@ export async function storagePathReferenceKinds(
     .where(eq(partnerBranding.logoObjectPath, objectPath))
     .limit(1);
   if (branding) references.push("partner_branding");
+
+  const stagedUpload =
+    /^\/objects\/tenants\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/uploads\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/iu.exec(
+      objectPath,
+    );
+  if (
+    stagedUpload &&
+    stagedUpload[2]?.toLowerCase() !==
+      options?.excludeUploadSessionId?.toLowerCase()
+  ) {
+    const [uploadSession] = await db
+      .select({ id: uploadSessions.id })
+      .from(uploadSessions)
+      .where(
+        and(
+          eq(uploadSessions.id, stagedUpload[2]!),
+          eq(uploadSessions.organisationId, stagedUpload[1]!),
+          or(
+            eq(uploadSessions.status, "open"),
+            eq(uploadSessions.status, "completed"),
+            eq(uploadSessions.status, "rejected"),
+            eq(uploadSessions.status, "quarantined"),
+            eq(uploadSessions.status, "cleanup_unconfirmed"),
+          ),
+        ),
+      )
+      .limit(1);
+    if (uploadSession) references.push("upload_session");
+  }
 
   return references;
 }

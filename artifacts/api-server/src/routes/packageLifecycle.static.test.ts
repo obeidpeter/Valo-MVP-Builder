@@ -23,7 +23,6 @@ const retentionRoute = readFileSync(
   new URL("./operations.ts", import.meta.url),
   "utf8",
 );
-const purge = readFileSync(new URL("../lib/purge.ts", import.meta.url), "utf8");
 const tenancy = readFileSync(
   new URL("../middlewares/tenancy.ts", import.meta.url),
   "utf8",
@@ -182,52 +181,10 @@ test("released content immutability admits only exact package/post-award ledger 
   );
 });
 
-test("retention removes operations/package content and every package blob", () => {
-  const operationsDelete = retentionRoute.indexOf(".delete(workTasks)");
-  const notificationAttemptDelete = retentionRoute.indexOf(
-    ".delete(notificationAttempts)",
-  );
-  const notificationEventDelete = retentionRoute.indexOf(
-    ".delete(notificationEvents)",
-  );
-  const deliveryDelete = retentionRoute.indexOf(".delete(exportDeliveries)");
-  const signoffDelete = retentionRoute.indexOf(".delete(packageSignoffs)");
-  const manifestDelete = retentionRoute.indexOf(
-    ".delete(packageManifestItems)",
-  );
-  const versionDelete = retentionRoute.indexOf(".delete(packageVersions)");
-  const packageDelete = retentionRoute.indexOf(".delete(packages)");
-  assert.ok(operationsDelete >= 0);
-  assert.ok(notificationAttemptDelete >= 0);
-  assert.ok(notificationAttemptDelete < notificationEventDelete);
-  assert.ok(deliveryDelete < signoffDelete);
-  assert.ok(signoffDelete < manifestDelete);
-  assert.ok(manifestDelete < versionDelete);
-  assert.ok(versionDelete < packageDelete);
-  assert.match(retentionRoute, /like\(workTasks\.title, "\[OPS:%"\)/u);
-  assert.match(
-    retentionRoute,
-    /operations_records=\$\{purgedOperationsRecords\.length\}/u,
-  );
-  assert.match(
-    retentionRoute,
-    /client_action_records=\$\{purgedClientActionRecords\}/u,
-  );
-  assert.match(
-    retentionRoute,
-    /notification_events=\$\{purgedNotificationEvents\.length\}/u,
-  );
-  assert.match(
-    retentionRoute,
-    /notification_attempts=\$\{purgedNotificationAttempts\.length\}/u,
-  );
-  assert.match(
-    retentionRoute,
-    /package_versions=\$\{purgedPackageVersions\.length\}/u,
-  );
-  assert.match(purge, /docxObjectPath: packageVersions\.docxObjectPath/u);
-  assert.match(purge, /pdfObjectPath: packageVersions\.pdfObjectPath/u);
-  assert.match(purge, /zipObjectPath: packageVersions\.zipObjectPath/u);
-  assert.match(purge, /new Set\(/u);
-  assert.match(purge, /vaultReferencedPaths\(candidates\)/u);
+test("retention completion cannot synchronously remove package rows or blobs", () => {
+  assert.match(retentionRoute, /RETENTION_COMPLETION_NOT_ACTIVATED/u);
+  assert.match(retentionRoute, /"storage_lifecycle_control_rows"/u);
+  assert.doesNotMatch(retentionRoute, /\.delete\(package/u);
+  assert.doesNotMatch(retentionRoute, /planProjectBlobPurge|purgeBlobs/u);
+  assert.doesNotMatch(retentionRoute, /package_versions=/u);
 });

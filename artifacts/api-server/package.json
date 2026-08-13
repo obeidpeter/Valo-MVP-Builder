@@ -18,7 +18,8 @@
     "eval:promote-baseline": "node --import tsx ./scripts/run-eval-harness.ts --promote-baseline",
     "prove:ship": "pnpm run prove:doctrine:offline && pnpm run prove:injection:offline && pnpm run eval:harness:offline",
     "verify:audit": "node --import tsx ./scripts/verify-audit-chain.ts",
-    "retention:scan": "node --import tsx ./scripts/run-retention-scan.ts"
+    "retention:scan": "node --import tsx ./scripts/run-retention-scan.ts",
+    "storage:reconcile-deletions": "node --import tsx ./scripts/run-storage-deletion-reconciler.ts"
   },
   "dependencies": {
     "@clerk/express": "^2.1.35",

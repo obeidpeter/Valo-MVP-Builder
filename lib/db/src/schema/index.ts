@@ -431,7 +431,10 @@ export const documents = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("documents_org_project_idx").on(t.organisationId, t.projectId)],
+  (t) => [
+    index("documents_org_project_idx").on(t.organisationId, t.projectId),
+    index("documents_org_object_path_idx").on(t.organisationId, t.objectPath),
+  ],
 );
 
 export const requirements = pgTable("requirements", {
@@ -556,29 +559,38 @@ export const boqChecks = pgTable("boq_checks", {
   updatedAt: updatedAt(),
 });
 
-export const vaultItems = pgTable("vault_items", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  organisationId: uuid("organisation_id").references(() => organisations.id, {
-    onDelete: "restrict",
-  }),
-  clientId: uuid("client_id")
-    .notNull()
-    .references(() => clients.id, { onDelete: "cascade" }),
-  artefactType: text("artefact_type").notNull(),
-  issuer: text("issuer"),
-  issueDate: text("issue_date"),
-  expiryDate: text("expiry_date"),
-  renewalLeadDays: integer("renewal_lead_days"),
-  status: text("status").notNull().default("active"),
-  objectPath: text("object_path"),
-  sha256: text("sha256"),
-  sourceDocumentId: uuid("source_document_id").references(() => documents.id, {
-    onDelete: "set null",
-  }),
-  version: optimisticVersion(),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-});
+export const vaultItems = pgTable(
+  "vault_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organisationId: uuid("organisation_id").references(() => organisations.id, {
+      onDelete: "restrict",
+    }),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    artefactType: text("artefact_type").notNull(),
+    issuer: text("issuer"),
+    issueDate: text("issue_date"),
+    expiryDate: text("expiry_date"),
+    renewalLeadDays: integer("renewal_lead_days"),
+    status: text("status").notNull().default("active"),
+    objectPath: text("object_path"),
+    sha256: text("sha256"),
+    sourceDocumentId: uuid("source_document_id").references(
+      () => documents.id,
+      {
+        onDelete: "set null",
+      },
+    ),
+    version: optimisticVersion(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("vault_items_org_object_path_idx").on(t.organisationId, t.objectPath),
+  ],
+);
 
 export const capabilityItems = pgTable("capability_items", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -632,32 +644,45 @@ export const conflictRecords = pgTable("conflict_records", {
   updatedAt: updatedAt(),
 });
 
-export const notificationEvents = pgTable("notification_events", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  organisationId: uuid("organisation_id").references(() => organisations.id, {
-    onDelete: "restrict",
-  }),
-  projectId: uuid("project_id").references(() => projects.id, {
-    onDelete: "cascade",
-  }),
-  clientId: uuid("client_id").references(() => clients.id, {
-    onDelete: "cascade",
-  }),
-  vaultItemId: uuid("vault_item_id").references(() => vaultItems.id, {
-    onDelete: "cascade",
-  }),
-  channel: text("channel").notNull().default("manual"),
-  template: text("template").notNull(),
-  recipient: text("recipient"),
-  payload: text("payload"),
-  status: text("status").notNull().default("queued"),
-  createdBy: uuid("created_by").references(() => users.id, {
-    onDelete: "set null",
-  }),
-  version: optimisticVersion(),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-});
+export const notificationEvents = pgTable(
+  "notification_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organisationId: uuid("organisation_id").references(() => organisations.id, {
+      onDelete: "restrict",
+    }),
+    projectId: uuid("project_id").references(() => projects.id, {
+      onDelete: "cascade",
+    }),
+    clientId: uuid("client_id").references(() => clients.id, {
+      onDelete: "cascade",
+    }),
+    vaultItemId: uuid("vault_item_id").references(() => vaultItems.id, {
+      onDelete: "cascade",
+    }),
+    channel: text("channel").notNull().default("manual"),
+    template: text("template").notNull(),
+    recipient: text("recipient"),
+    payload: text("payload"),
+    status: text("status").notNull().default("queued"),
+    availableAt: timestamp("available_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: uuid("created_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    version: optimisticVersion(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("notification_events_storage_reconcile_idx")
+      .on(t.organisationId, t.availableAt, t.createdAt, t.id)
+      .where(
+        sql`${t.channel} = 'internal_storage' AND ${t.template} = 'valo.storage-deletion-intent/v1' AND ${t.status} IN ('queued', 'retry_wait')`,
+      ),
+  ],
+);
 
 export const retentionRequests = pgTable(
   "retention_requests",
@@ -721,6 +746,14 @@ export const appConfig = pgTable("app_config", {
       "CONFIDENTIAL — Prepared for internal review. Not for external distribution.",
     ),
   retentionDefaultDays: integer("retention_default_days").notNull().default(14),
+  storageLifecycleCursorOrganisationId: uuid(
+    "storage_lifecycle_cursor_organisation_id",
+  ),
+  storageLifecycleLeaseOwner: text("storage_lifecycle_lease_owner"),
+  storageLifecycleLeaseExpiresAt: timestamp(
+    "storage_lifecycle_lease_expires_at",
+    { withTimezone: true },
+  ),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -802,6 +835,8 @@ export const reports = pgTable(
   },
   (t) => [
     uniqueIndex("reports_project_version_unique").on(t.projectId, t.version),
+    index("reports_org_docx_path_idx").on(t.organisationId, t.docxPath),
+    index("reports_org_pdf_path_idx").on(t.organisationId, t.pdfPath),
   ],
 );
 
@@ -1295,6 +1330,16 @@ export const uploadSessions = pgTable(
       t.organisationId,
       t.idempotencyKey,
     ),
+    index("upload_sessions_cleanup_project_expiry_idx")
+      .on(t.organisationId, t.projectId, t.expiresAt, t.id)
+      .where(
+        sql`${t.status} IN ('open', 'completed', 'rejected', 'quarantined', 'cleanup_unconfirmed')`,
+      ),
+    index("upload_sessions_cleanup_expiry_idx")
+      .on(t.organisationId, t.expiresAt, t.id)
+      .where(
+        sql`${t.status} IN ('open', 'completed', 'rejected', 'quarantined', 'cleanup_unconfirmed')`,
+      ),
   ],
 );
 
@@ -1335,6 +1380,10 @@ export const documentVersions = pgTable(
     uniqueIndex("document_versions_org_hash_unique").on(
       t.organisationId,
       t.sha256,
+    ),
+    index("document_versions_org_object_path_idx").on(
+      t.organisationId,
+      t.objectPath,
     ),
   ],
 );
@@ -2137,6 +2186,18 @@ export const packageVersions = pgTable(
     uniqueIndex("package_versions_package_number_unique").on(
       t.packageId,
       t.versionNumber,
+    ),
+    index("package_versions_org_docx_path_idx").on(
+      t.organisationId,
+      t.docxObjectPath,
+    ),
+    index("package_versions_org_pdf_path_idx").on(
+      t.organisationId,
+      t.pdfObjectPath,
+    ),
+    index("package_versions_org_zip_path_idx").on(
+      t.organisationId,
+      t.zipObjectPath,
     ),
   ],
 );

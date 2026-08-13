@@ -51,6 +51,20 @@
       "runbook": "INCIDENT_RESPONSE.md"
     },
     {
+      "id": "storage_deletion_dead_letter",
+      "severity": "high",
+      "signal": "valo.storage.deletion_dead_letter_transitions",
+      "condition": "increase over 15m > 0",
+      "runbook": "INCIDENT_RESPONSE.md"
+    },
+    {
+      "id": "storage_deletion_backlog",
+      "severity": "high",
+      "signal": "valo.storage.deletion_oldest_sampled_age_seconds",
+      "condition": "> 3600 for 15m only while valo.storage.deletion_sample_complete = 1",
+      "runbook": "INCIDENT_RESPONSE.md"
+    },
+    {
       "id": "unit_cost_budget",
       "severity": "medium",
       "signal": "valo.ai.cost_per_completed_package",

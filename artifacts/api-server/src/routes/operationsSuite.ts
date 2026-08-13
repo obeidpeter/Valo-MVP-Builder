@@ -22,11 +22,17 @@ import {
 } from "@workspace/db";
 import { getLocalUser } from "../middlewares/auth";
 import {
+  getAccessContext,
   getOrganisationId,
   hasRequestPermission,
   requirePermissionOrLegacy,
+  type AccessContext,
 } from "../middlewares/tenancy";
 import type { Permission } from "../lib/permissions";
+import {
+  resolveCurrentDirectAuthority,
+  type CurrentDirectAuthority,
+} from "../lib/directMembershipAuthority";
 import { OPERATIONS_SUITE_BOUNDS } from "../lib/operationsSuite/bounds";
 import type {
   OperationsScope,
@@ -64,6 +70,10 @@ export interface OperationsSuiteRouterDependencies {
   service?: OperationsSuiteService;
   store?: OperationsSuiteStore;
   references?: OperationsSuiteReferenceGuard;
+  resolveAuthority?: (
+    context: AccessContext | undefined,
+    actorUserId: string | undefined,
+  ) => Promise<CurrentDirectAuthority | null>;
 }
 
 export interface DbOperationsSuiteGuards {
@@ -605,6 +615,8 @@ export function createOperationsSuiteRouter(
   }
 
   const router: IRouter = Router();
+  const resolveAuthority =
+    dependencies.resolveAuthority ?? resolveCurrentDirectAuthority;
   router.use("/projects/:id/operations-suite", boundedBody);
 
   const run =
@@ -777,6 +789,36 @@ export function createOperationsSuiteRouter(
         scope,
         String(req.params.recordId),
         req.body,
+      ),
+    ),
+  );
+  router.post(
+    "/projects/:id/operations-suite/work-items/:recordId/field-draft-promotions",
+    requirePermissionOrLegacy("project:update"),
+    run((operations, scope, req) =>
+      operations.promoteFieldDraftToWorkItem(
+        scope,
+        String(req.params.recordId),
+        req.body,
+        req.get("Idempotency-Key"),
+        async (promotionScope) => {
+          await dependencies.projectGuard.assertProject(promotionScope);
+          const authority = await resolveAuthority(
+            getAccessContext(req),
+            promotionScope.actorUserId,
+          );
+          if (
+            !authority ||
+            authority.organisationId !== promotionScope.organisationId ||
+            authority.actorUserId !== promotionScope.actorUserId ||
+            !authority.permissions.has("project:update")
+          ) {
+            throw new OperationsSuiteError(
+              "scope_denied",
+              "Current direct project-update authority is required.",
+            );
+          }
+        },
       ),
     ),
   );

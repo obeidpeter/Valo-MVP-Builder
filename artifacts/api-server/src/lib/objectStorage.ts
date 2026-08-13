@@ -27,6 +27,17 @@ export const objectStorageClient = new Storage({
     universe_domain: "googleapis.com",
   },
   projectId: "",
+  // Bound every provider request with the SDK's native abort path. This is
+  // materially safer than racing the Promise in application code: a timed-out
+  // delete must not continue unobserved after the path advisory lock is gone.
+  timeout: 30_000,
+  retryOptions: {
+    autoRetry: true,
+    maxRetries: 2,
+    retryDelayMultiplier: 2,
+    maxRetryDelay: 5,
+    totalTimeout: 30,
+  },
 });
 
 export class ObjectNotFoundError extends Error {
@@ -76,6 +87,12 @@ export class ObjectQuarantinePartialMoveError extends Error {
   }
 }
 
+export interface ObjectEntityIntake {
+  bytes: Buffer;
+  contentType: string | null;
+  metadataSizeBytes: number | null;
+}
+
 /**
  * A delete acknowledgement is not enough to describe a distributed object
  * cleanup as complete. Confirm the object is absent after the delete attempt;
@@ -83,9 +100,21 @@ export class ObjectQuarantinePartialMoveError extends Error {
  * cleanup is still known to be complete.
  */
 async function deleteAndConfirmAbsent(file: File): Promise<void> {
+  const [metadata] = await file.getMetadata();
+  const generation = metadata.generation;
+  if (
+    (typeof generation !== "string" && typeof generation !== "number") ||
+    !/^\d+$/u.test(String(generation))
+  ) {
+    throw new Error("Object generation is unavailable for guarded deletion");
+  }
+  const guardedFile = file.bucket.file(file.name, {
+    generation,
+    preconditionOpts: { ifGenerationMatch: generation },
+  });
   let deleteError: unknown;
   try {
-    await file.delete({ ignoreNotFound: true });
+    await guardedFile.delete({ ignoreNotFound: true });
   } catch (error) {
     deleteError = error;
   }
@@ -206,7 +235,12 @@ export class ObjectStorageService {
     return new Response(webStream, { headers });
   }
 
-  async getObjectEntityUploadURL(organisationId?: string): Promise<string> {
+  async getObjectEntityUploadURL(
+    organisationId?: string,
+    requestedObjectId?: string,
+    ttlSec = 900,
+    notAfter?: Date,
+  ): Promise<string> {
     const privateObjectDir = this.getPrivateObjectDir();
     if (!privateObjectDir) {
       throw new Error(
@@ -215,10 +249,18 @@ export class ObjectStorageService {
       );
     }
 
-    if (organisationId && !/^[0-9a-f-]{36}$/i.test(organisationId)) {
+    const uuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (organisationId && !uuid.test(organisationId)) {
       throw new Error("Invalid organisation namespace");
     }
-    const objectId = randomUUID();
+    if (requestedObjectId && !uuid.test(requestedObjectId)) {
+      throw new Error("Invalid requested upload object identity");
+    }
+    if (!Number.isSafeInteger(ttlSec) || ttlSec < 1 || ttlSec > 900) {
+      throw new Error("Invalid upload URL lifetime");
+    }
+    const objectId = requestedObjectId ?? randomUUID();
     const namespace = organisationId ? `tenants/${organisationId}` : "legacy";
     const fullPath = `${privateObjectDir}/${namespace}/uploads/${objectId}`;
 
@@ -228,7 +270,8 @@ export class ObjectStorageService {
       bucketName,
       objectName,
       method: "PUT",
-      ttlSec: 900,
+      ttlSec,
+      notAfter,
     });
   }
 
@@ -276,10 +319,38 @@ export class ObjectStorageService {
     return collectStreamWithLimit(file.createReadStream(), maxBytes);
   }
 
+  /**
+   * Read untrusted staged bytes exactly once while retaining the object
+   * metadata needed by governed upload finalisation. Metadata is only an
+   * early consistency check; the bounded stream remains authoritative.
+   */
+  async downloadObjectEntityForIntake(
+    objectPath: string,
+    maxBytes: number,
+  ): Promise<ObjectEntityIntake> {
+    const file = await this.getObjectEntityFile(objectPath);
+    const [metadata] = await file.getMetadata();
+    const rawSize = Number(metadata.size);
+    const metadataSizeBytes =
+      Number.isSafeInteger(rawSize) && rawSize >= 0 ? rawSize : null;
+    if (metadataSizeBytes !== null && metadataSizeBytes > maxBytes) {
+      throw new ObjectTooLargeError(maxBytes, metadataSizeBytes);
+    }
+    const bytes = await collectStreamWithLimit(
+      file.createReadStream(),
+      maxBytes,
+    );
+    const contentType =
+      typeof metadata.contentType === "string" && metadata.contentType.trim()
+        ? metadata.contentType.trim().toLocaleLowerCase("en-US")
+        : null;
+    return { bytes, contentType, metadataSizeBytes };
+  }
+
   async deleteObjectEntity(objectPath: string): Promise<boolean> {
     try {
       const file = await this.getObjectEntityFile(objectPath);
-      await file.delete({ ignoreNotFound: true });
+      await deleteAndConfirmAbsent(file);
       return true;
     } catch (error) {
       if (error instanceof ObjectNotFoundError) {
@@ -298,6 +369,7 @@ export class ObjectStorageService {
     objectPath: string,
     inspectedBytes: Buffer,
     contentType: string | null,
+    requestedQuarantineId?: string,
   ): Promise<string> {
     if (
       !/^\/objects\/tenants\/[0-9a-f-]{36}\/uploads\/[^/]+$/i.test(objectPath)
@@ -308,7 +380,15 @@ export class ObjectStorageService {
     if (!file.name.includes("/uploads/")) {
       throw new Error("Upload object is outside the quarantine move boundary");
     }
-    const quarantineId = randomUUID();
+    const uuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (requestedQuarantineId && !uuid.test(requestedQuarantineId)) {
+      throw new Error("Invalid requested quarantine object identity");
+    }
+    // Governed callers supply their durable lease identity, making every
+    // possible quarantine side effect discoverable after a process crash.
+    // Legacy callers retain an isolated random identity.
+    const quarantineId = requestedQuarantineId ?? randomUUID();
     const destinationName = file.name.replace(
       /\/uploads\/[^/]+$/,
       `/quarantine/${quarantineId}`,
@@ -322,7 +402,7 @@ export class ObjectStorageService {
       `/quarantine/${quarantineId}`,
     );
     try {
-      // Persist exactly the bytes that were hashed and inspected. The random,
+      // Persist exactly the bytes that were hashed and inspected. The
       // create-only destination cannot be overwritten by the signed staging
       // PUT or by a later retry.
       await destination.save(inspectedBytes, {
@@ -531,17 +611,19 @@ async function signObjectURL({
   objectName,
   method,
   ttlSec,
+  notAfter,
 }: {
   bucketName: string;
   objectName: string;
   method: "GET" | "PUT" | "DELETE" | "HEAD";
   ttlSec: number;
+  notAfter?: Date;
 }): Promise<string> {
   const request = {
     bucket_name: bucketName,
     object_name: objectName,
     method,
-    expires_at: new Date(Date.now() + ttlSec * 1000).toISOString(),
+    expires_at: boundedSignedObjectExpiration(ttlSec, notAfter).toISOString(),
   };
   const response = await fetch(
     `${REPLIT_SIDECAR_ENDPOINT}/object-storage/signed-object-url`,
@@ -565,4 +647,35 @@ async function signObjectURL({
     signed_url: string;
   };
   return signedURL;
+}
+
+/**
+ * Bound a sidecar signature by an authority clock supplied by the caller.
+ * The upload lease uses the database clock; this cap prevents an application
+ * clock skew from extending the signed PUT beyond that lease boundary.
+ */
+export function boundedSignedObjectExpiration(
+  ttlSec: number,
+  notAfter?: Date,
+  now = new Date(),
+): Date {
+  if (
+    !Number.isSafeInteger(ttlSec) ||
+    ttlSec < 1 ||
+    ttlSec > 900 ||
+    !Number.isFinite(now.valueOf()) ||
+    (notAfter !== undefined && !Number.isFinite(notAfter.valueOf()))
+  ) {
+    throw new Error("Invalid signed object URL lifetime");
+  }
+  const expiresAt = new Date(
+    Math.min(
+      now.valueOf() + ttlSec * 1_000,
+      notAfter?.valueOf() ?? Number.POSITIVE_INFINITY,
+    ),
+  );
+  if (expiresAt.valueOf() <= now.valueOf()) {
+    throw new Error("Signed object URL authority window is closed");
+  }
+  return expiresAt;
 }

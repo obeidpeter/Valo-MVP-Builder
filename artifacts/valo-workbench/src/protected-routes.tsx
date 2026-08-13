@@ -52,6 +52,7 @@ const NotificationsConsole = lazy(
 );
 const SecurityAudit = lazy(() => import("@/pages/security-audit"));
 const EvidenceReadiness = lazy(() => import("@/pages/evidence-readiness"));
+const EvidenceRenewal = lazy(() => import("@/pages/evidence-renewal"));
 const ReportsIndex = lazy(() => import("@/pages/reports-index"));
 const AccountPage = lazy(() => import("@/pages/account"));
 const OrganisationSettings = lazy(
@@ -158,6 +159,11 @@ export default function ProtectedRoutes() {
         <Route path="/evidence-readiness">
           <RequireArea area="evidence_readiness">
             <EvidenceReadiness />
+          </RequireArea>
+        </Route>
+        <Route path="/evidence-renewals">
+          <RequireArea area="evidence_readiness">
+            <EvidenceRenewal />
           </RequireArea>
         </Route>
         <Route path="/reports">

@@ -5,7 +5,7 @@ import test from "node:test";
 const source = readFileSync(
   new URL("./intelligence.ts", import.meta.url),
   "utf8",
-);
+).replace(/\r\n?/gu, "\n");
 const snapshotRouteStart = source.indexOf(
   'router.get(\n  "/projects/:id/intelligence"',
 );

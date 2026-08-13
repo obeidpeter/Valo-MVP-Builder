@@ -1,6 +1,6 @@
 # Post-award Commercial & Claims Desk integration contract
 
-Status: integration complete. API, direct-membership Workbench access, exact released-ledger exceptions, governed retention, OpenAPI, and generated clients are mounted or published.
+Status: application integration complete. API, direct-membership Workbench access, exact released-ledger exceptions, OpenAPI, and generated clients are mounted or published. Retention completion is activation-gated and does not mutate Claims Desk content.
 
 ## Runtime exports
 
@@ -33,10 +33,9 @@ No PATCH, PUT, DELETE, document, notice-dispatch, invoice or payment route is el
 ## Namespace and retention contract
 
 - Durable rows use title prefix `[CLAIMS-DESK:` and a `valo.claims-desk-ledger/v1` JSON envelope.
-- Project retention includes `like(workTasks.title, "[CLAIMS-DESK:%")` in the same `work_tasks` deletion transaction that purges `[OPS:*]`, client-action, retainer and consortium rows.
-- The deletion certificate reports `claims_desk_events=<count>` separately while preserving the aggregate operations count.
-- Claims Desk rows must not be independently deleted. Legal-hold/retention eligibility remains governed by the existing project retention transaction and immutable audit chain.
-- The retention integration fixture proves `[CLAIMS-DESK:*]` rows remain when completion is blocked and are removed and counted when eligible project archival completes.
+- Claims Desk rows must not be independently deleted. The retention-completion endpoint returns an explicit `503` and leaves the namespace, audit chain, project, request and certificate untouched.
+- Reactivation requires a durable two-phase detach/reconcile/certify workflow that governs Claims Desk envelopes alongside all relational content, object storage, upload sessions, lifecycle control rows and legal holds.
+- A future certificate must report the proven Claims Desk disposition without embedding confidential envelope content. The previous synchronous selector and certificate-count implementation is not active.
 
 The exact exported selector is `CLAIMS_DESK_RETENTION_WORK_TASK_LIKE === "[CLAIMS-DESK:%"`.
 
@@ -56,5 +55,5 @@ The exact exported selector is `CLAIMS_DESK_RETENTION_WORK_TASK_LIKE === "[CLAIM
 - API and Workbench source/test typechecks green.
 - Focused service, reducer, route, UI and static-security tests green.
 - Shared tenancy tests cover both released exceptions plus archived/non-matching denial.
-- Project retention integration test covers the namespace and certificate count.
+- Retention activation tests prove the completion route has no database, storage or audit mutation path and cannot issue a certificate.
 - Browser test proves direct-membership read/manage gates, CAS conflict recovery, maker-checker denial, tenant switch isolation, canonical evidence rejection, signed-off/exported append and archived denial.

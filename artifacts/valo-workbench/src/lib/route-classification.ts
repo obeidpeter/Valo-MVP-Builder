@@ -20,6 +20,7 @@ export const PROTECTED_PREFIXES = [
   "/partner",
   "/consortium-room",
   "/evidence-readiness",
+  "/evidence-renewals",
   "/reports",
   "/billing",
   "/commercial-retainer",

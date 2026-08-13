@@ -31,10 +31,8 @@ import {
   packageManifestItems,
   packageVersions,
   packages,
-  priceBookEntries,
-  priceBooks,
-  orders,
   roleGrants,
+  uploadSessions,
   workTasks,
   withTenantDatabase,
 } from "@workspace/db";
@@ -47,14 +45,12 @@ import {
 } from "../middlewares/tenancy";
 import { attachTenantDatabase } from "../middlewares/databaseTenancy";
 import { RETAINER_TASK_PREFIX } from "../lib/commercialRetainer/contracts";
+import { writeAuditTx } from "../lib/audit";
 
 /**
- * End-to-end proof of the retention "deletion certificate" invariant:
- * completion may only be certified once EVERY class of stored engagement
- * content is gone — source blobs, extracted requirement text, evidence
- * excerpts, defect snapshots, BOQ lines, LLM run summaries — while
- * client-owned Certificate Vault blobs and the audit chain survive, and the
- * deterministic archive gate (physical-archive instruction) is enforced.
+ * End-to-end proof that retention request creation/listing remains available
+ * while completion fails closed without touching relational content, upload
+ * lifecycle control rows, object storage, project state or the audit chain.
  */
 
 let server: Server;
@@ -285,7 +281,30 @@ before(async () => {
           receiptSha256: "a".repeat(64),
         }),
       },
+      {
+        organisationId,
+        projectId,
+        title: `[EVIDENCE-RENEWAL:plan:${randomUUID()}]`,
+        description: JSON.stringify({
+          schema: "valo.evidence-renewal/v1",
+          ownerNote: "Replace the expiring audited accounts evidence",
+        }),
+      },
     ]);
+    await db.transaction((tx) =>
+      writeAuditTx(tx, {
+        user: adminUser,
+        organisationId,
+        projectId,
+        eventType: "evidence_renewal.plan_created",
+        objectType: "evidence_renewal.plan",
+        objectId: randomUUID(),
+        details: JSON.stringify({
+          schema: "valo.evidence-renewal-receipt/v1",
+          receiptSha256: "b".repeat(64),
+        }),
+      }),
+    );
     const [projectPackage] = await db
       .insert(packages)
       .values({
@@ -324,6 +343,16 @@ before(async () => {
       filename: "confidential-report.docx",
       sha256: "e".repeat(64),
       sizeBytes: 128,
+    });
+    await db.insert(uploadSessions).values({
+      organisationId,
+      projectId,
+      filename: "pending-client-upload.pdf",
+      expectedBytes: 256,
+      receivedBytes: 0,
+      idempotencyKey: `retention-upload-${randomUUID()}`,
+      status: "open",
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000),
     });
   });
 
@@ -379,17 +408,12 @@ after(async () => {
 interface RetentionBody {
   id: string;
   status: string;
-  certificateText: string;
+  certificateText?: string | null;
   error: string;
-  commercialFinancialBlockers?: {
-    orders: number;
-    invoiceLines: number;
-    invoices: number;
-    payments: number;
-    entitlements: number;
-    subscriptions: number;
-    entitlementUsage: number;
-  };
+  code?: string;
+  sideEffectsApplied?: boolean;
+  requiredWorkflow?: string;
+  requiredCoverage?: string[];
 }
 
 async function json(res: globalThis.Response): Promise<RetentionBody> {
@@ -462,7 +486,8 @@ describe("retention request lifecycle", () => {
     assert.equal(res.status, 400);
   });
 
-  test("refuses to certify while the archive gate fails (no physical-archive instruction)", async () => {
+  test("fails completion closed with zero storage, database, project, certificate, or audit effects", async () => {
+    const auditCountBefore = await rowCount(auditEvents);
     const res = await fetch(
       `${baseUrl}/retention-requests/${requestId}/complete`,
       {
@@ -470,17 +495,40 @@ describe("retention request lifecycle", () => {
         headers: headers(),
       },
     );
-    assert.equal(res.status, 409);
+    assert.equal(res.status, 503);
+    assert.equal(res.headers.get("cache-control"), "private, no-store");
     const body = await json(res);
-    assert.match(body.error, /archive/i);
+    assert.equal(body.code, "RETENTION_COMPLETION_NOT_ACTIVATED");
+    assert.equal(body.sideEffectsApplied, false);
+    assert.equal(
+      body.requiredWorkflow,
+      "durable_two_phase_detach_reconcile_certify",
+    );
+    assert.deepEqual(body.requiredCoverage, [
+      "project_content_rows",
+      "object_storage",
+      "upload_sessions",
+      "storage_lifecycle_control_rows",
+    ]);
+    assert.match(body.error, /not activated/i);
+    assert.match(body.error, /no data was deleted/i);
+    assert.match(body.error, /no deletion certificate was issued/i);
 
-    // Nothing may have been purged by the refused attempt.
+    // The refusal must not mutate any project content or lifecycle control row.
     assert.equal(await rowCount(requirements), 1);
     assert.equal(await rowCount(documents), 2);
-    assert.equal(await rowCount(workTasks), 5);
+    assert.equal(await rowCount(evidenceItems), 1);
+    assert.equal(await rowCount(defects), 1);
+    assert.equal(await rowCount(boqChecks), 1);
+    assert.equal(await rowCount(llmRuns), 1);
+    assert.equal(await rowCount(reports), 1);
+    assert.equal(await rowCount(workTasks), 6);
     assert.equal(await rowCount(notificationEvents), 1);
     assert.equal(await tenantRowCount(notificationAttempts), 1);
     assert.equal(await rowCount(packages), 1);
+    assert.equal(await tenantRowCount(packageVersions), 1);
+    assert.equal(await tenantRowCount(packageManifestItems), 1);
+    assert.equal(await rowCount(uploadSessions), 1);
     const [reqRow] = await withTenantDatabase(organisationId, () =>
       db
         .select()
@@ -488,209 +536,18 @@ describe("retention request lifecycle", () => {
         .where(eq(retentionRequests.id, requestId)),
     );
     assert.equal(reqRow.status, "pending");
-    assert.equal(deletedBlobs.length, 0);
-  });
-
-  test("withholds the certificate before purge when linked financial records survive", async () => {
-    const seeded = await withTenantDatabase(organisationId, async () => {
-      await db
-        .update(projects)
-        .set({
-          physicalArchiveInstruction:
-            "Return all hard copies to client within 7 days",
-        })
-        .where(eq(projects.id, projectId));
-      const now = new Date();
-      const [book] = await db
-        .insert(priceBooks)
-        .values({
-          organisationId,
-          name: `retention-block-${randomUUID()}`,
-          versionNumber: 1,
-          status: "active",
-          effectiveFrom: now,
-          approvedByUserId: adminId,
-          approvedAt: now,
-        })
-        .returning();
-      const [entry] = await db
-        .insert(priceBookEntries)
-        .values({
-          priceBookId: book.id,
-          productCode: "retention-block-proof@1",
-          productKind: "bid_autopsy",
-          currency: "NGN",
-          amountMinor: 100_000n,
-          billingCadence: "one_off",
-        })
-        .returning();
-      const [order] = await db
-        .insert(orders)
-        .values({
-          organisationId,
-          projectId,
-          priceBookEntryId: entry.id,
-          quantity: 1,
-          unitAmountMinor: 100_000n,
-          totalAmountMinor: 100_000n,
-          currency: "NGN",
-          status: "quote_pending_checker",
-          idempotencyKey: `retention-block-${randomUUID()}`,
-          placedByUserId: adminId,
-        })
-        .returning();
-      return { bookId: book.id, entryId: entry.id, orderId: order.id };
-    });
-
-    try {
-      const res = await fetch(
-        `${baseUrl}/retention-requests/${requestId}/complete`,
-        { method: "POST", headers: headers() },
-      );
-      assert.equal(res.status, 409);
-      const body = await json(res);
-      assert.match(body.error, /financial-retention policy/i);
-      assert.equal(body.commercialFinancialBlockers?.orders, 1);
-      assert.equal(body.commercialFinancialBlockers?.invoices, 0);
-      assert.equal(body.commercialFinancialBlockers?.entitlementUsage, 0);
-      assert.equal(deletedBlobs.length, 0, "blob purge did not begin");
-      assert.equal(await rowCount(requirements), 1, "rows remain intact");
-      const [pending] = await withTenantDatabase(organisationId, () =>
-        db
-          .select()
-          .from(retentionRequests)
-          .where(eq(retentionRequests.id, requestId)),
-      );
-      assert.equal(pending.status, "pending");
-    } finally {
-      await withTenantDatabase(organisationId, async () => {
-        await db.delete(orders).where(eq(orders.id, seeded.orderId));
-        await db
-          .delete(priceBookEntries)
-          .where(eq(priceBookEntries.id, seeded.entryId));
-        await db.delete(priceBooks).where(eq(priceBooks.id, seeded.bookId));
-      });
-    }
-  });
-
-  test("certifies only after purging every stored content class", async () => {
-    await withTenantDatabase(organisationId, () =>
-      db
-        .update(projects)
-        .set({
-          physicalArchiveInstruction:
-            "Return all hard copies to client within 7 days",
-        })
-        .where(eq(projects.id, projectId)),
-    );
-
-    const res = await fetch(
-      `${baseUrl}/retention-requests/${requestId}/complete`,
-      {
-        method: "POST",
-        headers: headers(),
-      },
-    );
-    assert.equal(res.status, 200);
-    const body = await json(res);
-    assert.equal(body.status, "completed");
-    assert.match(body.certificateText, /claims_desk_events=1/u);
-    assert.match(body.certificateText, /client_action_records=1/u);
-    assert.match(body.certificateText, /notification_events=1/u);
-    assert.match(body.certificateText, /notification_attempts=1/u);
-
-    // Every derived content class is gone.
-    assert.equal(await rowCount(requirements), 0, "requirements purged");
-    assert.equal(await rowCount(evidenceItems), 0, "evidence purged");
-    assert.equal(await rowCount(defects), 0, "defects purged");
-    assert.equal(await rowCount(boqChecks), 0, "boq checks purged");
-    assert.equal(await rowCount(llmRuns), 0, "llm run summaries purged");
-    assert.equal(await rowCount(documents), 0, "document rows purged");
-    assert.equal(await rowCount(reports), 0, "report rows purged");
-    assert.equal(await rowCount(workTasks), 0, "operations records purged");
-    assert.equal(
-      await rowCount(notificationEvents),
-      0,
-      "notification events purged",
-    );
-    assert.equal(
-      await tenantRowCount(notificationAttempts),
-      0,
-      "notification attempts purged",
-    );
-    assert.equal(await rowCount(packages), 0, "packages purged");
-    assert.equal(
-      await tenantRowCount(packageVersions),
-      0,
-      "package versions purged",
-    );
-    assert.equal(
-      await tenantRowCount(packageManifestItems),
-      0,
-      "package manifests purged",
-    );
-
-    // Narrative fields cleared, project archived.
+    assert.equal(reqRow.completedAt, null);
+    assert.equal(reqRow.certificateText, null);
     const [project] = await withTenantDatabase(organisationId, () =>
       db.select().from(projects).where(eq(projects.id, projectId)),
     );
-    assert.equal(project.status, "archived");
-    assert.equal(project.scope, null);
-    assert.equal(project.limitations, null);
-    assert.equal(project.responsivenessReview, null);
-
-    // Engagement blobs purged; the vault-owned blob survives.
-    assert.ok(
-      deletedBlobs.includes(engagementBlobPath),
-      "engagement blob purged",
-    );
+    assert.equal(project.status, "intake");
+    assert.equal(project.scope, "Full autopsy of tender RT-2026-001");
     assert.equal(
-      deletedBlobs.filter((path) => path === reportBlobPath).length,
-      1,
-      "report/package DOCX path purged once",
+      project.responsivenessReview,
+      "Verbatim narrative with confidential clause text",
     );
-    assert.ok(
-      deletedBlobs.includes(packagePdfBlobPath),
-      "package PDF blob purged",
-    );
-    assert.ok(
-      deletedBlobs.includes(packageZipBlobPath),
-      "package ZIP blob purged",
-    );
-    assert.ok(
-      !deletedBlobs.includes(vaultBlobPath),
-      "vault artefact blob retained",
-    );
-
-    // The certificate enumerates what was purged and what was retained.
-    assert.match(body.certificateText, /requirements=1/);
-    assert.match(body.certificateText, /evidence=1/);
-    assert.match(body.certificateText, /defects=1/);
-    assert.match(body.certificateText, /boq_checks=1/);
-    assert.match(body.certificateText, /llm_runs=1/);
-    assert.match(body.certificateText, /operations_records=5/);
-    assert.match(body.certificateText, /client_action_records=1/);
-    assert.match(body.certificateText, /notification_events=1/);
-    assert.match(body.certificateText, /notification_attempts=1/);
-    assert.match(body.certificateText, /retainer_service_requests=1/);
-    assert.match(body.certificateText, /consortium_rooms=1/);
-    assert.match(body.certificateText, /packages=1/);
-    assert.match(body.certificateText, /package_versions=1/);
-    assert.match(body.certificateText, /package_manifest_items=1/);
-    assert.match(body.certificateText, /audit chain/i);
-    assert.match(body.certificateText, /Certificate Vault/i);
-  });
-
-  test("completing an already-completed request is idempotent", async () => {
-    const res = await fetch(
-      `${baseUrl}/retention-requests/${requestId}/complete`,
-      {
-        method: "POST",
-        headers: headers(),
-      },
-    );
-    assert.equal(res.status, 200);
-    const body = await json(res);
-    assert.equal(body.status, "completed");
+    assert.equal(await rowCount(auditEvents), auditCountBefore);
+    assert.equal(deletedBlobs.length, 0);
   });
 });

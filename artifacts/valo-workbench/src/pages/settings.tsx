@@ -2,10 +2,6 @@ import { useEffect, useState } from "react";
 import {
   useListUsers,
   useListRetentionRequests,
-  useCompleteRetentionRequest,
-  getListRetentionRequestsQueryKey,
-  getListProjectsQueryKey,
-  getGetDashboardMetricsQueryKey,
   useGetAppConfig,
   useUpdateAppConfig,
   getGetAppConfigQueryKey,
@@ -41,40 +37,8 @@ export default function Settings() {
   const { data: users, isLoading } = useListUsers();
   const { data: retentionRequests, isLoading: loadingRetention } =
     useListRetentionRequests();
-  const completeRetentionRequest = useCompleteRetentionRequest();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-
-  const handleCompleteRetention = (id: string) => {
-    completeRetentionRequest.mutate(
-      { id },
-      {
-        onSuccess: () => {
-          // Completion archives the project and purges its content, so the
-          // project list and dashboard metrics are stale too, not just this list.
-          queryClient.invalidateQueries({
-            queryKey: getListRetentionRequestsQueryKey(),
-          });
-          queryClient.invalidateQueries({
-            queryKey: getListProjectsQueryKey(),
-          });
-          queryClient.invalidateQueries({
-            queryKey: getGetDashboardMetricsQueryKey(),
-          });
-          toast({ title: "Retention request completed" });
-        },
-        onError: (err) =>
-          toast({
-            variant: "destructive",
-            title: "Could not complete retention request",
-            description: errorMessage(
-              err,
-              "The purge was refused. Check the archive gate and storage.",
-            ),
-          }),
-      },
-    );
-  };
 
   const { data: config, isLoading: loadingConfig } = useGetAppConfig();
   const updateConfig = useUpdateAppConfig();
@@ -549,6 +513,23 @@ export default function Settings() {
           </h2>
         </div>
 
+        <div
+          role="status"
+          className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-950"
+        >
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <div className="space-y-1 text-sm">
+            <p className="font-medium">Retention completion is unavailable</p>
+            <p>
+              You can open and review requests, but no data is deleted and no
+              deletion certificate is issued. Reactivation requires a durable
+              two-phase detach, reconcile and certify workflow covering project
+              content, object storage, upload sessions and storage-lifecycle
+              control rows.
+            </p>
+          </div>
+        </div>
+
         <div className="bg-card border border-border rounded-lg shadow-xs overflow-hidden">
           {loadingRetention ? (
             <div className="p-12 flex justify-center">
@@ -614,17 +595,12 @@ export default function Settings() {
                           Certified
                         </Badge>
                       ) : (
-                        <Button
+                        <Badge
                           variant="outline"
-                          size="sm"
-                          onClick={() => handleCompleteRetention(request.id)}
-                          disabled={completeRetentionRequest.isPending}
+                          className="border-amber-300 bg-amber-50 text-amber-800"
                         >
-                          {completeRetentionRequest.isPending && (
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          )}
-                          Complete
-                        </Button>
+                          Activation required
+                        </Badge>
                       )}
                     </TableCell>
                   </TableRow>

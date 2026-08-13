@@ -16,6 +16,7 @@ describe("route privacy classification", () => {
     ["/pursuit-operations?project=project-id", "protected"],
     ["/growth-operations", "protected"],
     ["/commercial-retainer?project=project-id", "protected"],
+    ["/evidence-renewals?project=project-id", "protected"],
     ["/claims-desk?project=project-id", "protected"],
     ["/consortium-room?project=project-id", "protected"],
     ["/organisation-settings", "protected"],

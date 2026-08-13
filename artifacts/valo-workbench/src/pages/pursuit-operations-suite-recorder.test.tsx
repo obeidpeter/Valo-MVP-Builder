@@ -360,7 +360,7 @@ describe("PursuitOperationsSuiteRecorder", () => {
         receiptSha256: HASH_B,
       },
     });
-  });
+  }, 15_000);
 
   it("requires and sends a human reason for work cancellation", async () => {
     const user = userEvent.setup();

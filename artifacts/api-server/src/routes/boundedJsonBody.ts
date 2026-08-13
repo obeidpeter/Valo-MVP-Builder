@@ -4,6 +4,8 @@ export type BoundedJsonBodyDomain =
   | "client-action"
   | "communications"
   | "consortium-room"
+  | "evidence-renewal"
+  | "opportunity-handoff"
   | "operations";
 
 /**

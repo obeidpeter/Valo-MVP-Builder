@@ -30,7 +30,7 @@ describe("Claims Desk shared integration", () => {
     assert.doesNotMatch(source, /createTransactionalOutboxService/u);
   });
 
-  test("uses only exported released-route exceptions and the governed retention selector", async () => {
+  test("uses exported released-route exceptions and leaves claims content untouched while retention is gated", async () => {
     const [tenancySource, retentionSource] = await Promise.all([
       readFile(tenancy, "utf8"),
       readFile(retention, "utf8"),
@@ -39,10 +39,15 @@ describe("Claims Desk shared integration", () => {
       tenancySource,
       /\.\.\.CLAIMS_DESK_RELEASED_LEDGER_ROUTE_EXCEPTIONS/u,
     );
+    assert.match(retentionSource, /RETENTION_COMPLETION_NOT_ACTIVATED/u);
     assert.match(
       retentionSource,
-      /like\(workTasks\.title, CLAIMS_DESK_RETENTION_WORK_TASK_LIKE\)/u,
+      /durable_two_phase_detach_reconcile_certify/u,
     );
-    assert.match(retentionSource, /claims_desk_events=/u);
+    assert.doesNotMatch(
+      retentionSource,
+      /CLAIMS_DESK_RETENTION_WORK_TASK_LIKE/u,
+    );
+    assert.doesNotMatch(retentionSource, /claims_desk_events=/u);
   });
 });

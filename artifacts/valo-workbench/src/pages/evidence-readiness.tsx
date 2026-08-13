@@ -2,6 +2,7 @@ import {
   useGetVaultExpiring,
   useListProjects,
 } from "@workspace/api-client-react";
+import { Link } from "wouter";
 import {
   DataErrorPanel,
   LoadingPanel,
@@ -10,6 +11,7 @@ import {
   StateBadge,
   StatusPanel,
 } from "@/components/platform-states";
+import { Button } from "@/components/ui/button";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 
 export default function EvidenceReadiness() {
@@ -45,7 +47,11 @@ export default function EvidenceReadiness() {
         state="partial"
         title="Portfolio signals are not a release decision"
         description="This page does not mark any package submission-ready. Open each project to review citations, evidence mapping, BOQ exceptions, named approvals and every deterministic gate."
-      />
+      >
+        <Button asChild variant="outline">
+          <Link href="/evidence-renewals">Open governed renewal plans</Link>
+        </Button>
+      </StatusPanel>
 
       {loading ? (
         <LoadingPanel label="Loading evidence and readiness signals" />
