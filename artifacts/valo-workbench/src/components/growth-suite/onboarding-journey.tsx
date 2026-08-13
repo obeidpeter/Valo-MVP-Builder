@@ -1,4 +1,11 @@
-import { Check, Circle, FlaskConical, ShieldCheck } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  Circle,
+  FlaskConical,
+  ShieldCheck,
+} from "lucide-react";
+import { Link } from "wouter";
 import type {
   OnboardingJourney,
   OnboardingProgress,
@@ -12,13 +19,15 @@ export function GrowthOnboardingJourney({
   progress,
   mutationPending = false,
   onToggle,
+  liveDestinations = [],
 }: {
   journey: OnboardingJourney;
   progress: OnboardingProgress;
   mutationPending?: boolean;
-  onToggle?: (itemId: string, completed: boolean) => void;
+  onToggle?: (itemId: string, markerSaved: boolean) => void;
+  liveDestinations?: readonly { href: string; label: string }[];
 }) {
-  const completed = new Set(progress.completedItemIds);
+  const savedPracticeMarkers = new Set(progress.savedPracticeMarkerItemIds);
 
   return (
     <section aria-labelledby="growth-onboarding-heading" className="space-y-4">
@@ -36,11 +45,13 @@ export function GrowthOnboardingJourney({
           <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
             This checklist is derived from your server-authorised roles.
             Checkpoints persist as versioned tenant audit receipts and change no
-            client or pursuit record.
+            client or pursuit record. They are self-recorded practice markers,
+            not evidence that a real task was completed.
           </p>
         </div>
         <Badge variant="outline">
-          {completed.size}/{journey.checklist.length} checkpoints
+          {savedPracticeMarkers.size}/{journey.checklist.length} practice
+          markers
         </Badge>
       </div>
 
@@ -50,37 +61,41 @@ export function GrowthOnboardingJourney({
             <CardTitle className="text-base">Role-specific checklist</CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="mb-3">
+              <Badge variant="secondary">Self-recorded practice</Badge>
+            </div>
             <ol className="space-y-3">
               {journey.checklist.map((item) => {
-                const isComplete = completed.has(item.id);
+                const markerSaved = savedPracticeMarkers.has(item.id);
                 return (
                   <li
                     key={item.id}
                     className="flex gap-3 rounded-lg border border-border p-3"
                   >
                     <span aria-hidden="true" className="mt-0.5 text-primary">
-                      {isComplete ? <Check size={18} /> : <Circle size={18} />}
+                      {markerSaved ? <Check size={18} /> : <Circle size={18} />}
                     </span>
                     <div className="min-w-0 flex-1">
                       <h3 className="text-sm font-semibold">{item.title}</h3>
                       <p className="mt-1 text-sm leading-5 text-muted-foreground">
                         {item.purpose}
                       </p>
-                      {isComplete ? (
+                      {markerSaved ? (
                         <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-400">
-                          {item.completionEvidence}
+                          Self-recorded practice marker saved. This is not
+                          evidence that the described task was completed.
                         </p>
                       ) : null}
                     </div>
                     <Button
                       type="button"
                       size="sm"
-                      variant={isComplete ? "secondary" : "outline"}
-                      aria-pressed={isComplete}
+                      variant={markerSaved ? "secondary" : "outline"}
+                      aria-pressed={markerSaved}
                       disabled={mutationPending || !onToggle}
-                      onClick={() => onToggle?.(item.id, !isComplete)}
+                      onClick={() => onToggle?.(item.id, !markerSaved)}
                     >
-                      {isComplete ? "Completed" : "Mark complete"}
+                      {markerSaved ? "Remove marker" : "Save practice marker"}
                     </Button>
                   </li>
                 );
@@ -128,6 +143,39 @@ export function GrowthOnboardingJourney({
           </CardContent>
         </Card>
       </div>
+
+      {liveDestinations.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <h3 className="text-base font-semibold leading-none tracking-tight">
+              Continue in your live workspace
+            </h3>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+              These links are selected from your current server-authorised role
+              and permissions. Opening one does not complete a checkpoint; the
+              destination workflow remains the authoritative record of work.
+            </p>
+            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {liveDestinations.map((destination) => (
+                <li key={destination.href}>
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="w-full justify-between"
+                  >
+                    <Link href={destination.href}>
+                      {destination.label}
+                      <ArrowRight aria-hidden="true" />
+                    </Link>
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
     </section>
   );
 }

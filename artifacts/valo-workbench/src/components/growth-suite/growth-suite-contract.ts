@@ -89,6 +89,8 @@ export interface OnboardingJourney {
     id: string;
     title: string;
     purpose: string;
+    practiceMarkerReceipt: string;
+    /** @deprecated Compatibility-only neutral text. */
     completionEvidence: string;
   }>;
   syntheticTour: {
@@ -106,6 +108,8 @@ export interface OnboardingJourney {
 
 export interface OnboardingProgress {
   journeyVersion: string;
+  savedPracticeMarkerItemIds: string[];
+  /** @deprecated Compatibility alias. */
   completedItemIds: string[];
   version: number;
 }
@@ -114,7 +118,7 @@ export interface OnboardingProgressMutation {
   journeyVersion: string;
   itemId: string;
   expectedVersion: number;
-  completed: boolean;
+  markerSaved: boolean;
 }
 
 export interface OfferCatalogueItem {

@@ -6,6 +6,9 @@ import {
   default as GrowthOperationsPage,
   GrowthOperationsView,
   adaptLeadContactHandoffResponse,
+  assertGrowthOnboardingAuthority,
+  growthAuthorityFingerprint,
+  growthOnboardingDestinations,
 } from "./growth-operations";
 import type {
   LeadInboxItem,
@@ -51,7 +54,10 @@ const ONBOARDING: OnboardingJourney = {
       id: "confirm-active-workspace",
       title: "Confirm the active workspace",
       purpose: "Verify the active organisation and role.",
-      completionEvidence: "Workspace confirmed.",
+      practiceMarkerReceipt:
+        "Self-recorded practice marker saved; this is not evidence that the described task was completed.",
+      completionEvidence:
+        "Self-recorded practice marker saved; this is not evidence that the described task was completed.",
     },
   ],
   syntheticTour: {
@@ -71,6 +77,7 @@ const ONBOARDING: OnboardingJourney = {
 
 const ONBOARDING_PROGRESS: OnboardingProgress = {
   journeyVersion: "2026-08-11.2",
+  savedPracticeMarkerItemIds: [],
   completedItemIds: [],
   version: 0,
 };
@@ -446,7 +453,9 @@ describe("GrowthOperationsView", () => {
         onOnboardingToggle={onOnboardingToggle}
       />,
     );
-    const checkpoint = screen.getByRole("button", { name: /mark complete/i });
+    const checkpoint = screen.getByRole("button", {
+      name: /save practice marker/i,
+    });
     expect(checkpoint).toHaveAttribute("aria-pressed", "false");
     await user.click(checkpoint);
     expect(onOnboardingToggle).toHaveBeenCalledWith(
@@ -458,6 +467,7 @@ describe("GrowthOperationsView", () => {
         onboarding={ONBOARDING}
         onboardingProgress={{
           ...ONBOARDING_PROGRESS,
+          savedPracticeMarkerItemIds: ["confirm-active-workspace"],
           completedItemIds: ["confirm-active-workspace"],
           version: 1,
         }}
@@ -466,10 +476,159 @@ describe("GrowthOperationsView", () => {
         onOnboardingToggle={onOnboardingToggle}
       />,
     );
-    expect(screen.getByRole("button", { name: /completed/i })).toHaveAttribute(
-      "aria-pressed",
-      "true",
+    expect(
+      screen.getByRole("button", { name: /remove marker/i }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByText(/self-recorded practice marker saved/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Workspace confirmed.")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/synthetic tour completed/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("rejects a journey derived from stale same-tenant roles", () => {
+    expect(() =>
+      assertGrowthOnboardingAuthority(
+        {
+          journey: { ...ONBOARDING, derivedFromRoles: ["bid_manager"] },
+          progress: ONBOARDING_PROGRESS,
+          authorityNote: "Human-controlled practice only.",
+        },
+        ["valo_operations_administrator"],
+      ),
+    ).toThrow("Growth onboarding authority changed");
+  });
+
+  it("rejects cross-policy, duplicate, unknown, and inconsistent marker state", () => {
+    const response = {
+      journey: ONBOARDING,
+      progress: ONBOARDING_PROGRESS,
+      authorityNote: "Human-controlled practice only.",
+    };
+    expect(() =>
+      assertGrowthOnboardingAuthority(
+        {
+          ...response,
+          progress: { ...ONBOARDING_PROGRESS, journeyVersion: "stale" },
+        },
+        ["valo_operations_administrator"],
+      ),
+    ).toThrow("Growth onboarding authority changed");
+    for (const savedPracticeMarkerItemIds of [
+      ["confirm-active-workspace", "confirm-active-workspace"],
+      ["not-in-this-journey"],
+    ]) {
+      expect(() =>
+        assertGrowthOnboardingAuthority(
+          {
+            ...response,
+            progress: {
+              ...ONBOARDING_PROGRESS,
+              savedPracticeMarkerItemIds,
+              completedItemIds: savedPracticeMarkerItemIds,
+            },
+          },
+          ["valo_operations_administrator"],
+        ),
+      ).toThrow("Growth onboarding authority changed");
+    }
+    expect(() =>
+      assertGrowthOnboardingAuthority(
+        {
+          ...response,
+          progress: {
+            ...ONBOARDING_PROGRESS,
+            savedPracticeMarkerItemIds: ["confirm-active-workspace"],
+            completedItemIds: [],
+          },
+        },
+        ["valo_operations_administrator"],
+      ),
+    ).toThrow("Growth onboarding authority changed");
+  });
+
+  it("separates same-tenant onboarding caches when authority changes", () => {
+    const base = {
+      actorUserId: "operator-1",
+      membershipId: "membership-1",
+      organisationVersion: 3,
+      accessExpiresAt: "2026-09-01T00:00:00.000Z",
+      roles: ["valo_analyst"],
+      permissions: ["organisation:read"],
+    };
+    const original = growthAuthorityFingerprint(base);
+    expect(
+      growthAuthorityFingerprint({ ...base, organisationVersion: 4 }),
+    ).not.toBe(original);
+    expect(
+      growthAuthorityFingerprint({
+        ...base,
+        roles: ["valo_operations_administrator"],
+      }),
+    ).not.toBe(original);
+    expect(
+      growthAuthorityFingerprint({ ...base, actorUserId: "operator-2" }),
+    ).not.toBe(original);
+  });
+
+  it("derives live destinations only from current direct authority", () => {
+    const direct = growthOnboardingDestinations({
+      roles: ["bid_manager"],
+      permissions: ["project:read", "evidence:read"],
+      accessSource: "membership",
+    });
+    expect(direct).toEqual([
+      { href: "/projects", label: "Pursuits" },
+      { href: "/evidence-readiness", label: "Evidence Library" },
+    ]);
+    expect(
+      growthOnboardingDestinations({
+        roles: ["bid_manager"],
+        permissions: ["project:read"],
+        accessSource: "membership",
+      }),
+    ).toEqual([{ href: "/projects", label: "Pursuits" }]);
+    expect(
+      growthOnboardingDestinations({
+        roles: ["bid_manager"],
+        permissions: ["project:read", "evidence:read"],
+        accessSource: "partner",
+      }),
+    ).toEqual([]);
+  });
+
+  it("separates self-recorded practice from authorised live-work destinations", () => {
+    const onOnboardingToggle = vi.fn();
+    render(
+      <GrowthOperationsView
+        onboarding={ONBOARDING}
+        onboardingProgress={ONBOARDING_PROGRESS}
+        onboardingDestinations={[
+          { href: "/projects", label: "Pursuits" },
+          { href: "/evidence-readiness", label: "Evidence Library" },
+        ]}
+        catalogueVersion="2026-08-11.2"
+        offers={[OFFER]}
+        onOnboardingToggle={onOnboardingToggle}
+      />,
     );
-    expect(screen.getByText("Workspace confirmed.")).toBeInTheDocument();
+
+    expect(screen.getByText("Self-recorded practice")).toBeInTheDocument();
+    expect(
+      screen.getByText(/not evidence that a real task was completed/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /continue in your live workspace/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /pursuits/i })).toHaveAttribute(
+      "href",
+      "/projects",
+    );
+    expect(
+      screen.getByRole("link", { name: /evidence library/i }),
+    ).toHaveAttribute("href", "/evidence-readiness");
+    expect(onOnboardingToggle).not.toHaveBeenCalled();
   });
 });

@@ -34,6 +34,7 @@ export interface ProjectSummary {
   deadline?: string | null;
   segment?: ProjectSummarySegment;
   status: ProjectSummaryStatus;
+  reviewerId: string | null;
   reviewerName?: string | null;
   slaClass?: ProjectSummarySlaClass;
   paymentStatus?: ProjectSummaryPaymentStatus;

@@ -11,7 +11,20 @@ export interface HealthRouterDependencies {
     paging: "connected" | "disconnected";
   };
   isAccepting: () => boolean;
+  releaseSha256?: () => string | null;
   readinessTimeoutMillis?: number;
+}
+
+const RELEASE_SHA256 = /^[0-9a-f]{64}$/u;
+
+function publishReleaseIdentity(
+  res: { setHeader(name: string, value: string): unknown },
+  releaseSha256: (() => string | null) | undefined,
+): void {
+  const value = releaseSha256?.();
+  if (value && RELEASE_SHA256.test(value)) {
+    res.setHeader("X-Valo-Release-Sha256", value);
+  }
 }
 
 async function dependencyReady(
@@ -39,12 +52,14 @@ export function createHealthRouter(
   const readinessTimeoutMillis = dependencies.readinessTimeoutMillis ?? 1_500;
 
   router.get("/healthz", (_req, res) => {
+    publishReleaseIdentity(res, dependencies.releaseSha256);
     const data = HealthCheckResponse.parse({ status: "ok" });
     res.json(data);
   });
 
   router.get("/readyz", async (_req, res) => {
     res.setHeader("Cache-Control", "private, no-store");
+    publishReleaseIdentity(res, dependencies.releaseSha256);
     const delivery = dependencies.delivery();
     if (!dependencies.isAccepting()) {
       res.status(503).json({
@@ -83,4 +98,5 @@ export default createHealthRouter({
   checkDatabase: checkRuntimeDatabaseReadiness,
   delivery: operationsDeliveryStatus,
   isAccepting: () => runtimeReadiness.isReady(),
+  releaseSha256: () => process.env.VALO_RELEASE_SHA256?.trim() || null,
 });

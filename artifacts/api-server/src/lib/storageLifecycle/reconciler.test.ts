@@ -22,6 +22,9 @@ function intent(
     version: 1,
     status: "queued",
     replayed: false,
+    replayCount: 0,
+    cycleAttempts: 0,
+    terminalAt: null,
     envelope: createStorageDeletionIntent({
       organisationId,
       projectId: PROJECT,
@@ -79,6 +82,23 @@ test("reconciler gives each tenant one bounded FIFO page and isolates failures",
             truncated: false,
           };
     },
+    purgeRetainedTerminals: async (organisationId, limit) => {
+      calls.push(`purge:${organisationId}`);
+      assert.equal(limit, 5);
+      return organisationId === ORG_A
+        ? {
+            considered: 1,
+            purged: 1,
+            truncated: true,
+            manifestSha256: "a".repeat(64),
+          }
+        : {
+            considered: 0,
+            purged: 0,
+            truncated: false,
+            manifestSha256: null,
+          };
+    },
     reconcile: async ({ eventId, expectedVersion, organisationId }) => {
       calls.push(`reconcile:${eventId}`);
       assert.equal(organisationId, ORG_A);
@@ -119,10 +139,14 @@ test("reconciler gives each tenant one bounded FIFO page and isolates failures",
     replayed: 0,
     retryWait: 1,
     deadLetter: 0,
+    terminalRowsConsidered: 1,
+    terminalRowsPurged: 1,
+    terminalRetentionPagesRemaining: 1,
     tenantPagesRemaining: 1,
     tenantFailures: 1,
     intentFailures: 0,
     oldestPendingAgeSeconds: 0,
+    runBudgetExhausted: false,
     organisationPageTruncated: true,
     cycleComplete: false,
     // The cursor advances only through the last fully processed tenant, so
@@ -132,10 +156,12 @@ test("reconciler gives each tenant one bounded FIFO page and isolates failures",
   assert.deepEqual(calls, [
     "page:start",
     `sweep:${ORG_A}`,
+    `purge:${ORG_A}`,
     `list:${ORG_A}`,
     `reconcile:${EVENT_A}`,
     `reconcile:${EVENT_B}`,
     `sweep:${ORG_B}`,
+    `purge:${ORG_B}`,
     `list:${ORG_B}`,
   ]);
 });
@@ -157,6 +183,12 @@ test("reconciler rejects a non-monotonic organisation page", async () => {
         quarantinedCleanupQueued: 0,
         cleanupUnconfirmedPostExpiryQueued: 0,
         truncated: false,
+      }),
+      purgeRetainedTerminals: async () => ({
+        considered: 0,
+        purged: 0,
+        truncated: false,
+        manifestSha256: null,
       }),
       reconcile: async () => {
         throw new Error("unreachable");

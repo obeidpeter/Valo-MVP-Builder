@@ -17,6 +17,10 @@
  */
 import type { RetentionCompletionConflictCommercialFinancialBlockers } from './retentionCompletionConflictCommercialFinancialBlockers';
 
+/**
+ * Legacy generated type retained for source compatibility; the inactive completion operation does not emit this response.
+ * @deprecated
+ */
 export interface RetentionCompletionConflict {
   error: string;
   commercialFinancialBlockers?: RetentionCompletionConflictCommercialFinancialBlockers;

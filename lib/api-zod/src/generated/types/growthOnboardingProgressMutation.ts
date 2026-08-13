@@ -16,7 +16,17 @@
  * OpenAPI spec version: 2.5.0
  */
 
-export interface GrowthOnboardingProgressMutation {
+export type GrowthOnboardingProgressMutation = {
+  journeyVersion: '2026-08-11.2';
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  itemId: string;
+  /** @minimum 0 */
+  expectedVersion: number;
+  markerSaved: boolean;
+} | {
   journeyVersion: '2026-08-11.2';
   /**
      * @minLength 1
@@ -26,4 +36,4 @@ export interface GrowthOnboardingProgressMutation {
   /** @minimum 0 */
   expectedVersion: number;
   completed: boolean;
-}
+};

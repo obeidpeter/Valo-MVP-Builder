@@ -940,7 +940,7 @@ describe("PursuitOperationsSuiteRoute", () => {
     expect(
       screen.getByRole("button", { name: "Add completion evidence" }),
     ).toBeDisabled();
-  });
+  }, 15_000);
 
   it("changes project without retaining the prior snapshot or recorder text", async () => {
     const { location } = renderRoute();

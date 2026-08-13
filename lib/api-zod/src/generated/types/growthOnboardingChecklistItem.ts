@@ -32,9 +32,10 @@ export interface GrowthOnboardingChecklistItem {
      * @maxLength 1000
      */
   purpose: string;
+  practiceMarkerReceipt: 'Self-recorded practice marker saved; this is not evidence that the described task was completed.';
   /**
-     * @minLength 1
-     * @maxLength 1000
+     * Compatibility-only neutral text. It is not evidence that any task was completed.
+     * @deprecated
      */
-  completionEvidence: string;
+  completionEvidence: 'Self-recorded practice marker saved; this is not evidence that the described task was completed.';
 }

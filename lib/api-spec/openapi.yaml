@@ -107,6 +107,9 @@ paths:
       responses:
         "200":
           description: The API process is alive.
+          headers:
+            X-Valo-Release-Sha256:
+              $ref: "#/components/headers/ReleaseSha256"
           content:
             application/json:
               schema:
@@ -128,6 +131,8 @@ paths:
           headers:
             Cache-Control:
               $ref: "#/components/headers/PrivateNoStore"
+            X-Valo-Release-Sha256:
+              $ref: "#/components/headers/ReleaseSha256"
           content:
             application/json:
               schema:
@@ -137,6 +142,8 @@ paths:
           headers:
             Cache-Control:
               $ref: "#/components/headers/PrivateNoStore"
+            X-Valo-Release-Sha256:
+              $ref: "#/components/headers/ReleaseSha256"
           content:
             application/json:
               schema:
@@ -306,7 +313,12 @@ paths:
     get:
       operationId: listUsers
       tags: [Auth]
-      summary: List internal users (admin only)
+      summary: List the selected organisation's membership directory
+      description: >-
+        Returns selected-organisation membership identities with current
+        server-computed role and project-reviewer eligibility. Eligibility is
+        false unless the user, direct membership, access window and a compatible
+        draft-review role grant are all current at database time.
       responses:
         "200":
           description: Users
@@ -315,7 +327,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/User"
+                  $ref: "#/components/schemas/OrganisationUser"
         "403":
           $ref: "#/components/responses/Forbidden"
   /users/{id}:
@@ -943,6 +955,10 @@ paths:
                 $ref: "#/components/schemas/Project"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /projects/{id}:
     get:
       operationId: getProject
@@ -976,8 +992,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "428":
+          $ref: "#/components/responses/PreconditionRequired"
     delete:
       operationId: deleteProject
       tags: [Projects]
@@ -1106,6 +1130,116 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/RetentionRequest"
+  /storage-lifecycle/dead-letters:
+    get:
+      operationId: listStorageDeletionDeadLetters
+      tags: [Operations]
+      summary: List one bounded page of unresolved storage deletion failures
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 25, default: 25 }
+        - name: cursor
+          in: query
+          required: false
+          description: Opaque continuation cursor from the preceding page.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 192
+            pattern: "^[A-Za-z0-9_-]+$"
+      responses:
+        "200":
+          description: Tenant-scoped dead letters without storage object paths.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageDeletionDeadLetterPage"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/StorageLifecycleUnavailable" }
+  /storage-lifecycle/dead-letters/{id}/replay:
+    post:
+      operationId: replayStorageDeletionDeadLetter
+      tags: [Operations]
+      summary: Authorise one bounded retry cycle for a storage dead letter
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+        - $ref: "#/components/parameters/IfMatchVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StorageDeletionOperatorReason"
+      responses:
+        "200":
+          description: Dead letter returned to the durable queue.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            ETag:
+              $ref: "#/components/headers/VersionETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageDeletionDeadLetter"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413":
+          description: The lifecycle operator body exceeds 2 KiB.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "503": { $ref: "#/components/responses/StorageLifecycleUnavailable" }
+  /storage-lifecycle/dead-letters/{id}/resolve:
+    post:
+      operationId: resolveStorageDeletionDeadLetter
+      tags: [Operations]
+      summary: Record explicit unresolved-risk acceptance for a dead letter
+      description: This operation does not claim that the provider object was deleted.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+        - $ref: "#/components/parameters/IfMatchVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StorageDeletionOperatorReason"
+      responses:
+        "200":
+          description: Dead letter resolved as accepted but unconfirmed risk.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            ETag:
+              $ref: "#/components/headers/VersionETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageDeletionDeadLetter"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413":
+          description: The lifecycle operator body exceeds 2 KiB.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "503": { $ref: "#/components/responses/StorageLifecycleUnavailable" }
   /retention-requests/{id}/complete:
     post:
       operationId: completeRetentionRequest
@@ -3331,10 +3465,11 @@ paths:
     post:
       tags: [Growth Suite]
       operationId: mutateGrowthOnboardingProgress
-      summary: Record one onboarding checkpoint with optimistic concurrency
+      summary: Save or remove one self-recorded onboarding practice marker
       description: >-
-        Records only a named operator's onboarding progress for the current
-        journey policy. It does not change authoritative pursuit state.
+        Records only a named operator's self-reported practice marker for the
+        current journey policy. It is not evidence that the described task was
+        completed and does not change authoritative pursuit state.
       requestBody:
         required: true
         content:
@@ -3343,7 +3478,7 @@ paths:
               $ref: "#/components/schemas/GrowthOnboardingProgressMutation"
       responses:
         "200":
-          description: Onboarding progress was recorded.
+          description: The self-recorded practice marker state was recorded.
           content:
             application/json:
               schema:
@@ -5498,34 +5633,20 @@ paths:
     post:
       tags: [Storage]
       operationId: requestUploadUrl
-      summary: Request a presigned URL for file upload
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UploadUrlRequest"
+      summary: Legacy generic signed-upload issuance (not activated)
+      description: >-
+        This compatibility operation is fail-closed. It issues no capability
+        until generic uploads use durable leases and the provider's create-only
+        semantics are independently verified.
       responses:
-        "200":
-          description: Presigned upload URL generated.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503":
+          description: Generic signed-upload issuance is not activated and no side effect was applied.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UploadUrlResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "413":
-          description: The declared upload size exceeds the deployment intake limit.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorEnvelope"
-        "500":
-          description: Failed to generate upload URL.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorEnvelope"
+                $ref: "#/components/schemas/LegacyUploadIssuanceUnavailable"
   /storage/uploads/discard:
     post:
       tags: [Storage]
@@ -5886,6 +6007,12 @@ components:
         pattern: '^(?:W/)?"?[1-9][0-9]*"?$'
       example: '"3"'
   headers:
+    ReleaseSha256:
+      description: Declared candidate digest injected by the deployment control; this is not a live artifact hash and is omitted when no valid identity is configured.
+      required: false
+      schema:
+        type: string
+        pattern: "^[0-9a-f]{64}$"
     VersionETag:
       description: Quoted optimistic-concurrency version for the returned resource.
       schema:
@@ -5958,6 +6085,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorEnvelope"
+    StorageLifecycleUnavailable:
+      description: Storage lifecycle persistence is unavailable and no operator mutation committed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/StorageLifecycleUnavailableError"
     AiInputRejected:
       description: AI input was invalid or exceeded the bounded source limit
       content:
@@ -10332,12 +10465,19 @@ components:
     GrowthOnboardingChecklistItem:
       type: object
       additionalProperties: false
-      required: [id, title, purpose, completionEvidence]
+      required: [id, title, purpose, practiceMarkerReceipt, completionEvidence]
       properties:
         id: { type: string, minLength: 1, maxLength: 160 }
         title: { type: string, minLength: 1, maxLength: 160 }
         purpose: { type: string, minLength: 1, maxLength: 1000 }
-        completionEvidence: { type: string, minLength: 1, maxLength: 1000 }
+        practiceMarkerReceipt:
+          type: string
+          const: "Self-recorded practice marker saved; this is not evidence that the described task was completed."
+        completionEvidence:
+          type: string
+          deprecated: true
+          description: Compatibility-only neutral text. It is not evidence that any task was completed.
+          const: "Self-recorded practice marker saved; this is not evidence that the described task was completed."
     GrowthSyntheticTourStep:
       type: object
       additionalProperties: false
@@ -10410,28 +10550,49 @@ components:
     GrowthOnboardingProgress:
       type: object
       additionalProperties: false
-      required: [journeyVersion, completedItemIds, version]
+      required:
+        [journeyVersion, savedPracticeMarkerItemIds, completedItemIds, version]
       properties:
         journeyVersion:
           type: string
           const: "2026-08-11.2"
+        savedPracticeMarkerItemIds:
+          type: array
+          uniqueItems: true
+          maxItems: 512
+          items: { type: string, minLength: 1, maxLength: 128 }
         completedItemIds:
           type: array
+          deprecated: true
+          description: Compatibility alias for savedPracticeMarkerItemIds. It does not represent task completion.
           uniqueItems: true
           maxItems: 512
           items: { type: string, minLength: 1, maxLength: 128 }
         version: { type: integer, minimum: 0 }
     GrowthOnboardingProgressMutation:
-      type: object
-      additionalProperties: false
-      required: [journeyVersion, itemId, expectedVersion, completed]
-      properties:
-        journeyVersion:
-          type: string
-          const: "2026-08-11.2"
-        itemId: { type: string, minLength: 1, maxLength: 128 }
-        expectedVersion: { type: integer, minimum: 0 }
-        completed: { type: boolean }
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [journeyVersion, itemId, expectedVersion, markerSaved]
+          properties:
+            journeyVersion:
+              type: string
+              const: "2026-08-11.2"
+            itemId: { type: string, minLength: 1, maxLength: 128 }
+            expectedVersion: { type: integer, minimum: 0 }
+            markerSaved: { type: boolean }
+        - type: object
+          deprecated: true
+          description: Legacy compatibility request. Use markerSaved; completed does not represent task completion.
+          additionalProperties: false
+          required: [journeyVersion, itemId, expectedVersion, completed]
+          properties:
+            journeyVersion:
+              type: string
+              const: "2026-08-11.2"
+            itemId: { type: string, minLength: 1, maxLength: 128 }
+            expectedVersion: { type: integer, minimum: 0 }
+            completed: { type: boolean }
     GrowthOnboardingProgressMutationResponse:
       type: object
       additionalProperties: false
@@ -13186,6 +13347,52 @@ components:
           enum: [active, disabled]
         lastLoginAt: { type: string, nullable: true }
         createdAt: { type: string }
+    OrganisationUser:
+      type: object
+      required:
+        - id
+        - email
+        - role
+        - status
+        - membershipId
+        - membershipStatus
+        - membershipVersion
+        - reviewerEligible
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        name: { type: string, nullable: true }
+        role:
+          type: string
+          enum:
+            - client_organisation_owner
+            - client_administrator
+            - bid_manager
+            - contributor
+            - client_reviewer_approver
+            - valo_operations_administrator
+            - restricted_platform_administrator
+            - consultancy_partner_administrator
+            - consultancy_partner_analyst_reviewer
+            - read_only_auditor
+            - valo_analyst
+            - valo_quality_adviser
+            - none
+        status:
+          type: string
+          enum: [active, disabled]
+        lastLoginAt: { type: string, nullable: true }
+        createdAt: { type: string }
+        membershipId: { type: string, format: uuid }
+        membershipStatus:
+          type: string
+          enum: [active, suspended, revoked]
+        membershipVersion: { type: integer, minimum: 1 }
+        reviewerEligible:
+          type: boolean
+          description: >-
+            Server-computed current eligibility for named project review in
+            the selected organisation. Absence or false must fail closed.
     UserUpdate:
       type: object
       properties:
@@ -14216,6 +14423,85 @@ components:
             - { type: string, const: upload_sessions }
             - { type: string, const: storage_lifecycle_control_rows }
           items: false
+    StorageDeletionOperatorReason:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 8, maxLength: 512 }
+    StorageDeletionDeadLetter:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          version,
+          status,
+          replayCount,
+          cycleAttempts,
+          terminalAt,
+          projectId,
+          aggregateType,
+          aggregateId,
+          reason,
+          requestedAt,
+          requestSha256,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        version: { type: integer, minimum: 1 }
+        status: { type: string, enum: [dead_letter, queued, resolved] }
+        replayCount: { type: integer, minimum: 0, maximum: 3 }
+        cycleAttempts: { type: integer, minimum: 0, maximum: 5 }
+        terminalAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: "null" }
+        projectId:
+          oneOf:
+            - { type: string, format: uuid }
+            - { type: "null" }
+        aggregateType:
+          { type: string, enum: [document, vault_item, upload_session] }
+        aggregateId: { type: string, format: uuid }
+        reason:
+          {
+            type: string,
+            enum: [record_deleted, reference_replaced, lease_expired],
+          }
+        requestedAt: { type: string, format: date-time }
+        requestSha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+    StorageDeletionDeadLetterPage:
+      type: object
+      additionalProperties: false
+      required: [items, limit, truncated, nextCursor]
+      properties:
+        items:
+          type: array
+          maxItems: 25
+          items:
+            $ref: "#/components/schemas/StorageDeletionDeadLetter"
+        limit: { type: integer, minimum: 1, maximum: 25 }
+        truncated: { type: boolean }
+        nextCursor:
+          oneOf:
+            - type: string
+              minLength: 1
+              maxLength: 192
+              pattern: "^[A-Za-z0-9_-]+$"
+            - { type: "null" }
+    StorageLifecycleUnavailableError:
+      type: object
+      additionalProperties: false
+      required: [error, code, sideEffectsApplied]
+      properties:
+        error:
+          type: string
+          const: Storage lifecycle persistence is unavailable
+        code:
+          type: string
+          const: STORAGE_LIFECYCLE_PERSISTENCE_UNAVAILABLE
+        sideEffectsApplied: { type: boolean, const: false }
     SeverityWeights:
       type: object
       required: [fatal, likely_fatal, scoring_risk, cosmetic]
@@ -14587,7 +14873,7 @@ components:
 
     Project:
       type: object
-      required: [id, clientId, tenderTitle, status, createdAt]
+      required: [id, clientId, tenderTitle, status, reviewerId, createdAt]
       properties:
         id: { type: string }
         clientId: { type: string }
@@ -14674,7 +14960,7 @@ components:
         createdAt: { type: string }
     ProjectSummary:
       type: object
-      required: [id, clientId, tenderTitle, status, createdAt]
+      required: [id, clientId, tenderTitle, status, reviewerId, createdAt]
       properties:
         id: { type: string }
         clientId: { type: string }
@@ -14701,6 +14987,7 @@ components:
               exported,
               archived,
             ]
+        reviewerId: { type: string, format: uuid, nullable: true }
         reviewerName: { type: string, nullable: true }
         slaClass:
           type: string
@@ -14739,29 +15026,21 @@ components:
       type: object
       required: [clientId, tenderTitle, reviewerId]
       properties:
-        clientId: { type: string }
+        clientId: { type: string, format: uuid }
         tenderTitle: { type: string, minLength: 1 }
         issuingEntity: { type: string }
         tenderRef: { type: string }
         lot: { type: string }
-        deadline: { type: string }
+        deadline: { type: string, format: date-time }
         valueBand: { type: string }
         segment:
           type: string
           enum: [federal, nipex_ncdmb, donor, other]
         submissionStatus: { type: string }
-        reviewerId: { type: string }
+        reviewerId: { type: string, format: uuid }
         slaClass:
           type: string
           enum: [standard, live]
-        paymentStatus:
-          type: string
-          enum: [not_required, pending, confirmed]
-        conflictStatus:
-          type: string
-          enum: [clear, blocked, consented, declined]
-        conflictDecision: { type: string }
-        conflictRationale: { type: string }
         physicalArchiveInstruction: { type: string }
         redactionScope: { type: string }
         restrictedMode: { type: boolean }
@@ -14774,7 +15053,7 @@ components:
         issuingEntity: { type: string }
         tenderRef: { type: string }
         lot: { type: string }
-        deadline: { type: string }
+        deadline: { type: string, format: date-time }
         valueBand: { type: string }
         segment:
           type: string
@@ -14793,7 +15072,7 @@ components:
               exported,
               archived,
             ]
-        reviewerId: { type: string }
+        reviewerId: { type: string, format: uuid }
         slaClass:
           type: string
           enum: [standard, live]
@@ -15476,6 +15755,21 @@ components:
           type: string
         metadata:
           $ref: "#/components/schemas/UploadUrlRequest"
+    LegacyUploadIssuanceUnavailable:
+      type: object
+      additionalProperties: false
+      required: [error, code, sideEffectsApplied]
+      properties:
+        error:
+          type: string
+          minLength: 1
+          maxLength: 512
+        code:
+          type: string
+          enum: [LEGACY_UPLOAD_ISSUANCE_NOT_ACTIVATED]
+        sideEffectsApplied:
+          type: boolean
+          const: false
     DiscardUploadRequest:
       type: object
       additionalProperties: false

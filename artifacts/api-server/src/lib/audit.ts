@@ -26,6 +26,8 @@ export interface AuditParams {
   objectType?: string | null;
   objectId?: string | null;
   details?: string | null;
+  /** Authoritative timestamp captured by a caller inside its database tx. */
+  createdAt?: Date;
 }
 
 /**
@@ -70,6 +72,10 @@ export async function writeAuditTx(
     .orderBy(desc(auditEvents.seq))
     .limit(1);
 
+  const createdAt = params.createdAt ?? new Date();
+  if (!Number.isFinite(createdAt.valueOf())) {
+    throw new Error("Audit event timestamp is invalid");
+  }
   const payload: AuditChainPayload = {
     seq: (last?.seq ?? 0) + 1,
     organisationId,
@@ -80,9 +86,9 @@ export async function writeAuditTx(
     objectType: params.objectType ?? null,
     objectId: params.objectId ?? null,
     details: params.details ?? null,
-    // App-generated (not the DB default) so the timestamp is covered by
-    // the hash and verification never depends on DB-side formatting.
-    createdAt: new Date().toISOString(),
+    // Explicitly materialised (not the DB default) so the timestamp is covered
+    // by the hash and verification never depends on DB-side formatting.
+    createdAt: createdAt.toISOString(),
   };
   const prevHash = last?.hash ?? AUDIT_GENESIS_HASH;
   const hash = computeAuditHash(prevHash, payload);

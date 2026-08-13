@@ -96,19 +96,28 @@ function onboardingExpectedVersion(value: unknown): number | null {
 export function parseOnboardingProgressMutation(
   value: unknown,
 ): OnboardingProgressMutation | null {
-  if (
-    !isPlainRecord(value) ||
-    !hasExactKeys(value, [
-      "journeyVersion",
-      "itemId",
-      "expectedVersion",
-      "completed",
-    ]) ||
-    value.journeyVersion !== "2026-08-11.2" ||
-    typeof value.completed !== "boolean"
-  ) {
+  if (!isPlainRecord(value)) {
     return null;
   }
+  const canonical = hasExactKeys(value, [
+    "journeyVersion",
+    "itemId",
+    "expectedVersion",
+    "markerSaved",
+  ]);
+  const legacy = hasExactKeys(value, [
+    "journeyVersion",
+    "itemId",
+    "expectedVersion",
+    "completed",
+  ]);
+  const markerSaved = canonical ? value.markerSaved : value.completed;
+  if (
+    (!canonical && !legacy) ||
+    value.journeyVersion !== "2026-08-11.2" ||
+    typeof markerSaved !== "boolean"
+  )
+    return null;
   const itemId = boundedId(value.itemId);
   const version = onboardingExpectedVersion(value.expectedVersion);
   return itemId && version !== null
@@ -116,7 +125,7 @@ export function parseOnboardingProgressMutation(
         journeyVersion: value.journeyVersion,
         itemId,
         expectedVersion: version,
-        completed: value.completed,
+        markerSaved,
       }
     : null;
 }
@@ -385,7 +394,7 @@ export function createGrowthSuiteRouter(
     }
     const mutation = parseOnboardingProgressMutation(req.body);
     if (!mutation) {
-      res.status(400).json({ error: "Invalid onboarding checkpoint" });
+      res.status(400).json({ error: "Invalid onboarding practice marker" });
       return;
     }
     try {
@@ -395,7 +404,7 @@ export function createGrowthSuiteRouter(
         mutation,
       );
       if (result.outcome === "policy_denied") {
-        res.status(403).json({ error: "Onboarding checkpoint denied" });
+        res.status(403).json({ error: "Onboarding practice marker denied" });
         return;
       }
       if (result.outcome !== "updated") {

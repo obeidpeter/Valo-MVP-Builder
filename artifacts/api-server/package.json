@@ -18,6 +18,8 @@
     "eval:promote-baseline": "node --import tsx ./scripts/run-eval-harness.ts --promote-baseline",
     "prove:ship": "pnpm run prove:doctrine:offline && pnpm run prove:injection:offline && pnpm run eval:harness:offline",
     "verify:audit": "node --import tsx ./scripts/verify-audit-chain.ts",
+    "verify:audit-anchor-evidence": "node ../../scripts/verify-operational-evidence.mjs --kind audit-anchor",
+    "verify:backup-evidence": "node ../../scripts/verify-operational-evidence.mjs --kind backup",
     "retention:scan": "node --import tsx ./scripts/run-retention-scan.ts",
     "storage:reconcile-deletions": "node --import tsx ./scripts/run-storage-deletion-reconciler.ts"
   },

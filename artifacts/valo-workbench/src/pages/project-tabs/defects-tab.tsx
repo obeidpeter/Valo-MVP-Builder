@@ -282,7 +282,7 @@ export function DefectsTab({ projectId }: { projectId: string }) {
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-serif font-medium">Defect Register</h2>
         <div className="flex gap-2">
-          {canReviewDefects && (
+          {canWriteDefects && (
             <Button onClick={openAdd} variant="outline">
               <Plus className="w-4 h-4 mr-2" /> Add Defect
             </Button>

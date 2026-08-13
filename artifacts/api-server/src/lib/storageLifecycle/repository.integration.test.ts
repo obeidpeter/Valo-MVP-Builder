@@ -18,6 +18,7 @@ import { lockStagedUploadObject } from "../stagedUploadLock";
 import {
   enqueueStorageDeletionIntent,
   listPendingStorageDeletionIntents,
+  purgeRetainedStorageDeletionTerminals,
   reconcileStorageDeletionIntent,
 } from "./repository";
 
@@ -286,7 +287,10 @@ test("attempt exhaustion creates an audited dead letter after bounded backoff", 
     assert.equal(result.outcome, attempt === 5 ? "dead_letter" : "retry_wait");
     await withTenantDatabase(organisationId, async () => {
       const rows = await db
-        .select({ nextAttemptAt: notificationAttempts.nextAttemptAt })
+        .select({
+          attemptedAt: notificationAttempts.attemptedAt,
+          nextAttemptAt: notificationAttempts.nextAttemptAt,
+        })
         .from(notificationAttempts)
         .where(
           and(
@@ -299,12 +303,19 @@ test("attempt exhaustion creates an audited dead letter after bounded backoff", 
       assert.equal(rows.length, 1);
       const expectedSeconds = expectedRetrySeconds[attempt - 1];
       assert.equal(
-        rows[0]!.nextAttemptAt?.toISOString() ?? null,
-        expectedSeconds === null
+        rows[0]!.nextAttemptAt === null
           ? null
-          : new Date(
-              attemptTimes[attempt - 1]!.valueOf() + expectedSeconds * 1_000,
-            ).toISOString(),
+          : Math.round(
+              (rows[0]!.nextAttemptAt!.valueOf() -
+                rows[0]!.attemptedAt.valueOf()) /
+                1_000,
+            ),
+        expectedSeconds === null ? null : expectedSeconds,
+      );
+      assert.notEqual(
+        rows[0]!.attemptedAt.toISOString(),
+        attemptTimes[attempt - 1]!.toISOString(),
+        "persisted attempt time must ignore the caller clock",
       );
     });
   }
@@ -357,5 +368,52 @@ test("concurrent exact enqueue requests converge without duplicate queue rows", 
       .where(eq(notificationEvents.id, first.id))
       .limit(2);
     assert.equal(rows.length, 1);
+  });
+});
+
+test("terminal purge retains every accepted-unresolved provider locator", async () => {
+  const requestedAt = new Date("2000-01-01T00:00:00Z");
+  const unresolved = await enqueue(
+    objectPath("accepted-unresolved"),
+    randomUUID(),
+    requestedAt,
+  );
+  const confirmed = await enqueue(
+    objectPath("confirmed-deleted"),
+    randomUUID(),
+    requestedAt,
+  );
+  await withTenantDatabase(organisationId, async () => {
+    await db
+      .update(notificationEvents)
+      .set({
+        status: "resolved",
+        storageTerminalAt: requestedAt,
+        updatedAt: requestedAt,
+      })
+      .where(eq(notificationEvents.id, unresolved.id));
+    await db
+      .update(notificationEvents)
+      .set({
+        status: "completed",
+        storageTerminalAt: requestedAt,
+        updatedAt: requestedAt,
+      })
+      .where(eq(notificationEvents.id, confirmed.id));
+    const purge = await purgeRetainedStorageDeletionTerminals(
+      organisationId,
+      5,
+    );
+    assert.equal(purge.purged, 1);
+    const remaining = await db
+      .select({ id: notificationEvents.id })
+      .from(notificationEvents)
+      .where(
+        and(
+          eq(notificationEvents.organisationId, organisationId),
+          eq(notificationEvents.id, unresolved.id),
+        ),
+      );
+    assert.deepEqual(remaining, [{ id: unresolved.id }]);
   });
 });

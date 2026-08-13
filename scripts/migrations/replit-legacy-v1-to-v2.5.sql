@@ -81,7 +81,8 @@ INSERT INTO _valo_bridge_inputs VALUES (
 
 CREATE TEMPORARY TABLE _valo_bridge_state (
   is_legacy boolean NOT NULL,
-  is_complete boolean NOT NULL
+  is_complete boolean NOT NULL,
+  production_assurance_expected boolean NOT NULL
 ) ON COMMIT DROP;
 
 CREATE TEMPORARY TABLE _valo_expected_legacy_columns (
@@ -179,9 +180,11 @@ DECLARE
   public_enum_count integer;
   expected_count_keys text[];
   policy_count integer;
+  authenticated_rate_limit_policy_matches boolean;
   has_hash_version boolean;
   legacy_match boolean;
   complete_match boolean;
+  production_assurance_match boolean;
 BEGIN
   SELECT * INTO STRICT inputs FROM _valo_bridge_inputs;
   IF inputs.acknowledgement <> 'RESTORE_VERIFIED_AND_APPLICATION_QUIESCED' THEN
@@ -289,6 +292,26 @@ BEGIN
     WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
       AND c.relrowsecurity AND c.relforcerowsecurity;
   SELECT count(*) INTO policy_count FROM pg_policies WHERE schemaname='public';
+  SELECT count(*) = 1
+      AND COALESCE(bool_and(
+        policy.polname = 'tenant_isolation'
+        AND policy.polpermissive
+        AND policy.polcmd = '*'
+        AND policy.polroles = ARRAY[0::oid]
+        AND pg_catalog.pg_get_expr(
+          policy.polqual, policy.polrelid, false
+        ) = '(organisation_id = valo_security.current_organisation_id())'
+        AND pg_catalog.pg_get_expr(
+          policy.polwithcheck, policy.polrelid, false
+        ) = '(organisation_id = valo_security.current_organisation_id())'
+      ), false)
+    INTO authenticated_rate_limit_policy_matches
+    FROM pg_catalog.pg_policy AS policy
+    JOIN pg_catalog.pg_class AS relation ON relation.oid=policy.polrelid
+    JOIN pg_catalog.pg_namespace AS namespace
+      ON namespace.oid=relation.relnamespace
+    WHERE namespace.nspname='public'
+      AND relation.relname='authenticated_rate_limit_buckets';
   SELECT count(*) INTO any_rls_table_count
     FROM pg_class AS c
     JOIN pg_namespace AS n ON n.oid=c.relnamespace
@@ -321,32 +344,43 @@ BEGIN
     AND to_regclass('drizzle.__drizzle_migrations') IS NULL;
 
   complete_match := false;
-  IF COALESCE(
-       cardinality(actual_tables)=cardinality(target_tables)
-       AND actual_tables @> target_tables
-       AND target_tables @> actual_tables,
-       false
-     )
-     AND has_hash_version
-     AND COALESCE(
-       cardinality(actual_rls_tables)=cardinality(rls_tables)
-       AND actual_rls_tables @> rls_tables
-       AND rls_tables @> actual_rls_tables,
-       false
-     )
-     AND policy_count = 104
+  production_assurance_match := false;
+  IF has_hash_version
      AND to_regnamespace('valo_legacy_bridge_archive') IS NULL THEN
-    SELECT EXISTS (
-      SELECT 1 FROM public.organisations
-      WHERE id = '56414c4f-0000-5000-8000-000000000025'::uuid
-        AND name = 'Valo Nigeria' AND slug = 'valo-nigeria' AND type = 'valo'
-    ) INTO complete_match;
+    production_assurance_match := COALESCE(
+      cardinality(actual_tables) = cardinality(target_tables) + 1
+      AND actual_tables @> target_tables
+      AND 'authenticated_rate_limit_buckets' = ANY(actual_tables)
+      AND cardinality(actual_rls_tables) = cardinality(rls_tables) + 1
+      AND actual_rls_tables @> rls_tables
+      AND 'authenticated_rate_limit_buckets' = ANY(actual_rls_tables)
+      AND policy_count = 105
+      AND authenticated_rate_limit_policy_matches,
+      false
+    );
+    IF COALESCE(
+         cardinality(actual_tables)=cardinality(target_tables)
+         AND actual_tables @> target_tables
+         AND target_tables @> actual_tables
+         AND cardinality(actual_rls_tables)=cardinality(rls_tables)
+         AND actual_rls_tables @> rls_tables
+         AND rls_tables @> actual_rls_tables
+         AND policy_count = 104,
+         false
+       ) OR production_assurance_match THEN
+      SELECT EXISTS (
+        SELECT 1 FROM public.organisations
+        WHERE id = '56414c4f-0000-5000-8000-000000000025'::uuid
+          AND name = 'Valo Nigeria' AND slug = 'valo-nigeria' AND type = 'valo'
+      ) INTO complete_match;
+    END IF;
   END IF;
 
   IF legacy_match THEN
-    INSERT INTO _valo_bridge_state VALUES (true, false);
+    INSERT INTO _valo_bridge_state VALUES (true, false, false);
   ELSIF complete_match THEN
-    INSERT INTO _valo_bridge_state VALUES (false, true);
+    INSERT INTO _valo_bridge_state
+      VALUES (false, true, production_assurance_match);
   ELSE
     RAISE EXCEPTION
       'schema is neither the exact unjournalled legacy baseline nor the fully reconciled v2.5 target';
@@ -7493,14 +7527,36 @@ DECLARE
   ];
   actual_tables text[];
   actual_rls_tables text[];
+  required_rls_tables text[];
+  expected_table_count integer;
+  expected_policy_count integer;
+  assurance_expected boolean;
   policy_count integer;
+  authenticated_rate_limit_policy_matches boolean;
 BEGIN
+  SELECT state.production_assurance_expected
+    INTO STRICT assurance_expected
+    FROM _valo_bridge_state AS state;
+  IF assurance_expected THEN
+    expected_table_count := 97;
+    expected_policy_count := 105;
+    required_rls_tables := expected_rls_tables
+      || ARRAY['authenticated_rate_limit_buckets']::text[];
+  ELSE
+    expected_table_count := 96;
+    expected_policy_count := 104;
+    required_rls_tables := expected_rls_tables;
+  END IF;
+
   SELECT array_agg(c.relname ORDER BY c.relname)
     INTO actual_tables
     FROM pg_class AS c JOIN pg_namespace AS n ON n.oid=c.relnamespace
     WHERE n.nspname='public' AND c.relkind IN ('r','p');
-  IF cardinality(actual_tables) <> 96 THEN
-    RAISE EXCEPTION 'target table inventory is not exactly 96 tables';
+  IF cardinality(actual_tables) <> expected_table_count
+     OR assurance_expected IS DISTINCT FROM
+       ('authenticated_rate_limit_buckets' = ANY(actual_tables)) THEN
+    RAISE EXCEPTION 'target table inventory is not the exact expected % table variant',
+      expected_table_count;
   END IF;
 
   SELECT array_agg(c.relname ORDER BY c.relname)
@@ -7509,13 +7565,36 @@ BEGIN
     WHERE n.nspname='public' AND c.relkind IN ('r','p')
       AND c.relrowsecurity AND c.relforcerowsecurity;
   SELECT count(*) INTO policy_count FROM pg_policies WHERE schemaname='public';
-  IF cardinality(actual_rls_tables) IS DISTINCT FROM 85
+  SELECT count(*) = 1
+      AND COALESCE(bool_and(
+        policy.polname = 'tenant_isolation'
+        AND policy.polpermissive
+        AND policy.polcmd = '*'
+        AND policy.polroles = ARRAY[0::oid]
+        AND pg_catalog.pg_get_expr(
+          policy.polqual, policy.polrelid, false
+        ) = '(organisation_id = valo_security.current_organisation_id())'
+        AND pg_catalog.pg_get_expr(
+          policy.polwithcheck, policy.polrelid, false
+        ) = '(organisation_id = valo_security.current_organisation_id())'
+      ), false)
+    INTO authenticated_rate_limit_policy_matches
+    FROM pg_catalog.pg_policy AS policy
+    JOIN pg_catalog.pg_class AS relation ON relation.oid=policy.polrelid
+    JOIN pg_catalog.pg_namespace AS namespace
+      ON namespace.oid=relation.relnamespace
+    WHERE namespace.nspname='public'
+      AND relation.relname='authenticated_rate_limit_buckets';
+  IF cardinality(actual_rls_tables) IS DISTINCT FROM
+       cardinality(required_rls_tables)
      OR NOT COALESCE(
-       actual_rls_tables @> expected_rls_tables
-       AND expected_rls_tables @> actual_rls_tables,
+       actual_rls_tables @> required_rls_tables
+       AND required_rls_tables @> actual_rls_tables,
        false
      )
-     OR policy_count <> 104 THEN
+     OR policy_count <> expected_policy_count
+     OR assurance_expected IS DISTINCT FROM
+       authenticated_rate_limit_policy_matches THEN
     RAISE EXCEPTION 'RLS reconciliation failed: tables %, policies %',
       cardinality(actual_rls_tables), policy_count;
   END IF;
@@ -7662,6 +7741,12 @@ BEGIN
   EXECUTE format('REVOKE DELETE ON TABLE public.users FROM %I', role_name);
   EXECUTE format('REVOKE DELETE ON TABLE public.organisation_memberships, public.partner_relationships, public.break_glass_sessions FROM %I', role_name);
   EXECUTE format('REVOKE UPDATE, DELETE ON TABLE public.role_grants FROM %I', role_name);
+  IF (SELECT production_assurance_expected FROM _valo_bridge_state) THEN
+    EXECUTE format(
+      'REVOKE DELETE ON TABLE public.authenticated_rate_limit_buckets FROM %I',
+      role_name
+    );
+  END IF;
   EXECUTE format('GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO %I', role_name);
   EXECUTE format('REVOKE UPDATE ON ALL SEQUENCES IN SCHEMA public FROM %I', role_name);
   EXECUTE format('REVOKE INSERT, UPDATE, DELETE ON TABLE public.audit_events FROM %I', role_name);
@@ -7673,6 +7758,12 @@ BEGIN
   EXECUTE format('REVOKE INSERT, UPDATE, DELETE ON TABLE public.legacy_audit_integrity_assessments FROM %I', role_name);
   EXECUTE format('GRANT EXECUTE ON FUNCTION valo_security.current_organisation_id() TO %I', role_name);
   EXECUTE format('GRANT EXECUTE ON FUNCTION valo_security.set_current_organisation_id(uuid) TO %I', role_name);
+  IF (SELECT production_assurance_expected FROM _valo_bridge_state) THEN
+    EXECUTE format(
+      'GRANT EXECUTE ON FUNCTION valo_security.consume_authenticated_actor_rate_limit(text, integer, integer) TO %I',
+      role_name
+    );
+  END IF;
   EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO %I', current_user, role_name);
   EXECUTE format('ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public REVOKE UPDATE ON SEQUENCES FROM %I', current_user, role_name);
 
@@ -7751,6 +7842,12 @@ BEGIN
               routine.proname IN (
                 'current_organisation_id','set_current_organisation_id'
               )
+              OR (
+                (SELECT production_assurance_expected
+                 FROM _valo_bridge_state)
+                AND routine.proname =
+                  'consume_authenticated_actor_rate_limit'
+              )
             )
       )
       OR EXISTS (
@@ -7772,9 +7869,11 @@ BEGIN
               ))
             OR has_table_privilege(role_name, relation.oid, 'DELETE') IS DISTINCT FROM
               (relation.relname NOT IN (
-                'audit_events','break_glass_sessions','legacy_audit_events',
-                'legacy_audit_integrity_assessments','organisation_memberships',
-                'organisations','partner_relationships','role_grants','users'
+                'audit_events','authenticated_rate_limit_buckets',
+                'break_glass_sessions','legacy_audit_events',
+                'legacy_audit_integrity_assessments',
+                'organisation_memberships','organisations',
+                'partner_relationships','role_grants','users'
               ))
             OR has_table_privilege(role_name, relation.oid, 'TRUNCATE')
             OR has_table_privilege(role_name, relation.oid, 'REFERENCES')

@@ -165,7 +165,7 @@ router.post(
 
 router.post(
   "/defects",
-  requirePermissionOrLegacy("defect:review"),
+  requirePermissionOrLegacy("defect:write"),
   async (req: Request, res: Response) => {
     const parsed = CreateDefectBody.safeParse(req.body);
     if (!parsed.success) {
@@ -293,7 +293,7 @@ router.patch(
 
 router.delete(
   "/defects/:id",
-  requirePermissionOrLegacy("defect:review"),
+  requirePermissionOrLegacy("defect:write"),
   async (req: Request, res: Response) => {
     void req;
     res.status(409).json({

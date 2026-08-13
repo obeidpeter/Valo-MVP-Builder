@@ -3,7 +3,6 @@ import {
   useCreateProject,
   getListProjectsQueryKey,
   useListClients,
-  useGetMe,
   useListUsers,
   getListUsersQueryKey,
 } from "@workspace/api-client-react";
@@ -36,16 +35,35 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Plus, Briefcase, AlertTriangle } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  Briefcase,
+  AlertTriangle,
+  RotateCcw,
+} from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useState, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearchParams } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { errorMessage } from "@/lib/errors";
 import { useOrganisationPermission } from "@/contexts/organisation-context";
+import {
+  FILTER_VALUE_LIMIT,
+  PROJECT_RISKS,
+  PROJECT_STATUSES,
+  REGISTER_CLOCK_INTERVAL_MS,
+  SEARCH_LIMIT,
+  boundedValue,
+  deadlineInputToIsoWat,
+  filterAndSortProjects,
+  formatDeadlineWat,
+  readProjectRegisterFilters,
+  retainEligibleSelectionId,
+} from "./project-register";
 
 const createProjectSchema = z.object({
   clientId: z.string().min(1, "Client is required"),
@@ -53,11 +71,16 @@ const createProjectSchema = z.object({
   issuingEntity: z.string().optional(),
   tenderRef: z.string().optional(),
   lot: z.string().optional(),
-  deadline: z.string().optional(),
+  deadline: z
+    .string()
+    .refine(
+      (value) => !value || deadlineInputToIsoWat(value) !== null,
+      "Enter a valid submission deadline in WAT",
+    )
+    .optional(),
   segment: z.enum(["federal", "nipex_ncdmb", "donor", "other"]).optional(),
   reviewerId: z.string().min(1, "Reviewer is required"),
   slaClass: z.enum(["standard", "live"]).optional(),
-  paymentStatus: z.enum(["not_required", "pending", "confirmed"]).optional(),
   physicalArchiveInstruction: z.string().optional(),
   redactionScope: z.string().optional(),
   restrictedMode: z.boolean().optional(),
@@ -66,15 +89,39 @@ const createProjectSchema = z.object({
 type CreateProjectForm = z.infer<typeof createProjectSchema>;
 
 export default function Projects() {
-  const searchParams = new URLSearchParams(window.location.search);
-  const defaultClientId = searchParams.get("clientId") || "";
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchKey = searchParams.toString();
+  const filters = useMemo(
+    () => readProjectRegisterFilters(new URLSearchParams(searchKey)),
+    [searchKey],
+  );
+  const defaultClientId = boundedValue(searchParams.get("clientId"));
 
-  const { data: projects, isLoading: loadingProjects } = useListProjects();
-  const { data: clients, isLoading: loadingClients } = useListClients();
-  const { data: me } = useGetMe();
+  const {
+    data: projects,
+    isLoading: loadingProjects,
+    isError: projectsFailed,
+    isSuccess: projectsLoaded,
+    isFetching: refreshingProjects,
+    refetch: retryProjects,
+  } = useListProjects();
+  const {
+    data: clients,
+    isLoading: loadingClients,
+    isError: clientsFailed,
+    isSuccess: clientsLoaded,
+    isFetching: refreshingClients,
+    refetch: retryClients,
+  } = useListClients();
   const canCreateProject = useOrganisationPermission("project:create");
   const canReadMemberships = useOrganisationPermission("membership:read");
-  const { data: users } = useListUsers({
+  const {
+    data: users,
+    isLoading: loadingUsers,
+    isError: usersFailed,
+    isFetching: refreshingUsers,
+    refetch: retryUsers,
+  } = useListUsers({
     query: {
       enabled: canCreateProject && canReadMemberships,
       queryKey: getListUsersQueryKey(),
@@ -89,12 +136,14 @@ export default function Projects() {
   );
   const reviewerOptions = useMemo(
     () =>
-      (users ?? (me ? [me] : [])).filter(
-        (user) => user.status === "active" && user.role !== "none",
+      (users ?? []).filter(
+        (user) =>
+          user.status === "active" &&
+          user.membershipStatus === "active" &&
+          user.reviewerEligible === true,
       ),
-    [me, users],
+    [users],
   );
-
   const form = useForm<CreateProjectForm>({
     resolver: zodResolver(createProjectSchema),
     defaultValues: {
@@ -107,12 +156,148 @@ export default function Projects() {
       segment: "other",
       reviewerId: "",
       slaClass: "standard",
-      paymentStatus: "not_required",
       physicalArchiveInstruction: "",
       redactionScope: "",
       restrictedMode: false,
     },
   });
+  const selectedClientId = form.watch("clientId");
+  const selectedReviewerId = form.watch("reviewerId");
+  const selectedClientEligible =
+    clientsLoaded === true &&
+    Boolean(retainEligibleSelectionId(selectedClientId, clients ?? []));
+  const selectedReviewerEligible = Boolean(
+    retainEligibleSelectionId(selectedReviewerId, reviewerOptions),
+  );
+
+  const [referenceNow, setReferenceNow] = useState(() => Date.now());
+  useEffect(() => {
+    const interval = window.setInterval(
+      () => setReferenceNow(Date.now()),
+      REGISTER_CLOCK_INTERVAL_MS,
+    );
+    return () => window.clearInterval(interval);
+  }, []);
+  const visibleProjects = useMemo(
+    () =>
+      projectsLoaded && projects
+        ? filterAndSortProjects(projects, filters, referenceNow)
+        : [],
+    [filters, projects, projectsLoaded, referenceNow],
+  );
+  const clientFilterOptions = useMemo(() => {
+    const options = new Map<string, string>();
+    for (const project of projects ?? []) {
+      options.set(
+        project.clientId,
+        project.clientName?.trim() || "Unnamed client",
+      );
+    }
+    return [...options].sort((a, b) =>
+      a[1] === b[1] ? (a[0] < b[0] ? -1 : 1) : a[1] < b[1] ? -1 : 1,
+    );
+  }, [projects]);
+  const reviewerFilterOptions = useMemo(() => {
+    const options = (projects ?? []).reduce<Map<string, string>>(
+      (directory, project) => {
+        const { reviewerId } = project;
+        if (reviewerId) {
+          directory.set(
+            reviewerId,
+            project.reviewerName?.trim() || "Unnamed reviewer",
+          );
+        }
+        return directory;
+      },
+      new Map(),
+    );
+    return Array.from(options).sort((a, b) =>
+      a[1] === b[1] ? (a[0] < b[0] ? -1 : 1) : a[1] < b[1] ? -1 : 1,
+    );
+  }, [projects]);
+
+  useEffect(() => {
+    if (!projectsLoaded) return;
+    const clientFilterIsStale =
+      Boolean(filters.client) &&
+      !clientFilterOptions.some(([id]) => id === filters.client);
+    const reviewerFilterIsStale =
+      Boolean(filters.reviewer) &&
+      !reviewerFilterOptions.some(([id]) => id === filters.reviewer);
+    if (!clientFilterIsStale && !reviewerFilterIsStale) return;
+
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (clientFilterIsStale) next.delete("client");
+        if (reviewerFilterIsStale) next.delete("reviewer");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [
+    clientFilterOptions,
+    filters.client,
+    filters.reviewer,
+    projectsLoaded,
+    reviewerFilterOptions,
+    setSearchParams,
+  ]);
+
+  const filtersActive =
+    filters.search !== "" ||
+    filters.status !== "all" ||
+    filters.risk !== "all" ||
+    filters.client !== "" ||
+    filters.reviewer !== "" ||
+    filters.deadline !== "all" ||
+    filters.sort !== "deadline_asc";
+
+  const updateFilter = (
+    name: "q" | "status" | "risk" | "client" | "reviewer" | "deadline" | "sort",
+    value: string,
+  ) => {
+    const bounded = boundedValue(
+      value,
+      name === "q" ? SEARCH_LIMIT : FILTER_VALUE_LIMIT,
+    );
+    const defaults: Partial<Record<typeof name, string>> = {
+      status: "all",
+      risk: "all",
+      deadline: "all",
+      sort: "deadline_asc",
+    };
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (!bounded || bounded === defaults[name]) next.delete(name);
+        else next.set(name, bounded);
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
+  const clearFilters = () => {
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        for (const name of [
+          "q",
+          "status",
+          "risk",
+          "client",
+          "reviewer",
+          "deadline",
+          "sort",
+        ]) {
+          next.delete(name);
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  };
 
   useEffect(() => {
     if (defaultClientId) {
@@ -121,20 +306,41 @@ export default function Projects() {
   }, [defaultClientId, form]);
 
   useEffect(() => {
-    const currentReviewer = form.getValues("reviewerId");
-    const firstReviewer = reviewerOptions[0]?.id;
-    if (!currentReviewer && firstReviewer) {
-      form.setValue("reviewerId", firstReviewer, { shouldValidate: true });
+    if (
+      clientsLoaded &&
+      selectedClientId &&
+      !retainEligibleSelectionId(selectedClientId, clients ?? [])
+    ) {
+      form.setValue("clientId", "", { shouldValidate: true });
     }
-  }, [form, reviewerOptions]);
+  }, [clients, clientsLoaded, form, selectedClientId]);
+
+  useEffect(() => {
+    if (
+      selectedReviewerId &&
+      !retainEligibleSelectionId(selectedReviewerId, reviewerOptions)
+    ) {
+      form.setValue("reviewerId", "", { shouldValidate: true });
+    }
+  }, [form, reviewerOptions, selectedReviewerId]);
 
   const onSubmit = (data: CreateProjectForm) => {
+    const canonicalDeadline = data.deadline
+      ? deadlineInputToIsoWat(data.deadline)
+      : undefined;
+    if (canonicalDeadline === null) {
+      form.setError("deadline", {
+        type: "validate",
+        message: "Enter a valid submission deadline in WAT",
+      });
+      return;
+    }
     const payload = {
       ...data,
       issuingEntity: data.issuingEntity || undefined,
       tenderRef: data.tenderRef || undefined,
       lot: data.lot || undefined,
-      deadline: data.deadline || undefined,
+      deadline: canonicalDeadline,
       physicalArchiveInstruction: data.physicalArchiveInstruction || undefined,
       redactionScope: data.redactionScope || undefined,
     };
@@ -151,9 +357,8 @@ export default function Projects() {
             lot: "",
             deadline: "",
             segment: "other",
-            reviewerId: reviewerOptions[0]?.id ?? "",
+            reviewerId: "",
             slaClass: "standard",
-            paymentStatus: "not_required",
             physicalArchiveInstruction: "",
             redactionScope: "",
             restrictedMode: false,
@@ -178,7 +383,7 @@ export default function Projects() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-serif tracking-tight font-semibold">
             Tender Projects
@@ -195,7 +400,7 @@ export default function Projects() {
                 New Project
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[680px]">
+            <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-[680px]">
               <DialogHeader>
                 <DialogTitle>Create New Project</DialogTitle>
                 <DialogDescription>
@@ -209,11 +414,15 @@ export default function Projects() {
                 <div className="space-y-2">
                   <Label htmlFor="clientId">Client</Label>
                   <Select
-                    onValueChange={(val) => form.setValue("clientId", val)}
-                    defaultValue={form.getValues("clientId")}
-                    disabled={loadingClients}
+                    onValueChange={(val) =>
+                      form.setValue("clientId", val, { shouldValidate: true })
+                    }
+                    value={form.watch("clientId")}
+                    disabled={
+                      loadingClients || clientsFailed || !clients?.length
+                    }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="clientId">
                       <SelectValue placeholder="Select client" />
                     </SelectTrigger>
                     <SelectContent>
@@ -229,6 +438,31 @@ export default function Projects() {
                       {form.formState.errors.clientId.message}
                     </p>
                   )}
+                  {clientsFailed ? (
+                    <div
+                      className="flex flex-wrap items-center gap-2"
+                      role="alert"
+                    >
+                      <p className="text-xs text-destructive">
+                        The client directory could not be loaded. No client can
+                        be selected until authority-scoped records are
+                        available.
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={refreshingClients}
+                        onClick={() => void retryClients()}
+                      >
+                        Retry clients
+                      </Button>
+                    </div>
+                  ) : !loadingClients && clients?.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      No client records are available in this organisation.
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="space-y-2">
@@ -241,7 +475,7 @@ export default function Projects() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="issuingEntity">Issuing Entity</Label>
                     <Input
@@ -256,7 +490,7 @@ export default function Projects() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="lot">Lot</Label>
                     <Input
@@ -266,16 +500,25 @@ export default function Projects() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="deadline">Submission Deadline</Label>
+                    <Label htmlFor="deadline">Submission Deadline (WAT)</Label>
                     <Input
                       id="deadline"
                       type="datetime-local"
                       {...form.register("deadline")}
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Enter West Africa Time (UTC+1). The saved deadline is
+                      converted to an unambiguous instant.
+                    </p>
+                    {form.formState.errors.deadline ? (
+                      <p className="text-xs text-destructive">
+                        {form.formState.errors.deadline.message}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="reviewerId">Reviewer</Label>
                     <Select
@@ -285,8 +528,13 @@ export default function Projects() {
                         })
                       }
                       value={form.watch("reviewerId")}
+                      disabled={
+                        loadingUsers ||
+                        usersFailed ||
+                        reviewerOptions.length === 0
+                      }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id="reviewerId">
                         <SelectValue placeholder="Select reviewer" />
                       </SelectTrigger>
                       <SelectContent>
@@ -302,6 +550,31 @@ export default function Projects() {
                         {form.formState.errors.reviewerId.message}
                       </p>
                     )}
+                    {usersFailed ? (
+                      <div
+                        className="flex flex-wrap items-center gap-2"
+                        role="alert"
+                      >
+                        <p className="text-xs text-destructive">
+                          Reviewer authority could not be verified. No reviewer
+                          can be selected until the directory is available.
+                        </p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={refreshingUsers}
+                          onClick={() => void retryUsers()}
+                        >
+                          Retry reviewers
+                        </Button>
+                      </div>
+                    ) : !loadingUsers && reviewerOptions.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        No active, current, directly authorised reviewer is
+                        available in this organisation.
+                      </p>
+                    ) : null}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="segment">Segment</Label>
@@ -314,7 +587,7 @@ export default function Projects() {
                       }
                       value={form.watch("segment")}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id="segment">
                         <SelectValue placeholder="Select segment" />
                       </SelectTrigger>
                       <SelectContent>
@@ -329,7 +602,7 @@ export default function Projects() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="slaClass">SLA Class</Label>
                     <Select
@@ -341,7 +614,7 @@ export default function Projects() {
                       }
                       value={form.watch("slaClass")}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id="slaClass">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -350,32 +623,21 @@ export default function Projects() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="paymentStatus">Payment Gate</Label>
-                    <Select
-                      onValueChange={(val) =>
-                        form.setValue(
-                          "paymentStatus",
-                          val as CreateProjectForm["paymentStatus"],
-                        )
-                      }
-                      value={form.watch("paymentStatus")}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="not_required">
-                          Not required
-                        </SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="confirmed">Confirmed</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div
+                    role="note"
+                    aria-label="Commercial gate"
+                    className="rounded-md border border-border bg-muted/30 p-3 text-sm"
+                  >
+                    <p className="font-medium">Commercial gate</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Every new project starts payment pending. An authorised
+                      commercial workflow manages that state after creation; it
+                      cannot be selected here.
+                    </p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="physicalArchiveInstruction">
                       Physical Archive
@@ -415,7 +677,11 @@ export default function Projects() {
                   <Button
                     type="submit"
                     disabled={
-                      createProject.isPending || !form.watch("reviewerId")
+                      createProject.isPending ||
+                      clientsFailed ||
+                      !selectedClientEligible ||
+                      usersFailed ||
+                      !selectedReviewerEligible
                     }
                   >
                     {createProject.isPending ? (
@@ -430,12 +696,219 @@ export default function Projects() {
         ) : null}
       </div>
 
+      {projectsLoaded && projects && projects.length > 0 ? (
+        <section
+          aria-label="Project register filters"
+          className="space-y-4 rounded-lg border border-border bg-card p-4 shadow-xs"
+        >
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="project-search">Search register</Label>
+              <Input
+                id="project-search"
+                type="search"
+                maxLength={SEARCH_LIMIT}
+                value={filters.search}
+                onChange={(event) => updateFilter("q", event.target.value)}
+                placeholder="Tender, client, reference, entity, lot, or reviewer"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="project-status-filter">Status</Label>
+              <Select
+                value={filters.status}
+                onValueChange={(value) => updateFilter("status", value)}
+              >
+                <SelectTrigger id="project-status-filter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  {PROJECT_STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status.replace("_", " ")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="project-risk-filter">Risk</Label>
+              <Select
+                value={filters.risk}
+                onValueChange={(value) => updateFilter("risk", value)}
+              >
+                <SelectTrigger id="project-risk-filter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All risk bands</SelectItem>
+                  {PROJECT_RISKS.map((risk) => (
+                    <SelectItem key={risk} value={risk}>
+                      {risk}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="project-client-filter">Client</Label>
+              <Select
+                value={filters.client || "all"}
+                onValueChange={(value) =>
+                  updateFilter("client", value === "all" ? "" : value)
+                }
+              >
+                <SelectTrigger id="project-client-filter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All clients</SelectItem>
+                  {clientFilterOptions.map(([id, name]) => (
+                    <SelectItem key={id} value={id}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="project-reviewer-filter">Reviewer</Label>
+              <Select
+                value={filters.reviewer || "all"}
+                onValueChange={(value) =>
+                  updateFilter("reviewer", value === "all" ? "" : value)
+                }
+              >
+                <SelectTrigger id="project-reviewer-filter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All reviewers</SelectItem>
+                  {reviewerFilterOptions.map(([id, name]) => (
+                    <SelectItem key={id} value={id}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="project-deadline-filter">Deadline (WAT)</Label>
+              <Select
+                value={filters.deadline}
+                onValueChange={(value) => updateFilter("deadline", value)}
+              >
+                <SelectTrigger id="project-deadline-filter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All deadlines</SelectItem>
+                  <SelectItem value="overdue">Overdue</SelectItem>
+                  <SelectItem value="due_today">Due today</SelectItem>
+                  <SelectItem value="next_7_days">Next 7 WAT days</SelectItem>
+                  <SelectItem value="next_30_days">Next 30 WAT days</SelectItem>
+                  <SelectItem value="no_deadline">No deadline</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="project-sort">Sort</Label>
+              <Select
+                value={filters.sort}
+                onValueChange={(value) => updateFilter("sort", value)}
+              >
+                <SelectTrigger id="project-sort">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="deadline_asc">
+                    Deadline: earliest (WAT)
+                  </SelectItem>
+                  <SelectItem value="deadline_desc">
+                    Deadline: latest (WAT)
+                  </SelectItem>
+                  <SelectItem value="risk_desc">Risk: highest</SelectItem>
+                  <SelectItem value="created_desc">Newest created</SelectItem>
+                  <SelectItem value="title_asc">Tender title</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3 text-sm text-muted-foreground">
+            <p aria-live="polite">
+              {refreshingProjects
+                ? "Refreshing the project register…"
+                : `Showing ${visibleProjects.length} of ${projects.length} loaded projects.`}
+            </p>
+            {filtersActive ? (
+              <Button type="button" variant="ghost" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
       <div className="bg-card border border-border rounded-lg shadow-xs overflow-hidden">
         {loadingProjects ? (
-          <div className="p-12 flex justify-center">
+          <div
+            className="p-12 flex justify-center"
+            role="status"
+            aria-label="Loading project register"
+          >
             <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
           </div>
-        ) : projects && projects.length > 0 ? (
+        ) : projectsFailed ? (
+          <div
+            className="space-y-3 p-12 text-center text-muted-foreground"
+            role="alert"
+          >
+            <AlertTriangle className="mx-auto h-10 w-10 text-destructive" />
+            <p className="font-medium text-foreground">
+              The project register could not be loaded.
+            </p>
+            <p className="text-sm">
+              No portfolio count is shown because the register is unavailable.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={refreshingProjects}
+              onClick={() => void retryProjects()}
+              aria-label="Retry loading project register"
+            >
+              {refreshingProjects ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCcw className="mr-2 h-4 w-4" />
+              )}
+              Retry
+            </Button>
+          </div>
+        ) : !projectsLoaded || !projects ? (
+          <div
+            className="space-y-3 p-12 text-center text-muted-foreground"
+            role="status"
+          >
+            <AlertTriangle className="mx-auto h-10 w-10" />
+            <p className="font-medium text-foreground">
+              The project register state is unavailable.
+            </p>
+            <p className="text-sm">
+              A successful complete response is required before an empty state
+              or count can be shown.
+            </p>
+          </div>
+        ) : projects.length === 0 ? (
+          <div className="p-12 text-center text-muted-foreground bg-card">
+            <Briefcase className="w-12 h-12 mx-auto mb-3 text-muted" />
+            <p>No projects found.</p>
+            <p className="text-sm mt-1">
+              Create a new project to start a forensic review.
+            </p>
+          </div>
+        ) : visibleProjects.length > 0 ? (
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30">
@@ -447,7 +920,7 @@ export default function Projects() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {projects.map((project) => (
+              {visibleProjects.map((project) => (
                 <TableRow
                   key={project.id}
                   className="group hover:bg-muted/50 transition-colors"
@@ -463,11 +936,13 @@ export default function Projects() {
                     <div className="text-xs text-muted-foreground mt-1">
                       {project.issuingEntity || "Unknown entity"}
                       {project.deadline &&
-                        ` • Due ${new Date(project.deadline).toLocaleDateString()}`}
+                        ` • Due ${formatDeadlineWat(project.deadline)}`}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm">{project.clientName}</div>
+                    <div className="text-sm">
+                      {project.clientName || "Unnamed client"}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="capitalize">
@@ -495,7 +970,7 @@ export default function Projects() {
                     <div className="flex justify-end gap-3 text-xs text-muted-foreground">
                       <div className="flex flex-col items-end">
                         <span className="font-mono text-foreground font-medium">
-                          {project.requirementCount ?? 0}
+                          {project.requirementCount ?? "Unavailable"}
                         </span>
                         <span className="uppercase tracking-wider text-xs">
                           Reqs
@@ -503,7 +978,7 @@ export default function Projects() {
                       </div>
                       <div className="flex flex-col items-end">
                         <span className="font-mono text-foreground font-medium">
-                          {project.defectCount ?? 0}
+                          {project.defectCount ?? "Unavailable"}
                         </span>
                         <span className="uppercase tracking-wider text-xs">
                           Defects
@@ -518,10 +993,18 @@ export default function Projects() {
         ) : (
           <div className="p-12 text-center text-muted-foreground bg-card">
             <Briefcase className="w-12 h-12 mx-auto mb-3 text-muted" />
-            <p>No projects found.</p>
+            <p>No projects match the current filters.</p>
             <p className="text-sm mt-1">
-              Create a new project to start a forensic review.
+              Clear or adjust the filters to review the loaded register.
             </p>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-4"
+              onClick={clearFilters}
+            >
+              Clear filters
+            </Button>
           </div>
         )}
       </div>

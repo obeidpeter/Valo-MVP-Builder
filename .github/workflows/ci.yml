@@ -26,9 +26,64 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
+  static-contracts:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Secret scanning gate (NFR-SEC-04): zero secrets in version control.
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # pnpm/action-setup reads the exact version from package.json#packageManager.
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Formatting
+        env:
+          FORMAT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: pnpm run format:check
+
+      - name: Security policy lint
+        run: pnpm run lint
+
+      - name: Verify repository governance desired state
+        run: pnpm run verify:governance
+
+      - name: Verify release provenance tooling
+        run: pnpm run verify:release-provenance
+
+      - name: Validate rule and observability configuration
+        run: pnpm run verify:release-config
+
+      - name: Typecheck (libs + artifacts)
+        run: pnpm run typecheck
+
+      - name: Validate API contract and generated-client parity
+        run: pnpm --filter @workspace/api-spec test
+
+      - name: Verify generated clients are reproducible
+        run: pnpm --filter @workspace/api-spec codegen:check
+
+      - name: Production dependency audit
+        run: pnpm audit --prod --audit-level high
+
+  postgres-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
     services:
       postgres:
         image: postgres:16-alpine
@@ -46,43 +101,19 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/valo_ci
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          fetch-depth: 0
+          persist-credentials: false
 
-      # Secret scanning gate (NFR-SEC-04): zero secrets in version control.
-      - name: Secret scan (gitleaks)
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 
-      # pnpm/action-setup reads the exact version from package.json#packageManager.
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Formatting
-        env:
-          FORMAT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: pnpm run format:check
-
-      - name: Security policy lint
-        run: pnpm run lint
-
-      - name: Validate rule and observability configuration
-        run: pnpm run verify:release-config
-
-      - name: Typecheck (libs + artifacts)
-        run: pnpm run typecheck
-
-      - name: Validate API contract and generated-client parity
-        run: pnpm --filter @workspace/api-spec test
 
       - name: Validate migration journal
         run: pnpm --filter @workspace/db run migration:check
@@ -108,12 +139,6 @@ jobs:
       - name: API server tests (unit + DB integration)
         run: pnpm --filter @workspace/api-server test
 
-      - name: Workbench tests
-        run: pnpm --filter @workspace/valo-workbench test
-
-      - name: Production dependency audit
-        run: pnpm audit --prod --audit-level high
-
       - name: Doctrine proof (offline)
         run: pnpm --filter @workspace/api-server prove:doctrine:offline
 
@@ -129,6 +154,27 @@ jobs:
       - name: Build API server
         run: pnpm --filter @workspace/api-server build
 
+  workbench-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Workbench tests
+        run: pnpm --filter @workspace/valo-workbench test
+
       - name: Build workbench
         env:
           PORT: "5173"
@@ -139,15 +185,40 @@ jobs:
         run: pnpm --filter @workspace/valo-workbench budget:public
 
       - name: Generate software bill of materials
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
         with:
           path: .
           format: cyclonedx-json
           output-file: valo-sbom.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
+          dependency-snapshot: false
 
       - name: Upload software bill of materials
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: valo-sbom
           path: valo-sbom.cdx.json
           if-no-files-found: error
+
+  # Keep this stable aggregate context for the protected-branch rule. It must
+  # run even after cancellation/failure so an upstream failure cannot surface
+  # as a skipped required check.
+  verify:
+    if: ${{ always() }}
+    needs:
+      - static-contracts
+      - postgres-api
+      - workbench-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every verification lane to pass
+        env:
+          STATIC_CONTRACTS_RESULT: ${{ needs.static-contracts.result }}
+          POSTGRES_API_RESULT: ${{ needs.postgres-api.result }}
+          WORKBENCH_BUILD_RESULT: ${{ needs.workbench-build.result }}
+        run: |
+          test "$STATIC_CONTRACTS_RESULT" = success
+          test "$POSTGRES_API_RESULT" = success
+          test "$WORKBENCH_BUILD_RESULT" = success

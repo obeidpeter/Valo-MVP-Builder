@@ -65,6 +65,10 @@ import { createDrizzleCommercialRetainerRepository } from "../lib/commercialReta
 import { GovernedClientUploadService } from "../lib/storageLifecycle/clientUpload";
 import { DrizzleGovernedClientUploadRepository } from "../lib/storageLifecycle/clientUploadRepository";
 import { isGovernedClientUploadActivated } from "../lib/storageLifecycle/activation";
+import {
+  authenticatedActorMutationRateLimiter,
+  authenticatedRateLimiter,
+} from "../middlewares/authenticatedRateLimit";
 
 const operationsSuiteGuards = createDbOperationsSuiteGuards();
 const operationsSuiteRouter = createOperationsSuiteRouter({
@@ -110,6 +114,10 @@ const router: IRouter = Router();
 
 // Everything below requires an authenticated, provisioned user.
 router.use(attachUser);
+// A global actor-only bucket covers tenant-free bootstrap and every privileged
+// control-plane mutation. It deliberately does not key on attacker-chosen URL
+// segments, so arbitrary unmatched paths cannot create unbounded buckets.
+router.use(authenticatedActorMutationRateLimiter);
 
 router.use(meRouter);
 // Organisation discovery/bootstrap and emergency-access lifecycle must run
@@ -123,6 +131,10 @@ router.use(featureFlagsRouter);
 // Every legacy/domain route below operates inside exactly one resolved tenant.
 router.use(attachTenantContext);
 router.use(auditBreakGlassUse);
+// Authenticated mutations consume a durable tenant/actor/operation bucket in
+// a short committed RLS transaction. This happens before the business request
+// transaction so downstream rollback cannot erase the abuse-control attempt.
+router.use(authenticatedRateLimiter);
 router.use(attachTenantDatabase);
 router.use(enforceTenantResourceBoundary);
 

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, test } from "node:test";
 import {
+  assertAuthenticatedRateLimitFunctionAttestation,
   assertIntakeFunctionAttestation,
   assertTenantGraphAttestation,
   assertRuntimePolicyAttestation,
@@ -133,6 +134,76 @@ const intakeOperationsMigration = readFileSync(
   new URL("../migrations/0006_lead_operations_queue.sql", import.meta.url),
   "utf8",
 );
+const productionAssuranceMigration = readFileSync(
+  new URL("../migrations/0008_production_assurance.sql", import.meta.url),
+  "utf8",
+);
+
+function productionAssuranceFunctionProofs() {
+  const contracts = [
+    {
+      functionName: "consume_authenticated_actor_rate_limit",
+      securityDefiner: true,
+      argumentCount: 3,
+      argumentTypes: "text, integer, integer",
+      identityArguments:
+        "p_bucket_key_sha256 text, p_window_seconds integer, p_max_requests integer",
+      returnType: "record",
+      functionResult:
+        "TABLE(allowed boolean, remaining integer, reset_at timestamp with time zone)",
+      runtimeCanExecute: true,
+    },
+    {
+      functionName: "purge_expired_authenticated_rate_limit_buckets",
+      securityDefiner: false,
+      argumentCount: 0,
+      argumentTypes: "",
+      identityArguments: "",
+      returnType: "bigint",
+      functionResult: "bigint",
+      runtimeCanExecute: false,
+    },
+  ] as const;
+  return contracts.map((contract) => {
+    const start = productionAssuranceMigration.indexOf(
+      `CREATE FUNCTION valo_security.${contract.functionName}(`,
+    );
+    const sourceStart = productionAssuranceMigration.indexOf(
+      "AS $function$",
+      start,
+    );
+    const sourceEnd = productionAssuranceMigration.indexOf(
+      "$function$;",
+      sourceStart,
+    );
+    assert.ok(start >= 0 && sourceStart > start && sourceEnd > sourceStart);
+    return {
+      function_name: contract.functionName,
+      language_name: "plpgsql",
+      function_kind: "f",
+      security_definer: contract.securityDefiner,
+      leakproof: false,
+      strict: false,
+      volatility: "v",
+      parallel_safety: "u",
+      function_config: "search_path=pg_catalog",
+      returns_trigger: false,
+      argument_count: contract.argumentCount,
+      argument_types: contract.argumentTypes,
+      identity_arguments: contract.identityArguments,
+      return_type: contract.returnType,
+      function_result: contract.functionResult,
+      returns_set: false,
+      owner_name: "synthetic_migration_owner",
+      owner_is_schema_owner: true,
+      runtime_can_execute: contract.runtimeCanExecute,
+      function_source: productionAssuranceMigration.slice(
+        sourceStart + "AS $function$".length,
+        sourceEnd,
+      ),
+    };
+  });
+}
 
 function intakeFunctionSource(migration: string, functionName: string): string {
   const match = migration.match(
@@ -586,11 +657,11 @@ describe("production RLS policy attestation", () => {
   test("fails closed outside the pinned PG16 104-policy catalog", () => {
     assert.throws(
       () => assertRuntimePolicyAttestation([], 160_004),
-      /RLS policy catalog is drifted/,
+      /RLS policy catalog is drifted|rate-limit RLS policy is drifted/,
     );
     assert.throws(
       () => assertRuntimePolicyAttestation([], 170_001),
-      /RLS policy catalog is drifted/,
+      /RLS policy catalog is drifted|rate-limit RLS policy is drifted/,
     );
   });
 });
@@ -767,5 +838,48 @@ describe("production public-intake least privilege attestation", () => {
       runtimeSecuritySource,
       /proof\.can_access_bid_autopsy_rate_limit_columns\s*\|\|/,
     );
+  });
+});
+
+describe("production authenticated rate limiter attestation", () => {
+  test("pins both the global consume and owner purge routines", () => {
+    const proofs = productionAssuranceFunctionProofs();
+    assert.doesNotThrow(() =>
+      assertAuthenticatedRateLimitFunctionAttestation(proofs),
+    );
+    for (const mutate of [
+      (proof: (typeof proofs)[number]) => {
+        proof.function_source += "\n-- drift";
+      },
+      (proof: (typeof proofs)[number]) => {
+        proof.runtime_can_execute = !proof.runtime_can_execute;
+      },
+      (proof: (typeof proofs)[number]) => {
+        proof.security_definer = !proof.security_definer;
+      },
+      (proof: (typeof proofs)[number]) => {
+        proof.owner_is_schema_owner = false;
+      },
+    ]) {
+      const drifted = structuredClone(proofs);
+      mutate(drifted[0]!);
+      assert.throws(
+        () => assertAuthenticatedRateLimitFunctionAttestation(drifted),
+        /authenticated rate-limit function catalog is drifted/u,
+      );
+    }
+    assert.throws(
+      () => assertAuthenticatedRateLimitFunctionAttestation(proofs.slice(1)),
+      /authenticated rate-limit function catalog is drifted/u,
+    );
+  });
+
+  test("uses unqualified SQL conditional expressions", () => {
+    assert.doesNotMatch(
+      productionAssuranceMigration,
+      /pg_catalog\.(?:least|greatest|coalesce)\s*\(/iu,
+    );
+    assert.match(productionAssuranceMigration, /\bleast\s*\(/iu);
+    assert.match(productionAssuranceMigration, /\bgreatest\s*\(/iu);
   });
 });

@@ -27,9 +27,14 @@ test("reconciliation rechecks all references before the idempotent delete", () =
   const referenceCheck = source.indexOf("storagePathReferenceKinds(");
   const deleteCall = source.indexOf("deleteObjectEntity(", referenceCheck);
   assert.ok(referenceCheck >= 0 && deleteCall > referenceCheck);
+  assert.match(source, /storageCycleAttempts: cycleAttempt/u);
   assert.match(
     source,
-    /limit\(STORAGE_LIFECYCLE_BOUNDS\.maximumAttempts \+ 1\)/u,
+    /cycleAttempt >= STORAGE_LIFECYCLE_BOUNDS\.maximumAttempts/u,
+  );
+  assert.match(
+    source,
+    /orderBy\(desc\(notificationAttempts\.attemptNumber\)\)/u,
   );
   assert.match(source, /status: terminal \? "dead_letter" : "retry_wait"/u);
   assert.match(
@@ -49,7 +54,13 @@ test("reconciliation rechecks all references before the idempotent delete", () =
     source,
     /event\.envelope\.requestSha256 !==[\s\S]*candidate\.envelope\.requestSha256/u,
   );
-  assert.match(source, /availableAt: nextAttemptAt \?\? input\.now/u);
+  assert.doesNotMatch(source, /input\.now/u);
+  const databaseClock = source.indexOf(
+    "SELECT pg_catalog.clock_timestamp() AS now",
+    rowLock,
+  );
+  assert.ok(databaseClock > rowLock);
+  assert.match(source, /availableAt: nextAttemptAt \?\? now/u);
   assert.match(source, /storage\.deletion_retry_scheduled/u);
   assert.match(source, /storage\.deletion_dead_lettered/u);
 });

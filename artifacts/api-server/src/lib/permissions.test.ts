@@ -12,6 +12,8 @@ import {
   isRoleAllowedForOrganisation,
   partnerDerivedPermissionsForRoles,
   permissionsForRoles,
+  type OrganisationRole,
+  type Permission,
 } from "./permissions";
 
 describe("role and permission policy", () => {
@@ -76,6 +78,98 @@ describe("role and permission policy", () => {
       hasPermission(["client_reviewer_approver"], "order:create"),
       false,
     );
+    assert.equal(
+      hasPermission(["client_reviewer_approver"], "draft:write"),
+      false,
+    );
+  });
+
+  test("work managers can propose but cannot independently approve or sign off", () => {
+    for (const role of [
+      "bid_manager",
+      "consultancy_partner_administrator",
+    ] as const) {
+      assert.equal(hasPermission([role], "evidence:write"), true, role);
+      assert.equal(hasPermission([role], "evidence:approve"), false, role);
+      assert.equal(hasPermission([role], "defect:review"), false, role);
+      assert.equal(hasPermission([role], "report:sign_off"), false, role);
+      assert.equal(hasPermission([role], "draft:review"), false, role);
+      assert.equal(hasPermission([role], "package:sign_off"), false, role);
+    }
+    assert.equal(hasPermission(["bid_manager"], "requirement:review"), true);
+    assert.equal(
+      hasPermission(
+        ["consultancy_partner_administrator"],
+        "requirement:review",
+      ),
+      false,
+    );
+    assert.equal(
+      hasPermission(["client_administrator"], "requirement:review"),
+      false,
+    );
+    assert.equal(
+      hasPermission(["client_organisation_owner"], "report:sign_off"),
+      true,
+    );
+    assert.equal(
+      hasPermission(["client_organisation_owner"], "evidence:approve"),
+      false,
+    );
+  });
+
+  test("matches every role across approval, review, sign-off and export authority", () => {
+    const controlled = [
+      "requirement:review",
+      "evidence:approve",
+      "defect:review",
+      "draft:review",
+      "report:sign_off",
+      "package:sign_off",
+      "report:export",
+      "package:export",
+    ] as const satisfies readonly Permission[];
+    const expected = {
+      client_organisation_owner: [
+        "report:sign_off",
+        "report:export",
+        "package:export",
+      ],
+      client_administrator: ["report:export", "package:export"],
+      bid_manager: ["requirement:review", "report:export", "package:export"],
+      contributor: [],
+      client_reviewer_approver: [
+        "requirement:review",
+        "evidence:approve",
+        "defect:review",
+        "draft:review",
+        "report:sign_off",
+        "package:sign_off",
+        "report:export",
+        "package:export",
+      ],
+      valo_operations_administrator: [],
+      restricted_platform_administrator: [],
+      consultancy_partner_administrator: ["report:export", "package:export"],
+      consultancy_partner_analyst_reviewer: [
+        "requirement:review",
+        "report:export",
+        "package:export",
+      ],
+      read_only_auditor: [],
+      valo_analyst: ["requirement:review", "report:export", "package:export"],
+      valo_quality_adviser: controlled,
+    } satisfies Record<OrganisationRole, readonly Permission[]>;
+
+    for (const role of ORGANISATION_ROLES) {
+      for (const permission of controlled) {
+        assert.equal(
+          hasPermission([role], permission),
+          expected[role].includes(permission as never),
+          `${role} ${permission}`,
+        );
+      }
+    }
   });
 
   test("restricted platform admins cannot read tenant work", () => {
@@ -132,7 +226,7 @@ describe("role and permission policy", () => {
 
     assert.equal(hasPermission(["valo_analyst"], "package:generate"), true);
     assert.equal(hasPermission(["valo_analyst"], "package:sign_off"), false);
-    assert.equal(hasPermission(["valo_analyst"], "package:export"), false);
+    assert.equal(hasPermission(["valo_analyst"], "package:export"), true);
   });
 
   test("owners can access commercial and privacy controls", () => {
@@ -215,7 +309,7 @@ describe("role and permission policy", () => {
     assert.equal(BREAK_GLASS_ELIGIBLE_PERMISSIONS.has("document:read"), true);
   });
 
-  test("intelligence review remains a direct-tenant named-review authority", () => {
+  test("intelligence review remains a direct-tenant independent authority", () => {
     assert.equal(hasPermission(["contributor"], "intelligence:review"), false);
     assert.equal(
       hasPermission(["client_reviewer_approver"], "intelligence:review"),
@@ -226,7 +320,7 @@ describe("role and permission policy", () => {
         ["consultancy_partner_analyst_reviewer"],
         "intelligence:review",
       ),
-      true,
+      false,
     );
     assert.equal(PARTNER_DERIVED_PERMISSIONS.has("intelligence:review"), false);
     assert.equal(
@@ -342,9 +436,12 @@ describe("tenant and temporary-access policy", () => {
       "project:read",
       "document:upload",
       "requirement:write",
+      "requirement:review",
       "evidence:write",
       "defect:write",
       "draft:write",
+      "report:export",
+      "package:export",
     ] as const) {
       assert.equal(PARTNER_DERIVED_PERMISSIONS.has(allowed), true);
     }
@@ -352,13 +449,10 @@ describe("tenant and temporary-access policy", () => {
       "project:update",
       "project:delete",
       "document:delete",
-      "requirement:review",
       "evidence:approve",
       "defect:review",
       "report:sign_off",
-      "report:export",
       "package:sign_off",
-      "package:export",
       "membership:manage",
       "audit:read",
       "billing:read",

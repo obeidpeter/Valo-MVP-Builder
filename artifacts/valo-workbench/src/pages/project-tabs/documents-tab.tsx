@@ -1,10 +1,7 @@
 import {
   useListDocuments,
-  useCreateDocument,
   useDeleteDocument,
   useUpdateDocument,
-  useRequestUploadUrl,
-  useDiscardUpload,
   useVerifyDocument,
   useExtractDocument,
   getListDocumentsQueryKey,
@@ -31,7 +28,6 @@ import {
 import {
   FileText,
   Loader2,
-  Upload,
   Trash2,
   Lock,
   ShieldCheck,
@@ -39,18 +35,10 @@ import {
   ShieldQuestion,
   RefreshCw,
 } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { errorMessage } from "@/lib/errors";
-import {
-  completeDocumentUpload,
-  DocumentRegistrationError,
-  SignedUploadOutcomeUnknownError,
-} from "@/lib/document-upload";
-import {
-  useOrganisationAccess,
-  useOrganisationPermission,
-} from "@/contexts/organisation-context";
+import { useOrganisationPermission } from "@/contexts/organisation-context";
 
 const NDA_ALLOWED = new Set(["signed", "not_required"]);
 const DOC_TYPES = [
@@ -78,7 +66,6 @@ export function DocumentsTab({
   const canUploadDocument = useOrganisationPermission("document:upload");
   const canReviewDocuments = useOrganisationPermission("evidence:approve");
   const canDeleteDocument = useOrganisationPermission("document:delete");
-  const organisationAccess = useOrganisationAccess();
   const ndaCleared = !!ndaStatus && NDA_ALLOWED.has(ndaStatus);
   const intakeBlockedByConflict =
     conflictStatus === "blocked" || conflictStatus === "declined";
@@ -94,83 +81,21 @@ export function DocumentsTab({
     } as never,
   });
   const deleteDocument = useDeleteDocument();
-  const createDocument = useCreateDocument();
   const updateDocument = useUpdateDocument();
-  const requestUploadUrl = useRequestUploadUrl();
-  const discardUpload = useDiscardUpload();
   const verifyDocument = useVerifyDocument();
   const extractDocument = useExtractDocument();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const [isUploading, setIsUploading] = useState(false);
-  const [failedUpload, setFailedUpload] = useState<{
-    file: File;
-    message: string;
-    retryAllowed: boolean;
-  } | null>(null);
   const [integrity, setIntegrity] = useState<Record<string, "ok" | "failed">>(
     {},
   );
   const [verifyingIds, setVerifyingIds] = useState<Set<string>>(new Set());
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const refresh = () =>
     queryClient.invalidateQueries({
       queryKey: getListDocumentsQueryKey(projectId),
     });
-
-  const handleUploadClick = () => fileInputRef.current?.click();
-
-  const uploadFile = async (file: File) => {
-    const releaseCriticalWorkflow = organisationAccess?.beginCriticalWorkflow();
-    try {
-      setIsUploading(true);
-      setFailedUpload(null);
-      await completeDocumentUpload({
-        projectId,
-        file,
-        requestUploadTarget: (data) => requestUploadUrl.mutateAsync({ data }),
-        createDocumentRecord: (input) => createDocument.mutateAsync(input),
-        discardUploadedObject: (data) => discardUpload.mutateAsync({ data }),
-      });
-      refresh();
-    } catch (err) {
-      console.error("Upload failed", err);
-      // A lost create response can hide a committed document. Reconcile the
-      // list before presenting retry controls; blind retry remains disabled
-      // unless the server explicitly confirmed finalisation failure/cleanup.
-      refresh();
-      const message = errorMessage(
-        err,
-        "The file transfer did not complete. No document record was created.",
-      );
-      const retryAllowed =
-        !(
-          err instanceof DocumentRegistrationError ||
-          err instanceof SignedUploadOutcomeUnknownError
-        ) || err.retrySafe;
-      setFailedUpload({ file, message, retryAllowed });
-      toast({
-        variant: "destructive",
-        title: "Upload failed",
-        description: message,
-      });
-    } finally {
-      releaseCriticalWorkflow?.();
-      setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) void uploadFile(file);
-  };
-
-  const handleRetryUpload = () => {
-    if (failedUpload) void uploadFile(failedUpload.file);
-  };
 
   const patchDoc = (
     id: string,
@@ -347,74 +272,27 @@ export function DocumentsTab({
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-serif font-medium">Project Documents</h2>
         {canUploadDocument && (
-          <>
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              aria-label="Choose a document to upload"
-              onChange={handleFileChange}
-            />
-            <Button
-              onClick={handleUploadClick}
-              disabled={isUploading || !ndaCleared || intakeBlockedByConflict}
-              aria-describedby={
-                failedUpload ? "document-upload-error" : undefined
-              }
-            >
-              {isUploading ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : !ndaCleared ? (
-                <Lock className="w-4 h-4 mr-2" />
-              ) : (
-                <Upload className="w-4 h-4 mr-2" />
-              )}
-              Upload Document
-            </Button>
-          </>
+          <Button disabled aria-describedby="document-upload-unavailable">
+            <Lock className="w-4 h-4 mr-2" />
+            Upload unavailable
+          </Button>
         )}
       </div>
 
-      {canUploadDocument && failedUpload && (
+      {canUploadDocument && (
         <div
-          id="document-upload-error"
-          role="alert"
-          aria-live="assertive"
-          className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          id="document-upload-unavailable"
+          role="status"
+          className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400"
         >
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <div className="space-y-2">
-            <div>
-              <p className="font-medium">Upload unsuccessful</p>
-              <p className="mt-0.5 text-destructive/90">
-                <span className="font-medium">{failedUpload.file.name}:</span>{" "}
-                {failedUpload.message}
-              </p>
-            </div>
-            {failedUpload.retryAllowed ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleRetryUpload}
-                disabled={isUploading || !ndaCleared || intakeBlockedByConflict}
-              >
-                {isUploading ? (
-                  <Loader2
-                    className="mr-2 h-4 w-4 animate-spin"
-                    aria-hidden="true"
-                  />
-                ) : (
-                  <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
-                )}
-                Retry upload
-              </Button>
-            ) : (
-              <p className="font-medium">
-                Retry is paused to avoid creating another untracked object.
-              </p>
-            )}
-          </div>
+          <p>
+            New project-document uploads are temporarily unavailable. Generic
+            signed uploads remain disabled until every upload has a durable
+            lease and verified create-only provider semantics. Existing
+            documents remain readable and governable; no upload request will be
+            sent from this control.
+          </p>
         </div>
       )}
 
@@ -422,9 +300,9 @@ export function DocumentsTab({
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
           <Lock className="w-4 h-4 mt-0.5 shrink-0" />
           <p>
-            Uploads are locked until this client's NDA position is recorded. Set
-            the client's NDA status to <strong>signed</strong> or{" "}
-            <strong>not required</strong> to enable document uploads.
+            This client's NDA position must be recorded before any future
+            governed intake can proceed. Resolving the NDA gate does not
+            activate the currently disabled upload capability.
           </p>
         </div>
       )}
@@ -433,9 +311,10 @@ export function DocumentsTab({
         <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0" />
           <p>
-            Uploads are locked because this engagement has a {conflictStatus}{" "}
-            conflict decision. Resolve the conflict status to clear or consented
-            before intake continues.
+            This engagement has a {conflictStatus} conflict decision. It must be
+            resolved to clear or consented before any future governed intake,
+            but resolution does not activate the currently disabled upload
+            capability.
           </p>
         </div>
       )}

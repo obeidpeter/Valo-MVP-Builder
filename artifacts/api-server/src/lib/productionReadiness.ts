@@ -9,6 +9,8 @@ import { describedMalwareAdapters } from "./malwareScanner";
 
 export type ProductionFeature = "document_intake" | "model_workflows";
 
+const BASELINE_PRODUCTION_ADAPTERS: readonly AdapterKind[] = ["authentication"];
+
 const ADAPTER_KINDS = new Set<AdapterKind>([
   "authentication",
   "object_storage",
@@ -51,8 +53,10 @@ export function buildProductionReadinessSnapshot(
   };
 }
 
-function declaredRequiredKinds(raw: string | undefined): AdapterKind[] {
-  if (!raw?.trim()) return [];
+export function declaredRequiredProductionAdapterKinds(
+  raw: string | undefined,
+): AdapterKind[] {
+  if (!raw?.trim()) return [...BASELINE_PRODUCTION_ADAPTERS];
   const values = Array.from(
     new Set(
       raw
@@ -69,7 +73,9 @@ function declaredRequiredKinds(raw: string | undefined): AdapterKind[] {
       `VALO_REQUIRED_PRODUCTION_ADAPTERS contains unknown kinds: ${invalid.join(", ")}`,
     );
   }
-  return values as AdapterKind[];
+  return Array.from(
+    new Set([...BASELINE_PRODUCTION_ADAPTERS, ...(values as AdapterKind[])]),
+  );
 }
 
 function infrastructureDescriptors(): AdapterDescriptor[] {
@@ -128,7 +134,9 @@ export function initializeProductionAdapterReadiness(): ProductionReadinessSnaps
     return currentSnapshot;
   }
   currentSnapshot = buildProductionReadinessSnapshot(
-    declaredRequiredKinds(process.env.VALO_REQUIRED_PRODUCTION_ADAPTERS),
+    declaredRequiredProductionAdapterKinds(
+      process.env.VALO_REQUIRED_PRODUCTION_ADAPTERS,
+    ),
     configuredAdapterDescriptors(),
   );
   if (currentSnapshot.strictIssues.length > 0) {

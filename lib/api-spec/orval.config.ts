@@ -1,9 +1,23 @@
 import { defineConfig, InputTransformerFn } from "orval";
 import path from "path";
 
-const root = path.resolve(__dirname, "..", "..");
+const canonicalRoot = path.resolve(__dirname, "..", "..");
+const configuredOutputRoot = process.env.VALO_CODEGEN_OUTPUT_ROOT?.trim();
+const root = configuredOutputRoot
+  ? path.resolve(configuredOutputRoot)
+  : canonicalRoot;
 const apiClientReactSrc = path.resolve(root, "lib", "api-client-react", "src");
 const apiZodSrc = path.resolve(root, "lib", "api-zod", "src");
+const customFetchPath = configuredOutputRoot
+  ? process.env.VALO_CODEGEN_MUTATOR_PATH?.trim() ||
+    path.resolve(root, "mutators", "custom-fetch.ts")
+  : path.resolve(
+      canonicalRoot,
+      "lib",
+      "api-client-react",
+      "src",
+      "custom-fetch.ts",
+    );
 
 const strictRoadmapOperationIds = [
   "readinessCheck",
@@ -180,7 +194,12 @@ export default defineConfig({
           includeHttpResponseReturnType: false,
         },
         mutator: {
-          path: path.resolve(apiClientReactSrc, "custom-fetch.ts"),
+          path: configuredOutputRoot
+            ? path
+                .relative(apiClientReactSrc, customFetchPath)
+                .split(path.sep)
+                .join("/")
+            : customFetchPath,
           name: "customFetch",
         },
       },

@@ -184,6 +184,14 @@ async function waitForAuditEventCount(
 
 before(async () => {
   const stamp = new Date().toISOString();
+  assert.equal(
+    permissionsForRoles(["contributor"]).has("report:export"),
+    false,
+  );
+  assert.equal(
+    permissionsForRoles(["client_organisation_owner"]).has("report:export"),
+    true,
+  );
 
   const [admin] = await db
     .insert(users)
@@ -547,7 +555,7 @@ after(async () => {
 
 describe("GET /projects/:id/export (live route)", () => {
   test("members without report:export are denied", async () => {
-    currentUser = { id: generatorId, role: "reviewer" } as LocalUser;
+    currentUser = { id: generatorId, role: "contributor" } as LocalUser;
     const res = await fetch(`${baseUrl}/projects/${projectId}/export`);
     assert.equal(res.status, 403);
     currentUser = null;
@@ -585,8 +593,8 @@ describe("GET /projects/:id/export (live route)", () => {
     try {
       currentUser = {
         id: adminId,
-        role: "admin",
-        name: "Export Admin",
+        role: "client_organisation_owner",
+        name: "Export Approver",
       } as LocalUser;
       const res = await fetch(`${baseUrl}/projects/${gated.id}/export`);
       assert.equal(res.status, 409);
@@ -602,11 +610,11 @@ describe("GET /projects/:id/export (live route)", () => {
     }
   });
 
-  test("admin download yields a ZIP whose CSVs preserve seeded review_state", async () => {
+  test("authorised download yields a ZIP whose CSVs preserve seeded review_state", async () => {
     currentUser = {
       id: adminId,
-      role: "admin",
-      name: "Export Admin",
+      role: "client_organisation_owner",
+      name: "Export Approver",
     } as LocalUser;
     const res = await fetch(`${baseUrl}/projects/${projectId}/export`);
     assert.equal(res.status, 200);
@@ -720,8 +728,8 @@ describe("GET /projects/:id/export (live route)", () => {
     try {
       currentUser = {
         id: adminId,
-        role: "admin",
-        name: "Export Admin",
+        role: "client_organisation_owner",
+        name: "Export Approver",
       } as LocalUser;
       const res = await fetch(`${baseUrl}/projects/${projectId}/export`);
       assert.equal(res.status, 502);
@@ -837,8 +845,8 @@ describe("object-storage-backed report attach & download", () => {
     assert.equal(releasedBefore.status, "exported");
     currentUser = {
       id: adminId,
-      role: "admin",
-      name: "Export Admin",
+      role: "client_organisation_owner",
+      name: "Export Approver",
     } as LocalUser;
     const res = await fetch(`${baseUrl}/projects/${projectId}/export`);
     assert.equal(res.status, 200);
@@ -1123,8 +1131,8 @@ describe("object-storage-backed report attach & download", () => {
     );
     currentUser = {
       id: adminId,
-      role: "admin",
-      name: "Export Admin",
+      role: "client_organisation_owner",
+      name: "Export Approver",
     } as LocalUser;
     const res = await fetch(`${baseUrl}/reports/${signedReportId}/download`);
     assert.equal(res.status, 200);
@@ -1158,8 +1166,8 @@ describe("object-storage-backed report attach & download", () => {
     );
     currentUser = {
       id: adminId,
-      role: "admin",
-      name: "Export Admin",
+      role: "client_organisation_owner",
+      name: "Export Approver",
     } as LocalUser;
     const res = await fetch(`${baseUrl}/reports/${draftReportId}/download`);
     assert.equal(res.status, 403);
@@ -1180,8 +1188,8 @@ describe("object-storage-backed report attach & download", () => {
     );
     currentUser = {
       id: adminId,
-      role: "admin",
-      name: "Export Admin",
+      role: "client_organisation_owner",
+      name: "Export Approver",
     } as LocalUser;
     const res = await fetch(
       `${baseUrl}/reports/${signedReportId}/download-pdf`,
@@ -1216,8 +1224,8 @@ describe("object-storage-backed report attach & download", () => {
     );
     currentUser = {
       id: adminId,
-      role: "admin",
-      name: "Export Admin",
+      role: "client_organisation_owner",
+      name: "Export Approver",
     } as LocalUser;
     const res = await fetch(`${baseUrl}/reports/${draftReportId}/download-pdf`);
     assert.equal(res.status, 403);

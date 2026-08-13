@@ -15,8 +15,6 @@
  *
  * OpenAPI spec version: 2.5.0
  */
-import type { ProjectCreateConflictStatus } from './projectCreateConflictStatus';
-import type { ProjectCreatePaymentStatus } from './projectCreatePaymentStatus';
 import type { ProjectCreateSegment } from './projectCreateSegment';
 import type { ProjectCreateSlaClass } from './projectCreateSlaClass';
 
@@ -27,16 +25,12 @@ export interface ProjectCreate {
   issuingEntity?: string;
   tenderRef?: string;
   lot?: string;
-  deadline?: string;
+  deadline?: Date;
   valueBand?: string;
   segment?: ProjectCreateSegment;
   submissionStatus?: string;
   reviewerId: string;
   slaClass?: ProjectCreateSlaClass;
-  paymentStatus?: ProjectCreatePaymentStatus;
-  conflictStatus?: ProjectCreateConflictStatus;
-  conflictDecision?: string;
-  conflictRationale?: string;
   physicalArchiveInstruction?: string;
   redactionScope?: string;
   restrictedMode?: boolean;

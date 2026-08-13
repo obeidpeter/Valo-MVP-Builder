@@ -293,16 +293,24 @@ export const GetMeResponse = zod.object({
 
 
 /**
- * @summary List internal users (admin only)
+ * Returns selected-organisation membership identities with current server-computed role and project-reviewer eligibility. Eligibility is false unless the user, direct membership, access window and a compatible draft-review role grant are all current at database time.
+ * @summary List the selected organisation's membership directory
  */
+
+
+
 export const ListUsersResponseItem = zod.object({
-  "id": zod.string(),
+  "id": zod.string().uuid(),
   "email": zod.string(),
   "name": zod.string().nullish(),
-  "role": zod.enum(['admin', 'reviewer', 'analyst', 'none']),
+  "role": zod.enum(['client_organisation_owner', 'client_administrator', 'bid_manager', 'contributor', 'client_reviewer_approver', 'valo_operations_administrator', 'restricted_platform_administrator', 'consultancy_partner_administrator', 'consultancy_partner_analyst_reviewer', 'read_only_auditor', 'valo_analyst', 'valo_quality_adviser', 'none']),
   "status": zod.enum(['active', 'disabled']),
   "lastLoginAt": zod.string().nullish(),
-  "createdAt": zod.string().optional()
+  "createdAt": zod.string().optional(),
+  "membershipId": zod.string().uuid(),
+  "membershipStatus": zod.enum(['active', 'suspended', 'revoked']),
+  "membershipVersion": zod.number().min(1),
+  "reviewerEligible": zod.boolean().describe('Server-computed current eligibility for named project review in the selected organisation. Absence or false must fail closed.')
 })
 export const ListUsersResponse = zod.array(ListUsersResponseItem)
 
@@ -1036,6 +1044,7 @@ export const ListProjectsResponseItem = zod.object({
   "deadline": zod.string().nullish(),
   "segment": zod.enum(['federal', 'nipex_ncdmb', 'donor', 'other']).nullish(),
   "status": zod.enum(['intake', 'extraction', 'review', 'defects', 'reporting', 'signed_off', 'exported', 'archived']),
+  "reviewerId": zod.string().uuid().nullable(),
   "reviewerName": zod.string().nullish(),
   "slaClass": zod.enum(['standard', 'live']).optional(),
   "paymentStatus": zod.enum(['not_required', 'pending', 'confirmed']).optional(),
@@ -1060,21 +1069,17 @@ export const ListProjectsResponse = zod.array(ListProjectsResponseItem)
 
 
 export const CreateProjectBody = zod.object({
-  "clientId": zod.string(),
+  "clientId": zod.string().uuid(),
   "tenderTitle": zod.string().min(1),
   "issuingEntity": zod.string().optional(),
   "tenderRef": zod.string().optional(),
   "lot": zod.string().optional(),
-  "deadline": zod.string().optional(),
+  "deadline": zod.coerce.date().optional(),
   "valueBand": zod.string().optional(),
   "segment": zod.enum(['federal', 'nipex_ncdmb', 'donor', 'other']).optional(),
   "submissionStatus": zod.string().optional(),
-  "reviewerId": zod.string(),
+  "reviewerId": zod.string().uuid(),
   "slaClass": zod.enum(['standard', 'live']).optional(),
-  "paymentStatus": zod.enum(['not_required', 'pending', 'confirmed']).optional(),
-  "conflictStatus": zod.enum(['clear', 'blocked', 'consented', 'declined']).optional(),
-  "conflictDecision": zod.string().optional(),
-  "conflictRationale": zod.string().optional(),
   "physicalArchiveInstruction": zod.string().optional(),
   "redactionScope": zod.string().optional(),
   "restrictedMode": zod.boolean().optional(),
@@ -1096,7 +1101,7 @@ export const CreateProjectResponse = zod.object({
   "segment": zod.enum(['federal', 'nipex_ncdmb', 'donor', 'other']).nullish(),
   "submissionStatus": zod.string().nullish(),
   "status": zod.enum(['intake', 'extraction', 'review', 'defects', 'reporting', 'signed_off', 'exported', 'archived']),
-  "reviewerId": zod.string().nullish(),
+  "reviewerId": zod.string().nullable(),
   "reviewerName": zod.string().nullish(),
   "slaClass": zod.enum(['standard', 'live']).optional(),
   "paymentStatus": zod.enum(['not_required', 'pending', 'confirmed']).optional(),
@@ -1146,7 +1151,7 @@ export const GetProjectResponse = zod.object({
   "segment": zod.enum(['federal', 'nipex_ncdmb', 'donor', 'other']).nullish(),
   "submissionStatus": zod.string().nullish(),
   "status": zod.enum(['intake', 'extraction', 'review', 'defects', 'reporting', 'signed_off', 'exported', 'archived']),
-  "reviewerId": zod.string().nullish(),
+  "reviewerId": zod.string().nullable(),
   "reviewerName": zod.string().nullish(),
   "slaClass": zod.enum(['standard', 'live']).optional(),
   "paymentStatus": zod.enum(['not_required', 'pending', 'confirmed']).optional(),
@@ -1190,12 +1195,12 @@ export const UpdateProjectBody = zod.object({
   "issuingEntity": zod.string().optional(),
   "tenderRef": zod.string().optional(),
   "lot": zod.string().optional(),
-  "deadline": zod.string().optional(),
+  "deadline": zod.coerce.date().optional(),
   "valueBand": zod.string().optional(),
   "segment": zod.enum(['federal', 'nipex_ncdmb', 'donor', 'other']).optional(),
   "submissionStatus": zod.string().optional(),
   "status": zod.enum(['intake', 'extraction', 'review', 'defects', 'reporting', 'signed_off', 'exported', 'archived']).optional(),
-  "reviewerId": zod.string().optional(),
+  "reviewerId": zod.string().uuid().optional(),
   "slaClass": zod.enum(['standard', 'live']).optional(),
   "paymentStatus": zod.enum(['not_required', 'pending', 'confirmed']).optional(),
   "conflictStatus": zod.enum(['clear', 'blocked', 'consented', 'declined']).optional(),
@@ -1225,7 +1230,7 @@ export const UpdateProjectResponse = zod.object({
   "segment": zod.enum(['federal', 'nipex_ncdmb', 'donor', 'other']).nullish(),
   "submissionStatus": zod.string().nullish(),
   "status": zod.enum(['intake', 'extraction', 'review', 'defects', 'reporting', 'signed_off', 'exported', 'archived']),
-  "reviewerId": zod.string().nullish(),
+  "reviewerId": zod.string().nullable(),
   "reviewerName": zod.string().nullish(),
   "slaClass": zod.enum(['standard', 'live']).optional(),
   "paymentStatus": zod.enum(['not_required', 'pending', 'confirmed']).optional(),
@@ -1499,6 +1504,161 @@ export const ListRetentionRequestsResponseItem = zod.object({
   "createdAt": zod.string()
 })
 export const ListRetentionRequestsResponse = zod.array(ListRetentionRequestsResponseItem)
+
+
+/**
+ * @summary List one bounded page of unresolved storage deletion failures
+ */
+export const listStorageDeletionDeadLettersQueryLimitDefault = 25;
+export const listStorageDeletionDeadLettersQueryLimitMax = 25;
+
+export const listStorageDeletionDeadLettersQueryCursorMax = 192;
+
+
+export const listStorageDeletionDeadLettersQueryCursorRegExp = new RegExp('^[A-Za-z0-9_-]+$');
+
+
+export const ListStorageDeletionDeadLettersQueryParams = zod.object({
+  "limit": zod.coerce.number().min(1).max(listStorageDeletionDeadLettersQueryLimitMax).default(listStorageDeletionDeadLettersQueryLimitDefault),
+  "cursor": zod.coerce.string().min(1).max(listStorageDeletionDeadLettersQueryCursorMax).regex(listStorageDeletionDeadLettersQueryCursorRegExp).optional().describe('Opaque continuation cursor from the preceding page.')
+})
+
+
+export const listStorageDeletionDeadLettersResponseItemsItemReplayCountMin = 0;
+export const listStorageDeletionDeadLettersResponseItemsItemReplayCountMax = 3;
+
+export const listStorageDeletionDeadLettersResponseItemsItemCycleAttemptsMin = 0;
+export const listStorageDeletionDeadLettersResponseItemsItemCycleAttemptsMax = 5;
+
+export const listStorageDeletionDeadLettersResponseItemsItemRequestSha256RegExp = new RegExp('^[0-9a-f]{64}$');
+export const listStorageDeletionDeadLettersResponseItemsMax = 25;
+
+export const listStorageDeletionDeadLettersResponseLimitMax = 25;
+
+export const listStorageDeletionDeadLettersResponseNextCursorOneMax = 192;
+
+
+export const listStorageDeletionDeadLettersResponseNextCursorOneRegExp = new RegExp('^[A-Za-z0-9_-]+$');
+
+
+export const ListStorageDeletionDeadLettersResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "status": zod.enum(['dead_letter', 'queued', 'resolved']),
+  "replayCount": zod.number().min(listStorageDeletionDeadLettersResponseItemsItemReplayCountMin).max(listStorageDeletionDeadLettersResponseItemsItemReplayCountMax),
+  "cycleAttempts": zod.number().min(listStorageDeletionDeadLettersResponseItemsItemCycleAttemptsMin).max(listStorageDeletionDeadLettersResponseItemsItemCycleAttemptsMax),
+  "terminalAt": zod.union([zod.coerce.date(),zod.null()]),
+  "projectId": zod.union([zod.string().uuid(),zod.null()]),
+  "aggregateType": zod.enum(['document', 'vault_item', 'upload_session']),
+  "aggregateId": zod.string().uuid(),
+  "reason": zod.enum(['record_deleted', 'reference_replaced', 'lease_expired']),
+  "requestedAt": zod.coerce.date(),
+  "requestSha256": zod.string().regex(listStorageDeletionDeadLettersResponseItemsItemRequestSha256RegExp)
+})).max(listStorageDeletionDeadLettersResponseItemsMax),
+  "limit": zod.number().min(1).max(listStorageDeletionDeadLettersResponseLimitMax),
+  "truncated": zod.boolean(),
+  "nextCursor": zod.union([zod.string().min(1).max(listStorageDeletionDeadLettersResponseNextCursorOneMax).regex(listStorageDeletionDeadLettersResponseNextCursorOneRegExp),zod.null()])
+})
+
+
+/**
+ * @summary Authorise one bounded retry cycle for a storage dead letter
+ */
+export const ReplayStorageDeletionDeadLetterParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const replayStorageDeletionDeadLetterHeaderIfMatchRegExp = new RegExp('^(?:W/)?"?[1-9][0-9]*"?$');
+
+
+export const ReplayStorageDeletionDeadLetterHeader = zod.object({
+  "If-Match": zod.string().regex(replayStorageDeletionDeadLetterHeaderIfMatchRegExp).describe('Current positive integer resource version, optionally quoted or weakly prefixed.')
+})
+
+export const replayStorageDeletionDeadLetterBodyReasonMin = 8;
+export const replayStorageDeletionDeadLetterBodyReasonMax = 512;
+
+
+
+export const ReplayStorageDeletionDeadLetterBody = zod.object({
+  "reason": zod.string().min(replayStorageDeletionDeadLetterBodyReasonMin).max(replayStorageDeletionDeadLetterBodyReasonMax)
+})
+
+
+export const replayStorageDeletionDeadLetterResponseReplayCountMin = 0;
+export const replayStorageDeletionDeadLetterResponseReplayCountMax = 3;
+
+export const replayStorageDeletionDeadLetterResponseCycleAttemptsMin = 0;
+export const replayStorageDeletionDeadLetterResponseCycleAttemptsMax = 5;
+
+export const replayStorageDeletionDeadLetterResponseRequestSha256RegExp = new RegExp('^[0-9a-f]{64}$');
+
+
+export const ReplayStorageDeletionDeadLetterResponse = zod.object({
+  "id": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "status": zod.enum(['dead_letter', 'queued', 'resolved']),
+  "replayCount": zod.number().min(replayStorageDeletionDeadLetterResponseReplayCountMin).max(replayStorageDeletionDeadLetterResponseReplayCountMax),
+  "cycleAttempts": zod.number().min(replayStorageDeletionDeadLetterResponseCycleAttemptsMin).max(replayStorageDeletionDeadLetterResponseCycleAttemptsMax),
+  "terminalAt": zod.union([zod.coerce.date(),zod.null()]),
+  "projectId": zod.union([zod.string().uuid(),zod.null()]),
+  "aggregateType": zod.enum(['document', 'vault_item', 'upload_session']),
+  "aggregateId": zod.string().uuid(),
+  "reason": zod.enum(['record_deleted', 'reference_replaced', 'lease_expired']),
+  "requestedAt": zod.coerce.date(),
+  "requestSha256": zod.string().regex(replayStorageDeletionDeadLetterResponseRequestSha256RegExp)
+})
+
+
+/**
+ * This operation does not claim that the provider object was deleted.
+ * @summary Record explicit unresolved-risk acceptance for a dead letter
+ */
+export const ResolveStorageDeletionDeadLetterParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const resolveStorageDeletionDeadLetterHeaderIfMatchRegExp = new RegExp('^(?:W/)?"?[1-9][0-9]*"?$');
+
+
+export const ResolveStorageDeletionDeadLetterHeader = zod.object({
+  "If-Match": zod.string().regex(resolveStorageDeletionDeadLetterHeaderIfMatchRegExp).describe('Current positive integer resource version, optionally quoted or weakly prefixed.')
+})
+
+export const resolveStorageDeletionDeadLetterBodyReasonMin = 8;
+export const resolveStorageDeletionDeadLetterBodyReasonMax = 512;
+
+
+
+export const ResolveStorageDeletionDeadLetterBody = zod.object({
+  "reason": zod.string().min(resolveStorageDeletionDeadLetterBodyReasonMin).max(resolveStorageDeletionDeadLetterBodyReasonMax)
+})
+
+
+export const resolveStorageDeletionDeadLetterResponseReplayCountMin = 0;
+export const resolveStorageDeletionDeadLetterResponseReplayCountMax = 3;
+
+export const resolveStorageDeletionDeadLetterResponseCycleAttemptsMin = 0;
+export const resolveStorageDeletionDeadLetterResponseCycleAttemptsMax = 5;
+
+export const resolveStorageDeletionDeadLetterResponseRequestSha256RegExp = new RegExp('^[0-9a-f]{64}$');
+
+
+export const ResolveStorageDeletionDeadLetterResponse = zod.object({
+  "id": zod.string().uuid(),
+  "version": zod.number().min(1),
+  "status": zod.enum(['dead_letter', 'queued', 'resolved']),
+  "replayCount": zod.number().min(resolveStorageDeletionDeadLetterResponseReplayCountMin).max(resolveStorageDeletionDeadLetterResponseReplayCountMax),
+  "cycleAttempts": zod.number().min(resolveStorageDeletionDeadLetterResponseCycleAttemptsMin).max(resolveStorageDeletionDeadLetterResponseCycleAttemptsMax),
+  "terminalAt": zod.union([zod.coerce.date(),zod.null()]),
+  "projectId": zod.union([zod.string().uuid(),zod.null()]),
+  "aggregateType": zod.enum(['document', 'vault_item', 'upload_session']),
+  "aggregateId": zod.string().uuid(),
+  "reason": zod.enum(['record_deleted', 'reference_replaced', 'lease_expired']),
+  "requestedAt": zod.coerce.date(),
+  "requestSha256": zod.string().regex(resolveStorageDeletionDeadLetterResponseRequestSha256RegExp)
+})
 
 
 /**
@@ -2975,7 +3135,7 @@ export const ConfirmProjectPaymentResponse = zod.object({
   "segment": zod.enum(['federal', 'nipex_ncdmb', 'donor', 'other']).nullish(),
   "submissionStatus": zod.string().nullish(),
   "status": zod.enum(['intake', 'extraction', 'review', 'defects', 'reporting', 'signed_off', 'exported', 'archived']),
-  "reviewerId": zod.string().nullish(),
+  "reviewerId": zod.string().nullable(),
   "reviewerName": zod.string().nullish(),
   "slaClass": zod.enum(['standard', 'live']).optional(),
   "paymentStatus": zod.enum(['not_required', 'pending', 'confirmed']).optional(),
@@ -7030,8 +7190,6 @@ export const getGrowthOnboardingResponseJourneyChecklistItemTitleMax = 160;
 
 export const getGrowthOnboardingResponseJourneyChecklistItemPurposeMax = 1000;
 
-export const getGrowthOnboardingResponseJourneyChecklistItemCompletionEvidenceMax = 1000;
-
 export const getGrowthOnboardingResponseJourneyChecklistMax = 12;
 
 export const getGrowthOnboardingResponseJourneySyntheticTourTitleMax = 160;
@@ -7045,6 +7203,10 @@ export const getGrowthOnboardingResponseJourneySyntheticTourStepsItemInstruction
 export const getGrowthOnboardingResponseJourneySyntheticTourStepsItemSyntheticObjectReferenceMax = 160;
 
 export const getGrowthOnboardingResponseJourneySyntheticTourStepsMax = 16;
+
+export const getGrowthOnboardingResponseProgressSavedPracticeMarkerItemIdsItemMax = 128;
+
+export const getGrowthOnboardingResponseProgressSavedPracticeMarkerItemIdsMax = 512;
 
 export const getGrowthOnboardingResponseProgressCompletedItemIdsItemMax = 128;
 
@@ -7062,7 +7224,8 @@ export const GetGrowthOnboardingResponse = zod.object({
   "id": zod.string().min(1).max(getGrowthOnboardingResponseJourneyChecklistItemIdMax),
   "title": zod.string().min(1).max(getGrowthOnboardingResponseJourneyChecklistItemTitleMax),
   "purpose": zod.string().min(1).max(getGrowthOnboardingResponseJourneyChecklistItemPurposeMax),
-  "completionEvidence": zod.string().min(1).max(getGrowthOnboardingResponseJourneyChecklistItemCompletionEvidenceMax)
+  "practiceMarkerReceipt": zod.literal("Self-recorded practice marker saved; this is not evidence that the described task was completed."),
+  "completionEvidence": zod.literal("Self-recorded practice marker saved; this is not evidence that the described task was completed.").describe('Compatibility-only neutral text. It is not evidence that any task was completed.')
 })).max(getGrowthOnboardingResponseJourneyChecklistMax),
   "syntheticTour": zod.object({
   "dataClassification": zod.literal("synthetic_non_customer"),
@@ -7078,7 +7241,8 @@ export const GetGrowthOnboardingResponse = zod.object({
 }),
   "progress": zod.object({
   "journeyVersion": zod.literal("2026-08-11.2"),
-  "completedItemIds": zod.array(zod.string().min(1).max(getGrowthOnboardingResponseProgressCompletedItemIdsItemMax)).max(getGrowthOnboardingResponseProgressCompletedItemIdsMax),
+  "savedPracticeMarkerItemIds": zod.array(zod.string().min(1).max(getGrowthOnboardingResponseProgressSavedPracticeMarkerItemIdsItemMax)).max(getGrowthOnboardingResponseProgressSavedPracticeMarkerItemIdsMax),
+  "completedItemIds": zod.array(zod.string().min(1).max(getGrowthOnboardingResponseProgressCompletedItemIdsItemMax)).max(getGrowthOnboardingResponseProgressCompletedItemIdsMax).describe('Compatibility alias for savedPracticeMarkerItemIds. It does not represent task completion.'),
   "version": zod.number().min(getGrowthOnboardingResponseProgressVersionMin)
 }),
   "authorityNote": zod.literal("Every assignment, qualification, conversion proposal, quote term and quote approval is a named human action. This surface sends no email, creates no CRM record, converts no pursuit, submits no bid, calculates no price and collects no payment.").describe('Closed authority boundary returned by every growth-suite success response.')
@@ -7086,21 +7250,34 @@ export const GetGrowthOnboardingResponse = zod.object({
 
 
 /**
- * Records only a named operator's onboarding progress for the current journey policy. It does not change authoritative pursuit state.
- * @summary Record one onboarding checkpoint with optimistic concurrency
+ * Records only a named operator's self-reported practice marker for the current journey policy. It is not evidence that the described task was completed and does not change authoritative pursuit state.
+ * @summary Save or remove one self-recorded onboarding practice marker
  */
-export const mutateGrowthOnboardingProgressBodyItemIdMax = 128;
+export const mutateGrowthOnboardingProgressBodyOneItemIdMax = 128;
 
-export const mutateGrowthOnboardingProgressBodyExpectedVersionMin = 0;
+export const mutateGrowthOnboardingProgressBodyOneExpectedVersionMin = 0;
+
+export const mutateGrowthOnboardingProgressBodyTwoItemIdMax = 128;
+
+export const mutateGrowthOnboardingProgressBodyTwoExpectedVersionMin = 0;
 
 
 
-export const MutateGrowthOnboardingProgressBody = zod.object({
+export const MutateGrowthOnboardingProgressBody = zod.union([zod.object({
   "journeyVersion": zod.literal("2026-08-11.2"),
-  "itemId": zod.string().min(1).max(mutateGrowthOnboardingProgressBodyItemIdMax),
-  "expectedVersion": zod.number().min(mutateGrowthOnboardingProgressBodyExpectedVersionMin),
+  "itemId": zod.string().min(1).max(mutateGrowthOnboardingProgressBodyOneItemIdMax),
+  "expectedVersion": zod.number().min(mutateGrowthOnboardingProgressBodyOneExpectedVersionMin),
+  "markerSaved": zod.boolean()
+}),zod.object({
+  "journeyVersion": zod.literal("2026-08-11.2"),
+  "itemId": zod.string().min(1).max(mutateGrowthOnboardingProgressBodyTwoItemIdMax),
+  "expectedVersion": zod.number().min(mutateGrowthOnboardingProgressBodyTwoExpectedVersionMin),
   "completed": zod.boolean()
-})
+}).describe('Legacy compatibility request. Use markerSaved; completed does not represent task completion.')])
+
+export const mutateGrowthOnboardingProgressResponseProgressSavedPracticeMarkerItemIdsItemMax = 128;
+
+export const mutateGrowthOnboardingProgressResponseProgressSavedPracticeMarkerItemIdsMax = 512;
 
 export const mutateGrowthOnboardingProgressResponseProgressCompletedItemIdsItemMax = 128;
 
@@ -7113,7 +7290,8 @@ export const mutateGrowthOnboardingProgressResponseProgressVersionMin = 0;
 export const MutateGrowthOnboardingProgressResponse = zod.object({
   "progress": zod.object({
   "journeyVersion": zod.literal("2026-08-11.2"),
-  "completedItemIds": zod.array(zod.string().min(1).max(mutateGrowthOnboardingProgressResponseProgressCompletedItemIdsItemMax)).max(mutateGrowthOnboardingProgressResponseProgressCompletedItemIdsMax),
+  "savedPracticeMarkerItemIds": zod.array(zod.string().min(1).max(mutateGrowthOnboardingProgressResponseProgressSavedPracticeMarkerItemIdsItemMax)).max(mutateGrowthOnboardingProgressResponseProgressSavedPracticeMarkerItemIdsMax),
+  "completedItemIds": zod.array(zod.string().min(1).max(mutateGrowthOnboardingProgressResponseProgressCompletedItemIdsItemMax)).max(mutateGrowthOnboardingProgressResponseProgressCompletedItemIdsMax).describe('Compatibility alias for savedPracticeMarkerItemIds. It does not represent task completion.'),
   "version": zod.number().min(mutateGrowthOnboardingProgressResponseProgressVersionMin)
 }),
   "authorityNote": zod.literal("Every assignment, qualification, conversion proposal, quote term and quote approval is a named human action. This surface sends no email, creates no CRM record, converts no pursuit, submits no bid, calculates no price and collects no payment.").describe('Closed authority boundary returned by every growth-suite success response.')
@@ -13231,39 +13409,10 @@ export const TransitionClaimsDeskRecordResponse = zod.object({
 
 
 /**
- * @summary Request a presigned URL for file upload
+ * This compatibility operation is fail-closed. It issues no capability until generic uploads use durable leases and the provider's create-only semantics are independently verified.
+ * @summary Legacy generic signed-upload issuance (not activated)
  */
-export const requestUploadUrlBodyNameMax = 255;
-
-export const requestUploadUrlBodySizeMax = 104857600;
-
-export const requestUploadUrlBodyContentTypeMax = 255;
-
-
-
-export const RequestUploadUrlBody = zod.object({
-  "name": zod.string().min(1).max(requestUploadUrlBodyNameMax),
-  "size": zod.number().min(1).max(requestUploadUrlBodySizeMax),
-  "contentType": zod.string().min(1).max(requestUploadUrlBodyContentTypeMax)
-})
-
-export const requestUploadUrlResponseMetadataNameMax = 255;
-
-export const requestUploadUrlResponseMetadataSizeMax = 104857600;
-
-export const requestUploadUrlResponseMetadataContentTypeMax = 255;
-
-
-
-export const RequestUploadUrlResponse = zod.object({
-  "uploadURL": zod.string().url(),
-  "objectPath": zod.string(),
-  "metadata": zod.object({
-  "name": zod.string().min(1).max(requestUploadUrlResponseMetadataNameMax),
-  "size": zod.number().min(1).max(requestUploadUrlResponseMetadataSizeMax),
-  "contentType": zod.string().min(1).max(requestUploadUrlResponseMetadataContentTypeMax)
-}).optional()
-})
+export const RequestUploadUrlResponse = zod.void()
 
 
 /**

@@ -4,6 +4,18 @@ export const CLIENT_ACTION_UPLOAD_FEATURE_FLAG =
   "client_action_governed_upload" as const;
 
 /**
+ * The original generic signed-PUT route has no durable lease identity and the
+ * provider signer cannot currently prove a create-only generation condition.
+ * Issuance therefore fails closed; registration/discard remain mounted only to
+ * settle objects issued by older releases.
+ */
+export const LEGACY_SIGNED_UPLOAD_ISSUANCE = Object.freeze({
+  durableLeaseImplemented: false,
+  createOnlySignedPutVerified: false,
+  issuanceEnabled: false,
+});
+
+/**
  * Shipping source is not production activation. The direct browser PUT flow
  * remains server-disabled until the scheduled reconciler is installed and the
  * provider supplies a verified in-flight PUT closure bound. A tenant-specific

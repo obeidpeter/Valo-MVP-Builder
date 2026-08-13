@@ -1,0 +1,125 @@
+name: Release candidate
+run-name: Release candidate from ${{ inputs.source_sha }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Full commit SHA already merged into main
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-candidate-${{ inputs.source_sha }}
+  cancel-in-progress: false
+
+jobs:
+  build-release-candidate:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve exact merged source
+        id: source
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          if [[ ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]]; then
+            echo "Source SHA must be a full Git object ID" >&2
+            exit 1
+          fi
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test -z "$(git status --porcelain=v1 --untracked-files=no)"
+          git merge-base --is-ancestor "$SOURCE_SHA" origin/main
+          node ./scripts/release-provenance.mjs assert-source \
+            --expected-source-commit "$SOURCE_SHA" \
+            --ancestor-ref origin/main
+          echo "commit_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify release and governance configuration
+        run: |
+          pnpm run verify:governance
+          pnpm run verify:release-provenance
+          pnpm run verify:release-config
+
+      - name: Build API release artifact
+        run: pnpm --filter @workspace/api-server build
+
+      - name: Build workbench release artifact
+        env:
+          PORT: "5173"
+          BASE_PATH: "/"
+        run: pnpm --filter @workspace/valo-workbench build
+
+      - name: Generate CycloneDX software bill of materials
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: valo-sbom.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
+          dependency-snapshot: false
+
+      - name: Create release candidate manifest
+        id: manifest
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.commit_sha }}
+        run: |
+          node ./scripts/release-provenance.mjs create \
+            --expected-source-commit "$SOURCE_SHA" \
+            --artifact api-server=artifacts/api-server/dist \
+            --artifact workbench=artifacts/valo-workbench/dist \
+            --sbom valo-sbom.cdx.json \
+            --output release-evidence/release-manifest.json
+          RELEASE_SHA256="$(node ./scripts/release-provenance.mjs print-release-id \
+            --manifest release-evidence/release-manifest.json)"
+          echo "release_sha256=$RELEASE_SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Reverify candidate before publication
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.commit_sha }}
+        run: >-
+          node ./scripts/release-provenance.mjs verify-manifest
+          --manifest release-evidence/release-manifest.json
+          --expected-source-commit "$SOURCE_SHA"
+
+      - name: Upload immutable release candidate evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: valo-release-${{ steps.source.outputs.commit_sha }}
+          path: |
+            artifacts/api-server/dist
+            artifacts/valo-workbench/dist
+            valo-sbom.cdx.json
+            release-evidence/release-manifest.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Record candidate summary
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.commit_sha }}
+          RELEASE_SHA256: ${{ steps.manifest.outputs.release_sha256 }}
+        run: |
+          echo "### Release candidate" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Source: \`$SOURCE_SHA\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Release SHA-256: \`$RELEASE_SHA256\`" >> "$GITHUB_STEP_SUMMARY"

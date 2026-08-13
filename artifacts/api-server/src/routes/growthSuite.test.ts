@@ -180,7 +180,21 @@ describe("growth suite domain policy", () => {
     );
   });
 
-  test("accepts only exact, version-bound onboarding checkpoint mutations", () => {
+  test("accepts canonical markers and the deprecated exact legacy request", () => {
+    assert.deepEqual(
+      parseOnboardingProgressMutation({
+        journeyVersion: "2026-08-11.2",
+        itemId: "confirm-active-workspace",
+        expectedVersion: 0,
+        markerSaved: true,
+      }),
+      {
+        journeyVersion: "2026-08-11.2",
+        itemId: "confirm-active-workspace",
+        expectedVersion: 0,
+        markerSaved: true,
+      },
+    );
     assert.deepEqual(
       parseOnboardingProgressMutation({
         journeyVersion: "2026-08-11.2",
@@ -192,7 +206,7 @@ describe("growth suite domain policy", () => {
         journeyVersion: "2026-08-11.2",
         itemId: "confirm-active-workspace",
         expectedVersion: 0,
-        completed: true,
+        markerSaved: true,
       },
     );
     assert.equal(
@@ -253,6 +267,7 @@ describe("growth suite route boundaries", () => {
       getProgress: async (_scope, _roles) =>
         progressByActor.get(currentActor) ?? {
           journeyVersion: "2026-08-11.2",
+          savedPracticeMarkerItemIds: [],
           completedItemIds: [],
           version: 0,
         },
@@ -260,6 +275,7 @@ describe("growth suite route boundaries", () => {
         const journey = deriveOnboardingJourney(roles);
         const current = progressByActor.get(currentActor) ?? {
           journeyVersion: "2026-08-11.2" as const,
+          savedPracticeMarkerItemIds: [] as readonly string[],
           completedItemIds: [] as readonly string[],
           version: 0,
         };
@@ -269,12 +285,14 @@ describe("growth suite route boundaries", () => {
         if (!journey.checklist.some(({ id }) => id === mutation.itemId)) {
           return { outcome: "policy_denied" as const };
         }
-        const completed = new Set(current.completedItemIds);
-        if (mutation.completed) completed.add(mutation.itemId);
-        else completed.delete(mutation.itemId);
+        const savedMarkers = new Set(current.savedPracticeMarkerItemIds);
+        if (mutation.markerSaved) savedMarkers.add(mutation.itemId);
+        else savedMarkers.delete(mutation.itemId);
+        const markerIds = [...savedMarkers].sort();
         const progress: OnboardingProgress = {
           journeyVersion: "2026-08-11.2",
-          completedItemIds: [...completed].sort(),
+          savedPracticeMarkerItemIds: markerIds,
+          completedItemIds: markerIds,
           version: current.version + 1,
         };
         progressByActor.set(currentActor, progress);
@@ -441,7 +459,7 @@ describe("growth suite route boundaries", () => {
           journeyVersion: "2026-08-11.2",
           itemId: "confirm-active-workspace",
           expectedVersion: 0,
-          completed: true,
+          markerSaved: true,
         }),
       },
     );
@@ -449,9 +467,13 @@ describe("growth suite route boundaries", () => {
     const checkpointBody = (await checkpoint.json()) as {
       progress: OnboardingProgress;
     };
-    assert.deepEqual(checkpointBody.progress.completedItemIds, [
+    assert.deepEqual(checkpointBody.progress.savedPracticeMarkerItemIds, [
       "confirm-active-workspace",
     ]);
+    assert.deepEqual(
+      checkpointBody.progress.completedItemIds,
+      checkpointBody.progress.savedPracticeMarkerItemIds,
+    );
     assert.equal(checkpointBody.progress.version, 1);
 
     const draftResponse = await fetch(`${origin}/growth-suite/quotes`, {

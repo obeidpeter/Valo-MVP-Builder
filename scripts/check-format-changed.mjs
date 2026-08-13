@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import process from "node:process";
 import * as prettier from "prettier";
@@ -13,18 +13,7 @@ function gitLines(args) {
     .filter(Boolean);
 }
 
-function hasStagedChanges() {
-  const result = spawnSync("git", ["diff", "--cached", "--quiet"], {
-    stdio: "ignore",
-  });
-  return result.status === 1;
-}
-
-function changedFiles() {
-  if (hasStagedChanges()) {
-    return gitLines(["diff", "--cached", "--name-only", "--diff-filter=ACMR"]);
-  }
-
+export function changedFiles() {
   const base = process.env.FORMAT_BASE_SHA?.trim();
   if (base && !ZERO_SHA.test(base)) {
     return gitLines([
@@ -35,14 +24,10 @@ function changedFiles() {
     ]);
   }
 
-  return gitLines([
-    "diff-tree",
-    "--no-commit-id",
-    "--name-only",
-    "--diff-filter=ACMR",
-    "-r",
-    "HEAD",
-  ]);
+  return [
+    ...gitLines(["diff", "--name-only", "--diff-filter=ACMR", "HEAD"]),
+    ...gitLines(["ls-files", "--others", "--exclude-standard"]),
+  ];
 }
 
 const files = [...new Set(changedFiles())]

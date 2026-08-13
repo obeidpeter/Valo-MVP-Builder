@@ -6,7 +6,18 @@ import {
   notificationEvents,
   uploadSessions,
 } from "@workspace/db";
-import { and, asc, eq, inArray, lte, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gt,
+  inArray,
+  isNotNull,
+  lte,
+  or,
+  sql,
+} from "drizzle-orm";
 import type { LocalUser } from "../../middlewares/auth";
 import { writeAuditTx } from "../audit";
 import { lockStagedUploadObject } from "../stagedUploadLock";
@@ -25,6 +36,11 @@ import {
   storageLifecycleSha256,
   type StorageDeletionIntentEnvelope,
 } from "./contracts";
+import {
+  decodeStorageDeadLetterCursor,
+  encodeStorageDeadLetterCursor,
+  StorageDeadLetterCursorError,
+} from "./deadLetterCursor";
 
 export const STORAGE_DELETION_CHANNEL = "internal_storage" as const;
 export const STORAGE_DELETION_PROVIDER = "valo-object-storage" as const;
@@ -52,8 +68,17 @@ export interface StorageDeletionIntentInput {
 export interface StoredStorageDeletionIntent {
   id: string;
   version: number;
-  status: "queued" | "retry_wait" | "completed" | "cancelled" | "dead_letter";
+  status:
+    | "queued"
+    | "retry_wait"
+    | "completed"
+    | "cancelled"
+    | "dead_letter"
+    | "resolved";
   replayed: boolean;
+  replayCount: number;
+  cycleAttempts: number;
+  terminalAt: Date | null;
   envelope: StorageDeletionIntentEnvelope;
 }
 
@@ -61,6 +86,10 @@ export interface StorageDeletionIntentBatch {
   items: StoredStorageDeletionIntent[];
   limit: number;
   truncated: boolean;
+}
+
+export interface StorageDeletionDeadLetterPage extends StorageDeletionIntentBatch {
+  nextCursor: string | null;
 }
 
 export interface ExpiredClientUploadLeaseSweep {
@@ -100,6 +129,17 @@ export class StorageLifecycleRepositoryError extends Error {
   ) {
     super(code);
     this.name = "StorageLifecycleRepositoryError";
+  }
+}
+
+async function withStoragePersistenceBoundary<T>(
+  operation: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (error instanceof StorageLifecycleRepositoryError) throw error;
+    throw new StorageLifecycleRepositoryError("persistence_unavailable");
   }
 }
 
@@ -155,17 +195,36 @@ function parseStoredEvent(row: {
   payload: string | null;
   status: string;
   version: number;
+  storageReplayCount: number;
+  storageCycleAttempts: number;
+  storageTerminalAt: Date | null;
 }): StoredStorageDeletionIntent {
   if (
     !row.organisationId ||
     row.channel !== STORAGE_DELETION_CHANNEL ||
     row.template !== STORAGE_DELETION_INTENT_SCHEMA ||
     !row.payload ||
-    !["queued", "retry_wait", "completed", "cancelled", "dead_letter"].includes(
-      row.status,
-    ) ||
+    ![
+      "queued",
+      "retry_wait",
+      "completed",
+      "cancelled",
+      "dead_letter",
+      "resolved",
+    ].includes(row.status) ||
     !Number.isSafeInteger(row.version) ||
-    row.version < 1
+    row.version < 1 ||
+    !Number.isSafeInteger(row.storageReplayCount) ||
+    row.storageReplayCount < 0 ||
+    row.storageReplayCount >
+      STORAGE_LIFECYCLE_BOUNDS.maximumDeadLetterReplays ||
+    !Number.isSafeInteger(row.storageCycleAttempts) ||
+    row.storageCycleAttempts < 0 ||
+    row.storageCycleAttempts > STORAGE_LIFECYCLE_BOUNDS.maximumAttempts ||
+    ["completed", "cancelled", "dead_letter", "resolved"].includes(
+      row.status,
+    ) !==
+      row.storageTerminalAt instanceof Date
   ) {
     throw new StorageLifecycleRepositoryError("persistence_unavailable");
   }
@@ -192,8 +251,18 @@ function parseStoredEvent(row: {
     version: row.version,
     status: row.status as StoredStorageDeletionIntent["status"],
     replayed: false,
+    replayCount: row.storageReplayCount,
+    cycleAttempts: row.storageCycleAttempts,
+    terminalAt: row.storageTerminalAt,
     envelope,
   };
+}
+
+export interface StorageDeletionTerminalPurgeResult {
+  considered: number;
+  purged: number;
+  truncated: boolean;
+  manifestSha256: string | null;
 }
 
 export async function enqueueStorageDeletionIntentTx(
@@ -330,6 +399,383 @@ export async function listPendingStorageDeletionIntents(
     limit,
     truncated,
   };
+}
+
+/** A bounded operator view; object paths remain server-side. */
+export async function listStorageDeletionDeadLetters(
+  organisationId: string,
+  limit: number = STORAGE_LIFECYCLE_BOUNDS.reconciliationBatch,
+  cursor?: string,
+): Promise<StorageDeletionDeadLetterPage> {
+  assertTenant(organisationId);
+  if (
+    !Number.isSafeInteger(limit) ||
+    limit < 1 ||
+    limit > STORAGE_LIFECYCLE_BOUNDS.reconciliationBatch
+  ) {
+    throw new StorageLifecycleRepositoryError("invalid_scope");
+  }
+  let after = null;
+  try {
+    after = cursor === undefined ? null : decodeStorageDeadLetterCursor(cursor);
+  } catch (error) {
+    if (error instanceof StorageDeadLetterCursorError) {
+      throw new StorageLifecycleRepositoryError("invalid_scope");
+    }
+    throw error;
+  }
+  try {
+    const rows = await db
+      .select()
+      .from(notificationEvents)
+      .where(
+        and(
+          eq(notificationEvents.organisationId, organisationId),
+          eq(notificationEvents.channel, STORAGE_DELETION_CHANNEL),
+          eq(notificationEvents.template, STORAGE_DELETION_INTENT_SCHEMA),
+          eq(notificationEvents.status, "dead_letter"),
+          after
+            ? or(
+                gt(notificationEvents.storageTerminalAt, after.terminalAt),
+                and(
+                  eq(notificationEvents.storageTerminalAt, after.terminalAt),
+                  gt(notificationEvents.id, after.id),
+                ),
+              )
+            : undefined,
+        ),
+      )
+      .orderBy(
+        asc(notificationEvents.storageTerminalAt),
+        asc(notificationEvents.id),
+      )
+      .limit(limit + 1);
+    const items = rows.slice(0, limit).map(parseStoredEvent);
+    const truncated = rows.length > limit;
+    const last = truncated ? items.at(-1) : undefined;
+    return {
+      items,
+      limit,
+      truncated,
+      nextCursor:
+        last && last.terminalAt
+          ? encodeStorageDeadLetterCursor({
+              terminalAt: last.terminalAt,
+              id: last.id,
+            })
+          : null,
+    };
+  } catch (error) {
+    if (error instanceof StorageLifecycleRepositoryError) throw error;
+    throw new StorageLifecycleRepositoryError("persistence_unavailable");
+  }
+}
+
+function operatorReason(value: string): string {
+  const reason = value.trim();
+  if (
+    reason.length < 8 ||
+    reason.length > 512 ||
+    /[\u0000-\u001f\u007f\ud800-\udfff]/u.test(reason)
+  ) {
+    throw new StorageLifecycleRepositoryError("invalid_scope");
+  }
+  return reason;
+}
+
+export async function replayStorageDeletionDeadLetter(input: {
+  organisationId: string;
+  eventId: string;
+  expectedVersion: number;
+  reason: string;
+  actor: LocalUser;
+}): Promise<StoredStorageDeletionIntent> {
+  assertTenant(input.organisationId);
+  if (
+    !UUID.test(input.eventId) ||
+    !Number.isSafeInteger(input.expectedVersion) ||
+    input.expectedVersion < 1 ||
+    !input.actor.id
+  ) {
+    throw new StorageLifecycleRepositoryError("invalid_scope");
+  }
+  const reason = operatorReason(input.reason);
+  return withStoragePersistenceBoundary(() =>
+    db.transaction(async (tx) => {
+      const rows = await tx
+        .select()
+        .from(notificationEvents)
+        .where(
+          and(
+            eq(notificationEvents.id, input.eventId),
+            eq(notificationEvents.organisationId, input.organisationId),
+            eq(notificationEvents.channel, STORAGE_DELETION_CHANNEL),
+            eq(notificationEvents.template, STORAGE_DELETION_INTENT_SCHEMA),
+          ),
+        )
+        .limit(2)
+        .for("update");
+      if (rows.length !== 1) {
+        throw new StorageLifecycleRepositoryError("not_found");
+      }
+      const event = parseStoredEvent(rows[0]!);
+      if (event.version !== input.expectedVersion) {
+        throw new StorageLifecycleRepositoryError("stale_version");
+      }
+      if (
+        event.status !== "dead_letter" ||
+        event.replayCount >= STORAGE_LIFECYCLE_BOUNDS.maximumDeadLetterReplays
+      ) {
+        throw new StorageLifecycleRepositoryError("invalid_state");
+      }
+      const clock = await tx.execute(
+        sql`SELECT pg_catalog.clock_timestamp() AS now`,
+      );
+      const now = new Date(
+        String((clock.rows[0] as { now?: unknown } | undefined)?.now ?? ""),
+      );
+      if (!Number.isFinite(now.valueOf())) {
+        throw new StorageLifecycleRepositoryError("persistence_unavailable");
+      }
+      const [updated] = await tx
+        .update(notificationEvents)
+        .set({
+          status: "queued",
+          storageReplayCount: event.replayCount + 1,
+          storageCycleAttempts: 0,
+          storageTerminalAt: null,
+          availableAt: now,
+          version: event.version + 1,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(notificationEvents.id, event.id),
+            eq(notificationEvents.version, event.version),
+            eq(notificationEvents.status, "dead_letter"),
+          ),
+        )
+        .returning();
+      if (!updated) throw new StorageLifecycleRepositoryError("stale_version");
+      await writeAuditTx(tx, {
+        user: input.actor,
+        organisationId: input.organisationId,
+        projectId: event.envelope.projectId,
+        eventType: "storage.deletion_dead_letter_replayed",
+        objectType: event.envelope.aggregateType,
+        objectId: event.envelope.aggregateId,
+        details: JSON.stringify({
+          eventId: event.id,
+          requestSha256: event.envelope.requestSha256,
+          replayCount: event.replayCount + 1,
+          reason,
+        }),
+        createdAt: now,
+      });
+      return { ...parseStoredEvent(updated), replayed: true };
+    }),
+  );
+}
+
+/**
+ * Close an unresolvable dead letter without asserting deletion. This is an
+ * explicit, audited risk acceptance; only replay can attempt provider work.
+ */
+export async function resolveStorageDeletionDeadLetter(input: {
+  organisationId: string;
+  eventId: string;
+  expectedVersion: number;
+  reason: string;
+  actor: LocalUser;
+}): Promise<StoredStorageDeletionIntent> {
+  assertTenant(input.organisationId);
+  if (
+    !UUID.test(input.eventId) ||
+    !Number.isSafeInteger(input.expectedVersion) ||
+    input.expectedVersion < 1 ||
+    !input.actor.id
+  ) {
+    throw new StorageLifecycleRepositoryError("invalid_scope");
+  }
+  const reason = operatorReason(input.reason);
+  return withStoragePersistenceBoundary(() =>
+    db.transaction(async (tx) => {
+      const rows = await tx
+        .select()
+        .from(notificationEvents)
+        .where(
+          and(
+            eq(notificationEvents.id, input.eventId),
+            eq(notificationEvents.organisationId, input.organisationId),
+            eq(notificationEvents.channel, STORAGE_DELETION_CHANNEL),
+            eq(notificationEvents.template, STORAGE_DELETION_INTENT_SCHEMA),
+          ),
+        )
+        .limit(2)
+        .for("update");
+      if (rows.length !== 1) {
+        throw new StorageLifecycleRepositoryError("not_found");
+      }
+      const event = parseStoredEvent(rows[0]!);
+      if (event.version !== input.expectedVersion) {
+        throw new StorageLifecycleRepositoryError("stale_version");
+      }
+      if (event.status !== "dead_letter") {
+        throw new StorageLifecycleRepositoryError("invalid_state");
+      }
+      const clock = await tx.execute(
+        sql`SELECT pg_catalog.clock_timestamp() AS now`,
+      );
+      const now = new Date(
+        String((clock.rows[0] as { now?: unknown } | undefined)?.now ?? ""),
+      );
+      if (!Number.isFinite(now.valueOf())) {
+        throw new StorageLifecycleRepositoryError("persistence_unavailable");
+      }
+      const [updated] = await tx
+        .update(notificationEvents)
+        .set({
+          status: "resolved",
+          storageTerminalAt: now,
+          version: event.version + 1,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(notificationEvents.id, event.id),
+            eq(notificationEvents.version, event.version),
+            eq(notificationEvents.status, "dead_letter"),
+          ),
+        )
+        .returning();
+      if (!updated) throw new StorageLifecycleRepositoryError("stale_version");
+      await writeAuditTx(tx, {
+        user: input.actor,
+        organisationId: input.organisationId,
+        projectId: event.envelope.projectId,
+        eventType: "storage.deletion_dead_letter_resolved",
+        objectType: event.envelope.aggregateType,
+        objectId: event.envelope.aggregateId,
+        details: JSON.stringify({
+          eventId: event.id,
+          requestSha256: event.envelope.requestSha256,
+          disposition: "accepted_unresolved",
+          objectDeletionConfirmed: false,
+          reason,
+        }),
+        createdAt: now,
+      });
+      return parseStoredEvent(updated);
+    }),
+  );
+}
+
+/**
+ * Purge one bounded page only after the 90-day terminal evidence window. One
+ * immutable audit manifest is committed before queue rows and attempt detail
+ * cascade away. Dead letters and accepted-unresolved resolutions retain their
+ * raw provider locator indefinitely and are deliberately never eligible.
+ */
+export async function purgeRetainedStorageDeletionTerminals(
+  organisationId: string,
+  limit: number = STORAGE_LIFECYCLE_BOUNDS.reconciliationBatch,
+): Promise<StorageDeletionTerminalPurgeResult> {
+  assertTenant(organisationId);
+  if (
+    !Number.isSafeInteger(limit) ||
+    limit < 1 ||
+    limit > STORAGE_LIFECYCLE_BOUNDS.reconciliationBatch
+  ) {
+    throw new StorageLifecycleRepositoryError("invalid_scope");
+  }
+  return db.transaction(async (tx) => {
+    const rows = await tx
+      .select()
+      .from(notificationEvents)
+      .where(
+        and(
+          eq(notificationEvents.organisationId, organisationId),
+          eq(notificationEvents.channel, STORAGE_DELETION_CHANNEL),
+          eq(notificationEvents.template, STORAGE_DELETION_INTENT_SCHEMA),
+          inArray(notificationEvents.status, ["completed", "cancelled"]),
+          isNotNull(notificationEvents.storageTerminalAt),
+        ),
+      )
+      .orderBy(
+        asc(notificationEvents.storageTerminalAt),
+        asc(notificationEvents.id),
+      )
+      .limit(limit + 1)
+      .for("update");
+    const clock = await tx.execute(
+      sql`SELECT pg_catalog.clock_timestamp() AS now`,
+    );
+    const now = new Date(
+      String((clock.rows[0] as { now?: unknown } | undefined)?.now ?? ""),
+    );
+    if (!Number.isFinite(now.valueOf())) {
+      throw new StorageLifecycleRepositoryError("persistence_unavailable");
+    }
+    const cutoff = new Date(
+      now.valueOf() -
+        STORAGE_LIFECYCLE_BOUNDS.terminalRetentionDays * 24 * 60 * 60 * 1_000,
+    );
+    const eligible = rows
+      .map(parseStoredEvent)
+      .filter((event) => event.terminalAt!.valueOf() <= cutoff.valueOf());
+    const page = eligible.slice(0, limit);
+    if (page.length === 0) {
+      return {
+        considered: 0,
+        purged: 0,
+        truncated: false,
+        manifestSha256: null,
+      };
+    }
+    const manifest = page.map((event) => ({
+      eventId: event.id,
+      status: event.status,
+      terminalAt: event.terminalAt!.toISOString(),
+      requestSha256: event.envelope.requestSha256,
+      replayCount: event.replayCount,
+      cycleAttempts: event.cycleAttempts,
+    }));
+    const manifestSha256 = storageLifecycleSha256(manifest);
+    await writeAuditTx(tx, {
+      user: null,
+      organisationId,
+      eventType: "storage.deletion_terminal_rows_purged",
+      objectType: "storage_deletion_terminal_manifest",
+      objectId: null,
+      details: JSON.stringify({
+        manifestSha256,
+        retainedDays: STORAGE_LIFECYCLE_BOUNDS.terminalRetentionDays,
+        entries: manifest,
+      }),
+      createdAt: now,
+    });
+    const deleted = await tx
+      .delete(notificationEvents)
+      .where(
+        and(
+          eq(notificationEvents.organisationId, organisationId),
+          inArray(
+            notificationEvents.id,
+            page.map((event) => event.id),
+          ),
+        ),
+      )
+      .returning({ id: notificationEvents.id });
+    if (deleted.length !== page.length) {
+      throw new StorageLifecycleRepositoryError("stale_version");
+    }
+    return {
+      considered: page.length,
+      purged: deleted.length,
+      truncated: eligible.length > limit,
+      manifestSha256,
+    };
+  });
 }
 
 /**
@@ -528,6 +974,7 @@ export async function sweepExpiredClientUploadLeases(
             row.status === "quarantined" ||
             row.status === "cleanup_unconfirmed",
         }),
+        createdAt: now,
       });
       if (nextStatus === "expired") expired += 1;
       else if (nextStatus === "completed_cleanup_queued")
@@ -557,14 +1004,14 @@ export async function reconcileStorageDeletionIntent(input: {
   expectedVersion: number;
   actor: LocalUser | null | undefined;
   objectStore: StorageDeletionObjectStore;
-  now: Date;
+  /** @deprecated Ignored. Persisted lifecycle time comes from PostgreSQL. */
+  now?: Date;
 }): Promise<StorageDeletionReconciliation> {
   assertTenant(input.organisationId);
   if (
     !UUID.test(input.eventId) ||
     !Number.isSafeInteger(input.expectedVersion) ||
-    input.expectedVersion < 1 ||
-    !Number.isFinite(input.now.valueOf())
+    input.expectedVersion < 1
   ) {
     throw new StorageLifecycleRepositoryError("invalid_scope");
   }
@@ -603,6 +1050,15 @@ export async function reconcileStorageDeletionIntent(input: {
       throw new StorageLifecycleRepositoryError("not_found");
     }
     const event = parseStoredEvent(rows[0]!);
+    const clock = await tx.execute(
+      sql`SELECT pg_catalog.clock_timestamp() AS now`,
+    );
+    const now = new Date(
+      String((clock.rows[0] as { now?: unknown } | undefined)?.now ?? ""),
+    );
+    if (!Number.isFinite(now.valueOf())) {
+      throw new StorageLifecycleRepositoryError("persistence_unavailable");
+    }
     if (
       event.envelope.requestSha256 !== candidate.envelope.requestSha256 ||
       event.envelope.objectPath !== candidate.envelope.objectPath
@@ -612,7 +1068,11 @@ export async function reconcileStorageDeletionIntent(input: {
     if (event.version !== input.expectedVersion) {
       throw new StorageLifecycleRepositoryError("stale_version");
     }
-    if (event.status === "completed" || event.status === "cancelled") {
+    if (
+      event.status === "completed" ||
+      event.status === "cancelled" ||
+      event.status === "resolved"
+    ) {
       return {
         outcome: "replayed",
         eventId: event.id,
@@ -625,17 +1085,11 @@ export async function reconcileStorageDeletionIntent(input: {
       throw new StorageLifecycleRepositoryError("invalid_state");
     }
     if (event.status === "retry_wait") {
-      const eligibility = await tx.execute(
-        sql`SELECT ${rows[0]!.availableAt} <= pg_catalog.clock_timestamp() AS eligible`,
-      );
-      if (
-        (eligibility.rows[0] as { eligible?: unknown } | undefined)
-          ?.eligible !== true
-      ) {
+      if (rows[0]!.availableAt > now) {
         throw new StorageLifecycleRepositoryError("invalid_state");
       }
     }
-    const attempts = await tx
+    const [lastAttempt] = await tx
       .select({ attemptNumber: notificationAttempts.attemptNumber })
       .from(notificationAttempts)
       .where(
@@ -644,20 +1098,19 @@ export async function reconcileStorageDeletionIntent(input: {
           eq(notificationAttempts.notificationEventId, event.id),
         ),
       )
-      .orderBy(asc(notificationAttempts.attemptNumber))
-      .limit(STORAGE_LIFECYCLE_BOUNDS.maximumAttempts + 1);
-    if (attempts.length > STORAGE_LIFECYCLE_BOUNDS.maximumAttempts) {
-      throw new StorageLifecycleRepositoryError("persistence_unavailable");
-    }
-    const attemptNumber = attempts.length + 1;
-    if (attemptNumber > STORAGE_LIFECYCLE_BOUNDS.maximumAttempts) {
+      .orderBy(desc(notificationAttempts.attemptNumber))
+      .limit(1);
+    const attemptNumber = (lastAttempt?.attemptNumber ?? 0) + 1;
+    const cycleAttempt = event.cycleAttempts + 1;
+    if (event.cycleAttempts >= STORAGE_LIFECYCLE_BOUNDS.maximumAttempts) {
       const [dead] = await tx
         .update(notificationEvents)
         .set({
           status: "dead_letter",
+          storageTerminalAt: now,
           version: sql`${notificationEvents.version} + 1`,
-          availableAt: input.now,
-          updatedAt: input.now,
+          availableAt: now,
+          updatedAt: now,
         })
         .where(
           and(
@@ -679,9 +1132,10 @@ export async function reconcileStorageDeletionIntent(input: {
         details: JSON.stringify({
           eventId: event.id,
           requestSha256: event.envelope.requestSha256,
-          attempts: attempts.length,
+          attempts: event.cycleAttempts,
           reason: "attempt_limit_reached",
         }),
+        createdAt: now,
       });
       return {
         outcome: "dead_letter",
@@ -705,15 +1159,17 @@ export async function reconcileStorageDeletionIntent(input: {
         status: "cancelled_referenced",
         responseCode: "reference_present",
         responseSummary: references.join(","),
-        attemptedAt: input.now,
+        attemptedAt: now,
       });
       const [cancelled] = await tx
         .update(notificationEvents)
         .set({
           status: "cancelled",
+          storageCycleAttempts: cycleAttempt,
+          storageTerminalAt: now,
           version: sql`${notificationEvents.version} + 1`,
-          availableAt: input.now,
-          updatedAt: input.now,
+          availableAt: now,
+          updatedAt: now,
         })
         .where(
           and(
@@ -733,6 +1189,7 @@ export async function reconcileStorageDeletionIntent(input: {
         objectType: event.envelope.aggregateType,
         objectId: event.envelope.aggregateId,
         details: JSON.stringify({ eventId: event.id, references }),
+        createdAt: now,
       });
       return {
         outcome: "cancelled",
@@ -756,15 +1213,17 @@ export async function reconcileStorageDeletionIntent(input: {
         status: "completed",
         responseCode: objectDeleted ? "deleted" : "already_absent",
         responseSummary: null,
-        attemptedAt: input.now,
+        attemptedAt: now,
       });
       const [completed] = await tx
         .update(notificationEvents)
         .set({
           status: "completed",
+          storageCycleAttempts: cycleAttempt,
+          storageTerminalAt: now,
           version: sql`${notificationEvents.version} + 1`,
-          availableAt: input.now,
-          updatedAt: input.now,
+          availableAt: now,
+          updatedAt: now,
         })
         .where(
           and(
@@ -788,6 +1247,7 @@ export async function reconcileStorageDeletionIntent(input: {
           requestSha256: event.envelope.requestSha256,
           objectDeleted,
         }),
+        createdAt: now,
       });
       return {
         outcome: "completed",
@@ -798,11 +1258,10 @@ export async function reconcileStorageDeletionIntent(input: {
       };
     } catch (error) {
       if (error instanceof StorageLifecycleRepositoryError) throw error;
-      const terminal =
-        attemptNumber >= STORAGE_LIFECYCLE_BOUNDS.maximumAttempts;
+      const terminal = cycleAttempt >= STORAGE_LIFECYCLE_BOUNDS.maximumAttempts;
       const nextAttemptAt = terminal
         ? null
-        : new Date(input.now.valueOf() + retryDelayMs(attemptNumber));
+        : new Date(now.valueOf() + retryDelayMs(cycleAttempt));
       await tx.insert(notificationAttempts).values({
         organisationId: input.organisationId,
         notificationEventId: event.id,
@@ -813,15 +1272,17 @@ export async function reconcileStorageDeletionIntent(input: {
         responseCode: "delete_unconfirmed",
         responseSummary: null,
         nextAttemptAt,
-        attemptedAt: input.now,
+        attemptedAt: now,
       });
       const [updated] = await tx
         .update(notificationEvents)
         .set({
           status: terminal ? "dead_letter" : "retry_wait",
+          storageCycleAttempts: cycleAttempt,
+          storageTerminalAt: terminal ? now : null,
           version: sql`${notificationEvents.version} + 1`,
-          availableAt: nextAttemptAt ?? input.now,
-          updatedAt: input.now,
+          availableAt: nextAttemptAt ?? now,
+          updatedAt: now,
         })
         .where(
           and(
@@ -846,9 +1307,11 @@ export async function reconcileStorageDeletionIntent(input: {
           eventId: event.id,
           requestSha256: event.envelope.requestSha256,
           attemptNumber,
+          cycleAttempt,
           nextAttemptAt: nextAttemptAt?.toISOString() ?? null,
           reason: "delete_unconfirmed",
         }),
+        createdAt: now,
       });
       return {
         outcome: terminal ? "dead_letter" : "retry_wait",

@@ -1,0 +1,344 @@
+{
+  "schemaVersion": 1,
+  "registryVersion": "valo-operational-signals/v1",
+  "status": "source_registry_complete_deployment_mapping_required",
+  "allowedLabelKeys": ["bucket", "channel", "state", "status_class"],
+  "signals": [
+    {
+      "name": "http.server.active_requests",
+      "type": "gauge",
+      "unit": "requests",
+      "source": "api_runtime",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "http.server.started_total",
+      "type": "counter",
+      "unit": "requests",
+      "source": "api_runtime",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "http.server.responses_total",
+      "type": "counter",
+      "unit": "responses",
+      "source": "api_runtime",
+      "sourceStatus": "emitted",
+      "labels": ["status_class"]
+    },
+    {
+      "name": "http.server.duration_milliseconds_bucket_total",
+      "type": "counter",
+      "unit": "milliseconds",
+      "source": "api_runtime",
+      "sourceStatus": "emitted",
+      "labels": ["bucket"]
+    },
+    {
+      "name": "http.server.error_ratio",
+      "type": "gauge",
+      "unit": "ratio",
+      "source": "rate(http.server.responses_total{status_class=\"5xx\"}) / rate(http.server.responses_total)",
+      "sourceStatus": "deployment_derived",
+      "labels": []
+    },
+    {
+      "name": "http.readyz.success",
+      "type": "gauge",
+      "unit": "boolean",
+      "source": "independent_readiness_probe",
+      "sourceStatus": "external_evidence_required",
+      "labels": []
+    },
+    {
+      "name": "valo.database.pool_connections",
+      "type": "gauge",
+      "unit": "connections",
+      "source": "api_runtime",
+      "sourceStatus": "emitted",
+      "labels": ["state"]
+    },
+    {
+      "name": "valo.runtime.uptime_seconds",
+      "type": "gauge",
+      "unit": "seconds",
+      "source": "api_runtime",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.runtime.lifecycle",
+      "type": "gauge",
+      "unit": "boolean",
+      "source": "api_runtime",
+      "sourceStatus": "emitted",
+      "labels": ["state"]
+    },
+    {
+      "name": "valo.observability.delivery_connected",
+      "type": "gauge",
+      "unit": "boolean",
+      "source": "api_runtime",
+      "sourceStatus": "emitted",
+      "labels": ["channel"]
+    },
+    {
+      "name": "valo.processing_jobs.failure_ratio",
+      "type": "gauge",
+      "unit": "ratio",
+      "source": "durable_worker_adapter",
+      "sourceStatus": "deployment_adapter_required",
+      "labels": []
+    },
+    {
+      "name": "valo.extraction.mandatory_recall",
+      "type": "gauge",
+      "unit": "ratio",
+      "source": "promoted_holdout_evidence",
+      "sourceStatus": "external_evidence_required",
+      "labels": []
+    },
+    {
+      "name": "valo.security.tenant_denials",
+      "type": "counter",
+      "unit": "denials",
+      "source": "security_event_adapter",
+      "sourceStatus": "deployment_adapter_required",
+      "labels": []
+    },
+    {
+      "name": "valo.engagement.sla_breaches",
+      "type": "gauge",
+      "unit": "engagements",
+      "source": "operations_projection_adapter",
+      "sourceStatus": "deployment_adapter_required",
+      "labels": []
+    },
+    {
+      "name": "valo.notifications.final_failure_count",
+      "type": "gauge",
+      "unit": "deliveries",
+      "source": "notification_reconciler_adapter",
+      "sourceStatus": "deployment_adapter_required",
+      "labels": []
+    },
+    {
+      "name": "valo.storage.deletion_dead_letter_transitions",
+      "type": "counter_delta",
+      "unit": "transitions",
+      "source": "storage_deletion_reconciliation",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.storage.deletion_oldest_sampled_age_seconds",
+      "type": "gauge",
+      "unit": "seconds",
+      "source": "storage_deletion_reconciliation",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.storage.deletion_sample_complete",
+      "type": "gauge",
+      "unit": "boolean",
+      "source": "storage_deletion_reconciliation",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.storage.deletion_run_success",
+      "type": "gauge",
+      "unit": "boolean",
+      "source": "storage_deletion_reconciliation",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.storage.deletion_last_success_unixtime_seconds",
+      "type": "gauge",
+      "unit": "unix_seconds",
+      "source": "successful_storage_deletion_reconciliation",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.storage.deletion_last_full_cycle_unixtime_seconds",
+      "type": "gauge",
+      "unit": "unix_seconds",
+      "source": "storage_deletion_reconciliation_when_cycle_complete",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.retention.scan_run_success",
+      "type": "gauge",
+      "unit": "boolean",
+      "source": "retention_scan",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.retention.scan_last_success_unixtime_seconds",
+      "type": "gauge",
+      "unit": "unix_seconds",
+      "source": "retention_scan",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.retention.scan_last_full_cycle_unixtime_seconds",
+      "type": "gauge",
+      "unit": "unix_seconds",
+      "source": "successful_complete_retention_scan_cycle",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.retention.cycle_complete",
+      "type": "gauge",
+      "unit": "boolean",
+      "source": "retention_scan",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.retention.missing_conclusion_anchors",
+      "type": "gauge",
+      "unit": "projects",
+      "source": "retention_scan",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.retention.tenant_failures",
+      "type": "gauge",
+      "unit": "tenants",
+      "source": "retention_scan",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.intake.purge_run_success",
+      "type": "gauge",
+      "unit": "boolean",
+      "source": "public_intake_purge",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.intake.purge_last_success_unixtime_seconds",
+      "type": "gauge",
+      "unit": "unix_seconds",
+      "source": "public_intake_purge",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.authenticated_rate_limit.purge_run_success",
+      "type": "gauge",
+      "unit": "boolean",
+      "source": "authenticated_rate_limit_purge",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.authenticated_rate_limit.purge_cycle_complete",
+      "type": "gauge",
+      "unit": "boolean",
+      "source": "authenticated_rate_limit_purge",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.authenticated_rate_limit.purge_last_success_unixtime_seconds",
+      "type": "gauge",
+      "unit": "unix_seconds",
+      "source": "authenticated_rate_limit_purge",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.authenticated_rate_limit.purge_last_full_cycle_unixtime_seconds",
+      "type": "gauge",
+      "unit": "unix_seconds",
+      "source": "authenticated_rate_limit_purge",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.ai.cost_per_completed_package",
+      "type": "gauge",
+      "unit": "minor_currency_units",
+      "source": "cost_ledger_adapter",
+      "sourceStatus": "deployment_adapter_required",
+      "labels": []
+    },
+    {
+      "name": "valo.backup.age_hours",
+      "type": "gauge",
+      "unit": "hours",
+      "source": "independently_pinned_backup_evidence",
+      "sourceStatus": "external_evidence_required",
+      "labels": []
+    },
+    {
+      "name": "valo.backup.verification_failures",
+      "type": "gauge",
+      "unit": "failures",
+      "source": "backup_evidence_verifier",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.backup.last_success_unixtime_seconds",
+      "type": "gauge",
+      "unit": "unix_seconds",
+      "source": "backup_evidence_verifier",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.audit.anchor_failures",
+      "type": "gauge",
+      "unit": "failures",
+      "source": "audit_anchor_evidence_verifier",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.audit.anchor_age_seconds",
+      "type": "gauge",
+      "unit": "seconds",
+      "source": "independently_pinned_anchor_evidence",
+      "sourceStatus": "external_evidence_required",
+      "labels": []
+    },
+    {
+      "name": "valo.audit.anchor_cycle_complete",
+      "type": "gauge",
+      "unit": "boolean",
+      "source": "audit_anchor_evidence_verifier",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.audit.anchor_last_success_unixtime_seconds",
+      "type": "gauge",
+      "unit": "unix_seconds",
+      "source": "audit_anchor_evidence_verifier",
+      "sourceStatus": "emitted",
+      "labels": []
+    },
+    {
+      "name": "valo.security.break_glass_activated",
+      "type": "counter_delta",
+      "unit": "activations",
+      "source": "restricted_security_event_adapter",
+      "sourceStatus": "deployment_adapter_required",
+      "labels": []
+    }
+  ]
+}

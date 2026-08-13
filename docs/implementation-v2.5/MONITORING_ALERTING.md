@@ -1,8 +1,8 @@
 # Monitoring and alerting contract
 
-Status: **privacy-safe runtime signal foundation implemented; telemetry backend and paging adapter not deployed**.
+Status: **privacy-safe signal registry and adapter boundary implemented; telemetry backend, alert evaluator and paging adapter not deployed**.
 
-The machine-readable alert pack is `config/observability/alerts.v2.5.json`. CI validates that every mandatory operational signal has an identifier, severity, condition and runbook. The API now emits aggregate HTTP duration/status, database-pool pressure and lifecycle snapshots to structured logs, with bounded request correlation IDs. Its delivery status explicitly reports external metrics and paging as `disconnected`. The pack deliberately carries `deployment_adapter_required`; source signals and policy are not evidence that alerts are evaluated or people are paged.
+The machine-readable alert pack is `config/observability/alerts.v2.5.json`; its source/derivation registry is `config/observability/signals.v1.json`. CI validates that every alert points to a unique registered signal and has one adapter-neutral synthetic trigger fixture in `config/observability/synthetic-alerts.v1.json`. The registry distinguishes values emitted by source, values that a deployment adapter must derive, external evidence and gaps that are not implemented. The API emits a versioned batch of aggregate HTTP duration/status, database-pool pressure and lifecycle points to structured logs, with bounded request correlation IDs. A metrics adapter may report `connected` only with the exact registry version and an immutable verification-evidence reference; paging likewise requires synthetic delivery evidence. Both remain `disconnected` in the current composition.
 
 ## Probe contract
 
@@ -20,6 +20,8 @@ The machine-readable alert pack is `config/observability/alerts.v2.5.json`. CI v
 5. Liveness, backup and audit-anchor alerts remain independent of the application database they supervise. Deployment readiness deliberately probes the application database.
 6. Staging injects a synthetic failure for every alert before production approval; the deployment record retains the result and acknowledgement latency.
 
+The repository fixtures prove coverage and payload shape only. They do **not** prove that an external evaluator fired, that a page arrived, or that anybody acknowledged it. Those are target-environment acceptance artefacts.
+
 ## Release gates
 
 - No production release may label monitoring **verified** until the deployment adapter, dashboard, paging route and synthetic alert evidence exist.
@@ -30,6 +32,8 @@ The machine-readable alert pack is `config/observability/alerts.v2.5.json`. CI v
 - Durable storage deletion exposes a dead-letter transition counter and an oldest-age sample. The age alert is valid only when the same run emits `valo.storage.deletion_sample_complete=1`; a partial rotating tenant page must never be presented as the global backlog. Source now includes the tenant-fair reconciler entrypoint, but a platform schedule, provider-timeout proof and verified alert delivery receipt remain required before storage lifecycle automation can be called operationally active.
 - Browser PUT grants close before their database lease and the reconciler waits a further bounded grace, but the current Replit/GCS sidecar contract does not prove a maximum duration for a PUT accepted before URL expiry. Production activation therefore remains blocked until the deployment proves an upper request-duration cap within that grace or replaces the signer with a create-only/generation-preconditioned capability. The response and status model deliberately call this bounded reconciliation, never exact late-write prevention.
 - The deletion worker remains activation-gated until a content-minimised terminal-row retention policy and an operator-authorised, tamper-evident dead-letter replay/resolution workflow are implemented and rehearsed. Retry and dead-letter transitions are audited today; this does not imply that operator replay is available.
+- Scheduled entrypoints emit sparse last-success timestamps rather than refreshing a heartbeat after a failure. The alert adapter derives staleness from those timestamps. Storage reconciliation emits its last-full-cycle timestamp only after every bounded organisation/upload page completes with no tenant or intent failure; a partial page never refreshes it.
+- Backup and audit-anchor evidence validators require an absolute regular file plus a separately supplied SHA-256 digest. They validate strict timelines, RPO/age limits, complete tenant coverage and exact chain-head correspondence, but they do not create a provider backup or immutable anchor. Provider capture, signature verification and an independently controlled digest source remain platform prerequisites.
 
 ## Operator evidence record
 

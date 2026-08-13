@@ -49,6 +49,7 @@ DECLARE
   policy_name text;
   protected_tables constant text[] := ARRAY[
     'approvals',
+    'authenticated_rate_limit_buckets',
     'audit_anchors',
     'audit_events',
     'benchmark_consents',

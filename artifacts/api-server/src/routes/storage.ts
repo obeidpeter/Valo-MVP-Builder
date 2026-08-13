@@ -1,15 +1,10 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { Readable } from "stream";
-import {
-  DiscardUploadBody,
-  RequestUploadUrlBody,
-  RequestUploadUrlResponse,
-} from "@workspace/api-zod";
+import { DiscardUploadBody } from "@workspace/api-zod";
 import {
   ObjectStorageService,
   ObjectNotFoundError,
 } from "../lib/objectStorage";
-import { getMaxUploadBytes } from "../lib/intakeLimits";
 import {
   getOrganisationId,
   requirePermissionOrLegacy,
@@ -26,6 +21,7 @@ import {
   hasSecurityQuarantinedDocumentReference,
   storagePathReferenceKinds,
 } from "../lib/storageReferences";
+import { LEGACY_SIGNED_UPLOAD_ISSUANCE } from "../lib/storageLifecycle/activation";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -33,48 +29,26 @@ const objectStorageService = new ObjectStorageService();
 /**
  * POST /storage/uploads/request-url
  *
- * Request a presigned URL for file upload.
- * The client sends JSON metadata (name, size, contentType) — NOT the file.
- * Then uploads the file directly to the returned presigned URL.
+ * Fail closed until generic upload has the same durable lease, create-only
+ * provider, and post-expiry reconciliation guarantees as governed Client
+ * Action upload. No request body is parsed and no storage capability is issued.
  */
 router.post(
   "/storage/uploads/request-url",
   requirePermissionOrLegacy("document:upload"),
   async (req: Request, res: Response) => {
-    const parsed = RequestUploadUrlBody.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: "Missing or invalid required fields" });
-      return;
-    }
-
-    try {
-      const { name, size, contentType } = parsed.data;
-      const maxUploadBytes = getMaxUploadBytes();
-      if (size > maxUploadBytes) {
-        res.status(413).json({
-          error: "Upload exceeds the configured byte limit",
-          maxUploadBytes,
-        });
-        return;
-      }
-
-      const organisationId = getOrganisationId(req);
-      const uploadURL =
-        await objectStorageService.getObjectEntityUploadURL(organisationId);
-      const objectPath =
-        objectStorageService.normalizeObjectEntityPath(uploadURL);
-
-      res.json(
-        RequestUploadUrlResponse.parse({
-          uploadURL,
-          objectPath,
-          metadata: { name, size, contentType },
-        }),
+    if (LEGACY_SIGNED_UPLOAD_ISSUANCE.issuanceEnabled) {
+      throw new Error(
+        "Legacy upload activation invariant violated: no issuance implementation is mounted",
       );
-    } catch (error) {
-      req.log.error({ err: error }, "Error generating upload URL");
-      res.status(500).json({ error: "Failed to generate upload URL" });
     }
+    res.set("Cache-Control", "private, no-store");
+    res.status(503).json({
+      error:
+        "Generic signed upload issuance is disabled until every upload is durably leased and create-only provider semantics are verified.",
+      code: "LEGACY_UPLOAD_ISSUANCE_NOT_ACTIVATED",
+      sideEffectsApplied: false,
+    });
   },
 );
 

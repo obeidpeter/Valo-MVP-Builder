@@ -3,6 +3,7 @@ import { asc, gt } from "drizzle-orm";
 import { ObjectStorageService } from "../objectStorage";
 import {
   listPendingStorageDeletionIntents,
+  purgeRetainedStorageDeletionTerminals,
   reconcileStorageDeletionIntent,
   sweepExpiredClientUploadLeases,
   type ExpiredClientUploadLeaseSweep,
@@ -23,12 +24,12 @@ export const STORAGE_DELETION_RECONCILER_STATUS = Object.freeze({
   providerInFlightPutMaximumVerified: false,
   exactLateRewriteClosureImplemented: false,
   scheduledEntrypointImplemented: true,
-  platformScheduleDeclaredInRepository: false,
+  platformScheduleDeclaredInRepository: true,
   durableRotationCursorImplemented: true,
   singleRunLeaseImplemented: true,
   globalRunBudgetImplemented: true,
-  terminalQueueRetentionImplemented: false,
-  auditedDeadLetterReplayImplemented: false,
+  terminalQueueRetentionImplemented: true,
+  auditedDeadLetterReplayImplemented: true,
   externalMessagingPerformed: false,
   activation:
     "requires-provider-cap-platform-schedule-terminal-retention-and-audited-replay" as const,
@@ -49,10 +50,14 @@ export interface StorageDeletionReconciliationRunResult {
   replayed: number;
   retryWait: number;
   deadLetter: number;
+  terminalRowsConsidered: number;
+  terminalRowsPurged: number;
+  terminalRetentionPagesRemaining: number;
   tenantPagesRemaining: number;
   tenantFailures: number;
   intentFailures: number;
   oldestPendingAgeSeconds: number;
+  runBudgetExhausted: boolean;
   organisationPageTruncated: boolean;
   cycleComplete: boolean;
   nextOrganisationCursor: string | null;
@@ -71,12 +76,20 @@ export interface StorageDeletionReconcilerDependencies {
     organisationId: string,
     limit: number,
   ): Promise<ExpiredClientUploadLeaseSweep>;
+  purgeRetainedTerminals(
+    organisationId: string,
+    limit: number,
+  ): Promise<{
+    considered: number;
+    purged: number;
+    truncated: boolean;
+    manifestSha256: string | null;
+  }>;
   reconcile(input: {
     organisationId: string;
     eventId: string;
     expectedVersion: number;
     objectStore: StorageDeletionObjectStore;
-    now: Date;
   }): Promise<StorageDeletionReconciliation>;
   objectStore: StorageDeletionObjectStore;
   now(): Date;
@@ -109,6 +122,10 @@ const DEFAULT_DEPENDENCIES: StorageDeletionReconcilerDependencies = {
   sweepExpiredLeases: (organisationId, limit) =>
     withTenantDatabase(organisationId, () =>
       sweepExpiredClientUploadLeases(organisationId, limit),
+    ),
+  purgeRetainedTerminals: (organisationId, limit) =>
+    withTenantDatabase(organisationId, () =>
+      purgeRetainedStorageDeletionTerminals(organisationId, limit),
     ),
   reconcile: (input) =>
     withTenantDatabase(input.organisationId, () =>
@@ -167,10 +184,14 @@ export async function runStorageDeletionReconciliation(
     replayed: 0,
     retryWait: 0,
     deadLetter: 0,
+    terminalRowsConsidered: 0,
+    terminalRowsPurged: 0,
+    terminalRetentionPagesRemaining: 0,
     tenantPagesRemaining: 0,
     tenantFailures: 0,
     intentFailures: 0,
     oldestPendingAgeSeconds: 0,
+    runBudgetExhausted: false,
     organisationPageTruncated: false,
     cycleComplete: false,
     nextOrganisationCursor: afterOrganisationId,
@@ -193,7 +214,10 @@ export async function runStorageDeletionReconciliation(
   let fullyProcessed = 0;
 
   for (const organisationId of organisationIds) {
-    if (dependencies.monotonicNow() - startedAt >= RUN_BUDGET_MS) break;
+    if (dependencies.monotonicNow() - startedAt >= RUN_BUDGET_MS) {
+      result.runBudgetExhausted = true;
+      break;
+    }
     result.organisationsScanned += 1;
     try {
       const leaseSweep = await dependencies.sweepExpiredLeases(
@@ -220,6 +244,22 @@ export async function runStorageDeletionReconciliation(
       result.unconfirmedLeaseCleanupQueued +=
         leaseSweep.cleanupUnconfirmedPostExpiryQueued;
       if (leaseSweep.truncated) result.uploadLeasePagesRemaining += 1;
+      const terminalPurge = await dependencies.purgeRetainedTerminals(
+        organisationId,
+        PER_TENANT_BATCH,
+      );
+      if (
+        terminalPurge.considered > PER_TENANT_BATCH ||
+        terminalPurge.purged !== terminalPurge.considered ||
+        terminalPurge.purged > 0 !== (terminalPurge.manifestSha256 !== null)
+      ) {
+        throw new Error("Invalid terminal storage retention result");
+      }
+      result.terminalRowsConsidered += terminalPurge.considered;
+      result.terminalRowsPurged += terminalPurge.purged;
+      if (terminalPurge.truncated) {
+        result.terminalRetentionPagesRemaining += 1;
+      }
     } catch {
       result.tenantFailures += 1;
       continue;
@@ -238,6 +278,7 @@ export async function runStorageDeletionReconciliation(
     if (batch.truncated) result.tenantPagesRemaining += 1;
     for (const intent of batch.items) {
       if (dependencies.monotonicNow() - startedAt >= RUN_BUDGET_MS) {
+        result.runBudgetExhausted = true;
         result.tenantPagesRemaining += 1;
         break;
       }
@@ -259,7 +300,6 @@ export async function runStorageDeletionReconciliation(
           eventId: intent.id,
           expectedVersion: intent.version,
           objectStore: dependencies.objectStore,
-          now,
         });
         countOutcome(result, outcome.outcome);
       } catch {

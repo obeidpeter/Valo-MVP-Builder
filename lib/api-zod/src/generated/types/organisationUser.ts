@@ -15,13 +15,22 @@
  *
  * OpenAPI spec version: 2.5.0
  */
+import type { OrganisationUserMembershipStatus } from './organisationUserMembershipStatus';
+import type { OrganisationUserRole } from './organisationUserRole';
+import type { OrganisationUserStatus } from './organisationUserStatus';
 
-export type ProjectCreateConflictStatus = typeof ProjectCreateConflictStatus[keyof typeof ProjectCreateConflictStatus];
-
-
-export const ProjectCreateConflictStatus = {
-  clear: 'clear',
-  blocked: 'blocked',
-  consented: 'consented',
-  declined: 'declined',
-} as const;
+export interface OrganisationUser {
+  id: string;
+  email: string;
+  name?: string | null;
+  role: OrganisationUserRole;
+  status: OrganisationUserStatus;
+  lastLoginAt?: string | null;
+  createdAt?: string;
+  membershipId: string;
+  membershipStatus: OrganisationUserMembershipStatus;
+  /** @minimum 1 */
+  membershipVersion: number;
+  /** Server-computed current eligibility for named project review in the selected organisation. Absence or false must fail closed. */
+  reviewerEligible: boolean;
+}

@@ -30,6 +30,7 @@ node_modules
 
 # misc
 /.sass-cache
+/release-evidence/
 /connect.lock
 /coverage
 /libpeerconnection.log

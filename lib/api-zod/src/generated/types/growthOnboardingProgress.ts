@@ -23,6 +23,14 @@ export interface GrowthOnboardingProgress {
      * @items.minLength 1
      * @items.maxLength 128
      */
+  savedPracticeMarkerItemIds: string[];
+  /**
+     * Compatibility alias for savedPracticeMarkerItemIds. It does not represent task completion.
+     * @deprecated
+     * @maxItems 512
+     * @items.minLength 1
+     * @items.maxLength 128
+     */
   completedItemIds: string[];
   /** @minimum 0 */
   version: number;
