@@ -1,3 +1,10 @@
+import {
+  hasText,
+  validIdentifier,
+  validIsoTimestamp,
+  validNonNegativeInteger,
+  validUnitScore,
+} from "./aiFoundationValidation";
 /**
  * Provider-free continuous evaluation contracts. Passing this framework is
  * evidence for a later release decision; it never activates production AI.
@@ -222,10 +229,8 @@ export interface AiContinuousEvalReport {
   corpus: AiCorpusValidationResult;
 }
 
-const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const PLACEHOLDER_VERSION =
   /^(?:none|unknown|unset|draft|not[_-]implemented)$/i;
-const RFC3339_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
 const EVAL_COHORTS = new Set<AiEvalCohort>(REQUIRED_CONTINUOUS_EVAL_COHORTS);
 const RISK_LEVELS = new Set<AiContinuousEvalCase["risk"]>([
   "low",
@@ -246,21 +251,6 @@ const ANNOTATION_STATES = new Set<AiContinuousEvalCase["annotation"]["status"]>(
   ["unverified", "single_review", "adjudicated"],
 );
 
-const hasText = (value: unknown): value is string =>
-  typeof value === "string" && value.trim().length > 0;
-const validIdentifier = (value: unknown): value is string =>
-  hasText(value) && IDENTIFIER.test(value);
-const validIsoTimestamp = (value: unknown): value is string =>
-  hasText(value) &&
-  RFC3339_UTC.test(value) &&
-  Number.isFinite(Date.parse(value));
-const validUnitScore = (value: unknown): value is number =>
-  typeof value === "number" &&
-  Number.isFinite(value) &&
-  value >= 0 &&
-  value <= 1;
-const validNonNegativeInteger = (value: unknown): value is number =>
-  typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 const validVersion = (value: string): boolean =>
   validIdentifier(value) && !PLACEHOLDER_VERSION.test(value);
 

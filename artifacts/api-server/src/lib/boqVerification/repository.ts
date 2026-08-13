@@ -4,7 +4,6 @@ import {
   boqRuns,
   db,
   documents,
-  projects,
   users,
   withTenantDatabase,
 } from "@workspace/db";
@@ -35,6 +34,7 @@ import {
 } from "./service";
 
 import { UUID_PATTERN } from "../identifierPatterns";
+import { fetchProjectBoundary } from "../projectBoundary";
 
 type BoqTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -48,21 +48,11 @@ async function assertProject(
   tx: BoqTx,
   scope: Pick<BoqVerificationScope, "organisationId" | "projectId">,
 ): Promise<string> {
-  const [project] = await tx
-    .select({ status: projects.status })
-    .from(projects)
-    .where(
-      and(
-        eq(projects.id, scope.projectId),
-        eq(projects.organisationId, scope.organisationId),
-      ),
-    )
-    .limit(1);
-  if (!project) throw new BoqVerificationProjectAccessError("not_found");
-  if (project.status === "archived") {
-    throw new BoqVerificationProjectAccessError("archived");
+  const boundary = await fetchProjectBoundary(tx, scope);
+  if (boundary === "not_found" || boundary === "archived") {
+    throw new BoqVerificationProjectAccessError(boundary);
   }
-  return project.status;
+  return boundary.status;
 }
 
 async function loadActor(tx: BoqTx, actorUserId: string | null) {

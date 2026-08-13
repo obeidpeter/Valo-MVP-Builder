@@ -3,7 +3,6 @@ import {
   db,
   documents,
   organisationMemberships,
-  projects,
   users,
   withTenantDatabase,
   workTasks,
@@ -38,6 +37,7 @@ import {
   SHA256_HEX_PATTERN as SHA256_PATTERN,
   UUID_PATTERN,
 } from "../identifierPatterns";
+import { fetchProjectBoundary } from "../projectBoundary";
 
 type ClaimsDeskLedgerEventKind = "record_created" | "transition_recorded";
 
@@ -287,21 +287,11 @@ async function assertProject(
   tx: ClaimsTx,
   scope: Pick<ClaimsDeskScope, "organisationId" | "projectId">,
 ): Promise<string> {
-  const [project] = await tx
-    .select({ status: projects.status })
-    .from(projects)
-    .where(
-      and(
-        eq(projects.id, scope.projectId),
-        eq(projects.organisationId, scope.organisationId),
-      ),
-    )
-    .limit(1);
-  if (!project) throw new ClaimsDeskProjectAccessError("not_found");
-  if (project.status === "archived") {
-    throw new ClaimsDeskProjectAccessError("archived");
+  const boundary = await fetchProjectBoundary(tx, scope);
+  if (boundary === "not_found" || boundary === "archived") {
+    throw new ClaimsDeskProjectAccessError(boundary);
   }
-  return project.status;
+  return boundary.status;
 }
 
 async function assertActiveActor(
