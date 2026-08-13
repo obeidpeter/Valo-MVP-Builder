@@ -27,6 +27,50 @@ test("runs the migration gate before importing the API in the inherited environm
   assert.deepEqual(events, ["migration", "api"]);
 });
 
+test("starts opted-in schedules after migrations and before the API", async () => {
+  const environment = {
+    NODE_ENV: "production",
+    REPLIT_DEPLOYMENT: "1",
+    VALO_INPROCESS_SCHEDULES: "retention_request_scan",
+  };
+  const events = [];
+
+  await startReplitProduction({
+    environment,
+    runMigrations: async () => {
+      events.push("migration");
+    },
+    startSchedules: async ({ environment: received }) => {
+      assert.equal(received, environment);
+      events.push("schedules");
+      return null;
+    },
+    importApiServer: async () => {
+      events.push("api");
+    },
+  });
+
+  assert.deepEqual(events, ["migration", "schedules", "api"]);
+});
+
+test("a misconfigured schedule opt-in refuses startup before the API", async () => {
+  let apiImported = false;
+  await assert.rejects(
+    startReplitProduction({
+      environment: { NODE_ENV: "production", REPLIT_DEPLOYMENT: "1" },
+      runMigrations: async () => {},
+      startSchedules: async () => {
+        throw new Error("unknown in-process schedule id: nope");
+      },
+      importApiServer: async () => {
+        apiImported = true;
+      },
+    }),
+    /unknown in-process schedule id/,
+  );
+  assert.equal(apiImported, false);
+});
+
 test("never imports the API when the migration gate fails", async () => {
   let apiImported = false;
   const migrationError = new Error(

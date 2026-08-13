@@ -120,8 +120,8 @@ assert.match(
 );
 assert.match(
   replitProductionStartup,
-  /await runMigrations\(environment\);\s+await importApiServer\(\);/,
-  "The production startup wrapper must finish migrations before importing the API",
+  /await runMigrations\(environment\);[\s\S]*?await startSchedules\(\{ environment \}\);[\s\S]*?await importApiServer\(\);/,
+  "The production startup wrapper must finish migrations, then validate any opted-in schedules, before importing the API",
 );
 assert.match(
   replitProductionStartup,

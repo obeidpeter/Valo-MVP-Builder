@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "manifestId": "valo-durable-worker-activation/v1",
+  "status": "preconditions_open_control_router_unmounted",
+  "controlRouterMounted": false,
+  "authority": "named_human_review_required_for_every_transition",
+  "preconditions": [
+    {
+      "id": "workload_identity_connected",
+      "description": "A dedicated non-interactive workload identity exists for worker processes, distinct from the API runtime login, with its issuance and rotation evidenced.",
+      "boundStatusFlag": "durableWorkerFoundation.workloadIdentityConnected",
+      "status": "open",
+      "evidence": null
+    },
+    {
+      "id": "provider_governance_verified",
+      "description": "Every external provider a worker could invoke has an approved adapter with verified data-governance terms (residency, retention, no-training) recorded before any invocation path is mounted.",
+      "boundStatusFlag": "durableWorkerFoundation.externalProviderInvocationAllowed",
+      "status": "open",
+      "evidence": null
+    },
+    {
+      "id": "budget_settlement_implemented",
+      "description": "Worker-initiated provider spend settles against the approved budget authority with worst-case pre-reservation, mirroring the AI gateway's reservation discipline.",
+      "boundStatusFlag": "durableWorkerFoundation.externalProviderInvocationAllowed",
+      "status": "open",
+      "evidence": null
+    },
+    {
+      "id": "trusted_receipt_verification_implemented",
+      "description": "Outbox deliveries are only ever marked delivered against an independently verified provider receipt; no delivery is inferred from a successful request.",
+      "boundStatusFlag": "transactionalOutbox.trustedReceiptVerificationImplemented",
+      "status": "open",
+      "evidence": null
+    },
+    {
+      "id": "control_router_publication_reviewed",
+      "description": "The human-session worker control router stays unmounted and unpublished until the preceding preconditions carry evidence and a named human records the mounting decision.",
+      "boundStatusFlag": "durableWorkerFoundation.userAuthenticatedControlRouteMounted",
+      "status": "open",
+      "evidence": null
+    }
+  ]
+}
