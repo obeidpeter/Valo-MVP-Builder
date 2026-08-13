@@ -29,7 +29,7 @@ remain hard-blocking.
 | Calibrated confidence and active learning     | `computeConfidenceCalibration`, `compareContinuousEvalRegression` and `selectActiveLearningCases` calculate calibration/regression evidence and bounded case selection without treating confidence as correctness.                                                                       | Selection does not train a model, move tenant data, or publish a baseline.                                                                                                               |
 
 The original provider-free surface remains exported by
-`artifacts/api-server/src/lib/aiPlatformFoundation.ts`. The new evidence,
+`artifacts/api-server/src/lib/{aiRetrievalPipeline,aiControlPlane,aiContinuousEval}.ts`. The new evidence,
 review, workflow and evaluation surfaces are exported through
 `artifacts/api-server/src/lib/intelligence/index.ts`. The evidence status marks
 only its deterministic database/route runtime connected; its model and vector

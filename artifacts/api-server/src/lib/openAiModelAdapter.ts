@@ -213,14 +213,3 @@ export function configuredModelAdapters(): JsonModelAdapter[] {
   }
   return [adapter];
 }
-
-export function isRetryableModelError(error: unknown): boolean {
-  if (!(error instanceof Error)) return true;
-  const status = (error as Error & { status?: number }).status;
-  if (status != null)
-    return status === 408 || status === 409 || status === 429 || status >= 500;
-  return (
-    error.name === "AbortError" ||
-    /timeout|network|socket|temporar/i.test(error.message)
-  );
-}

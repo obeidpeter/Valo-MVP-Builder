@@ -2,12 +2,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   AI_CONTINUOUS_EVAL_FOUNDATION_STATUS,
-  AI_CONTROL_PLANE_FOUNDATION_STATUS,
-  AI_RETRIEVAL_FOUNDATION_STATUS,
-  assessAiHumanReviewRisk,
-  buildEvidenceGradeRetrievalContext,
   evaluateContinuousAiCandidate,
-} from "./aiPlatformFoundation";
+} from "./aiContinuousEval";
+import {
+  AI_CONTROL_PLANE_FOUNDATION_STATUS,
+  assessAiHumanReviewRisk,
+} from "./aiControlPlane";
+import {
+  AI_RETRIEVAL_FOUNDATION_STATUS,
+  buildEvidenceGradeRetrievalContext,
+} from "./aiRetrievalPipeline";
 
 test("the combined AI platform foundation remains explicitly disconnected", () => {
   assert.deepEqual(AI_RETRIEVAL_FOUNDATION_STATUS, {

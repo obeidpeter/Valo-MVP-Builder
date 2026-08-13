@@ -4,7 +4,7 @@ This isolated module provides a bounded, tenant-scoped privacy evidence dashboar
 
 ## Backend exports and mount
 
-`artifacts/api-server/src/lib/privacyOperationsCentre/index.ts` exports the deterministic contracts, parsers, dashboard reducer, Postgres repository, audit-receipt utility, and workflow services.
+`artifacts/api-server/src/lib/privacyOperationsCentre/` ({contracts,service,repository}.ts) exports the deterministic contracts, parsers, dashboard reducer, Postgres repository, audit-receipt utility, and workflow services.
 
 `artifacts/api-server/src/routes/privacyOperationsCentre.ts` exports:
 
