@@ -32,7 +32,7 @@ Status: implementation candidate. The deterministic workflows, tenant routes and
 
 ## Production evidence still required
 
-1. Apply and rehearse migrations `0003` through `0006` on disposable PostgreSQL 16, then prove the exact seven-entry production journal and seven-function `valo_intake` catalogue.
+1. Apply and rehearse migrations `0003` through `0007` on disposable PostgreSQL 16, then prove the exact eight-entry production journal and seven-function `valo_intake` catalogue.
 2. Re-run cross-tenant denial, runtime-role privilege, audit-chain and optimistic-concurrency tests using the real production topology.
 3. Complete keyboard, screen-reader, 320px reflow, 200/400 percent zoom and representative low-bandwidth browser checks for `/pursuit-operations` and `/growth-operations`.
 4. Configure the single approved `VALO_GROWTH_OPERATIONS_ORGANISATION_ID`, then name the lead-queue owner, SLA policy, retention duration, purge/reconciliation operator and privacy-rights contact before activating public lead operations.

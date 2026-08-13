@@ -35,21 +35,16 @@ import {
 } from "../lib/deterministic";
 import { holdTenantDatabaseUntilComplete } from "../middlewares/databaseTenancy";
 import { sendAiGatewayError } from "../lib/aiHttp";
+import {
+  canonicalOpportunityPursuitConflictValue,
+  lockOpportunityPursuitConflictBoundary,
+} from "../lib/opportunityPursuitHandoff";
 
 const objectStorage = new ObjectStorageService();
 const PAYMENT_CONFIRMATION_ROLE_BINDING_ENABLED = false;
 const DIRECT_PROJECT_DELETE_ENABLED = false;
 
 const router: IRouter = Router();
-const ACTIVE_CONFLICT_STATUSES = new Set([
-  "intake",
-  "extraction",
-  "review",
-  "defects",
-  "reporting",
-  "signed_off",
-]);
-
 function nextActionFor(status: string): string {
   switch (status) {
     case "intake":
@@ -71,33 +66,49 @@ function nextActionFor(status: string): string {
   }
 }
 
-async function findSameTenderConflict(params: {
-  tenderRef?: string | null;
-  lot?: string | null;
-  excludeProjectId?: string | null;
-  organisationId?: string;
-}) {
-  if (!params.tenderRef || params.tenderRef.trim().length === 0) return null;
-  const rows = await db
+async function findSameTenderConflict(
+  params: {
+    tenderRef?: string | null;
+    lot?: string | null;
+    excludeProjectId?: string | null;
+    organisationId?: string;
+  },
+  database: typeof db | ProjectTransaction = db,
+) {
+  const tenderReference = canonicalOpportunityPursuitConflictValue(
+    params.tenderRef,
+  );
+  if (!tenderReference) return null;
+  const lotReference = canonicalOpportunityPursuitConflictValue(params.lot);
+  const rows = await database
     .select()
     .from(projects)
     .where(
       and(
-        eq(projects.tenderRef, params.tenderRef.trim()),
+        sql`pg_catalog.regexp_replace(normalize(pg_catalog.btrim(${projects.tenderRef}), NFC), '[[:space:]]+', ' ', 'g') = ${tenderReference}`,
+        sql`pg_catalog.regexp_replace(normalize(pg_catalog.btrim(coalesce(${projects.lot}, '')), NFC), '[[:space:]]+', ' ', 'g') = ${lotReference ?? ""}`,
+        inArray(projects.status, [
+          "intake",
+          "extraction",
+          "review",
+          "defects",
+          "reporting",
+          "signed_off",
+        ]),
+        params.excludeProjectId
+          ? ne(projects.id, params.excludeProjectId)
+          : undefined,
         params.organisationId
           ? eq(projects.organisationId, params.organisationId)
           : undefined,
       ),
-    );
-  return (
-    rows.find(
-      (p) =>
-        p.id !== params.excludeProjectId &&
-        (p.lot ?? "") === (params.lot ?? "") &&
-        ACTIVE_CONFLICT_STATUSES.has(p.status),
-    ) ?? null
-  );
+    )
+    .orderBy(projects.id)
+    .limit(1);
+  return rows[0] ?? null;
 }
+
+type ProjectTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // GET /projects — dashboard summaries with aggregates.
 router.get(
@@ -231,24 +242,35 @@ router.post(
       conflictRationale: _requestedConflictRationale,
       ...createFields
     } = parsed.data;
-    const conflict = await findSameTenderConflict({
-      tenderRef: parsed.data.tenderRef,
-      lot: parsed.data.lot,
-      organisationId,
-    });
-    const conflictPatch = conflict
-      ? {
-          conflictStatus: "blocked",
-          conflictDecision: "pending_disclosure",
-          conflictRationale: `Same tender/lot already active on project ${conflict.id}.`,
-        }
-      : {};
     const created = await db.transaction(
       async (tx) => {
+        const tenderReference = canonicalOpportunityPursuitConflictValue(
+          parsed.data.tenderRef,
+        );
+        const lotReference = canonicalOpportunityPursuitConflictValue(
+          parsed.data.lot,
+        );
+        if (organisationId && tenderReference) {
+          await lockOpportunityPursuitConflictBoundary(
+            tx,
+            organisationId,
+            tenderReference,
+          );
+        }
+        const conflict = await findSameTenderConflict(
+          {
+            tenderRef: tenderReference,
+            lot: lotReference,
+            organisationId,
+          },
+          tx,
+        );
         const [project] = await tx
           .insert(projects)
           .values({
             ...createFields,
+            tenderRef: tenderReference,
+            lot: lotReference,
             // Commercial and conflict outcomes are server-managed. New work starts
             // payment-pending and only deterministic conflict detection may block it.
             paymentStatus: "pending",
@@ -257,7 +279,6 @@ router.post(
             conflictRationale: conflict
               ? `Same tender/lot already active on project ${conflict.id}.`
               : null,
-            ...conflictPatch,
             organisationId,
           })
           .returning();
@@ -423,7 +444,26 @@ router.patch(
         .json({ error: "Project reviewer assignment requires project:assign" });
       return;
     }
-    const next = { ...existing, ...parsed.data };
+    const existingTenderReference = canonicalOpportunityPursuitConflictValue(
+      existing.tenderRef,
+    );
+    const existingLotReference = canonicalOpportunityPursuitConflictValue(
+      existing.lot,
+    );
+    const nextTenderReference =
+      parsed.data.tenderRef === undefined
+        ? existingTenderReference
+        : canonicalOpportunityPursuitConflictValue(parsed.data.tenderRef);
+    const nextLotReference =
+      parsed.data.lot === undefined
+        ? existingLotReference
+        : canonicalOpportunityPursuitConflictValue(parsed.data.lot);
+    const next = {
+      ...existing,
+      ...parsed.data,
+      tenderRef: nextTenderReference,
+      lot: nextLotReference,
+    };
     const user = getLocalUser(req);
     if (parsed.data.status && parsed.data.status !== existing.status) {
       const gate = validateProjectTransition({
@@ -453,12 +493,6 @@ router.patch(
         return;
       }
     }
-    const conflict = await findSameTenderConflict({
-      tenderRef: next.tenderRef,
-      lot: next.lot,
-      excludeProjectId: existing.id,
-      organisationId,
-    });
     // A consent only covers the tender identity it was granted for. So:
     //  - an unrelated PATCH (deadline edit, status move) on a consented/declined
     //    project must NOT silently re-block it or duplicate conflict_records;
@@ -466,36 +500,55 @@ router.patch(
     //    different tender — any match there is a brand-new conflict the old
     //    consent cannot waive, and it must block afresh.
     const conflictIdentityChanged =
-      (parsed.data.tenderRef !== undefined &&
-        (parsed.data.tenderRef ?? "") !== (existing.tenderRef ?? "")) ||
-      (parsed.data.lot !== undefined &&
-        (parsed.data.lot ?? "") !== (existing.lot ?? ""));
-    const shouldBlockConflict =
-      conflict != null &&
-      (conflictIdentityChanged ||
-        (next.conflictStatus !== "consented" &&
-          next.conflictStatus !== "declined"));
-    const newlyBlocked =
-      shouldBlockConflict &&
-      (existing.conflictStatus !== "blocked" || conflictIdentityChanged);
-    const conflictPatch =
-      shouldBlockConflict && conflict
-        ? {
-            conflictStatus: "blocked",
-            conflictDecision: "pending_disclosure",
-            conflictRationale: `Same tender/lot already active on project ${conflict.id}.`,
-          }
-        : {};
+      nextTenderReference !== existingTenderReference ||
+      nextLotReference !== existingLotReference;
     const decidedConflict =
       (parsed.data.conflictStatus === "consented" ||
         parsed.data.conflictStatus === "declined") &&
       existing.conflictStatus !== parsed.data.conflictStatus;
     const updated = await db.transaction(
       async (tx) => {
+        const tenderReference = nextTenderReference;
+        if (organisationId && tenderReference) {
+          await lockOpportunityPursuitConflictBoundary(
+            tx,
+            organisationId,
+            tenderReference,
+          );
+        }
+        const conflict = await findSameTenderConflict(
+          {
+            tenderRef: tenderReference,
+            lot: nextLotReference,
+            excludeProjectId: existing.id,
+            organisationId,
+          },
+          tx,
+        );
+        const shouldBlockConflict =
+          conflict != null &&
+          (conflictIdentityChanged ||
+            (next.conflictStatus !== "consented" &&
+              next.conflictStatus !== "declined"));
+        const newlyBlocked =
+          shouldBlockConflict &&
+          (existing.conflictStatus !== "blocked" || conflictIdentityChanged);
+        const conflictPatch =
+          shouldBlockConflict && conflict
+            ? {
+                conflictStatus: "blocked",
+                conflictDecision: "pending_disclosure",
+                conflictRationale: `Same tender/lot already active on project ${conflict.id}.`,
+              }
+            : {};
         const [project] = await tx
           .update(projects)
           .set({
             ...parsed.data,
+            ...(parsed.data.tenderRef !== undefined
+              ? { tenderRef: nextTenderReference }
+              : {}),
+            ...(parsed.data.lot !== undefined ? { lot: nextLotReference } : {}),
             ...(editsResponsiveness ? { responsivenessSuggested: false } : {}),
             ...conflictPatch,
             version: sql`${projects.version} + 1`,

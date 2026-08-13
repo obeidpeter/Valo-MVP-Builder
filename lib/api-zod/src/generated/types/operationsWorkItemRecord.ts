@@ -17,6 +17,7 @@
  */
 import type { OperationsRecordBase } from './operationsRecordBase';
 import type { OperationsStatusReason } from './operationsStatusReason';
+import type { OperationsStoredFieldDraftPromotionReceipt } from './operationsStoredFieldDraftPromotionReceipt';
 import type { OperationsWorkItemApproval } from './operationsWorkItemApproval';
 import type { OperationsWorkItemComment } from './operationsWorkItemComment';
 import type { OperationsWorkItemRecordPriority } from './operationsWorkItemRecordPriority';
@@ -49,4 +50,6 @@ export type OperationsWorkItemRecord = OperationsRecordBase & ({
   approval: OperationsWorkItemApproval;
   /** @maxItems 100 */
   statusReasonHistory: OperationsStatusReason[];
+  /** @maxItems 25 */
+  fieldPromotionReceipts?: OperationsStoredFieldDraftPromotionReceipt[];
 });

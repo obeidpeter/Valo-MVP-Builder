@@ -36,8 +36,11 @@ test("promotion writes the inspected bytes to a non-upload create-only path", ()
   assert.ok(deleteAt > copyAt);
 });
 
-test("quarantine writes and verifies the exact inspected bytes at a random create-only path", () => {
-  assert.match(quarantine, /const quarantineId = randomUUID\(\)/);
+test("quarantine supports a durable caller identity and verifies exact inspected bytes create-only", () => {
+  assert.match(
+    quarantine,
+    /const quarantineId = requestedQuarantineId \?\? randomUUID\(\)/,
+  );
   assert.match(quarantine, /`\/quarantine\/\$\{quarantineId\}`/);
   assert.match(quarantine, /destination\.save\(inspectedBytes/);
   assert.match(quarantine, /ifGenerationMatch: 0/);
@@ -126,13 +129,13 @@ test("copy-success/source-delete-failure preserves confirmed quarantine retentio
       stagedPath,
       Buffer.from("inspected"),
       "application/pdf",
+      uploadId,
     ),
     (error: unknown) =>
       error instanceof ObjectQuarantinePartialMoveError &&
       error.quarantineCopyConfirmed === true &&
-      new RegExp(
-        `^/objects/tenants/${organisationId}/quarantine/[0-9a-f-]{36}$`,
-      ).test(error.quarantinePath),
+      error.quarantinePath ===
+        `/objects/tenants/${organisationId}/quarantine/${uploadId}`,
   );
   assert.equal(quarantineCopyExists, true);
 });
@@ -162,10 +165,13 @@ test("copy-committed/ACK-lost with failed probe returns an unknown quarantine di
       stagedPath,
       Buffer.from("inspected"),
       "application/pdf",
+      uploadId,
     ),
     (error: unknown) =>
       error instanceof ObjectQuarantinePartialMoveError &&
-      error.quarantineCopyConfirmed === false,
+      error.quarantineCopyConfirmed === false &&
+      error.quarantinePath ===
+        `/objects/tenants/${organisationId}/quarantine/${uploadId}`,
   );
   assert.equal(quarantineCopyExists, true);
 });

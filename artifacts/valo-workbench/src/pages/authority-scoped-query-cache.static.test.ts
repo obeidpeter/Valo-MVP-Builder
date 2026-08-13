@@ -59,12 +59,12 @@ describe("authority-scoped query caches", () => {
     expect(mutationBlock).toMatch(/finally\s*\{[\s\S]*release\?\.\(\);/u);
     expect(
       clientActionSource.match(/assertAuthorityScopeCurrent\(/gu),
-    ).toHaveLength(4);
+    ).toHaveLength(5);
     expect(clientActionSource).not.toContain(
       "activeScope.current.actorUserId !==",
     );
     expect(clientActionSource).toContain(
-      "key={`${organisationId}:${projectId}:${actorUserId}:${capabilityKey}`}",
+      "key={`${organisationId}:${membershipId}:${accessVersion}:${projectId}:${actorUserId}:${capabilityKey}`}",
     );
   });
 

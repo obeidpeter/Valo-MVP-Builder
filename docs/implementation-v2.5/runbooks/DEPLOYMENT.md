@@ -59,13 +59,15 @@ lineage and has completed the reviewed bridge, adopting the exact
 `0000`-`0002` journal. Do not replay the bridge or baseline, run
 `drizzle-kit push`, or accept a publish schema diff. The only automated
 production DDL path is the source-controlled `migration:replit:intake` launcher:
-it is restricted to Replit production, pins all seven migration files, and
-accepts only exact `0000`-`0002`, `0000`-`0005`, or `0000`-`0006` journal
-prefixes. The three-row baseline requires the intake schema to be absent and
-applies `0003`-`0006`; the six-row upgrade state requires that schema to be
-present and applies only `0006`; the seven-row state is already current. The
+it is restricted to Replit production, pins all eight migration files, and
+accepts only exact `0000`-`0002`, `0000`-`0005`, `0000`-`0006`, or
+`0000`-`0007` journal prefixes. The three-row baseline requires the intake
+schema to be absent and applies `0003`-`0007`; the six-row upgrade applies
+`0006`-`0007`; the seven-row upgrade applies only `0007`; and the eight-row
+state is current. Every upgrade state requires the intake schema to be present.
+The
 launcher validates separate same-target owner/runtime URLs, holds a fixed
-advisory lock across migration, and verifies the exact seven-row journal and
+advisory lock across migration, and verifies the exact eight-row journal and
 intake object catalog before allowing API startup. The effective API
 artifact and legacy `.replit` run path both invoke
 `scripts/start-replit-production.mjs`; this same-process wrapper awaits that
@@ -312,7 +314,7 @@ the source backup and audit export as private evidence.
    procedure above. For the current already-bridged Replit target, require the
    exact adopted `0000`-`0002` journal, verify both checked-in production run
    paths name `scripts/start-replit-production.mjs`, and let its bounded
-   `migration:replit:intake` implementation apply `0003`-`0006`. Never
+   `migration:replit:intake` implementation apply `0003`-`0007`. Never
    substitute the unrestricted migration command or a publish schema diff.
    Halt on any journal, source-hash, catalog, reconciliation, or RLS error.
 5. Deploy workers/API/web in compatible order; keep new commercial flags off.

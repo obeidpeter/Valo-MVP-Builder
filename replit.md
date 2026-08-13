@@ -72,14 +72,16 @@ The Replit production database has completed the reviewed legacy bridge. Never
 replay that bridge, the baseline, or a push/schema-diff operation. Both
 production run manifests use the shared same-process startup wrapper, which may
 invoke only the bounded `migration:replit:intake` implementation: it pins the
-seven source migration hashes and accepts only the exact `0000`-`0002`,
-`0000`-`0005`, or `0000`-`0006` journal prefix. The three-row baseline requires
-`valo_intake` to be absent and atomically applies `0003`-`0006`; the six-row
-upgrade state requires the existing intake schema and applies only `0006`; the
-seven-row state requires that schema and is already current. The launcher also
+eight source migration hashes and accepts only the exact `0000`-`0002`,
+`0000`-`0005`, `0000`-`0006`, or `0000`-`0007` journal prefix. The three-row
+baseline requires `valo_intake` to be absent and atomically applies
+`0003`-`0007`; the six-row upgrade state applies `0006`-`0007`, and the
+seven-row upgrade state applies only the bounded storage-lifecycle indexes in
+`0007`. Each upgrade state requires the existing intake schema; the eight-row
+state is current. The launcher also
 validates the separate same-target owner/runtime credentials, serializes
 Autoscale starts with a PostgreSQL advisory lock, and completes the exact
-seven-row journal and catalog proof before API startup. Any other journal,
+eight-row journal and catalog proof before API startup. Any other journal,
 source, credential, schema, or postcondition stops the candidate before listen.
 Development and
 production remain separate source instances; never reuse one environment's
@@ -243,7 +245,7 @@ Server-side commercial flags also default off when no tenant/global record exist
    `scripts/start-replit-production.mjs`; it runs the bounded
    `migration:replit:intake` owner-side implementation before importing the API
    in the same process. The gate may apply only
-   `0003`-`0006` and then requires the exact seven-entry journal and two-table,
+   `0003`-`0007` and then requires the exact eight-entry journal and two-table,
    seven-function intake catalog. API startup separately proves
    `valo_app_runtime` has only schema usage and bounded store, limiter, active-queue read and status-transition execution,
    with no purge execution or direct intake-table/column privileges.

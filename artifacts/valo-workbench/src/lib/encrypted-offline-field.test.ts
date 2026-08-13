@@ -56,6 +56,130 @@ describe("encrypted field draft contract", () => {
     expect(ENCRYPTED_FIELD_COMPANION_STATUS.approvalAllowed).toBe(false);
     expect(ENCRYPTED_FIELD_COMPANION_STATUS.automaticSyncAllowed).toBe(false);
     expect(ENCRYPTED_FIELD_COMPANION_STATUS.maximumRetentionDays).toBe(7);
+    expect(ENCRYPTED_FIELD_COMPANION_STATUS.serverAuthority).toBe(
+      "explicit_review_and_promote",
+    );
+    expect(ENCRYPTED_FIELD_COMPANION_STATUS.localDeletionAfterPromotion).toBe(
+      "explicit_only",
+    );
+  });
+
+  it("accepts only a content-free, scope-bound promotion marker", () => {
+    const promoted = {
+      ...draft,
+      version: 2,
+      promotion: {
+        schema: "valo.field-draft-promotion-receipt/v1",
+        organisationId: draft.organisationId,
+        projectId: "44444444-4444-4444-8444-444444444444",
+        targetRecordId: "55555555-5555-4555-8555-555555555555",
+        targetKind: "work_item",
+        targetVersion: 9,
+        draftId: draft.id,
+        draftVersion: 1,
+        promotedByUserId: draft.actorUserId,
+        selectedFields: ["title", "note"],
+        idempotencyKey: "66666666-6666-4666-8666-666666666666",
+        requestSha256: "a".repeat(64),
+        receiptSha256: "b".repeat(64),
+        promotedAt: "2026-08-11T11:00:00.000Z",
+        authoritativeEvidenceCreated: false,
+        localDraftDeleted: false,
+      },
+      projectId: "44444444-4444-4444-8444-444444444444",
+    } as const;
+    expect(isEncryptedFieldDraft(promoted)).toBe(true);
+    expect(
+      isEncryptedFieldDraft({
+        ...promoted,
+        promotion: {
+          ...promoted.promotion,
+          authoritativeEvidenceCreated: true,
+        },
+      }),
+    ).toBe(false);
+    expect(
+      isEncryptedFieldDraft({
+        ...promoted,
+        promotion: {
+          ...promoted.promotion,
+          promotedByUserId: "77777777-7777-4777-8777-777777777777",
+        },
+      }),
+    ).toBe(false);
+    const marker = source.slice(
+      source.indexOf("export async function markEncryptedFieldDraftPromoted"),
+      source.indexOf("export async function deleteEncryptedFieldDraft"),
+    );
+    expect(marker).toMatch(/verifyPromotionMarkerDigest/u);
+    expect(marker).toMatch(/verifyPromotionRequestDigest/u);
+    expect(marker).toMatch(/current\.projectId !== marker\.projectId/u);
+    expect(marker).not.toMatch(/\.delete\(/u);
+    expect(source).not.toMatch(/console\.(?:log|info|debug)/u);
+  });
+
+  it("retains one exact pending mutation identity across reload recovery", () => {
+    const projectId = "44444444-4444-4444-8444-444444444444";
+    const pending = {
+      schema: "valo.encrypted-field-promotion-pending/v1",
+      targetRecordId: "work-item-1",
+      idempotencyKey: "66666666-6666-4666-8666-666666666666",
+      command: {
+        schema: "valo.encrypted-field-promotion/v1",
+        draft: {
+          id: draft.id,
+          version: draft.version,
+          organisationId: draft.organisationId,
+          actorUserId: draft.actorUserId,
+          projectId,
+          kind: draft.kind,
+          updatedAt: draft.updatedAt,
+        },
+        expectedTargetVersion: 4,
+        selectedFields: ["title", "note"],
+        values: { title: draft.title, note: draft.note },
+      },
+      preparedAt: "2026-08-11T11:00:00.000Z",
+    } as const;
+    const prepared = { ...draft, projectId, pendingPromotion: pending };
+    expect(isEncryptedFieldDraft(prepared)).toBe(true);
+    const reloaded = JSON.parse(JSON.stringify(prepared)) as unknown;
+    expect(isEncryptedFieldDraft(reloaded)).toBe(true);
+    if (!isEncryptedFieldDraft(reloaded) || !reloaded.pendingPromotion) {
+      throw new Error("Pending promotion did not survive reload validation.");
+    }
+    expect(reloaded.pendingPromotion.idempotencyKey).toBe(
+      pending.idempotencyKey,
+    );
+    expect(reloaded.pendingPromotion.command).toEqual(pending.command);
+    expect(
+      isEncryptedFieldDraft({
+        ...prepared,
+        pendingPromotion: {
+          ...pending,
+          command: {
+            ...pending.command,
+            values: { ...pending.command.values, note: "Changed body" },
+          },
+        },
+      }),
+    ).toBe(false);
+    const prepare = source.slice(
+      source.indexOf(
+        "export async function prepareEncryptedFieldDraftPromotion",
+      ),
+      source.indexOf("export async function markEncryptedFieldDraftPromoted"),
+    );
+    const mark = source.slice(
+      source.indexOf("export async function markEncryptedFieldDraftPromoted"),
+      source.indexOf("export async function deleteEncryptedFieldDraft"),
+    );
+    expect(prepare).toMatch(/current\.pendingPromotion/u);
+    expect(prepare).toMatch(/idempotencyKey === idempotencyKey/u);
+    expect(mark).toMatch(
+      /current\.pendingPromotion\.idempotencyKey !== marker\.idempotencyKey/u,
+    );
+    expect(mark).toMatch(/pendingPromotion: null/u);
   });
 
   it("binds every draft to one actor and expires it after the bounded TTL", () => {

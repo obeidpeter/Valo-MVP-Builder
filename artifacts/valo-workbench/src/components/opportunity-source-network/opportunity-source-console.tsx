@@ -15,6 +15,7 @@ import type {
   OpportunitySourceCandidate,
   OpportunitySourceSnapshot,
 } from "./opportunity-source-contract";
+import { OpportunityPursuitHandoffWorkflow } from "./opportunity-pursuit-handoff-workflow";
 
 export interface OpportunitySourceConsoleProps {
   snapshot: OpportunitySourceSnapshot;
@@ -311,6 +312,14 @@ function CandidateCard({
             <span className="font-medium">Decision:</span>{" "}
             {candidate.decisionReason}
           </p>
+        ) : null}
+        {candidate.status === "accepted" && canManage ? (
+          <div className="border-t pt-4">
+            <OpportunityPursuitHandoffWorkflow
+              organisationId={candidate.organisationId}
+              candidateId={candidate.id}
+            />
+          </div>
         ) : null}
       </CardContent>
     </Card>

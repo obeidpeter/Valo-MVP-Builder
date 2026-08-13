@@ -62,6 +62,8 @@ tags:
       a 250-lifetime-receipt bounded pilot with no in-app archive. Intake must
       stop before capacity until a reviewed retention/storage migration is
       approved; audit events must never be deleted merely to recover capacity.
+  - name: Evidence Renewals
+    description: Receipt-backed internal evidence-renewal plans, staging and independent review with no external messaging
   - name: Reconciled Communications
     description: Approved-template communication intents and verified provider-receipt reconciliation
   - name: Commercial and Retainer
@@ -1108,30 +1110,28 @@ paths:
     post:
       operationId: completeRetentionRequest
       tags: [Operations]
-      summary: Complete a retention request and issue a deletion certificate
+      summary: Report that certified retention completion is not activated
+      description: >-
+        This release fails closed because blob deletion and relational deletion
+        cannot yet be certified as one durable two-phase
+        detach/reconcile/certify outcome. After authentication and retention
+        permission checks, this operation performs no ID lookup, deletion,
+        database mutation, audit write or certificate issuance and returns only
+        the strict 503 refusal envelope.
       parameters:
         - $ref: "#/components/parameters/IdParam"
       responses:
-        "200":
-          description: Completed retention request
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503":
+          description: Certified retention completion is unavailable and no side effect was applied.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RetentionRequest"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "409":
-          description: Completion is blocked; commercial financial blocker counts are included when linked governed rows prevent certification.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RetentionCompletionConflict"
-        "502":
-          description: Stored files could not be purged; certificate withheld
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorEnvelope"
+                $ref: "#/components/schemas/RetentionCompletionUnavailable"
   /config:
     get:
       operationId: getAppConfig
@@ -2822,6 +2822,53 @@ paths:
           $ref: "#/components/responses/OperationsPayloadTooLarge"
         "422":
           $ref: "#/components/responses/OperationsPolicyDenied"
+  /projects/{id}/operations-suite/work-items/{recordId}/field-draft-promotions:
+    post:
+      tags: [Pursuit Operations Suite]
+      operationId: promoteFieldDraftToOperationsWorkItem
+      summary: Promote reviewed fields from one encrypted local draft revision
+      description: >-
+        Copies only the named operator's explicitly selected fields into one
+        existing governed work item under target-version compare-and-swap. Each
+        tenant, project, draft ID and draft-version tuple may be promoted to the
+        target only once, even with a fresh Idempotency-Key. The response is a
+        content-free receipt: no authoritative evidence is created and Valo
+        cannot delete the browser-local encrypted draft.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+        - $ref: "#/components/parameters/OperationsRecordIdParam"
+        - $ref: "#/components/parameters/FieldDraftPromotionIdempotencyKey"
+      requestBody:
+        required: true
+        x-valo-request-body-max-bytes: 1048576
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OperationsFieldDraftPromotionRequest"
+      responses:
+        "200":
+          description: Promotion committed once or replayed from the same verified receipt.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OperationsFieldDraftPromotionReceipt"
+        "400":
+          $ref: "#/components/responses/OperationsBadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/OperationsForbidden"
+        "404":
+          $ref: "#/components/responses/OperationsNotFound"
+        "409":
+          $ref: "#/components/responses/OperationsConflict"
+        "413":
+          $ref: "#/components/responses/OperationsPayloadTooLarge"
+        "422":
+          $ref: "#/components/responses/OperationsPolicyDenied"
   /projects/{id}/operations-suite/work-items/{recordId}/approval:
     post:
       tags: [Pursuit Operations Suite]
@@ -3765,6 +3812,127 @@ paths:
         "413": { $ref: "#/components/responses/RoadmapCapacityExceeded" }
         "422": { $ref: "#/components/responses/RoadmapPolicyDenied" }
         "500": { $ref: "#/components/responses/InternalServerError" }
+  /projects/{id}/client-actions/evidence-requests/{recordId}/slots/{slotId}/upload-leases:
+    post:
+      tags: [Client Actions]
+      operationId: issueClientActionUploadLease
+      summary: Issue a purpose-bound direct-to-storage upload lease
+      description: >-
+        The named current direct recipient requests a 15-minute lease for the
+        latest active, acknowledged request-slot intent at the exact record
+        version. The 4,096-byte JSON body carries identity metadata only; raw
+        file bytes are accepted only by the returned signed object-storage PUT
+        URL, never by this API. Issuance is server-disabled by default and
+        returns 503 until every platform, provider and tenant activation gate is
+        verified; publishing this contract does not activate production use.
+        Once activated, the signed window is at most 840 seconds and
+        closes before the database lease; bounded post-expiry reconciliation is
+        still required and is not a provider-level create-only guarantee. Reuse
+        of Idempotency-Key is allowed only for the exact tenant, actor, request,
+        slot, intent, version and declared file material. Valo sends no external
+        message and exposes no generic client upload portal.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+        - $ref: "#/components/parameters/OperationsRecordIdParam"
+        - $ref: "#/components/parameters/ClientSlotIdParam"
+        - $ref: "#/components/parameters/ClientActionUploadIdempotencyKey"
+      requestBody:
+        required: true
+        x-valo-request-body-max-bytes: 4096
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientActionUploadLeaseRequest"
+      responses:
+        "200":
+          description: The exact still-open lease was replayed with a freshly bounded signed URL.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientActionUploadLeaseReplayGrant"
+        "201":
+          description: The governed upload lease was durably issued.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientActionUploadLeaseCreatedGrant"
+        "400": { $ref: "#/components/responses/ClientActionUploadBadRequest" }
+        "401": { $ref: "#/components/responses/ClientActionUploadUnauthorized" }
+        "403": { $ref: "#/components/responses/ClientActionUploadForbidden" }
+        "404": { $ref: "#/components/responses/ClientActionUploadNotFound" }
+        "409": { $ref: "#/components/responses/ClientActionUploadConflict" }
+        "410": { $ref: "#/components/responses/ClientActionUploadExpired" }
+        "413":
+          { $ref: "#/components/responses/ClientActionUploadCapacityExceeded" }
+        "500":
+          { $ref: "#/components/responses/ClientActionUploadInternalError" }
+        "503": { $ref: "#/components/responses/ClientActionUploadUnavailable" }
+  /projects/{id}/client-actions/evidence-requests/{recordId}/slots/{slotId}/upload-leases/{leaseId}/finalize:
+    post:
+      tags: [Client Actions]
+      operationId: finalizeClientActionUploadLease
+      summary: Inspect and atomically finalize a governed client upload
+      description: >-
+        Revalidates the current direct recipient, project, request, latest active
+        slot intent, exact record version, idempotency identity, lease and expiry
+        before downloading the staged object once for exact size, SHA-256, MIME,
+        signature and malware inspection. Successful create-only promotion is
+        registered atomically as one document and version, attached only to the
+        exact slot, and returned as a receipt; extraction is not started. The
+        request contains no file bytes, sends no external message and cannot be
+        used as a generic upload portal. Rejected or ambiguous storage
+        dispositions fail closed and are reconciled by the governed lifecycle.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+        - $ref: "#/components/parameters/OperationsRecordIdParam"
+        - $ref: "#/components/parameters/ClientSlotIdParam"
+        - $ref: "#/components/parameters/ClientActionUploadLeaseIdParam"
+        - $ref: "#/components/parameters/ClientActionUploadIdempotencyKey"
+      requestBody:
+        required: true
+        x-valo-request-body-max-bytes: 4096
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientActionUploadLeaseRequest"
+      responses:
+        "200":
+          description: The exact completed finalization receipt was replayed.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientActionUploadFinalizationReplayReceipt"
+        "201":
+          description: The inspected object, document version and exact slot binding were committed atomically.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientActionUploadFinalizationCreatedReceipt"
+        "400": { $ref: "#/components/responses/ClientActionUploadBadRequest" }
+        "401": { $ref: "#/components/responses/ClientActionUploadUnauthorized" }
+        "403": { $ref: "#/components/responses/ClientActionUploadForbidden" }
+        "404": { $ref: "#/components/responses/ClientActionUploadNotFound" }
+        "409": { $ref: "#/components/responses/ClientActionUploadConflict" }
+        "410": { $ref: "#/components/responses/ClientActionUploadExpired" }
+        "413":
+          { $ref: "#/components/responses/ClientActionUploadCapacityExceeded" }
+        "422":
+          { $ref: "#/components/responses/ClientActionUploadIntakeRejected" }
+        "500":
+          { $ref: "#/components/responses/ClientActionUploadInternalError" }
+        "503": { $ref: "#/components/responses/ClientActionUploadUnavailable" }
   /projects/{id}/client-actions/evidence-requests/{recordId}/slots/{slotId}/documents:
     post:
       tags: [Client Actions]
@@ -4034,6 +4202,251 @@ paths:
         "413": { $ref: "#/components/responses/RoadmapCapacityExceeded" }
         "500": { $ref: "#/components/responses/InternalServerError" }
         "503": { $ref: "#/components/responses/RoadmapRepositoryUnavailable" }
+  /opportunity-sources/{candidateId}/pursuit-handoff:
+    get:
+      tags: [Opportunity Sources]
+      operationId: prepareOpportunityPursuitHandoff
+      summary: Prepare an accepted source for named-human pursuit confirmation
+      description: Revalidates the accepted source, tender, clients, lots, eligible reviewer directory and same-tender conflict boundary. The immutable register is capped at 250 lifetime handoff receipts per organisation and has no in-app archive. Confirmation must stop before capacity until a reviewed retention/storage migration is approved; audit events must never be deleted merely to recover capacity.
+      parameters:
+        - $ref: "#/components/parameters/OpportunityHandoffCandidateIdParam"
+      responses:
+        "200":
+          description: A ready confirmation boundary or the source's completed receipt.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpportunityPursuitHandoffPreparation"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/RoadmapCapacityExceeded" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+        "503": { $ref: "#/components/responses/RoadmapRepositoryUnavailable" }
+  /opportunity-sources/{candidateId}/pursuit-handoff/confirm:
+    post:
+      tags: [Opportunity Sources]
+      operationId: confirmOpportunityPursuitHandoff
+      summary: Create one intake-state pursuit from a revalidated source
+      description: A named maker confirms the official source after reopening it and names a different eligible pursuit reviewer. Client, tender, optional lot and same-tender conflict versions are rechecked inside the write boundary. The 16,384-byte request creates only an intake-state pursuit and never activates a pursuit or performs a provider fetch. The immutable register is capped at 250 lifetime handoff receipts per organisation and has no in-app archive; a reviewed retention/storage migration is required before recovering capacity, and audit events must never be deleted.
+      parameters:
+        - $ref: "#/components/parameters/OpportunityHandoffCandidateIdParam"
+        - $ref: "#/components/parameters/OpportunityHandoffIdempotencyKey"
+      requestBody:
+        required: true
+        x-valo-request-body-max-bytes: 16384
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpportunityPursuitHandoffConfirmation"
+      responses:
+        "200":
+          description: The exact prior receipt was verified and replayed.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpportunityPursuitHandoffResult"
+        "201":
+          description: The intake-state pursuit and immutable handoff receipt were created.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpportunityPursuitHandoffResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/RoadmapCapacityExceeded" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+        "503": { $ref: "#/components/responses/RoadmapRepositoryUnavailable" }
+  /projects/{projectId}/evidence-renewals:
+    get:
+      tags: [Evidence Renewals]
+      operationId: getEvidenceRenewalSnapshot
+      summary: Read the project evidence-renewal register
+      description: Returns a bounded receipt-backed internal renewal register. Internal reminders are register records only; Valo sends no external message and records no external delivery receipt.
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdParam"
+      responses:
+        "200":
+          description: Exact tenant/project renewal snapshot.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceRenewalSnapshot"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/EvidenceRenewalNotFound" }
+        "409": { $ref: "#/components/responses/EvidenceRenewalConflict" }
+        "413": { $ref: "#/components/responses/RoadmapCapacityExceeded" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+        "503": { $ref: "#/components/responses/EvidenceRenewalUnavailable" }
+    post:
+      tags: [Evidence Renewals]
+      operationId: createEvidenceRenewalPlan
+      summary: Create one owner-and-verifier renewal plan
+      description: Creates an internal due reminder and immutable plan receipt after validating current direct evidence-write authority, a distinct eligible verifier, the canonical vault item and all same-client non-archived affected pursuits. It sends no external message or delivery.
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdParam"
+      requestBody:
+        required: true
+        x-valo-request-body-max-bytes: 65536
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvidenceRenewalCreateDraft"
+      responses:
+        "201":
+          description: Plan and internal reminder receipt created, or the exact request replayed.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+            ETag:
+              $ref: "#/components/headers/VersionETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceRenewalCreateSuccess"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/EvidenceRenewalNotFound" }
+        "409": { $ref: "#/components/responses/EvidenceRenewalConflict" }
+        "413": { $ref: "#/components/responses/RoadmapCapacityExceeded" }
+        "429":
+          { $ref: "#/components/responses/EvidenceRenewalCapacityExceeded" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+        "503": { $ref: "#/components/responses/EvidenceRenewalUnavailable" }
+  /projects/{projectId}/evidence-renewals/authorities:
+    get:
+      tags: [Evidence Renewals]
+      operationId: listEvidenceRenewalAuthorities
+      summary: List current direct owners and independent verifiers
+      description: Returns bounded current direct tenant members eligible for evidence-write ownership or evidence-approve verification. It includes names and user IDs only and performs no messaging.
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdParam"
+      responses:
+        "200":
+          description: Bounded current authority directory.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceRenewalAuthorityList"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/EvidenceRenewalNotFound" }
+        "409": { $ref: "#/components/responses/EvidenceRenewalConflict" }
+        "413": { $ref: "#/components/responses/RoadmapCapacityExceeded" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+        "503": { $ref: "#/components/responses/EvidenceRenewalUnavailable" }
+  /projects/{projectId}/evidence-renewals/{planId}/staged-replacement:
+    post:
+      tags: [Evidence Renewals]
+      operationId: stageEvidenceRenewalReplacement
+      summary: Record a canonical replacement document in the renewal ledger
+      description: The assigned owner records one current canonical document/version receipt under If-Match. Staging creates no vault_item_version and changes no vault projection; it preserves the canonical document identity, version, hash and expected vault-item version in the renewal ledger for independent review.
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdParam"
+        - $ref: "#/components/parameters/EvidenceRenewalPlanIdParam"
+        - $ref: "#/components/parameters/IfMatchVersion"
+      requestBody:
+        required: true
+        x-valo-request-body-max-bytes: 65536
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvidenceRenewalStageDraft"
+      responses:
+        "200":
+          description: Ledger-only staged replacement recorded, or the exact request replayed.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+            ETag:
+              $ref: "#/components/headers/VersionETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceRenewalUpdateSuccess"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/EvidenceRenewalNotFound" }
+        "409": { $ref: "#/components/responses/EvidenceRenewalConflict" }
+        "413": { $ref: "#/components/responses/RoadmapCapacityExceeded" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "429":
+          { $ref: "#/components/responses/EvidenceRenewalCapacityExceeded" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+        "503": { $ref: "#/components/responses/EvidenceRenewalUnavailable" }
+  /projects/{projectId}/evidence-renewals/{planId}/review:
+    post:
+      tags: [Evidence Renewals]
+      operationId: reviewEvidenceRenewalReplacement
+      summary: Independently approve or reject a staged replacement
+      description: A distinct assigned evidence approver reviews under If-Match. Approval freshly revalidates the canonical document, hash and version and updates vault_items with an exact version CAS. Rejection records a terminal rejected receipt without promoting any document, even if the staged candidate has drifted. Both outcomes resolve only the internal register reminder and send no external message.
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdParam"
+        - $ref: "#/components/parameters/EvidenceRenewalPlanIdParam"
+        - $ref: "#/components/parameters/IfMatchVersion"
+      requestBody:
+        required: true
+        x-valo-request-body-max-bytes: 65536
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvidenceRenewalReviewDraft"
+      responses:
+        "200":
+          description: Independent terminal decision recorded, or the exact request replayed.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+            ETag:
+              $ref: "#/components/headers/VersionETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceRenewalUpdateSuccess"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/EvidenceRenewalNotFound" }
+        "409": { $ref: "#/components/responses/EvidenceRenewalConflict" }
+        "413": { $ref: "#/components/responses/RoadmapCapacityExceeded" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "429":
+          { $ref: "#/components/responses/EvidenceRenewalCapacityExceeded" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+        "503": { $ref: "#/components/responses/EvidenceRenewalUnavailable" }
   /projects/{id}/communications:
     get:
       tags: [Reconciled Communications]
@@ -5252,6 +5665,14 @@ components:
       schema:
         type: string
         format: uuid
+    EvidenceRenewalPlanIdParam:
+      name: planId
+      in: path
+      required: true
+      description: Receipt-backed evidence-renewal plan identifier.
+      schema:
+        type: string
+        format: uuid
     ClientSlotIdParam:
       name: slotId
       in: path
@@ -5259,6 +5680,27 @@ components:
       schema:
         type: string
         format: uuid
+    ClientActionUploadLeaseIdParam:
+      name: leaseId
+      in: path
+      required: true
+      description: Deterministic governed upload-lease identifier bound to the exact idempotency identity.
+      schema:
+        type: string
+        format: uuid
+    ClientActionUploadIdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: >-
+        Stable 16-to-128-code-unit identity. Leading or trailing whitespace,
+        control characters and unpaired UTF-16 surrogates are rejected; reuse
+        is accepted only for the exact governed upload material.
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+        pattern: '^[^\s\u0000-\u001f\u007f\ud800-\udfff](?:[^\u0000-\u001f\u007f\ud800-\udfff]*[^\s\u0000-\u001f\u007f\ud800-\udfff])$'
     OpportunityCandidateIdParam:
       name: candidateId
       in: path
@@ -5267,6 +5709,32 @@ components:
         type: string
         minLength: 1
         maxLength: 128
+    OpportunityHandoffCandidateIdParam:
+      name: candidateId
+      in: path
+      required: true
+      description: Accepted opportunity-source candidate identifier.
+      schema:
+        type: string
+        format: uuid
+    OpportunityHandoffIdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Stable confirmation identity; reuse is accepted only for the exact same request.
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+        pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$"
+    FieldDraftPromotionIdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Stable UUID persisted with the content-free promotion receipt.
+      schema:
+        type: string
+        format: uuid
     CommunicationEventIdParam:
       name: eventId
       in: path
@@ -5538,6 +6006,98 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorEnvelope"
+    ClientActionUploadBadRequest:
+      description: The bounded metadata request, path identity or Idempotency-Key is invalid.
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/ClientActionUploadTransportError"
+              - $ref: "#/components/schemas/ClientActionUploadInvalidRequestError"
+    ClientActionUploadUnauthorized:
+      description: The caller is not authenticated.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ClientActionUploadTransportError"
+    ClientActionUploadForbidden:
+      description: The current direct membership, tenant scope or document-upload authority is denied.
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/ClientActionUploadTransportError"
+              - $ref: "#/components/schemas/ClientActionUploadScopeDeniedError"
+    ClientActionUploadNotFound:
+      description: The exact-scope project, evidence request or governed lease was not found.
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/ClientActionUploadTransportError"
+              - $ref: "#/components/schemas/ClientActionUploadNotFoundError"
+    ClientActionUploadConflict:
+      description: The record version, active slot intent, lease binding, persisted receipt or storage disposition conflicts with current state.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ClientActionUploadConflictError"
+    ClientActionUploadExpired:
+      description: The database-backed 15-minute upload lease expired before this operation completed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ClientActionUploadExpiredError"
+    ClientActionUploadCapacityExceeded:
+      description: The 4,096-byte metadata-body bound or 200-active-lease project bound was exceeded.
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/ClientActionUploadTransportError"
+              - $ref: "#/components/schemas/ClientActionUploadCapacityExceededError"
+    ClientActionUploadIntakeRejected:
+      description: The staged object was missing, mismatched, unsafe or quarantined by secure intake.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ClientActionUploadIntakeRejectedError"
+    ClientActionUploadInternalError:
+      description: Authentication, tenant transaction commit or unexpected request processing failed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ClientActionUploadTransportError"
+    ClientActionUploadUnavailable:
+      description: A required governed database identity or secure-intake capability is unavailable.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ClientActionUploadUnavailableError"
+    EvidenceRenewalConflict:
+      description: The renewal plan, authority, receipt identity, evidence, vault projection or expected version conflicts with current state.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/EvidenceRenewalMutationError"
+    EvidenceRenewalNotFound:
+      description: The exact-scope project or renewal plan was not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/EvidenceRenewalMutationError"
+    EvidenceRenewalCapacityExceeded:
+      description: The bounded project renewal ledger has reached its safe record capacity.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/EvidenceRenewalMutationError"
+    EvidenceRenewalUnavailable:
+      description: The governed evidence-renewal repository or projection is unavailable.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/EvidenceRenewalUnavailableError"
     OperationsBadRequest:
       description: The bounded operations request is invalid.
       content:
@@ -5835,6 +6395,297 @@ components:
       properties:
         expectedVersion: { type: integer, minimum: 1 }
         statement: { type: string, minLength: 1, maxLength: 1000 }
+    ClientActionUploadLeaseRequest:
+      type: object
+      additionalProperties: false
+      required: [expectedVersion, intentId]
+      properties:
+        expectedVersion:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+          description: Exact current evidence-request record version.
+        intentId:
+          type: string
+          format: uuid
+          description: Latest unfinalized intent in the named active request slot.
+    ClientActionUploadLeaseGrant:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          leaseId,
+          recordId,
+          slotId,
+          intentId,
+          recordVersion,
+          objectPath,
+          uploadUrl,
+          filename,
+          contentType,
+          sizeBytes,
+          declaredSha256,
+          expiresAt,
+          replayed,
+          lateRewriteClosure,
+          rawFileAcceptedByApi,
+          externalMessageSentByValo,
+        ]
+      properties:
+        leaseId: { type: string, format: uuid }
+        recordId: { type: string, format: uuid }
+        slotId: { type: string, format: uuid }
+        intentId: { type: string, format: uuid }
+        recordVersion: { type: integer, minimum: 1, maximum: 9007199254740991 }
+        objectPath:
+          type: string
+          maxLength: 512
+          pattern: "^/objects/tenants/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/uploads/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        uploadUrl:
+          type: string
+          format: uri
+          maxLength: 8192
+          description: HTTPS signed PUT URL; loopback HTTP is allowed only in local development.
+        filename: { type: string, minLength: 1, maxLength: 255 }
+        contentType:
+          type: string
+          enum:
+            [
+              application/pdf,
+              application/vnd.openxmlformats-officedocument.wordprocessingml.document,
+              application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,
+              application/zip,
+              application/x-zip-compressed,
+              image/png,
+              image/jpeg,
+            ]
+        sizeBytes: { type: integer, minimum: 1, maximum: 52428800 }
+        declaredSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        expiresAt: { type: string, format: date-time }
+        replayed: { type: boolean }
+        lateRewriteClosure:
+          { type: string, const: bounded-cushion-and-post-expiry-reconcile }
+        rawFileAcceptedByApi: { type: boolean, const: false }
+        externalMessageSentByValo: { type: boolean, const: false }
+    ClientActionUploadLeaseReplayGrant:
+      allOf:
+        - $ref: "#/components/schemas/ClientActionUploadLeaseGrant"
+        - type: object
+          required: [replayed]
+          properties:
+            replayed: { type: boolean, const: true }
+    ClientActionUploadLeaseCreatedGrant:
+      allOf:
+        - $ref: "#/components/schemas/ClientActionUploadLeaseGrant"
+        - type: object
+          required: [replayed]
+          properties:
+            replayed: { type: boolean, const: false }
+    ClientActionUploadFinalizationReceipt:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          leaseId,
+          recordId,
+          slotId,
+          intentId,
+          recordVersion,
+          documentId,
+          documentVersionId,
+          filename,
+          sha256,
+          sizeBytes,
+          detectedMime,
+          receiptSha256,
+          replayed,
+          extractionStarted,
+          rawFileAcceptedByApi,
+          externalMessageSentByValo,
+        ]
+      properties:
+        leaseId: { type: string, format: uuid }
+        recordId: { type: string, format: uuid }
+        slotId: { type: string, format: uuid }
+        intentId: { type: string, format: uuid }
+        recordVersion: { type: integer, minimum: 1, maximum: 9007199254740991 }
+        documentId: { type: string, format: uuid }
+        documentVersionId: { type: string, format: uuid }
+        filename: { type: string, minLength: 1, maxLength: 255 }
+        sha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        sizeBytes: { type: integer, minimum: 1, maximum: 52428800 }
+        detectedMime:
+          type: string
+          enum:
+            [
+              application/pdf,
+              application/vnd.openxmlformats-officedocument.wordprocessingml.document,
+              application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,
+              application/zip,
+              image/png,
+              image/jpeg,
+            ]
+        receiptSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        replayed: { type: boolean }
+        extractionStarted: { type: boolean, const: false }
+        rawFileAcceptedByApi: { type: boolean, const: false }
+        externalMessageSentByValo: { type: boolean, const: false }
+    ClientActionUploadFinalizationReplayReceipt:
+      allOf:
+        - $ref: "#/components/schemas/ClientActionUploadFinalizationReceipt"
+        - type: object
+          required: [replayed]
+          properties:
+            replayed: { type: boolean, const: true }
+    ClientActionUploadFinalizationCreatedReceipt:
+      allOf:
+        - $ref: "#/components/schemas/ClientActionUploadFinalizationReceipt"
+        - type: object
+          required: [replayed]
+          properties:
+            replayed: { type: boolean, const: false }
+    ClientActionUploadTransportError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error: { type: string, minLength: 1 }
+    ClientActionUploadGovernedError:
+      type: object
+      additionalProperties: false
+      required: [error, code]
+      properties:
+        error: { type: string, minLength: 1 }
+        code:
+          type: string
+          enum:
+            [
+              invalid_request,
+              scope_denied,
+              not_found,
+              stale_version,
+              conflict,
+              expired,
+              capacity_exceeded,
+              intake_rejected,
+              cleanup_unconfirmed,
+              unavailable,
+            ]
+        leaseStatus: { type: string, minLength: 1, maxLength: 64 }
+        references:
+          type: array
+          maxItems: 7
+          uniqueItems: true
+          items:
+            {
+              type: string,
+              enum:
+                [
+                  document,
+                  document_version,
+                  vault_item,
+                  report,
+                  package_version,
+                  partner_branding,
+                  upload_session,
+                ],
+            }
+        findings:
+          type: array
+          maxItems: 19
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+              [
+                filename_unsafe,
+                empty_file,
+                file_too_large,
+                page_limit_exceeded,
+                unsupported_format,
+                mime_signature_mismatch,
+                password_protected,
+                corrupt_file,
+                malware_detected,
+                malware_scan_incomplete,
+                archive_manifest_missing,
+                archive_entry_limit,
+                archive_expansion_limit,
+                archive_bomb_suspected,
+                archive_path_traversal,
+                archive_executable,
+                archive_encrypted,
+                idempotency_key_missing,
+                duplicate_document,
+              ]
+        cleanupConfirmed: { type: boolean }
+        quarantinedPath:
+          { type: [string, "null"], minLength: 1, maxLength: 512 }
+        possibleQuarantinedPath:
+          { type: [string, "null"], minLength: 1, maxLength: 512 }
+        quarantineCopyConfirmed: { type: boolean }
+        activation: { type: string, const: blocked }
+        sideEffectsApplied: { type: boolean, const: false }
+    ClientActionUploadInvalidRequestError:
+      allOf:
+        - $ref: "#/components/schemas/ClientActionUploadGovernedError"
+        - type: object
+          required: [code]
+          properties:
+            code: { type: string, const: invalid_request }
+    ClientActionUploadScopeDeniedError:
+      allOf:
+        - $ref: "#/components/schemas/ClientActionUploadGovernedError"
+        - type: object
+          required: [code]
+          properties:
+            code: { type: string, const: scope_denied }
+    ClientActionUploadNotFoundError:
+      allOf:
+        - $ref: "#/components/schemas/ClientActionUploadGovernedError"
+        - type: object
+          required: [code]
+          properties:
+            code: { type: string, const: not_found }
+    ClientActionUploadConflictError:
+      allOf:
+        - $ref: "#/components/schemas/ClientActionUploadGovernedError"
+        - type: object
+          required: [code]
+          properties:
+            code:
+              {
+                type: string,
+                enum: [stale_version, conflict, cleanup_unconfirmed],
+              }
+    ClientActionUploadExpiredError:
+      allOf:
+        - $ref: "#/components/schemas/ClientActionUploadGovernedError"
+        - type: object
+          required: [code]
+          properties:
+            code: { type: string, const: expired }
+    ClientActionUploadCapacityExceededError:
+      allOf:
+        - $ref: "#/components/schemas/ClientActionUploadGovernedError"
+        - type: object
+          required: [code]
+          properties:
+            code: { type: string, const: capacity_exceeded }
+    ClientActionUploadIntakeRejectedError:
+      allOf:
+        - $ref: "#/components/schemas/ClientActionUploadGovernedError"
+        - type: object
+          required: [code]
+          properties:
+            code: { type: string, const: intake_rejected }
+    ClientActionUploadUnavailableError:
+      allOf:
+        - $ref: "#/components/schemas/ClientActionUploadGovernedError"
+        - type: object
+          required: [code]
+          properties:
+            code: { type: string, const: unavailable }
     ClientUploadIntentInput:
       type: object
       additionalProperties: false
@@ -6298,6 +7149,619 @@ components:
         truncated: { type: boolean, const: false }
         authority:
           $ref: "#/components/schemas/OpportunitySourceAuthority"
+    OpportunityPursuitHandoffAuthority:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          sourceReopenRequired,
+          namedHumanConfirmationRequired,
+          makerCheckerRequired,
+          conflictRevalidationRequired,
+          createdPursuitState,
+          pursuitActivated,
+          providerFetchPerformed,
+          autonomousPursuitActivationAllowed,
+        ]
+      properties:
+        sourceReopenRequired: { type: boolean, const: true }
+        namedHumanConfirmationRequired: { type: boolean, const: true }
+        makerCheckerRequired: { type: boolean, const: true }
+        conflictRevalidationRequired: { type: boolean, const: true }
+        createdPursuitState: { type: string, const: intake }
+        pursuitActivated: { type: boolean, const: false }
+        providerFetchPerformed: { type: boolean, const: false }
+        autonomousPursuitActivationAllowed: { type: boolean, const: false }
+    OpportunityPursuitSourceSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          candidateId,
+          candidateVersion,
+          sourceReceiptSha256,
+          sourceLocator,
+          sourceLocatorSha256,
+          tenderId,
+          tenderVersion,
+          title,
+          buyer,
+          reference,
+          submissionDeadline,
+          recordedByName,
+          confirmedByName,
+        ]
+      properties:
+        candidateId: { type: string, format: uuid }
+        candidateVersion: { type: integer, minimum: 1 }
+        sourceReceiptSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        sourceLocator: { type: string, minLength: 1, maxLength: 2048 }
+        sourceLocatorSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        tenderId: { type: string, format: uuid }
+        tenderVersion: { type: integer, minimum: 1 }
+        title: { type: string, minLength: 1, maxLength: 512 }
+        buyer: { type: string, minLength: 1, maxLength: 512 }
+        reference: { type: string, minLength: 1, maxLength: 128 }
+        submissionDeadline: { type: [string, "null"], format: date-time }
+        recordedByName: { type: string, minLength: 1, maxLength: 512 }
+        confirmedByName: { type: string, minLength: 1, maxLength: 512 }
+    OpportunityPursuitClientChoice:
+      type: object
+      additionalProperties: false
+      required: [id, name, version]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 512 }
+        version: { type: integer, minimum: 1 }
+    OpportunityPursuitReviewerChoice:
+      type: object
+      additionalProperties: false
+      required: [userId, name]
+      properties:
+        userId: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 512 }
+    OpportunityPursuitLotChoice:
+      type: object
+      additionalProperties: false
+      required: [id, reference, title, submissionDeadline, version]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string, minLength: 1, maxLength: 512 }
+        title: { type: [string, "null"], maxLength: 512 }
+        submissionDeadline: { type: [string, "null"], format: date-time }
+        version: { type: integer, minimum: 1 }
+    OpportunityPursuitConflictMatch:
+      type: object
+      additionalProperties: false
+      required: [projectId, lot, status, version]
+      properties:
+        projectId: { type: string, format: uuid }
+        lot: { type: [string, "null"], maxLength: 512 }
+        status:
+          type: string
+          enum: [intake, extraction, review, defects, reporting, signed_off]
+        version: { type: integer, minimum: 1 }
+    OpportunityPursuitConflictBoundary:
+      type: object
+      additionalProperties: false
+      required: [sha256, matches, limit, truncated]
+      properties:
+        sha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        matches:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/OpportunityPursuitConflictMatch"
+        limit: { type: integer, const: 100 }
+        truncated: { type: boolean, const: false }
+    OpportunityPursuitHandoffReceipt:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          schema,
+          organisationId,
+          candidateId,
+          projectId,
+          clientId,
+          clientVersion,
+          tenderId,
+          tenderLotId,
+          tenderLotVersion,
+          confirmedLotReference,
+          reviewerUserId,
+          sourceReceiptSha256,
+          sourceLocatorSha256,
+          confirmedBuyer,
+          confirmedReference,
+          confirmedSubmissionDeadline,
+          confirmationNote,
+          confirmedByUserId,
+          confirmedByName,
+          confirmedAt,
+          conflictBoundarySha256,
+          conflictStatus,
+          matchedProjectId,
+          projectStatus,
+          idempotencyKeySha256,
+          requestSha256,
+          receiptSha256,
+        ]
+      properties:
+        schema: { type: string, const: valo.opportunity-pursuit-handoff/v1 }
+        organisationId: { type: string, format: uuid }
+        candidateId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        clientId: { type: string, format: uuid }
+        clientVersion: { type: integer, minimum: 1 }
+        tenderId: { type: string, format: uuid }
+        tenderLotId: { type: [string, "null"], format: uuid }
+        tenderLotVersion: { type: [integer, "null"], minimum: 1 }
+        confirmedLotReference:
+          { type: [string, "null"], minLength: 1, maxLength: 512 }
+        reviewerUserId: { type: string, format: uuid }
+        sourceReceiptSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        sourceLocatorSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        confirmedBuyer: { type: string, minLength: 1, maxLength: 512 }
+        confirmedReference: { type: string, minLength: 1, maxLength: 128 }
+        confirmedSubmissionDeadline:
+          { type: [string, "null"], format: date-time }
+        confirmationNote: { type: string, minLength: 1, maxLength: 1024 }
+        confirmedByUserId: { type: string, format: uuid }
+        confirmedByName: { type: string, minLength: 1, maxLength: 512 }
+        confirmedAt: { type: string, format: date-time }
+        conflictBoundarySha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        conflictStatus: { type: string, const: clear }
+        matchedProjectId: { type: "null" }
+        projectStatus: { type: string, const: intake }
+        idempotencyKeySha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        requestSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        receiptSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+    OpportunityPursuitHandoffReady:
+      type: object
+      additionalProperties: false
+      required:
+        [state, source, clients, reviewers, lots, conflictBoundary, authority]
+      properties:
+        state: { type: string, const: ready }
+        source:
+          $ref: "#/components/schemas/OpportunityPursuitSourceSnapshot"
+        clients:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/OpportunityPursuitClientChoice"
+        reviewers:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/OpportunityPursuitReviewerChoice"
+        lots:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/OpportunityPursuitLotChoice"
+        conflictBoundary:
+          $ref: "#/components/schemas/OpportunityPursuitConflictBoundary"
+        authority:
+          $ref: "#/components/schemas/OpportunityPursuitHandoffAuthority"
+    OpportunityPursuitHandoffCompleted:
+      type: object
+      additionalProperties: false
+      required: [state, receipt, authority]
+      properties:
+        state: { type: string, const: completed }
+        receipt:
+          $ref: "#/components/schemas/OpportunityPursuitHandoffReceipt"
+        authority:
+          $ref: "#/components/schemas/OpportunityPursuitHandoffAuthority"
+    OpportunityPursuitHandoffPreparation:
+      oneOf:
+        - $ref: "#/components/schemas/OpportunityPursuitHandoffReady"
+        - $ref: "#/components/schemas/OpportunityPursuitHandoffCompleted"
+      discriminator:
+        propertyName: state
+    OpportunityPursuitHandoffConfirmation:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          expectedCandidateVersion,
+          expectedSourceReceiptSha256,
+          expectedTenderVersion,
+          expectedConflictBoundarySha256,
+          clientId,
+          expectedClientVersion,
+          tenderLotId,
+          expectedTenderLotVersion,
+          confirmedLotReference,
+          reviewerUserId,
+          officialSourceReopened,
+          confirmedBuyer,
+          confirmedReference,
+          confirmedSubmissionDeadline,
+          confirmationNote,
+        ]
+      allOf:
+        - if:
+            properties:
+              tenderLotId: { type: "null" }
+          then:
+            properties:
+              expectedTenderLotVersion: { type: "null" }
+              confirmedLotReference: { type: "null" }
+          else:
+            properties:
+              tenderLotId: { type: string, format: uuid }
+              expectedTenderLotVersion: { type: integer, minimum: 1 }
+              confirmedLotReference:
+                { type: string, minLength: 1, maxLength: 512 }
+      properties:
+        expectedCandidateVersion: { type: integer, minimum: 1 }
+        expectedSourceReceiptSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        expectedTenderVersion: { type: integer, minimum: 1 }
+        expectedConflictBoundarySha256:
+          { type: string, pattern: "^[a-f0-9]{64}$" }
+        clientId: { type: string, format: uuid }
+        expectedClientVersion: { type: integer, minimum: 1 }
+        tenderLotId: { type: [string, "null"], format: uuid }
+        expectedTenderLotVersion: { type: [integer, "null"], minimum: 1 }
+        confirmedLotReference:
+          { type: [string, "null"], minLength: 1, maxLength: 512 }
+        reviewerUserId: { type: string, format: uuid }
+        officialSourceReopened: { type: boolean, const: true }
+        confirmedBuyer: { type: string, minLength: 1, maxLength: 512 }
+        confirmedReference: { type: string, minLength: 1, maxLength: 128 }
+        confirmedSubmissionDeadline:
+          { type: [string, "null"], format: date-time }
+        confirmationNote: { type: string, minLength: 1, maxLength: 1024 }
+    OpportunityPursuitHandoffResult:
+      type: object
+      additionalProperties: false
+      required: [outcome, receipt, authority]
+      properties:
+        outcome: { type: string, enum: [created, replayed] }
+        receipt:
+          $ref: "#/components/schemas/OpportunityPursuitHandoffReceipt"
+        authority:
+          $ref: "#/components/schemas/OpportunityPursuitHandoffAuthority"
+    EvidenceRenewalIdempotencyKey:
+      type: string
+      minLength: 8
+      maxLength: 128
+      pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$"
+    EvidenceRenewalAffectedPursuitDraft:
+      type: object
+      additionalProperties: false
+      required: [projectId, impact]
+      properties:
+        projectId: { type: string, format: uuid }
+        impact: { type: string, enum: [blocked, at_risk, monitor] }
+    EvidenceRenewalCreateDraft:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          vaultItemId,
+          ownerUserId,
+          verifierUserId,
+          targetDate,
+          affectedPursuits,
+          idempotencyKey,
+        ]
+      properties:
+        vaultItemId: { type: string, format: uuid }
+        ownerUserId: { type: string, format: uuid }
+        verifierUserId: { type: string, format: uuid }
+        targetDate: { type: string, format: date }
+        affectedPursuits:
+          type: array
+          minItems: 1
+          maxItems: 25
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/EvidenceRenewalAffectedPursuitDraft"
+        idempotencyKey:
+          $ref: "#/components/schemas/EvidenceRenewalIdempotencyKey"
+    EvidenceRenewalStageDraft:
+      type: object
+      additionalProperties: false
+      required: [documentId, sha256, issueDate, expiryDate, idempotencyKey]
+      properties:
+        documentId: { type: string, format: uuid }
+        sha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        issueDate: { type: string, format: date }
+        expiryDate: { type: string, format: date }
+        idempotencyKey:
+          $ref: "#/components/schemas/EvidenceRenewalIdempotencyKey"
+    EvidenceRenewalReviewDraft:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [decision, reasonCode, idempotencyKey]
+          properties:
+            decision: { type: string, const: approve }
+            reasonCode: { type: string, const: replacement_verified }
+            idempotencyKey:
+              $ref: "#/components/schemas/EvidenceRenewalIdempotencyKey"
+        - type: object
+          additionalProperties: false
+          required: [decision, reasonCode, idempotencyKey]
+          properties:
+            decision: { type: string, const: reject }
+            reasonCode:
+              type: string
+              enum: [incorrect_document, expiry_unacceptable, quality_issue]
+            idempotencyKey:
+              $ref: "#/components/schemas/EvidenceRenewalIdempotencyKey"
+      discriminator:
+        propertyName: decision
+    EvidenceRenewalReceipt:
+      type: object
+      additionalProperties: false
+      required: [version, kind, occurredAt, actorUserId, sha256]
+      properties:
+        version: { type: integer, minimum: 1, maximum: 3 }
+        kind:
+          type: string
+          enum: [plan_created, replacement_staged, replacement_reviewed]
+        occurredAt: { type: string, format: date-time }
+        actorUserId: { type: string, format: uuid }
+        sha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+    EvidenceRenewalAuthorityAssignment:
+      type: object
+      additionalProperties: false
+      required: [userId, name, current]
+      properties:
+        userId: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 512 }
+        current: { type: boolean }
+    EvidenceRenewalAffectedPursuit:
+      type: object
+      additionalProperties: false
+      required: [projectId, impact, title]
+      properties:
+        projectId: { type: string, format: uuid }
+        impact: { type: string, enum: [blocked, at_risk, monitor] }
+        title: { type: string, minLength: 1, maxLength: 512 }
+    EvidenceRenewalStagedReplacement:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          documentId,
+          documentVersionId,
+          documentVersionNumber,
+          sha256,
+          issueDate,
+          expiryDate,
+          expectedVaultItemVersion,
+          stagedByUserId,
+          stagedAt,
+        ]
+      properties:
+        documentId: { type: string, format: uuid }
+        documentVersionId: { type: string, format: uuid }
+        documentVersionNumber: { type: integer, minimum: 1 }
+        sha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        issueDate: { type: string, format: date }
+        expiryDate: { type: string, format: date }
+        expectedVaultItemVersion: { type: integer, minimum: 1 }
+        stagedByUserId: { type: string, format: uuid }
+        stagedAt: { type: string, format: date-time }
+    EvidenceRenewalInternalReminder:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          channel,
+          assignedOwnerUserId,
+          dueAt,
+          status,
+          recordedReceiptSha256,
+          resolvedReceiptSha256,
+          externalDeliveryReceipt,
+        ]
+      properties:
+        channel: { type: string, const: valo_evidence_renewal_register }
+        assignedOwnerUserId: { type: string, format: uuid }
+        dueAt: { type: string, format: date-time }
+        status: { type: string, enum: [open, resolved] }
+        recordedReceiptSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        resolvedReceiptSha256:
+          { type: [string, "null"], pattern: "^[a-f0-9]{64}$" }
+        externalDeliveryReceipt: { type: "null" }
+    EvidenceRenewalPlan:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          organisationId,
+          projectId,
+          vaultItemId,
+          artefactType,
+          owner,
+          verifier,
+          targetDate,
+          internalReminder,
+          affectedPursuits,
+          status,
+          version,
+          stagedReplacement,
+          reviewReasonCode,
+          createdByUserId,
+          createdAt,
+          updatedAt,
+          latestReceiptSha256,
+          promotionReceiptSha256,
+          receipts,
+          externalMessageSent,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        organisationId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        vaultItemId: { type: string, format: uuid }
+        artefactType: { type: string, minLength: 1, maxLength: 512 }
+        owner:
+          $ref: "#/components/schemas/EvidenceRenewalAuthorityAssignment"
+        verifier:
+          $ref: "#/components/schemas/EvidenceRenewalAuthorityAssignment"
+        targetDate: { type: string, format: date }
+        internalReminder:
+          $ref: "#/components/schemas/EvidenceRenewalInternalReminder"
+        affectedPursuits:
+          type: array
+          minItems: 1
+          maxItems: 25
+          items:
+            $ref: "#/components/schemas/EvidenceRenewalAffectedPursuit"
+        status:
+          type: string
+          enum: [planned, replacement_staged, promoted, rejected]
+        version: { type: integer, minimum: 1, maximum: 3 }
+        stagedReplacement:
+          oneOf:
+            - $ref: "#/components/schemas/EvidenceRenewalStagedReplacement"
+            - type: "null"
+        reviewReasonCode:
+          type: [string, "null"]
+          enum:
+            [
+              replacement_verified,
+              incorrect_document,
+              expiry_unacceptable,
+              quality_issue,
+              null,
+            ]
+        createdByUserId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        latestReceiptSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        promotionReceiptSha256:
+          { type: [string, "null"], pattern: "^[a-f0-9]{64}$" }
+        receipts:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/EvidenceRenewalReceipt"
+        externalMessageSent: { type: boolean, const: false }
+    EvidenceRenewalSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          organisationId,
+          projectId,
+          generatedAt,
+          items,
+          limit,
+          truncated,
+          externalMessagingConnected,
+          authorityNote,
+        ]
+      properties:
+        organisationId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        generatedAt: { type: string, format: date-time }
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/EvidenceRenewalPlan"
+        limit: { type: integer, const: 100 }
+        truncated: { type: boolean, const: false }
+        externalMessagingConnected: { type: boolean, const: false }
+        authorityNote:
+          type: string
+          const: This register records a receipt-backed internal due reminder and named-human evidence-renewal workflow. It does not send an external message, contact an issuer or client, approve a pursuit, or claim delivery outside Valo.
+    EvidenceRenewalAuthority:
+      type: object
+      additionalProperties: false
+      required: [userId, name]
+      properties:
+        userId: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 512 }
+    EvidenceRenewalAuthorityList:
+      type: object
+      additionalProperties: false
+      required: [organisationId, owners, verifiers, limit, truncated]
+      properties:
+        organisationId: { type: string, format: uuid }
+        owners:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/EvidenceRenewalAuthority"
+        verifiers:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/EvidenceRenewalAuthority"
+        limit: { type: integer, const: 100 }
+        truncated: { type: boolean, const: false }
+    EvidenceRenewalCreateSuccess:
+      type: object
+      additionalProperties: false
+      required: [outcome, plan, replayed, externalMessageSent, authorityNote]
+      properties:
+        outcome: { type: string, const: created }
+        plan:
+          $ref: "#/components/schemas/EvidenceRenewalPlan"
+        replayed: { type: boolean }
+        externalMessageSent: { type: boolean, const: false }
+        authorityNote:
+          type: string
+          const: This register records a receipt-backed internal due reminder and named-human evidence-renewal workflow. It does not send an external message, contact an issuer or client, approve a pursuit, or claim delivery outside Valo.
+    EvidenceRenewalUpdateSuccess:
+      type: object
+      additionalProperties: false
+      required: [outcome, plan, replayed, externalMessageSent, authorityNote]
+      properties:
+        outcome: { type: string, const: updated }
+        plan:
+          $ref: "#/components/schemas/EvidenceRenewalPlan"
+        replayed: { type: boolean }
+        externalMessageSent: { type: boolean, const: false }
+        authorityNote:
+          type: string
+          const: This register records a receipt-backed internal due reminder and named-human evidence-renewal workflow. It does not send an external message, contact an issuer or client, approve a pursuit, or claim delivery outside Valo.
+    EvidenceRenewalMutationError:
+      type: object
+      additionalProperties: false
+      required: [error, externalMessageSent, authorityNote]
+      properties:
+        error:
+          type: string
+          enum:
+            [
+              not_found,
+              version_conflict,
+              state_conflict,
+              authority_conflict,
+              maker_checker_conflict,
+              idempotency_conflict,
+              evidence_conflict,
+              vault_conflict,
+              archived,
+              capacity_exceeded,
+            ]
+        externalMessageSent: { type: boolean, const: false }
+        authorityNote:
+          type: string
+          const: This register records a receipt-backed internal due reminder and named-human evidence-renewal workflow. It does not send an external message, contact an issuer or client, approve a pursuit, or claim delivery outside Valo.
+    EvidenceRenewalUnavailableError:
+      type: object
+      additionalProperties: false
+      required: [error, externalMessageSent, authorityNote]
+      properties:
+        error: { type: string, const: Evidence renewal records are unavailable }
+        externalMessageSent: { type: boolean, const: false }
+        authorityNote:
+          type: string
+          const: This register records a receipt-backed internal due reminder and named-human evidence-renewal workflow. It does not send an external message, contact an issuer or client, approve a pursuit, or claim delivery outside Valo.
     CommunicationTemplateContext:
       oneOf:
         - type: object
@@ -9639,6 +11103,223 @@ components:
         decidedByUserId: { type: [string, "null"], format: uuid }
         decidedAt: { type: [string, "null"], format: date-time }
         reason: { type: [string, "null"], maxLength: 1024 }
+    OperationsFieldDraftPromotionChecklistItem:
+      type: object
+      additionalProperties: false
+      required: [id, label, completed]
+      properties:
+        id:
+          $ref: "#/components/schemas/OperationsReferenceId"
+        label: { type: string, minLength: 1, maxLength: 160 }
+        completed: { type: boolean }
+    OperationsFieldDraftPromotionDraft:
+      type: object
+      additionalProperties: false
+      required:
+        [id, version, organisationId, actorUserId, projectId, kind, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        version: { type: integer, minimum: 1, maximum: 9007199254740991 }
+        organisationId: { type: string, format: uuid }
+        actorUserId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        kind:
+          type: string
+          enum: [site_visit_note, delivery_receipt_note, checklist_progress]
+        updatedAt: { type: string, format: date-time }
+    OperationsFieldDraftPromotionSelectedFields:
+      description: One non-empty tuple in canonical title, note, checklist order.
+      oneOf:
+        - type: array
+          minItems: 1
+          maxItems: 1
+          prefixItems:
+            - { type: string, const: title }
+        - type: array
+          minItems: 1
+          maxItems: 1
+          prefixItems:
+            - { type: string, const: note }
+        - type: array
+          minItems: 1
+          maxItems: 1
+          prefixItems:
+            - { type: string, const: checklist }
+        - type: array
+          minItems: 2
+          maxItems: 2
+          prefixItems:
+            - { type: string, const: title }
+            - { type: string, const: note }
+        - type: array
+          minItems: 2
+          maxItems: 2
+          prefixItems:
+            - { type: string, const: title }
+            - { type: string, const: checklist }
+        - type: array
+          minItems: 2
+          maxItems: 2
+          prefixItems:
+            - { type: string, const: note }
+            - { type: string, const: checklist }
+        - type: array
+          minItems: 3
+          maxItems: 3
+          prefixItems:
+            - { type: string, const: title }
+            - { type: string, const: note }
+            - { type: string, const: checklist }
+    OperationsFieldDraftPromotionValues:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title: { type: string, minLength: 1, maxLength: 160 }
+        note: { type: string, maxLength: 4000 }
+        checklist:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/OperationsFieldDraftPromotionChecklistItem"
+    OperationsFieldDraftPromotionRequest:
+      type: object
+      additionalProperties: false
+      required: [schema, draft, expectedTargetVersion, selectedFields, values]
+      allOf:
+        - if:
+            properties:
+              selectedFields:
+                contains: { const: title }
+          then:
+            properties:
+              values:
+                required: [title]
+          else:
+            properties:
+              values:
+                not:
+                  required: [title]
+        - if:
+            properties:
+              selectedFields:
+                contains: { const: note }
+          then:
+            properties:
+              values:
+                required: [note]
+          else:
+            properties:
+              values:
+                not:
+                  required: [note]
+        - if:
+            properties:
+              selectedFields:
+                contains: { const: checklist }
+          then:
+            properties:
+              values:
+                required: [checklist]
+          else:
+            properties:
+              values:
+                not:
+                  required: [checklist]
+      properties:
+        schema: { type: string, const: valo.encrypted-field-promotion/v1 }
+        draft:
+          $ref: "#/components/schemas/OperationsFieldDraftPromotionDraft"
+        expectedTargetVersion:
+          { type: integer, minimum: 1, maximum: 9007199254740991 }
+        selectedFields:
+          $ref: "#/components/schemas/OperationsFieldDraftPromotionSelectedFields"
+        values:
+          $ref: "#/components/schemas/OperationsFieldDraftPromotionValues"
+    OperationsStoredFieldDraftPromotionReceipt:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          schema,
+          organisationId,
+          projectId,
+          targetRecordId,
+          targetKind,
+          targetVersion,
+          draftId,
+          draftVersion,
+          promotedByUserId,
+          selectedFields,
+          idempotencyKey,
+          requestSha256,
+          receiptSha256,
+          promotedAt,
+          authoritativeEvidenceCreated,
+          localDraftDeleted,
+        ]
+      properties:
+        schema: { type: string, const: valo.field-draft-promotion-receipt/v1 }
+        organisationId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        targetRecordId:
+          $ref: "#/components/schemas/OperationsReferenceId"
+        targetKind: { type: string, const: work_item }
+        targetVersion: { type: integer, minimum: 2 }
+        draftId: { type: string, format: uuid }
+        draftVersion: { type: integer, minimum: 1, maximum: 9007199254740991 }
+        promotedByUserId: { type: string, format: uuid }
+        selectedFields:
+          $ref: "#/components/schemas/OperationsFieldDraftPromotionSelectedFields"
+        idempotencyKey: { type: string, format: uuid }
+        requestSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        receiptSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        promotedAt: { type: string, format: date-time }
+        authoritativeEvidenceCreated: { type: boolean, const: false }
+        localDraftDeleted: { type: boolean, const: false }
+    OperationsFieldDraftPromotionReceipt:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          schema,
+          organisationId,
+          projectId,
+          targetRecordId,
+          targetKind,
+          targetVersion,
+          draftId,
+          draftVersion,
+          promotedByUserId,
+          selectedFields,
+          idempotencyKey,
+          requestSha256,
+          receiptSha256,
+          promotedAt,
+          authoritativeEvidenceCreated,
+          localDraftDeleted,
+          replayed,
+        ]
+      properties:
+        schema: { type: string, const: valo.field-draft-promotion-receipt/v1 }
+        organisationId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        targetRecordId:
+          $ref: "#/components/schemas/OperationsReferenceId"
+        targetKind: { type: string, const: work_item }
+        targetVersion: { type: integer, minimum: 2 }
+        draftId: { type: string, format: uuid }
+        draftVersion: { type: integer, minimum: 1, maximum: 9007199254740991 }
+        promotedByUserId: { type: string, format: uuid }
+        selectedFields:
+          $ref: "#/components/schemas/OperationsFieldDraftPromotionSelectedFields"
+        idempotencyKey: { type: string, format: uuid }
+        requestSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        receiptSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        promotedAt: { type: string, format: date-time }
+        authoritativeEvidenceCreated: { type: boolean, const: false }
+        localDraftDeleted: { type: boolean, const: false }
+        replayed: { type: boolean }
     OperationsWorkItemRecord:
       allOf:
         - $ref: "#/components/schemas/OperationsRecordBase"
@@ -9694,6 +11375,11 @@ components:
               maxItems: 100
               items:
                 $ref: "#/components/schemas/OperationsStatusReason"
+            fieldPromotionReceipts:
+              type: array
+              maxItems: 25
+              items:
+                $ref: "#/components/schemas/OperationsStoredFieldDraftPromotionReceipt"
     OperationsEvidenceRequestSlotInput:
       type: object
       additionalProperties: false
@@ -12481,6 +14167,8 @@ components:
         dueAt: { type: string }
     RetentionCompletionConflict:
       type: object
+      deprecated: true
+      description: Legacy generated type retained for source compatibility; the inactive completion operation does not emit this response.
       additionalProperties: false
       required: [error]
       properties:
@@ -12506,6 +14194,28 @@ components:
             entitlements: { type: integer, minimum: 0 }
             subscriptions: { type: integer, minimum: 0 }
             entitlementUsage: { type: integer, minimum: 0 }
+    RetentionCompletionUnavailable:
+      type: object
+      additionalProperties: false
+      required:
+        [error, code, sideEffectsApplied, requiredWorkflow, requiredCoverage]
+      properties:
+        error: { type: string, minLength: 1 }
+        code: { type: string, const: RETENTION_COMPLETION_NOT_ACTIVATED }
+        sideEffectsApplied: { type: boolean, const: false }
+        requiredWorkflow:
+          { type: string, const: durable_two_phase_detach_reconcile_certify }
+        requiredCoverage:
+          type: array
+          minItems: 4
+          maxItems: 4
+          uniqueItems: true
+          prefixItems:
+            - { type: string, const: project_content_rows }
+            - { type: string, const: object_storage }
+            - { type: string, const: upload_sessions }
+            - { type: string, const: storage_lifecycle_control_rows }
+          items: false
     SeverityWeights:
       type: object
       required: [fatal, likely_fatal, scoring_risk, cosmetic]

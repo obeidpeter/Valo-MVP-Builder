@@ -1502,22 +1502,25 @@ export const ListRetentionRequestsResponse = zod.array(ListRetentionRequestsResp
 
 
 /**
- * @summary Complete a retention request and issue a deletion certificate
+ * This release fails closed because blob deletion and relational deletion cannot yet be certified as one durable two-phase detach/reconcile/certify outcome. After authentication and retention permission checks, this operation performs no ID lookup, deletion, database mutation, audit write or certificate issuance and returns only the strict 503 refusal envelope.
+ * @summary Report that certified retention completion is not activated
  */
 export const CompleteRetentionRequestParams = zod.object({
   "id": zod.coerce.string().uuid()
 })
 
 export const CompleteRetentionRequestResponse = zod.object({
-  "id": zod.string(),
-  "projectId": zod.string(),
-  "reason": zod.string().nullish(),
-  "dueAt": zod.string(),
-  "completedAt": zod.string().nullish(),
-  "certificateText": zod.string().nullish(),
-  "status": zod.enum(['pending', 'completed', 'cancelled']),
-  "createdAt": zod.string()
-})
+  "error": zod.string().min(1),
+  "code": zod.literal("RETENTION_COMPLETION_NOT_ACTIVATED"),
+  "sideEffectsApplied": zod.literal(false),
+  "requiredWorkflow": zod.literal("durable_two_phase_detach_reconcile_certify"),
+  "requiredCoverage": zod.tuple([
+    zod.literal("project_content_rows"),
+    zod.literal("object_storage"),
+    zod.literal("upload_sessions"),
+    zod.literal("storage_lifecycle_control_rows")
+  ])
+}).strict()
 
 
 /**
@@ -3799,6 +3802,18 @@ export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoStatusReasonHist
 
 export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoStatusReasonHistoryMax = 100;
 
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoFieldPromotionReceiptsItemTargetRecordIdMax = 128;
+
+
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoFieldPromotionReceiptsItemTargetRecordIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoFieldPromotionReceiptsItemTargetVersionMin = 2;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoFieldPromotionReceiptsItemDraftVersionMax = 9007199254740991;
+
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoFieldPromotionReceiptsItemRequestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoFieldPromotionReceiptsItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsSuiteSnapshotResponseRecordsItemTwoTwoFieldPromotionReceiptsMax = 25;
+
 
 export const getOperationsSuiteSnapshotResponseRecordsItemThreeTwoRecipientLabelMax = 256;
 
@@ -4013,7 +4028,30 @@ export const GetOperationsSuiteSnapshotResponse = zod.object({
   "reason": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoStatusReasonHistoryItemReasonMax),
   "recordedByUserId": zod.string().uuid(),
   "recordedAt": zod.coerce.date()
-})).max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoStatusReasonHistoryMax)
+})).max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoStatusReasonHistoryMax),
+  "fieldPromotionReceipts": zod.array(zod.object({
+  "schema": zod.literal("valo.field-draft-promotion-receipt/v1"),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "targetRecordId": zod.string().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoFieldPromotionReceiptsItemTargetRecordIdMax).regex(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoFieldPromotionReceiptsItemTargetRecordIdRegExp),
+  "targetKind": zod.literal("work_item"),
+  "targetVersion": zod.number().min(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoFieldPromotionReceiptsItemTargetVersionMin),
+  "draftId": zod.string().uuid(),
+  "draftVersion": zod.number().min(1).max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoFieldPromotionReceiptsItemDraftVersionMax),
+  "promotedByUserId": zod.string().uuid(),
+  "selectedFields": zod.union([zod.tuple([zod.literal("title")]),zod.tuple([zod.literal("note")]),zod.tuple([zod.literal("checklist")]),zod.tuple([zod.literal("title"),
+zod.literal("note")]),zod.tuple([zod.literal("title"),
+zod.literal("checklist")]),zod.tuple([zod.literal("note"),
+zod.literal("checklist")]),zod.tuple([zod.literal("title"),
+zod.literal("note"),
+zod.literal("checklist")])]).describe('One non-empty tuple in canonical title, note, checklist order.'),
+  "idempotencyKey": zod.string().uuid(),
+  "requestSha256": zod.string().regex(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoFieldPromotionReceiptsItemRequestSha256RegExp),
+  "receiptSha256": zod.string().regex(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoFieldPromotionReceiptsItemReceiptSha256RegExp),
+  "promotedAt": zod.coerce.date(),
+  "authoritativeEvidenceCreated": zod.boolean(),
+  "localDraftDeleted": zod.boolean()
+})).max(getOperationsSuiteSnapshotResponseRecordsItemTwoTwoFieldPromotionReceiptsMax).optional()
 })),zod.object({
   "id": zod.string().uuid(),
   "kind": zod.string(),
@@ -4298,6 +4336,18 @@ export const listMyOperationsWorkResponseTwoStatusReasonHistoryItemReasonMax = 1
 
 export const listMyOperationsWorkResponseTwoStatusReasonHistoryMax = 100;
 
+export const listMyOperationsWorkResponseTwoFieldPromotionReceiptsItemTargetRecordIdMax = 128;
+
+
+export const listMyOperationsWorkResponseTwoFieldPromotionReceiptsItemTargetRecordIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const listMyOperationsWorkResponseTwoFieldPromotionReceiptsItemTargetVersionMin = 2;
+
+export const listMyOperationsWorkResponseTwoFieldPromotionReceiptsItemDraftVersionMax = 9007199254740991;
+
+export const listMyOperationsWorkResponseTwoFieldPromotionReceiptsItemRequestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const listMyOperationsWorkResponseTwoFieldPromotionReceiptsItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const listMyOperationsWorkResponseTwoFieldPromotionReceiptsMax = 25;
+
 
 
 export const ListMyOperationsWorkResponseItem = zod.object({
@@ -4345,7 +4395,30 @@ export const ListMyOperationsWorkResponseItem = zod.object({
   "reason": zod.string().min(1).max(listMyOperationsWorkResponseTwoStatusReasonHistoryItemReasonMax),
   "recordedByUserId": zod.string().uuid(),
   "recordedAt": zod.coerce.date()
-})).max(listMyOperationsWorkResponseTwoStatusReasonHistoryMax)
+})).max(listMyOperationsWorkResponseTwoStatusReasonHistoryMax),
+  "fieldPromotionReceipts": zod.array(zod.object({
+  "schema": zod.literal("valo.field-draft-promotion-receipt/v1"),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "targetRecordId": zod.string().min(1).max(listMyOperationsWorkResponseTwoFieldPromotionReceiptsItemTargetRecordIdMax).regex(listMyOperationsWorkResponseTwoFieldPromotionReceiptsItemTargetRecordIdRegExp),
+  "targetKind": zod.literal("work_item"),
+  "targetVersion": zod.number().min(listMyOperationsWorkResponseTwoFieldPromotionReceiptsItemTargetVersionMin),
+  "draftId": zod.string().uuid(),
+  "draftVersion": zod.number().min(1).max(listMyOperationsWorkResponseTwoFieldPromotionReceiptsItemDraftVersionMax),
+  "promotedByUserId": zod.string().uuid(),
+  "selectedFields": zod.union([zod.tuple([zod.literal("title")]),zod.tuple([zod.literal("note")]),zod.tuple([zod.literal("checklist")]),zod.tuple([zod.literal("title"),
+zod.literal("note")]),zod.tuple([zod.literal("title"),
+zod.literal("checklist")]),zod.tuple([zod.literal("note"),
+zod.literal("checklist")]),zod.tuple([zod.literal("title"),
+zod.literal("note"),
+zod.literal("checklist")])]).describe('One non-empty tuple in canonical title, note, checklist order.'),
+  "idempotencyKey": zod.string().uuid(),
+  "requestSha256": zod.string().regex(listMyOperationsWorkResponseTwoFieldPromotionReceiptsItemRequestSha256RegExp),
+  "receiptSha256": zod.string().regex(listMyOperationsWorkResponseTwoFieldPromotionReceiptsItemReceiptSha256RegExp),
+  "promotedAt": zod.coerce.date(),
+  "authoritativeEvidenceCreated": zod.boolean(),
+  "localDraftDeleted": zod.boolean()
+})).max(listMyOperationsWorkResponseTwoFieldPromotionReceiptsMax).optional()
 }))
 export const ListMyOperationsWorkResponse = zod.array(ListMyOperationsWorkResponseItem).max(250)
 
@@ -4448,6 +4521,18 @@ export const getOperationsRecordResponseTwoTwoStatusReasonHistoryItemToStatusMax
 export const getOperationsRecordResponseTwoTwoStatusReasonHistoryItemReasonMax = 1024;
 
 export const getOperationsRecordResponseTwoTwoStatusReasonHistoryMax = 100;
+
+export const getOperationsRecordResponseTwoTwoFieldPromotionReceiptsItemTargetRecordIdMax = 128;
+
+
+export const getOperationsRecordResponseTwoTwoFieldPromotionReceiptsItemTargetRecordIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const getOperationsRecordResponseTwoTwoFieldPromotionReceiptsItemTargetVersionMin = 2;
+
+export const getOperationsRecordResponseTwoTwoFieldPromotionReceiptsItemDraftVersionMax = 9007199254740991;
+
+export const getOperationsRecordResponseTwoTwoFieldPromotionReceiptsItemRequestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsRecordResponseTwoTwoFieldPromotionReceiptsItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getOperationsRecordResponseTwoTwoFieldPromotionReceiptsMax = 25;
 
 
 export const getOperationsRecordResponseThreeTwoRecipientLabelMax = 256;
@@ -4634,7 +4719,30 @@ export const GetOperationsRecordResponse = zod.union([zod.object({
   "reason": zod.string().min(1).max(getOperationsRecordResponseTwoTwoStatusReasonHistoryItemReasonMax),
   "recordedByUserId": zod.string().uuid(),
   "recordedAt": zod.coerce.date()
-})).max(getOperationsRecordResponseTwoTwoStatusReasonHistoryMax)
+})).max(getOperationsRecordResponseTwoTwoStatusReasonHistoryMax),
+  "fieldPromotionReceipts": zod.array(zod.object({
+  "schema": zod.literal("valo.field-draft-promotion-receipt/v1"),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "targetRecordId": zod.string().min(1).max(getOperationsRecordResponseTwoTwoFieldPromotionReceiptsItemTargetRecordIdMax).regex(getOperationsRecordResponseTwoTwoFieldPromotionReceiptsItemTargetRecordIdRegExp),
+  "targetKind": zod.literal("work_item"),
+  "targetVersion": zod.number().min(getOperationsRecordResponseTwoTwoFieldPromotionReceiptsItemTargetVersionMin),
+  "draftId": zod.string().uuid(),
+  "draftVersion": zod.number().min(1).max(getOperationsRecordResponseTwoTwoFieldPromotionReceiptsItemDraftVersionMax),
+  "promotedByUserId": zod.string().uuid(),
+  "selectedFields": zod.union([zod.tuple([zod.literal("title")]),zod.tuple([zod.literal("note")]),zod.tuple([zod.literal("checklist")]),zod.tuple([zod.literal("title"),
+zod.literal("note")]),zod.tuple([zod.literal("title"),
+zod.literal("checklist")]),zod.tuple([zod.literal("note"),
+zod.literal("checklist")]),zod.tuple([zod.literal("title"),
+zod.literal("note"),
+zod.literal("checklist")])]).describe('One non-empty tuple in canonical title, note, checklist order.'),
+  "idempotencyKey": zod.string().uuid(),
+  "requestSha256": zod.string().regex(getOperationsRecordResponseTwoTwoFieldPromotionReceiptsItemRequestSha256RegExp),
+  "receiptSha256": zod.string().regex(getOperationsRecordResponseTwoTwoFieldPromotionReceiptsItemReceiptSha256RegExp),
+  "promotedAt": zod.coerce.date(),
+  "authoritativeEvidenceCreated": zod.boolean(),
+  "localDraftDeleted": zod.boolean()
+})).max(getOperationsRecordResponseTwoTwoFieldPromotionReceiptsMax).optional()
 })),zod.object({
   "id": zod.string().uuid(),
   "kind": zod.string(),
@@ -5095,6 +5203,18 @@ export const createOperationsWorkItemResponseTwoStatusReasonHistoryItemReasonMax
 
 export const createOperationsWorkItemResponseTwoStatusReasonHistoryMax = 100;
 
+export const createOperationsWorkItemResponseTwoFieldPromotionReceiptsItemTargetRecordIdMax = 128;
+
+
+export const createOperationsWorkItemResponseTwoFieldPromotionReceiptsItemTargetRecordIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const createOperationsWorkItemResponseTwoFieldPromotionReceiptsItemTargetVersionMin = 2;
+
+export const createOperationsWorkItemResponseTwoFieldPromotionReceiptsItemDraftVersionMax = 9007199254740991;
+
+export const createOperationsWorkItemResponseTwoFieldPromotionReceiptsItemRequestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createOperationsWorkItemResponseTwoFieldPromotionReceiptsItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createOperationsWorkItemResponseTwoFieldPromotionReceiptsMax = 25;
+
 
 
 export const CreateOperationsWorkItemResponse = zod.object({
@@ -5142,7 +5262,30 @@ export const CreateOperationsWorkItemResponse = zod.object({
   "reason": zod.string().min(1).max(createOperationsWorkItemResponseTwoStatusReasonHistoryItemReasonMax),
   "recordedByUserId": zod.string().uuid(),
   "recordedAt": zod.coerce.date()
-})).max(createOperationsWorkItemResponseTwoStatusReasonHistoryMax)
+})).max(createOperationsWorkItemResponseTwoStatusReasonHistoryMax),
+  "fieldPromotionReceipts": zod.array(zod.object({
+  "schema": zod.literal("valo.field-draft-promotion-receipt/v1"),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "targetRecordId": zod.string().min(1).max(createOperationsWorkItemResponseTwoFieldPromotionReceiptsItemTargetRecordIdMax).regex(createOperationsWorkItemResponseTwoFieldPromotionReceiptsItemTargetRecordIdRegExp),
+  "targetKind": zod.literal("work_item"),
+  "targetVersion": zod.number().min(createOperationsWorkItemResponseTwoFieldPromotionReceiptsItemTargetVersionMin),
+  "draftId": zod.string().uuid(),
+  "draftVersion": zod.number().min(1).max(createOperationsWorkItemResponseTwoFieldPromotionReceiptsItemDraftVersionMax),
+  "promotedByUserId": zod.string().uuid(),
+  "selectedFields": zod.union([zod.tuple([zod.literal("title")]),zod.tuple([zod.literal("note")]),zod.tuple([zod.literal("checklist")]),zod.tuple([zod.literal("title"),
+zod.literal("note")]),zod.tuple([zod.literal("title"),
+zod.literal("checklist")]),zod.tuple([zod.literal("note"),
+zod.literal("checklist")]),zod.tuple([zod.literal("title"),
+zod.literal("note"),
+zod.literal("checklist")])]).describe('One non-empty tuple in canonical title, note, checklist order.'),
+  "idempotencyKey": zod.string().uuid(),
+  "requestSha256": zod.string().regex(createOperationsWorkItemResponseTwoFieldPromotionReceiptsItemRequestSha256RegExp),
+  "receiptSha256": zod.string().regex(createOperationsWorkItemResponseTwoFieldPromotionReceiptsItemReceiptSha256RegExp),
+  "promotedAt": zod.coerce.date(),
+  "authoritativeEvidenceCreated": zod.boolean(),
+  "localDraftDeleted": zod.boolean()
+})).max(createOperationsWorkItemResponseTwoFieldPromotionReceiptsMax).optional()
 }))
 
 
@@ -5247,6 +5390,18 @@ export const updateOperationsWorkItemResponseTwoStatusReasonHistoryItemReasonMax
 
 export const updateOperationsWorkItemResponseTwoStatusReasonHistoryMax = 100;
 
+export const updateOperationsWorkItemResponseTwoFieldPromotionReceiptsItemTargetRecordIdMax = 128;
+
+
+export const updateOperationsWorkItemResponseTwoFieldPromotionReceiptsItemTargetRecordIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const updateOperationsWorkItemResponseTwoFieldPromotionReceiptsItemTargetVersionMin = 2;
+
+export const updateOperationsWorkItemResponseTwoFieldPromotionReceiptsItemDraftVersionMax = 9007199254740991;
+
+export const updateOperationsWorkItemResponseTwoFieldPromotionReceiptsItemRequestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const updateOperationsWorkItemResponseTwoFieldPromotionReceiptsItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const updateOperationsWorkItemResponseTwoFieldPromotionReceiptsMax = 25;
+
 
 
 export const UpdateOperationsWorkItemResponse = zod.object({
@@ -5294,7 +5449,30 @@ export const UpdateOperationsWorkItemResponse = zod.object({
   "reason": zod.string().min(1).max(updateOperationsWorkItemResponseTwoStatusReasonHistoryItemReasonMax),
   "recordedByUserId": zod.string().uuid(),
   "recordedAt": zod.coerce.date()
-})).max(updateOperationsWorkItemResponseTwoStatusReasonHistoryMax)
+})).max(updateOperationsWorkItemResponseTwoStatusReasonHistoryMax),
+  "fieldPromotionReceipts": zod.array(zod.object({
+  "schema": zod.literal("valo.field-draft-promotion-receipt/v1"),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "targetRecordId": zod.string().min(1).max(updateOperationsWorkItemResponseTwoFieldPromotionReceiptsItemTargetRecordIdMax).regex(updateOperationsWorkItemResponseTwoFieldPromotionReceiptsItemTargetRecordIdRegExp),
+  "targetKind": zod.literal("work_item"),
+  "targetVersion": zod.number().min(updateOperationsWorkItemResponseTwoFieldPromotionReceiptsItemTargetVersionMin),
+  "draftId": zod.string().uuid(),
+  "draftVersion": zod.number().min(1).max(updateOperationsWorkItemResponseTwoFieldPromotionReceiptsItemDraftVersionMax),
+  "promotedByUserId": zod.string().uuid(),
+  "selectedFields": zod.union([zod.tuple([zod.literal("title")]),zod.tuple([zod.literal("note")]),zod.tuple([zod.literal("checklist")]),zod.tuple([zod.literal("title"),
+zod.literal("note")]),zod.tuple([zod.literal("title"),
+zod.literal("checklist")]),zod.tuple([zod.literal("note"),
+zod.literal("checklist")]),zod.tuple([zod.literal("title"),
+zod.literal("note"),
+zod.literal("checklist")])]).describe('One non-empty tuple in canonical title, note, checklist order.'),
+  "idempotencyKey": zod.string().uuid(),
+  "requestSha256": zod.string().regex(updateOperationsWorkItemResponseTwoFieldPromotionReceiptsItemRequestSha256RegExp),
+  "receiptSha256": zod.string().regex(updateOperationsWorkItemResponseTwoFieldPromotionReceiptsItemReceiptSha256RegExp),
+  "promotedAt": zod.coerce.date(),
+  "authoritativeEvidenceCreated": zod.boolean(),
+  "localDraftDeleted": zod.boolean()
+})).max(updateOperationsWorkItemResponseTwoFieldPromotionReceiptsMax).optional()
 }))
 
 
@@ -5355,6 +5533,18 @@ export const addOperationsWorkItemCommentResponseTwoStatusReasonHistoryItemReaso
 
 export const addOperationsWorkItemCommentResponseTwoStatusReasonHistoryMax = 100;
 
+export const addOperationsWorkItemCommentResponseTwoFieldPromotionReceiptsItemTargetRecordIdMax = 128;
+
+
+export const addOperationsWorkItemCommentResponseTwoFieldPromotionReceiptsItemTargetRecordIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const addOperationsWorkItemCommentResponseTwoFieldPromotionReceiptsItemTargetVersionMin = 2;
+
+export const addOperationsWorkItemCommentResponseTwoFieldPromotionReceiptsItemDraftVersionMax = 9007199254740991;
+
+export const addOperationsWorkItemCommentResponseTwoFieldPromotionReceiptsItemRequestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const addOperationsWorkItemCommentResponseTwoFieldPromotionReceiptsItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const addOperationsWorkItemCommentResponseTwoFieldPromotionReceiptsMax = 25;
+
 
 
 export const AddOperationsWorkItemCommentResponse = zod.object({
@@ -5402,8 +5592,129 @@ export const AddOperationsWorkItemCommentResponse = zod.object({
   "reason": zod.string().min(1).max(addOperationsWorkItemCommentResponseTwoStatusReasonHistoryItemReasonMax),
   "recordedByUserId": zod.string().uuid(),
   "recordedAt": zod.coerce.date()
-})).max(addOperationsWorkItemCommentResponseTwoStatusReasonHistoryMax)
+})).max(addOperationsWorkItemCommentResponseTwoStatusReasonHistoryMax),
+  "fieldPromotionReceipts": zod.array(zod.object({
+  "schema": zod.literal("valo.field-draft-promotion-receipt/v1"),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "targetRecordId": zod.string().min(1).max(addOperationsWorkItemCommentResponseTwoFieldPromotionReceiptsItemTargetRecordIdMax).regex(addOperationsWorkItemCommentResponseTwoFieldPromotionReceiptsItemTargetRecordIdRegExp),
+  "targetKind": zod.literal("work_item"),
+  "targetVersion": zod.number().min(addOperationsWorkItemCommentResponseTwoFieldPromotionReceiptsItemTargetVersionMin),
+  "draftId": zod.string().uuid(),
+  "draftVersion": zod.number().min(1).max(addOperationsWorkItemCommentResponseTwoFieldPromotionReceiptsItemDraftVersionMax),
+  "promotedByUserId": zod.string().uuid(),
+  "selectedFields": zod.union([zod.tuple([zod.literal("title")]),zod.tuple([zod.literal("note")]),zod.tuple([zod.literal("checklist")]),zod.tuple([zod.literal("title"),
+zod.literal("note")]),zod.tuple([zod.literal("title"),
+zod.literal("checklist")]),zod.tuple([zod.literal("note"),
+zod.literal("checklist")]),zod.tuple([zod.literal("title"),
+zod.literal("note"),
+zod.literal("checklist")])]).describe('One non-empty tuple in canonical title, note, checklist order.'),
+  "idempotencyKey": zod.string().uuid(),
+  "requestSha256": zod.string().regex(addOperationsWorkItemCommentResponseTwoFieldPromotionReceiptsItemRequestSha256RegExp),
+  "receiptSha256": zod.string().regex(addOperationsWorkItemCommentResponseTwoFieldPromotionReceiptsItemReceiptSha256RegExp),
+  "promotedAt": zod.coerce.date(),
+  "authoritativeEvidenceCreated": zod.boolean(),
+  "localDraftDeleted": zod.boolean()
+})).max(addOperationsWorkItemCommentResponseTwoFieldPromotionReceiptsMax).optional()
 }))
+
+
+/**
+ * Copies only the named operator's explicitly selected fields into one existing governed work item under target-version compare-and-swap. Each tenant, project, draft ID and draft-version tuple may be promoted to the target only once, even with a fresh Idempotency-Key. The response is a content-free receipt: no authoritative evidence is created and Valo cannot delete the browser-local encrypted draft.
+ * @summary Promote reviewed fields from one encrypted local draft revision
+ */
+export const PromoteFieldDraftToOperationsWorkItemParams = zod.object({
+  "id": zod.string().uuid(),
+  "recordId": zod.string().uuid().describe('Operations record UUID within the active tenant and project.')
+})
+
+export const PromoteFieldDraftToOperationsWorkItemHeader = zod.object({
+  "Idempotency-Key": zod.string().uuid().describe('Stable UUID persisted with the content-free promotion receipt.')
+})
+
+export const promoteFieldDraftToOperationsWorkItemBodyFourDraftVersionMax = 9007199254740991;
+
+export const promoteFieldDraftToOperationsWorkItemBodyFourExpectedTargetVersionMax = 9007199254740991;
+
+export const promoteFieldDraftToOperationsWorkItemBodyFourValuesTitleMax = 160;
+
+export const promoteFieldDraftToOperationsWorkItemBodyFourValuesNoteMax = 4000;
+
+export const promoteFieldDraftToOperationsWorkItemBodyFourValuesChecklistItemIdMax = 128;
+
+
+export const promoteFieldDraftToOperationsWorkItemBodyFourValuesChecklistItemIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const promoteFieldDraftToOperationsWorkItemBodyFourValuesChecklistItemLabelMax = 160;
+
+export const promoteFieldDraftToOperationsWorkItemBodyFourValuesChecklistMax = 20;
+
+
+
+export const PromoteFieldDraftToOperationsWorkItemBody = zod.unknown().and(zod.unknown()).and(zod.unknown()).and(zod.object({
+  "schema": zod.literal("valo.encrypted-field-promotion/v1"),
+  "draft": zod.object({
+  "id": zod.string().uuid(),
+  "version": zod.number().min(1).max(promoteFieldDraftToOperationsWorkItemBodyFourDraftVersionMax),
+  "organisationId": zod.string().uuid(),
+  "actorUserId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "kind": zod.enum(['site_visit_note', 'delivery_receipt_note', 'checklist_progress']),
+  "updatedAt": zod.date()
+}).strict(),
+  "expectedTargetVersion": zod.number().min(1).max(promoteFieldDraftToOperationsWorkItemBodyFourExpectedTargetVersionMax),
+  "selectedFields": zod.union([zod.tuple([zod.literal("title")]),zod.tuple([zod.literal("note")]),zod.tuple([zod.literal("checklist")]),zod.tuple([zod.literal("title"),
+zod.literal("note")]),zod.tuple([zod.literal("title"),
+zod.literal("checklist")]),zod.tuple([zod.literal("note"),
+zod.literal("checklist")]),zod.tuple([zod.literal("title"),
+zod.literal("note"),
+zod.literal("checklist")])]).describe('One non-empty tuple in canonical title, note, checklist order.'),
+  "values": zod.object({
+  "title": zod.string().min(1).max(promoteFieldDraftToOperationsWorkItemBodyFourValuesTitleMax).optional(),
+  "note": zod.string().max(promoteFieldDraftToOperationsWorkItemBodyFourValuesNoteMax).optional(),
+  "checklist": zod.array(zod.object({
+  "id": zod.string().min(1).max(promoteFieldDraftToOperationsWorkItemBodyFourValuesChecklistItemIdMax).regex(promoteFieldDraftToOperationsWorkItemBodyFourValuesChecklistItemIdRegExp),
+  "label": zod.string().min(1).max(promoteFieldDraftToOperationsWorkItemBodyFourValuesChecklistItemLabelMax),
+  "completed": zod.boolean()
+}).strict()).max(promoteFieldDraftToOperationsWorkItemBodyFourValuesChecklistMax).optional()
+}).strict()
+}).strict())
+
+export const promoteFieldDraftToOperationsWorkItemResponseTargetRecordIdMax = 128;
+
+
+export const promoteFieldDraftToOperationsWorkItemResponseTargetRecordIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const promoteFieldDraftToOperationsWorkItemResponseTargetVersionMin = 2;
+
+export const promoteFieldDraftToOperationsWorkItemResponseDraftVersionMax = 9007199254740991;
+
+export const promoteFieldDraftToOperationsWorkItemResponseRequestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const promoteFieldDraftToOperationsWorkItemResponseReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const PromoteFieldDraftToOperationsWorkItemResponse = zod.object({
+  "schema": zod.literal("valo.field-draft-promotion-receipt/v1"),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "targetRecordId": zod.string().min(1).max(promoteFieldDraftToOperationsWorkItemResponseTargetRecordIdMax).regex(promoteFieldDraftToOperationsWorkItemResponseTargetRecordIdRegExp),
+  "targetKind": zod.literal("work_item"),
+  "targetVersion": zod.number().min(promoteFieldDraftToOperationsWorkItemResponseTargetVersionMin),
+  "draftId": zod.string().uuid(),
+  "draftVersion": zod.number().min(1).max(promoteFieldDraftToOperationsWorkItemResponseDraftVersionMax),
+  "promotedByUserId": zod.string().uuid(),
+  "selectedFields": zod.union([zod.tuple([zod.literal("title")]),zod.tuple([zod.literal("note")]),zod.tuple([zod.literal("checklist")]),zod.tuple([zod.literal("title"),
+zod.literal("note")]),zod.tuple([zod.literal("title"),
+zod.literal("checklist")]),zod.tuple([zod.literal("note"),
+zod.literal("checklist")]),zod.tuple([zod.literal("title"),
+zod.literal("note"),
+zod.literal("checklist")])]).describe('One non-empty tuple in canonical title, note, checklist order.'),
+  "idempotencyKey": zod.string().uuid(),
+  "requestSha256": zod.string().regex(promoteFieldDraftToOperationsWorkItemResponseRequestSha256RegExp),
+  "receiptSha256": zod.string().regex(promoteFieldDraftToOperationsWorkItemResponseReceiptSha256RegExp),
+  "promotedAt": zod.date(),
+  "authoritativeEvidenceCreated": zod.literal(false),
+  "localDraftDeleted": zod.literal(false),
+  "replayed": zod.boolean()
+}).strict()
 
 
 /**
@@ -5464,6 +5775,18 @@ export const decideOperationsWorkItemApprovalResponseTwoStatusReasonHistoryItemR
 
 export const decideOperationsWorkItemApprovalResponseTwoStatusReasonHistoryMax = 100;
 
+export const decideOperationsWorkItemApprovalResponseTwoFieldPromotionReceiptsItemTargetRecordIdMax = 128;
+
+
+export const decideOperationsWorkItemApprovalResponseTwoFieldPromotionReceiptsItemTargetRecordIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const decideOperationsWorkItemApprovalResponseTwoFieldPromotionReceiptsItemTargetVersionMin = 2;
+
+export const decideOperationsWorkItemApprovalResponseTwoFieldPromotionReceiptsItemDraftVersionMax = 9007199254740991;
+
+export const decideOperationsWorkItemApprovalResponseTwoFieldPromotionReceiptsItemRequestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const decideOperationsWorkItemApprovalResponseTwoFieldPromotionReceiptsItemReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const decideOperationsWorkItemApprovalResponseTwoFieldPromotionReceiptsMax = 25;
+
 
 
 export const DecideOperationsWorkItemApprovalResponse = zod.object({
@@ -5511,7 +5834,30 @@ export const DecideOperationsWorkItemApprovalResponse = zod.object({
   "reason": zod.string().min(1).max(decideOperationsWorkItemApprovalResponseTwoStatusReasonHistoryItemReasonMax),
   "recordedByUserId": zod.string().uuid(),
   "recordedAt": zod.coerce.date()
-})).max(decideOperationsWorkItemApprovalResponseTwoStatusReasonHistoryMax)
+})).max(decideOperationsWorkItemApprovalResponseTwoStatusReasonHistoryMax),
+  "fieldPromotionReceipts": zod.array(zod.object({
+  "schema": zod.literal("valo.field-draft-promotion-receipt/v1"),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "targetRecordId": zod.string().min(1).max(decideOperationsWorkItemApprovalResponseTwoFieldPromotionReceiptsItemTargetRecordIdMax).regex(decideOperationsWorkItemApprovalResponseTwoFieldPromotionReceiptsItemTargetRecordIdRegExp),
+  "targetKind": zod.literal("work_item"),
+  "targetVersion": zod.number().min(decideOperationsWorkItemApprovalResponseTwoFieldPromotionReceiptsItemTargetVersionMin),
+  "draftId": zod.string().uuid(),
+  "draftVersion": zod.number().min(1).max(decideOperationsWorkItemApprovalResponseTwoFieldPromotionReceiptsItemDraftVersionMax),
+  "promotedByUserId": zod.string().uuid(),
+  "selectedFields": zod.union([zod.tuple([zod.literal("title")]),zod.tuple([zod.literal("note")]),zod.tuple([zod.literal("checklist")]),zod.tuple([zod.literal("title"),
+zod.literal("note")]),zod.tuple([zod.literal("title"),
+zod.literal("checklist")]),zod.tuple([zod.literal("note"),
+zod.literal("checklist")]),zod.tuple([zod.literal("title"),
+zod.literal("note"),
+zod.literal("checklist")])]).describe('One non-empty tuple in canonical title, note, checklist order.'),
+  "idempotencyKey": zod.string().uuid(),
+  "requestSha256": zod.string().regex(decideOperationsWorkItemApprovalResponseTwoFieldPromotionReceiptsItemRequestSha256RegExp),
+  "receiptSha256": zod.string().regex(decideOperationsWorkItemApprovalResponseTwoFieldPromotionReceiptsItemReceiptSha256RegExp),
+  "promotedAt": zod.coerce.date(),
+  "authoritativeEvidenceCreated": zod.boolean(),
+  "localDraftDeleted": zod.boolean()
+})).max(decideOperationsWorkItemApprovalResponseTwoFieldPromotionReceiptsMax).optional()
 }))
 
 
@@ -7934,6 +8280,132 @@ export const CreateClientUploadIntentResponse = zod.object({
 
 
 /**
+ * The named current direct recipient requests a 15-minute lease for the latest active, acknowledged request-slot intent at the exact record version. The 4,096-byte JSON body carries identity metadata only; raw file bytes are accepted only by the returned signed object-storage PUT URL, never by this API. Issuance is server-disabled by default and returns 503 until every platform, provider and tenant activation gate is verified; publishing this contract does not activate production use. Once activated, the signed window is at most 840 seconds and closes before the database lease; bounded post-expiry reconciliation is still required and is not a provider-level create-only guarantee. Reuse of Idempotency-Key is allowed only for the exact tenant, actor, request, slot, intent, version and declared file material. Valo sends no external message and exposes no generic client upload portal.
+ * @summary Issue a purpose-bound direct-to-storage upload lease
+ */
+export const IssueClientActionUploadLeaseParams = zod.object({
+  "id": zod.string().uuid(),
+  "recordId": zod.string().uuid().describe('Operations record UUID within the active tenant and project.'),
+  "slotId": zod.string().uuid()
+})
+
+export const issueClientActionUploadLeaseHeaderIdempotencyKeyMin = 16;
+export const issueClientActionUploadLeaseHeaderIdempotencyKeyMax = 128;
+
+
+export const issueClientActionUploadLeaseHeaderIdempotencyKeyRegExp = new RegExp('^[^\\s\\u0000-\\u001f\\u007f\\ud800-\\udfff](?:[^\\u0000-\\u001f\\u007f\\ud800-\\udfff]*[^\\s\\u0000-\\u001f\\u007f\\ud800-\\udfff])$');
+
+
+export const IssueClientActionUploadLeaseHeader = zod.object({
+  "Idempotency-Key": zod.string().min(issueClientActionUploadLeaseHeaderIdempotencyKeyMin).max(issueClientActionUploadLeaseHeaderIdempotencyKeyMax).regex(issueClientActionUploadLeaseHeaderIdempotencyKeyRegExp).describe('Stable 16-to-128-code-unit identity. Leading or trailing whitespace, control characters and unpaired UTF-16 surrogates are rejected; reuse is accepted only for the exact governed upload material.')
+})
+
+export const issueClientActionUploadLeaseBodyExpectedVersionMax = 9007199254740991;
+
+
+
+export const IssueClientActionUploadLeaseBody = zod.object({
+  "expectedVersion": zod.number().min(1).max(issueClientActionUploadLeaseBodyExpectedVersionMax).describe('Exact current evidence-request record version.'),
+  "intentId": zod.string().uuid().describe('Latest unfinalized intent in the named active request slot.')
+}).strict()
+
+export const issueClientActionUploadLeaseResponseOneRecordVersionMax = 9007199254740991;
+
+export const issueClientActionUploadLeaseResponseOneObjectPathMax = 512;
+
+
+export const issueClientActionUploadLeaseResponseOneObjectPathRegExp = new RegExp('^/objects/tenants/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/uploads/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$');
+export const issueClientActionUploadLeaseResponseOneUploadUrlMax = 8192;
+
+export const issueClientActionUploadLeaseResponseOneFilenameMax = 255;
+
+export const issueClientActionUploadLeaseResponseOneSizeBytesMax = 52428800;
+
+export const issueClientActionUploadLeaseResponseOneDeclaredSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const IssueClientActionUploadLeaseResponse = zod.object({
+  "leaseId": zod.string().uuid(),
+  "recordId": zod.string().uuid(),
+  "slotId": zod.string().uuid(),
+  "intentId": zod.string().uuid(),
+  "recordVersion": zod.number().min(1).max(issueClientActionUploadLeaseResponseOneRecordVersionMax),
+  "objectPath": zod.string().max(issueClientActionUploadLeaseResponseOneObjectPathMax).regex(issueClientActionUploadLeaseResponseOneObjectPathRegExp),
+  "uploadUrl": zod.string().url().max(issueClientActionUploadLeaseResponseOneUploadUrlMax).describe('HTTPS signed PUT URL; loopback HTTP is allowed only in local development.'),
+  "filename": zod.string().min(1).max(issueClientActionUploadLeaseResponseOneFilenameMax),
+  "contentType": zod.enum(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/zip', 'application/x-zip-compressed', 'image/png', 'image/jpeg']),
+  "sizeBytes": zod.number().min(1).max(issueClientActionUploadLeaseResponseOneSizeBytesMax),
+  "declaredSha256": zod.string().regex(issueClientActionUploadLeaseResponseOneDeclaredSha256RegExp),
+  "expiresAt": zod.date(),
+  "replayed": zod.union([zod.literal(true), zod.literal(false)]),
+  "lateRewriteClosure": zod.literal("bounded-cushion-and-post-expiry-reconcile"),
+  "rawFileAcceptedByApi": zod.literal(false),
+  "externalMessageSentByValo": zod.literal(false)
+}).strict()
+
+
+/**
+ * Revalidates the current direct recipient, project, request, latest active slot intent, exact record version, idempotency identity, lease and expiry before downloading the staged object once for exact size, SHA-256, MIME, signature and malware inspection. Successful create-only promotion is registered atomically as one document and version, attached only to the exact slot, and returned as a receipt; extraction is not started. The request contains no file bytes, sends no external message and cannot be used as a generic upload portal. Rejected or ambiguous storage dispositions fail closed and are reconciled by the governed lifecycle.
+ * @summary Inspect and atomically finalize a governed client upload
+ */
+export const FinalizeClientActionUploadLeaseParams = zod.object({
+  "id": zod.string().uuid(),
+  "recordId": zod.string().uuid().describe('Operations record UUID within the active tenant and project.'),
+  "slotId": zod.string().uuid(),
+  "leaseId": zod.string().uuid().describe('Deterministic governed upload-lease identifier bound to the exact idempotency identity.')
+})
+
+export const finalizeClientActionUploadLeaseHeaderIdempotencyKeyMin = 16;
+export const finalizeClientActionUploadLeaseHeaderIdempotencyKeyMax = 128;
+
+
+export const finalizeClientActionUploadLeaseHeaderIdempotencyKeyRegExp = new RegExp('^[^\\s\\u0000-\\u001f\\u007f\\ud800-\\udfff](?:[^\\u0000-\\u001f\\u007f\\ud800-\\udfff]*[^\\s\\u0000-\\u001f\\u007f\\ud800-\\udfff])$');
+
+
+export const FinalizeClientActionUploadLeaseHeader = zod.object({
+  "Idempotency-Key": zod.string().min(finalizeClientActionUploadLeaseHeaderIdempotencyKeyMin).max(finalizeClientActionUploadLeaseHeaderIdempotencyKeyMax).regex(finalizeClientActionUploadLeaseHeaderIdempotencyKeyRegExp).describe('Stable 16-to-128-code-unit identity. Leading or trailing whitespace, control characters and unpaired UTF-16 surrogates are rejected; reuse is accepted only for the exact governed upload material.')
+})
+
+export const finalizeClientActionUploadLeaseBodyExpectedVersionMax = 9007199254740991;
+
+
+
+export const FinalizeClientActionUploadLeaseBody = zod.object({
+  "expectedVersion": zod.number().min(1).max(finalizeClientActionUploadLeaseBodyExpectedVersionMax).describe('Exact current evidence-request record version.'),
+  "intentId": zod.string().uuid().describe('Latest unfinalized intent in the named active request slot.')
+}).strict()
+
+export const finalizeClientActionUploadLeaseResponseOneRecordVersionMax = 9007199254740991;
+
+export const finalizeClientActionUploadLeaseResponseOneFilenameMax = 255;
+
+export const finalizeClientActionUploadLeaseResponseOneSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const finalizeClientActionUploadLeaseResponseOneSizeBytesMax = 52428800;
+
+export const finalizeClientActionUploadLeaseResponseOneReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const FinalizeClientActionUploadLeaseResponse = zod.object({
+  "leaseId": zod.string().uuid(),
+  "recordId": zod.string().uuid(),
+  "slotId": zod.string().uuid(),
+  "intentId": zod.string().uuid(),
+  "recordVersion": zod.number().min(1).max(finalizeClientActionUploadLeaseResponseOneRecordVersionMax),
+  "documentId": zod.string().uuid(),
+  "documentVersionId": zod.string().uuid(),
+  "filename": zod.string().min(1).max(finalizeClientActionUploadLeaseResponseOneFilenameMax),
+  "sha256": zod.string().regex(finalizeClientActionUploadLeaseResponseOneSha256RegExp),
+  "sizeBytes": zod.number().min(1).max(finalizeClientActionUploadLeaseResponseOneSizeBytesMax),
+  "detectedMime": zod.enum(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/zip', 'image/png', 'image/jpeg']),
+  "receiptSha256": zod.string().regex(finalizeClientActionUploadLeaseResponseOneReceiptSha256RegExp),
+  "replayed": zod.union([zod.literal(true), zod.literal(false)]),
+  "extractionStarted": zod.literal(false),
+  "rawFileAcceptedByApi": zod.literal(false),
+  "externalMessageSentByValo": zod.literal(false)
+}).strict()
+
+
+/**
  * @summary Bind a canonical document to a recorded upload intent
  */
 export const AttachClientEvidenceDocumentParams = zod.object({
@@ -8738,6 +9210,804 @@ export const DecideOpportunitySourceCandidateResponse = zod.object({
   "reviewedAt": zod.date().nullable(),
   "decisionReason": zod.string().max(decideOpportunitySourceCandidateResponseDecisionReasonMax).nullable(),
   "tenderId": zod.string().uuid().nullable()
+}).strict()
+
+
+/**
+ * Revalidates the accepted source, tender, clients, lots, eligible reviewer directory and same-tender conflict boundary. The immutable register is capped at 250 lifetime handoff receipts per organisation and has no in-app archive. Confirmation must stop before capacity until a reviewed retention/storage migration is approved; audit events must never be deleted merely to recover capacity.
+ * @summary Prepare an accepted source for named-human pursuit confirmation
+ */
+export const PrepareOpportunityPursuitHandoffParams = zod.object({
+  "candidateId": zod.string().uuid().describe('Accepted opportunity-source candidate identifier.')
+})
+
+
+export const prepareOpportunityPursuitHandoffResponseOneSourceSourceReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const prepareOpportunityPursuitHandoffResponseOneSourceSourceLocatorMax = 2048;
+
+export const prepareOpportunityPursuitHandoffResponseOneSourceSourceLocatorSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+export const prepareOpportunityPursuitHandoffResponseOneSourceTitleMax = 512;
+
+export const prepareOpportunityPursuitHandoffResponseOneSourceBuyerMax = 512;
+
+export const prepareOpportunityPursuitHandoffResponseOneSourceReferenceMax = 128;
+
+export const prepareOpportunityPursuitHandoffResponseOneSourceRecordedByNameMax = 512;
+
+export const prepareOpportunityPursuitHandoffResponseOneSourceConfirmedByNameMax = 512;
+
+export const prepareOpportunityPursuitHandoffResponseOneClientsItemNameMax = 512;
+
+
+export const prepareOpportunityPursuitHandoffResponseOneClientsMax = 100;
+
+export const prepareOpportunityPursuitHandoffResponseOneReviewersItemNameMax = 512;
+
+export const prepareOpportunityPursuitHandoffResponseOneReviewersMax = 100;
+
+export const prepareOpportunityPursuitHandoffResponseOneLotsItemReferenceMax = 512;
+
+export const prepareOpportunityPursuitHandoffResponseOneLotsItemTitleMax = 512;
+
+
+export const prepareOpportunityPursuitHandoffResponseOneLotsMax = 100;
+
+export const prepareOpportunityPursuitHandoffResponseOneConflictBoundarySha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const prepareOpportunityPursuitHandoffResponseOneConflictBoundaryMatchesItemLotMax = 512;
+
+
+export const prepareOpportunityPursuitHandoffResponseOneConflictBoundaryMatchesMax = 100;
+
+
+
+export const prepareOpportunityPursuitHandoffResponseTwoReceiptConfirmedLotReferenceMax = 512;
+
+export const prepareOpportunityPursuitHandoffResponseTwoReceiptSourceReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const prepareOpportunityPursuitHandoffResponseTwoReceiptSourceLocatorSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const prepareOpportunityPursuitHandoffResponseTwoReceiptConfirmedBuyerMax = 512;
+
+export const prepareOpportunityPursuitHandoffResponseTwoReceiptConfirmedReferenceMax = 128;
+
+export const prepareOpportunityPursuitHandoffResponseTwoReceiptConfirmationNoteMax = 1024;
+
+export const prepareOpportunityPursuitHandoffResponseTwoReceiptConfirmedByNameMax = 512;
+
+export const prepareOpportunityPursuitHandoffResponseTwoReceiptConflictBoundarySha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const prepareOpportunityPursuitHandoffResponseTwoReceiptIdempotencyKeySha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const prepareOpportunityPursuitHandoffResponseTwoReceiptRequestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const prepareOpportunityPursuitHandoffResponseTwoReceiptReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const PrepareOpportunityPursuitHandoffResponse = zod.union([zod.object({
+  "state": zod.literal("ready"),
+  "source": zod.object({
+  "candidateId": zod.string().uuid(),
+  "candidateVersion": zod.number().min(1),
+  "sourceReceiptSha256": zod.string().regex(prepareOpportunityPursuitHandoffResponseOneSourceSourceReceiptSha256RegExp),
+  "sourceLocator": zod.string().min(1).max(prepareOpportunityPursuitHandoffResponseOneSourceSourceLocatorMax),
+  "sourceLocatorSha256": zod.string().regex(prepareOpportunityPursuitHandoffResponseOneSourceSourceLocatorSha256RegExp),
+  "tenderId": zod.string().uuid(),
+  "tenderVersion": zod.number().min(1),
+  "title": zod.string().min(1).max(prepareOpportunityPursuitHandoffResponseOneSourceTitleMax),
+  "buyer": zod.string().min(1).max(prepareOpportunityPursuitHandoffResponseOneSourceBuyerMax),
+  "reference": zod.string().min(1).max(prepareOpportunityPursuitHandoffResponseOneSourceReferenceMax),
+  "submissionDeadline": zod.date().nullable(),
+  "recordedByName": zod.string().min(1).max(prepareOpportunityPursuitHandoffResponseOneSourceRecordedByNameMax),
+  "confirmedByName": zod.string().min(1).max(prepareOpportunityPursuitHandoffResponseOneSourceConfirmedByNameMax)
+}).strict(),
+  "clients": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string().min(1).max(prepareOpportunityPursuitHandoffResponseOneClientsItemNameMax),
+  "version": zod.number().min(1)
+}).strict()).max(prepareOpportunityPursuitHandoffResponseOneClientsMax),
+  "reviewers": zod.array(zod.object({
+  "userId": zod.string().uuid(),
+  "name": zod.string().min(1).max(prepareOpportunityPursuitHandoffResponseOneReviewersItemNameMax)
+}).strict()).max(prepareOpportunityPursuitHandoffResponseOneReviewersMax),
+  "lots": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "reference": zod.string().min(1).max(prepareOpportunityPursuitHandoffResponseOneLotsItemReferenceMax),
+  "title": zod.string().max(prepareOpportunityPursuitHandoffResponseOneLotsItemTitleMax).nullable(),
+  "submissionDeadline": zod.date().nullable(),
+  "version": zod.number().min(1)
+}).strict()).max(prepareOpportunityPursuitHandoffResponseOneLotsMax),
+  "conflictBoundary": zod.object({
+  "sha256": zod.string().regex(prepareOpportunityPursuitHandoffResponseOneConflictBoundarySha256RegExp),
+  "matches": zod.array(zod.object({
+  "projectId": zod.string().uuid(),
+  "lot": zod.string().max(prepareOpportunityPursuitHandoffResponseOneConflictBoundaryMatchesItemLotMax).nullable(),
+  "status": zod.enum(['intake', 'extraction', 'review', 'defects', 'reporting', 'signed_off']),
+  "version": zod.number().min(1)
+}).strict()).max(prepareOpportunityPursuitHandoffResponseOneConflictBoundaryMatchesMax),
+  "limit": zod.literal(100),
+  "truncated": zod.literal(false)
+}).strict(),
+  "authority": zod.object({
+  "sourceReopenRequired": zod.literal(true),
+  "namedHumanConfirmationRequired": zod.literal(true),
+  "makerCheckerRequired": zod.literal(true),
+  "conflictRevalidationRequired": zod.literal(true),
+  "createdPursuitState": zod.literal("intake"),
+  "pursuitActivated": zod.literal(false),
+  "providerFetchPerformed": zod.literal(false),
+  "autonomousPursuitActivationAllowed": zod.literal(false)
+}).strict()
+}).strict(),zod.object({
+  "state": zod.literal("completed"),
+  "receipt": zod.object({
+  "schema": zod.literal("valo.opportunity-pursuit-handoff/v1"),
+  "organisationId": zod.string().uuid(),
+  "candidateId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "clientId": zod.string().uuid(),
+  "clientVersion": zod.number().min(1),
+  "tenderId": zod.string().uuid(),
+  "tenderLotId": zod.string().uuid().nullable(),
+  "tenderLotVersion": zod.number().min(1).nullable(),
+  "confirmedLotReference": zod.string().min(1).max(prepareOpportunityPursuitHandoffResponseTwoReceiptConfirmedLotReferenceMax).nullable(),
+  "reviewerUserId": zod.string().uuid(),
+  "sourceReceiptSha256": zod.string().regex(prepareOpportunityPursuitHandoffResponseTwoReceiptSourceReceiptSha256RegExp),
+  "sourceLocatorSha256": zod.string().regex(prepareOpportunityPursuitHandoffResponseTwoReceiptSourceLocatorSha256RegExp),
+  "confirmedBuyer": zod.string().min(1).max(prepareOpportunityPursuitHandoffResponseTwoReceiptConfirmedBuyerMax),
+  "confirmedReference": zod.string().min(1).max(prepareOpportunityPursuitHandoffResponseTwoReceiptConfirmedReferenceMax),
+  "confirmedSubmissionDeadline": zod.date().nullable(),
+  "confirmationNote": zod.string().min(1).max(prepareOpportunityPursuitHandoffResponseTwoReceiptConfirmationNoteMax),
+  "confirmedByUserId": zod.string().uuid(),
+  "confirmedByName": zod.string().min(1).max(prepareOpportunityPursuitHandoffResponseTwoReceiptConfirmedByNameMax),
+  "confirmedAt": zod.date(),
+  "conflictBoundarySha256": zod.string().regex(prepareOpportunityPursuitHandoffResponseTwoReceiptConflictBoundarySha256RegExp),
+  "conflictStatus": zod.literal("clear"),
+  "matchedProjectId": zod.null(),
+  "projectStatus": zod.literal("intake"),
+  "idempotencyKeySha256": zod.string().regex(prepareOpportunityPursuitHandoffResponseTwoReceiptIdempotencyKeySha256RegExp),
+  "requestSha256": zod.string().regex(prepareOpportunityPursuitHandoffResponseTwoReceiptRequestSha256RegExp),
+  "receiptSha256": zod.string().regex(prepareOpportunityPursuitHandoffResponseTwoReceiptReceiptSha256RegExp)
+}).strict(),
+  "authority": zod.object({
+  "sourceReopenRequired": zod.literal(true),
+  "namedHumanConfirmationRequired": zod.literal(true),
+  "makerCheckerRequired": zod.literal(true),
+  "conflictRevalidationRequired": zod.literal(true),
+  "createdPursuitState": zod.literal("intake"),
+  "pursuitActivated": zod.literal(false),
+  "providerFetchPerformed": zod.literal(false),
+  "autonomousPursuitActivationAllowed": zod.literal(false)
+}).strict()
+}).strict()])
+
+
+/**
+ * A named maker confirms the official source after reopening it and names a different eligible pursuit reviewer. Client, tender, optional lot and same-tender conflict versions are rechecked inside the write boundary. The 16,384-byte request creates only an intake-state pursuit and never activates a pursuit or performs a provider fetch. The immutable register is capped at 250 lifetime handoff receipts per organisation and has no in-app archive; a reviewed retention/storage migration is required before recovering capacity, and audit events must never be deleted.
+ * @summary Create one intake-state pursuit from a revalidated source
+ */
+export const ConfirmOpportunityPursuitHandoffParams = zod.object({
+  "candidateId": zod.string().uuid().describe('Accepted opportunity-source candidate identifier.')
+})
+
+export const confirmOpportunityPursuitHandoffHeaderIdempotencyKeyMin = 16;
+export const confirmOpportunityPursuitHandoffHeaderIdempotencyKeyMax = 128;
+
+
+export const confirmOpportunityPursuitHandoffHeaderIdempotencyKeyRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$');
+
+
+export const ConfirmOpportunityPursuitHandoffHeader = zod.object({
+  "Idempotency-Key": zod.string().min(confirmOpportunityPursuitHandoffHeaderIdempotencyKeyMin).max(confirmOpportunityPursuitHandoffHeaderIdempotencyKeyMax).regex(confirmOpportunityPursuitHandoffHeaderIdempotencyKeyRegExp).describe('Stable confirmation identity; reuse is accepted only for the exact same request.')
+})
+
+
+export const confirmOpportunityPursuitHandoffBodyTwoExpectedSourceReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+export const confirmOpportunityPursuitHandoffBodyTwoExpectedConflictBoundarySha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const confirmOpportunityPursuitHandoffBodyTwoConfirmedLotReferenceMax = 512;
+
+export const confirmOpportunityPursuitHandoffBodyTwoConfirmedBuyerMax = 512;
+
+export const confirmOpportunityPursuitHandoffBodyTwoConfirmedReferenceMax = 128;
+
+export const confirmOpportunityPursuitHandoffBodyTwoConfirmationNoteMax = 1024;
+
+
+
+export const ConfirmOpportunityPursuitHandoffBody = zod.unknown().and(zod.object({
+  "expectedCandidateVersion": zod.number().min(1),
+  "expectedSourceReceiptSha256": zod.string().regex(confirmOpportunityPursuitHandoffBodyTwoExpectedSourceReceiptSha256RegExp),
+  "expectedTenderVersion": zod.number().min(1),
+  "expectedConflictBoundarySha256": zod.string().regex(confirmOpportunityPursuitHandoffBodyTwoExpectedConflictBoundarySha256RegExp),
+  "clientId": zod.string().uuid(),
+  "expectedClientVersion": zod.number().min(1),
+  "tenderLotId": zod.string().uuid().nullable(),
+  "expectedTenderLotVersion": zod.number().min(1).nullable(),
+  "confirmedLotReference": zod.string().min(1).max(confirmOpportunityPursuitHandoffBodyTwoConfirmedLotReferenceMax).nullable(),
+  "reviewerUserId": zod.string().uuid(),
+  "officialSourceReopened": zod.literal(true),
+  "confirmedBuyer": zod.string().min(1).max(confirmOpportunityPursuitHandoffBodyTwoConfirmedBuyerMax),
+  "confirmedReference": zod.string().min(1).max(confirmOpportunityPursuitHandoffBodyTwoConfirmedReferenceMax),
+  "confirmedSubmissionDeadline": zod.date().nullable(),
+  "confirmationNote": zod.string().min(1).max(confirmOpportunityPursuitHandoffBodyTwoConfirmationNoteMax)
+}).strict())
+
+
+
+export const confirmOpportunityPursuitHandoffResponseReceiptConfirmedLotReferenceMax = 512;
+
+export const confirmOpportunityPursuitHandoffResponseReceiptSourceReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const confirmOpportunityPursuitHandoffResponseReceiptSourceLocatorSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const confirmOpportunityPursuitHandoffResponseReceiptConfirmedBuyerMax = 512;
+
+export const confirmOpportunityPursuitHandoffResponseReceiptConfirmedReferenceMax = 128;
+
+export const confirmOpportunityPursuitHandoffResponseReceiptConfirmationNoteMax = 1024;
+
+export const confirmOpportunityPursuitHandoffResponseReceiptConfirmedByNameMax = 512;
+
+export const confirmOpportunityPursuitHandoffResponseReceiptConflictBoundarySha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const confirmOpportunityPursuitHandoffResponseReceiptIdempotencyKeySha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const confirmOpportunityPursuitHandoffResponseReceiptRequestSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const confirmOpportunityPursuitHandoffResponseReceiptReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const ConfirmOpportunityPursuitHandoffResponse = zod.object({
+  "outcome": zod.enum(['created', 'replayed']),
+  "receipt": zod.object({
+  "schema": zod.literal("valo.opportunity-pursuit-handoff/v1"),
+  "organisationId": zod.string().uuid(),
+  "candidateId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "clientId": zod.string().uuid(),
+  "clientVersion": zod.number().min(1),
+  "tenderId": zod.string().uuid(),
+  "tenderLotId": zod.string().uuid().nullable(),
+  "tenderLotVersion": zod.number().min(1).nullable(),
+  "confirmedLotReference": zod.string().min(1).max(confirmOpportunityPursuitHandoffResponseReceiptConfirmedLotReferenceMax).nullable(),
+  "reviewerUserId": zod.string().uuid(),
+  "sourceReceiptSha256": zod.string().regex(confirmOpportunityPursuitHandoffResponseReceiptSourceReceiptSha256RegExp),
+  "sourceLocatorSha256": zod.string().regex(confirmOpportunityPursuitHandoffResponseReceiptSourceLocatorSha256RegExp),
+  "confirmedBuyer": zod.string().min(1).max(confirmOpportunityPursuitHandoffResponseReceiptConfirmedBuyerMax),
+  "confirmedReference": zod.string().min(1).max(confirmOpportunityPursuitHandoffResponseReceiptConfirmedReferenceMax),
+  "confirmedSubmissionDeadline": zod.date().nullable(),
+  "confirmationNote": zod.string().min(1).max(confirmOpportunityPursuitHandoffResponseReceiptConfirmationNoteMax),
+  "confirmedByUserId": zod.string().uuid(),
+  "confirmedByName": zod.string().min(1).max(confirmOpportunityPursuitHandoffResponseReceiptConfirmedByNameMax),
+  "confirmedAt": zod.date(),
+  "conflictBoundarySha256": zod.string().regex(confirmOpportunityPursuitHandoffResponseReceiptConflictBoundarySha256RegExp),
+  "conflictStatus": zod.literal("clear"),
+  "matchedProjectId": zod.null(),
+  "projectStatus": zod.literal("intake"),
+  "idempotencyKeySha256": zod.string().regex(confirmOpportunityPursuitHandoffResponseReceiptIdempotencyKeySha256RegExp),
+  "requestSha256": zod.string().regex(confirmOpportunityPursuitHandoffResponseReceiptRequestSha256RegExp),
+  "receiptSha256": zod.string().regex(confirmOpportunityPursuitHandoffResponseReceiptReceiptSha256RegExp)
+}).strict(),
+  "authority": zod.object({
+  "sourceReopenRequired": zod.literal(true),
+  "namedHumanConfirmationRequired": zod.literal(true),
+  "makerCheckerRequired": zod.literal(true),
+  "conflictRevalidationRequired": zod.literal(true),
+  "createdPursuitState": zod.literal("intake"),
+  "pursuitActivated": zod.literal(false),
+  "providerFetchPerformed": zod.literal(false),
+  "autonomousPursuitActivationAllowed": zod.literal(false)
+}).strict()
+}).strict()
+
+
+/**
+ * Returns a bounded receipt-backed internal renewal register. Internal reminders are register records only; Valo sends no external message and records no external delivery receipt.
+ * @summary Read the project evidence-renewal register
+ */
+export const GetEvidenceRenewalSnapshotParams = zod.object({
+  "projectId": zod.string().uuid()
+})
+
+export const getEvidenceRenewalSnapshotResponseItemsItemArtefactTypeMax = 512;
+
+export const getEvidenceRenewalSnapshotResponseItemsItemOwnerNameMax = 512;
+
+export const getEvidenceRenewalSnapshotResponseItemsItemVerifierNameMax = 512;
+
+export const getEvidenceRenewalSnapshotResponseItemsItemInternalReminderRecordedReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getEvidenceRenewalSnapshotResponseItemsItemInternalReminderResolvedReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getEvidenceRenewalSnapshotResponseItemsItemAffectedPursuitsItemTitleMax = 512;
+
+export const getEvidenceRenewalSnapshotResponseItemsItemAffectedPursuitsMax = 25;
+
+export const getEvidenceRenewalSnapshotResponseItemsItemVersionMax = 3;
+
+
+export const getEvidenceRenewalSnapshotResponseItemsItemStagedReplacementOneSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+export const getEvidenceRenewalSnapshotResponseItemsItemLatestReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getEvidenceRenewalSnapshotResponseItemsItemPromotionReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getEvidenceRenewalSnapshotResponseItemsItemReceiptsItemVersionMax = 3;
+
+export const getEvidenceRenewalSnapshotResponseItemsItemReceiptsItemSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const getEvidenceRenewalSnapshotResponseItemsItemReceiptsMax = 3;
+
+export const getEvidenceRenewalSnapshotResponseItemsMax = 100;
+
+
+
+export const GetEvidenceRenewalSnapshotResponse = zod.object({
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "generatedAt": zod.date(),
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "vaultItemId": zod.string().uuid(),
+  "artefactType": zod.string().min(1).max(getEvidenceRenewalSnapshotResponseItemsItemArtefactTypeMax),
+  "owner": zod.object({
+  "userId": zod.string().uuid(),
+  "name": zod.string().min(1).max(getEvidenceRenewalSnapshotResponseItemsItemOwnerNameMax),
+  "current": zod.boolean()
+}).strict(),
+  "verifier": zod.object({
+  "userId": zod.string().uuid(),
+  "name": zod.string().min(1).max(getEvidenceRenewalSnapshotResponseItemsItemVerifierNameMax),
+  "current": zod.boolean()
+}).strict(),
+  "targetDate": zod.date(),
+  "internalReminder": zod.object({
+  "channel": zod.literal("valo_evidence_renewal_register"),
+  "assignedOwnerUserId": zod.string().uuid(),
+  "dueAt": zod.date(),
+  "status": zod.enum(['open', 'resolved']),
+  "recordedReceiptSha256": zod.string().regex(getEvidenceRenewalSnapshotResponseItemsItemInternalReminderRecordedReceiptSha256RegExp),
+  "resolvedReceiptSha256": zod.string().regex(getEvidenceRenewalSnapshotResponseItemsItemInternalReminderResolvedReceiptSha256RegExp).nullable(),
+  "externalDeliveryReceipt": zod.null()
+}).strict(),
+  "affectedPursuits": zod.array(zod.object({
+  "projectId": zod.string().uuid(),
+  "impact": zod.enum(['blocked', 'at_risk', 'monitor']),
+  "title": zod.string().min(1).max(getEvidenceRenewalSnapshotResponseItemsItemAffectedPursuitsItemTitleMax)
+}).strict()).min(1).max(getEvidenceRenewalSnapshotResponseItemsItemAffectedPursuitsMax),
+  "status": zod.enum(['planned', 'replacement_staged', 'promoted', 'rejected']),
+  "version": zod.number().min(1).max(getEvidenceRenewalSnapshotResponseItemsItemVersionMax),
+  "stagedReplacement": zod.union([zod.object({
+  "documentId": zod.string().uuid(),
+  "documentVersionId": zod.string().uuid(),
+  "documentVersionNumber": zod.number().min(1),
+  "sha256": zod.string().regex(getEvidenceRenewalSnapshotResponseItemsItemStagedReplacementOneSha256RegExp),
+  "issueDate": zod.date(),
+  "expiryDate": zod.date(),
+  "expectedVaultItemVersion": zod.number().min(1),
+  "stagedByUserId": zod.string().uuid(),
+  "stagedAt": zod.date()
+}).strict(),zod.null()]),
+  "reviewReasonCode": zod.union([zod.literal('replacement_verified'),zod.literal('incorrect_document'),zod.literal('expiry_unacceptable'),zod.literal('quality_issue'),zod.literal(null)]).nullable(),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date(),
+  "latestReceiptSha256": zod.string().regex(getEvidenceRenewalSnapshotResponseItemsItemLatestReceiptSha256RegExp),
+  "promotionReceiptSha256": zod.string().regex(getEvidenceRenewalSnapshotResponseItemsItemPromotionReceiptSha256RegExp).nullable(),
+  "receipts": zod.array(zod.object({
+  "version": zod.number().min(1).max(getEvidenceRenewalSnapshotResponseItemsItemReceiptsItemVersionMax),
+  "kind": zod.enum(['plan_created', 'replacement_staged', 'replacement_reviewed']),
+  "occurredAt": zod.date(),
+  "actorUserId": zod.string().uuid(),
+  "sha256": zod.string().regex(getEvidenceRenewalSnapshotResponseItemsItemReceiptsItemSha256RegExp)
+}).strict()).min(1).max(getEvidenceRenewalSnapshotResponseItemsItemReceiptsMax),
+  "externalMessageSent": zod.literal(false)
+}).strict()).max(getEvidenceRenewalSnapshotResponseItemsMax),
+  "limit": zod.literal(100),
+  "truncated": zod.literal(false),
+  "externalMessagingConnected": zod.literal(false),
+  "authorityNote": zod.literal("This register records a receipt-backed internal due reminder and named-human evidence-renewal workflow. It does not send an external message, contact an issuer or client, approve a pursuit, or claim delivery outside Valo.")
+}).strict()
+
+
+/**
+ * Creates an internal due reminder and immutable plan receipt after validating current direct evidence-write authority, a distinct eligible verifier, the canonical vault item and all same-client non-archived affected pursuits. It sends no external message or delivery.
+ * @summary Create one owner-and-verifier renewal plan
+ */
+export const CreateEvidenceRenewalPlanParams = zod.object({
+  "projectId": zod.string().uuid()
+})
+
+export const createEvidenceRenewalPlanBodyAffectedPursuitsMax = 25;
+
+export const createEvidenceRenewalPlanBodyIdempotencyKeyMin = 8;
+export const createEvidenceRenewalPlanBodyIdempotencyKeyMax = 128;
+
+
+export const createEvidenceRenewalPlanBodyIdempotencyKeyRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$');
+
+
+export const CreateEvidenceRenewalPlanBody = zod.object({
+  "vaultItemId": zod.string().uuid(),
+  "ownerUserId": zod.string().uuid(),
+  "verifierUserId": zod.string().uuid(),
+  "targetDate": zod.date(),
+  "affectedPursuits": zod.array(zod.object({
+  "projectId": zod.string().uuid(),
+  "impact": zod.enum(['blocked', 'at_risk', 'monitor'])
+}).strict()).min(1).max(createEvidenceRenewalPlanBodyAffectedPursuitsMax),
+  "idempotencyKey": zod.string().min(createEvidenceRenewalPlanBodyIdempotencyKeyMin).max(createEvidenceRenewalPlanBodyIdempotencyKeyMax).regex(createEvidenceRenewalPlanBodyIdempotencyKeyRegExp)
+}).strict()
+
+export const createEvidenceRenewalPlanResponsePlanArtefactTypeMax = 512;
+
+export const createEvidenceRenewalPlanResponsePlanOwnerNameMax = 512;
+
+export const createEvidenceRenewalPlanResponsePlanVerifierNameMax = 512;
+
+export const createEvidenceRenewalPlanResponsePlanInternalReminderRecordedReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createEvidenceRenewalPlanResponsePlanInternalReminderResolvedReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createEvidenceRenewalPlanResponsePlanAffectedPursuitsItemTitleMax = 512;
+
+export const createEvidenceRenewalPlanResponsePlanAffectedPursuitsMax = 25;
+
+export const createEvidenceRenewalPlanResponsePlanVersionMax = 3;
+
+
+export const createEvidenceRenewalPlanResponsePlanStagedReplacementOneSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+export const createEvidenceRenewalPlanResponsePlanLatestReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createEvidenceRenewalPlanResponsePlanPromotionReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createEvidenceRenewalPlanResponsePlanReceiptsItemVersionMax = 3;
+
+export const createEvidenceRenewalPlanResponsePlanReceiptsItemSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const createEvidenceRenewalPlanResponsePlanReceiptsMax = 3;
+
+
+
+export const CreateEvidenceRenewalPlanResponse = zod.object({
+  "outcome": zod.literal("created"),
+  "plan": zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "vaultItemId": zod.string().uuid(),
+  "artefactType": zod.string().min(1).max(createEvidenceRenewalPlanResponsePlanArtefactTypeMax),
+  "owner": zod.object({
+  "userId": zod.string().uuid(),
+  "name": zod.string().min(1).max(createEvidenceRenewalPlanResponsePlanOwnerNameMax),
+  "current": zod.boolean()
+}).strict(),
+  "verifier": zod.object({
+  "userId": zod.string().uuid(),
+  "name": zod.string().min(1).max(createEvidenceRenewalPlanResponsePlanVerifierNameMax),
+  "current": zod.boolean()
+}).strict(),
+  "targetDate": zod.date(),
+  "internalReminder": zod.object({
+  "channel": zod.literal("valo_evidence_renewal_register"),
+  "assignedOwnerUserId": zod.string().uuid(),
+  "dueAt": zod.date(),
+  "status": zod.enum(['open', 'resolved']),
+  "recordedReceiptSha256": zod.string().regex(createEvidenceRenewalPlanResponsePlanInternalReminderRecordedReceiptSha256RegExp),
+  "resolvedReceiptSha256": zod.string().regex(createEvidenceRenewalPlanResponsePlanInternalReminderResolvedReceiptSha256RegExp).nullable(),
+  "externalDeliveryReceipt": zod.null()
+}).strict(),
+  "affectedPursuits": zod.array(zod.object({
+  "projectId": zod.string().uuid(),
+  "impact": zod.enum(['blocked', 'at_risk', 'monitor']),
+  "title": zod.string().min(1).max(createEvidenceRenewalPlanResponsePlanAffectedPursuitsItemTitleMax)
+}).strict()).min(1).max(createEvidenceRenewalPlanResponsePlanAffectedPursuitsMax),
+  "status": zod.enum(['planned', 'replacement_staged', 'promoted', 'rejected']),
+  "version": zod.number().min(1).max(createEvidenceRenewalPlanResponsePlanVersionMax),
+  "stagedReplacement": zod.union([zod.object({
+  "documentId": zod.string().uuid(),
+  "documentVersionId": zod.string().uuid(),
+  "documentVersionNumber": zod.number().min(1),
+  "sha256": zod.string().regex(createEvidenceRenewalPlanResponsePlanStagedReplacementOneSha256RegExp),
+  "issueDate": zod.date(),
+  "expiryDate": zod.date(),
+  "expectedVaultItemVersion": zod.number().min(1),
+  "stagedByUserId": zod.string().uuid(),
+  "stagedAt": zod.date()
+}).strict(),zod.null()]),
+  "reviewReasonCode": zod.union([zod.literal('replacement_verified'),zod.literal('incorrect_document'),zod.literal('expiry_unacceptable'),zod.literal('quality_issue'),zod.literal(null)]).nullable(),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date(),
+  "latestReceiptSha256": zod.string().regex(createEvidenceRenewalPlanResponsePlanLatestReceiptSha256RegExp),
+  "promotionReceiptSha256": zod.string().regex(createEvidenceRenewalPlanResponsePlanPromotionReceiptSha256RegExp).nullable(),
+  "receipts": zod.array(zod.object({
+  "version": zod.number().min(1).max(createEvidenceRenewalPlanResponsePlanReceiptsItemVersionMax),
+  "kind": zod.enum(['plan_created', 'replacement_staged', 'replacement_reviewed']),
+  "occurredAt": zod.date(),
+  "actorUserId": zod.string().uuid(),
+  "sha256": zod.string().regex(createEvidenceRenewalPlanResponsePlanReceiptsItemSha256RegExp)
+}).strict()).min(1).max(createEvidenceRenewalPlanResponsePlanReceiptsMax),
+  "externalMessageSent": zod.literal(false)
+}).strict(),
+  "replayed": zod.boolean(),
+  "externalMessageSent": zod.literal(false),
+  "authorityNote": zod.literal("This register records a receipt-backed internal due reminder and named-human evidence-renewal workflow. It does not send an external message, contact an issuer or client, approve a pursuit, or claim delivery outside Valo.")
+}).strict()
+
+
+/**
+ * Returns bounded current direct tenant members eligible for evidence-write ownership or evidence-approve verification. It includes names and user IDs only and performs no messaging.
+ * @summary List current direct owners and independent verifiers
+ */
+export const ListEvidenceRenewalAuthoritiesParams = zod.object({
+  "projectId": zod.string().uuid()
+})
+
+export const listEvidenceRenewalAuthoritiesResponseOwnersItemNameMax = 512;
+
+export const listEvidenceRenewalAuthoritiesResponseOwnersMax = 100;
+
+export const listEvidenceRenewalAuthoritiesResponseVerifiersItemNameMax = 512;
+
+export const listEvidenceRenewalAuthoritiesResponseVerifiersMax = 100;
+
+
+
+export const ListEvidenceRenewalAuthoritiesResponse = zod.object({
+  "organisationId": zod.string().uuid(),
+  "owners": zod.array(zod.object({
+  "userId": zod.string().uuid(),
+  "name": zod.string().min(1).max(listEvidenceRenewalAuthoritiesResponseOwnersItemNameMax)
+}).strict()).max(listEvidenceRenewalAuthoritiesResponseOwnersMax),
+  "verifiers": zod.array(zod.object({
+  "userId": zod.string().uuid(),
+  "name": zod.string().min(1).max(listEvidenceRenewalAuthoritiesResponseVerifiersItemNameMax)
+}).strict()).max(listEvidenceRenewalAuthoritiesResponseVerifiersMax),
+  "limit": zod.literal(100),
+  "truncated": zod.literal(false)
+}).strict()
+
+
+/**
+ * The assigned owner records one current canonical document/version receipt under If-Match. Staging creates no vault_item_version and changes no vault projection; it preserves the canonical document identity, version, hash and expected vault-item version in the renewal ledger for independent review.
+ * @summary Record a canonical replacement document in the renewal ledger
+ */
+export const StageEvidenceRenewalReplacementParams = zod.object({
+  "projectId": zod.string().uuid(),
+  "planId": zod.string().uuid().describe('Receipt-backed evidence-renewal plan identifier.')
+})
+
+export const stageEvidenceRenewalReplacementHeaderIfMatchRegExp = new RegExp('^(?:W/)?"?[1-9][0-9]*"?$');
+
+
+export const StageEvidenceRenewalReplacementHeader = zod.object({
+  "If-Match": zod.string().regex(stageEvidenceRenewalReplacementHeaderIfMatchRegExp).describe('Current positive integer resource version, optionally quoted or weakly prefixed.')
+})
+
+export const stageEvidenceRenewalReplacementBodySha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const stageEvidenceRenewalReplacementBodyIdempotencyKeyMin = 8;
+export const stageEvidenceRenewalReplacementBodyIdempotencyKeyMax = 128;
+
+
+export const stageEvidenceRenewalReplacementBodyIdempotencyKeyRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$');
+
+
+export const StageEvidenceRenewalReplacementBody = zod.object({
+  "documentId": zod.string().uuid(),
+  "sha256": zod.string().regex(stageEvidenceRenewalReplacementBodySha256RegExp),
+  "issueDate": zod.date(),
+  "expiryDate": zod.date(),
+  "idempotencyKey": zod.string().min(stageEvidenceRenewalReplacementBodyIdempotencyKeyMin).max(stageEvidenceRenewalReplacementBodyIdempotencyKeyMax).regex(stageEvidenceRenewalReplacementBodyIdempotencyKeyRegExp)
+}).strict()
+
+export const stageEvidenceRenewalReplacementResponsePlanArtefactTypeMax = 512;
+
+export const stageEvidenceRenewalReplacementResponsePlanOwnerNameMax = 512;
+
+export const stageEvidenceRenewalReplacementResponsePlanVerifierNameMax = 512;
+
+export const stageEvidenceRenewalReplacementResponsePlanInternalReminderRecordedReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const stageEvidenceRenewalReplacementResponsePlanInternalReminderResolvedReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const stageEvidenceRenewalReplacementResponsePlanAffectedPursuitsItemTitleMax = 512;
+
+export const stageEvidenceRenewalReplacementResponsePlanAffectedPursuitsMax = 25;
+
+export const stageEvidenceRenewalReplacementResponsePlanVersionMax = 3;
+
+
+export const stageEvidenceRenewalReplacementResponsePlanStagedReplacementOneSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+export const stageEvidenceRenewalReplacementResponsePlanLatestReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const stageEvidenceRenewalReplacementResponsePlanPromotionReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const stageEvidenceRenewalReplacementResponsePlanReceiptsItemVersionMax = 3;
+
+export const stageEvidenceRenewalReplacementResponsePlanReceiptsItemSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const stageEvidenceRenewalReplacementResponsePlanReceiptsMax = 3;
+
+
+
+export const StageEvidenceRenewalReplacementResponse = zod.object({
+  "outcome": zod.literal("updated"),
+  "plan": zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "vaultItemId": zod.string().uuid(),
+  "artefactType": zod.string().min(1).max(stageEvidenceRenewalReplacementResponsePlanArtefactTypeMax),
+  "owner": zod.object({
+  "userId": zod.string().uuid(),
+  "name": zod.string().min(1).max(stageEvidenceRenewalReplacementResponsePlanOwnerNameMax),
+  "current": zod.boolean()
+}).strict(),
+  "verifier": zod.object({
+  "userId": zod.string().uuid(),
+  "name": zod.string().min(1).max(stageEvidenceRenewalReplacementResponsePlanVerifierNameMax),
+  "current": zod.boolean()
+}).strict(),
+  "targetDate": zod.date(),
+  "internalReminder": zod.object({
+  "channel": zod.literal("valo_evidence_renewal_register"),
+  "assignedOwnerUserId": zod.string().uuid(),
+  "dueAt": zod.date(),
+  "status": zod.enum(['open', 'resolved']),
+  "recordedReceiptSha256": zod.string().regex(stageEvidenceRenewalReplacementResponsePlanInternalReminderRecordedReceiptSha256RegExp),
+  "resolvedReceiptSha256": zod.string().regex(stageEvidenceRenewalReplacementResponsePlanInternalReminderResolvedReceiptSha256RegExp).nullable(),
+  "externalDeliveryReceipt": zod.null()
+}).strict(),
+  "affectedPursuits": zod.array(zod.object({
+  "projectId": zod.string().uuid(),
+  "impact": zod.enum(['blocked', 'at_risk', 'monitor']),
+  "title": zod.string().min(1).max(stageEvidenceRenewalReplacementResponsePlanAffectedPursuitsItemTitleMax)
+}).strict()).min(1).max(stageEvidenceRenewalReplacementResponsePlanAffectedPursuitsMax),
+  "status": zod.enum(['planned', 'replacement_staged', 'promoted', 'rejected']),
+  "version": zod.number().min(1).max(stageEvidenceRenewalReplacementResponsePlanVersionMax),
+  "stagedReplacement": zod.union([zod.object({
+  "documentId": zod.string().uuid(),
+  "documentVersionId": zod.string().uuid(),
+  "documentVersionNumber": zod.number().min(1),
+  "sha256": zod.string().regex(stageEvidenceRenewalReplacementResponsePlanStagedReplacementOneSha256RegExp),
+  "issueDate": zod.date(),
+  "expiryDate": zod.date(),
+  "expectedVaultItemVersion": zod.number().min(1),
+  "stagedByUserId": zod.string().uuid(),
+  "stagedAt": zod.date()
+}).strict(),zod.null()]),
+  "reviewReasonCode": zod.union([zod.literal('replacement_verified'),zod.literal('incorrect_document'),zod.literal('expiry_unacceptable'),zod.literal('quality_issue'),zod.literal(null)]).nullable(),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date(),
+  "latestReceiptSha256": zod.string().regex(stageEvidenceRenewalReplacementResponsePlanLatestReceiptSha256RegExp),
+  "promotionReceiptSha256": zod.string().regex(stageEvidenceRenewalReplacementResponsePlanPromotionReceiptSha256RegExp).nullable(),
+  "receipts": zod.array(zod.object({
+  "version": zod.number().min(1).max(stageEvidenceRenewalReplacementResponsePlanReceiptsItemVersionMax),
+  "kind": zod.enum(['plan_created', 'replacement_staged', 'replacement_reviewed']),
+  "occurredAt": zod.date(),
+  "actorUserId": zod.string().uuid(),
+  "sha256": zod.string().regex(stageEvidenceRenewalReplacementResponsePlanReceiptsItemSha256RegExp)
+}).strict()).min(1).max(stageEvidenceRenewalReplacementResponsePlanReceiptsMax),
+  "externalMessageSent": zod.literal(false)
+}).strict(),
+  "replayed": zod.boolean(),
+  "externalMessageSent": zod.literal(false),
+  "authorityNote": zod.literal("This register records a receipt-backed internal due reminder and named-human evidence-renewal workflow. It does not send an external message, contact an issuer or client, approve a pursuit, or claim delivery outside Valo.")
+}).strict()
+
+
+/**
+ * A distinct assigned evidence approver reviews under If-Match. Approval freshly revalidates the canonical document, hash and version and updates vault_items with an exact version CAS. Rejection records a terminal rejected receipt without promoting any document, even if the staged candidate has drifted. Both outcomes resolve only the internal register reminder and send no external message.
+ * @summary Independently approve or reject a staged replacement
+ */
+export const ReviewEvidenceRenewalReplacementParams = zod.object({
+  "projectId": zod.string().uuid(),
+  "planId": zod.string().uuid().describe('Receipt-backed evidence-renewal plan identifier.')
+})
+
+export const reviewEvidenceRenewalReplacementHeaderIfMatchRegExp = new RegExp('^(?:W/)?"?[1-9][0-9]*"?$');
+
+
+export const ReviewEvidenceRenewalReplacementHeader = zod.object({
+  "If-Match": zod.string().regex(reviewEvidenceRenewalReplacementHeaderIfMatchRegExp).describe('Current positive integer resource version, optionally quoted or weakly prefixed.')
+})
+
+export const reviewEvidenceRenewalReplacementBodyOneIdempotencyKeyMin = 8;
+export const reviewEvidenceRenewalReplacementBodyOneIdempotencyKeyMax = 128;
+
+
+export const reviewEvidenceRenewalReplacementBodyOneIdempotencyKeyRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$');
+export const reviewEvidenceRenewalReplacementBodyTwoIdempotencyKeyMin = 8;
+export const reviewEvidenceRenewalReplacementBodyTwoIdempotencyKeyMax = 128;
+
+
+export const reviewEvidenceRenewalReplacementBodyTwoIdempotencyKeyRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$');
+
+
+export const ReviewEvidenceRenewalReplacementBody = zod.union([zod.object({
+  "decision": zod.literal("approve"),
+  "reasonCode": zod.literal("replacement_verified"),
+  "idempotencyKey": zod.string().min(reviewEvidenceRenewalReplacementBodyOneIdempotencyKeyMin).max(reviewEvidenceRenewalReplacementBodyOneIdempotencyKeyMax).regex(reviewEvidenceRenewalReplacementBodyOneIdempotencyKeyRegExp)
+}).strict(),zod.object({
+  "decision": zod.literal("reject"),
+  "reasonCode": zod.enum(['incorrect_document', 'expiry_unacceptable', 'quality_issue']),
+  "idempotencyKey": zod.string().min(reviewEvidenceRenewalReplacementBodyTwoIdempotencyKeyMin).max(reviewEvidenceRenewalReplacementBodyTwoIdempotencyKeyMax).regex(reviewEvidenceRenewalReplacementBodyTwoIdempotencyKeyRegExp)
+}).strict()])
+
+export const reviewEvidenceRenewalReplacementResponsePlanArtefactTypeMax = 512;
+
+export const reviewEvidenceRenewalReplacementResponsePlanOwnerNameMax = 512;
+
+export const reviewEvidenceRenewalReplacementResponsePlanVerifierNameMax = 512;
+
+export const reviewEvidenceRenewalReplacementResponsePlanInternalReminderRecordedReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const reviewEvidenceRenewalReplacementResponsePlanInternalReminderResolvedReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const reviewEvidenceRenewalReplacementResponsePlanAffectedPursuitsItemTitleMax = 512;
+
+export const reviewEvidenceRenewalReplacementResponsePlanAffectedPursuitsMax = 25;
+
+export const reviewEvidenceRenewalReplacementResponsePlanVersionMax = 3;
+
+
+export const reviewEvidenceRenewalReplacementResponsePlanStagedReplacementOneSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+
+export const reviewEvidenceRenewalReplacementResponsePlanLatestReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const reviewEvidenceRenewalReplacementResponsePlanPromotionReceiptSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const reviewEvidenceRenewalReplacementResponsePlanReceiptsItemVersionMax = 3;
+
+export const reviewEvidenceRenewalReplacementResponsePlanReceiptsItemSha256RegExp = new RegExp('^[a-f0-9]{64}$');
+export const reviewEvidenceRenewalReplacementResponsePlanReceiptsMax = 3;
+
+
+
+export const ReviewEvidenceRenewalReplacementResponse = zod.object({
+  "outcome": zod.literal("updated"),
+  "plan": zod.object({
+  "id": zod.string().uuid(),
+  "organisationId": zod.string().uuid(),
+  "projectId": zod.string().uuid(),
+  "vaultItemId": zod.string().uuid(),
+  "artefactType": zod.string().min(1).max(reviewEvidenceRenewalReplacementResponsePlanArtefactTypeMax),
+  "owner": zod.object({
+  "userId": zod.string().uuid(),
+  "name": zod.string().min(1).max(reviewEvidenceRenewalReplacementResponsePlanOwnerNameMax),
+  "current": zod.boolean()
+}).strict(),
+  "verifier": zod.object({
+  "userId": zod.string().uuid(),
+  "name": zod.string().min(1).max(reviewEvidenceRenewalReplacementResponsePlanVerifierNameMax),
+  "current": zod.boolean()
+}).strict(),
+  "targetDate": zod.date(),
+  "internalReminder": zod.object({
+  "channel": zod.literal("valo_evidence_renewal_register"),
+  "assignedOwnerUserId": zod.string().uuid(),
+  "dueAt": zod.date(),
+  "status": zod.enum(['open', 'resolved']),
+  "recordedReceiptSha256": zod.string().regex(reviewEvidenceRenewalReplacementResponsePlanInternalReminderRecordedReceiptSha256RegExp),
+  "resolvedReceiptSha256": zod.string().regex(reviewEvidenceRenewalReplacementResponsePlanInternalReminderResolvedReceiptSha256RegExp).nullable(),
+  "externalDeliveryReceipt": zod.null()
+}).strict(),
+  "affectedPursuits": zod.array(zod.object({
+  "projectId": zod.string().uuid(),
+  "impact": zod.enum(['blocked', 'at_risk', 'monitor']),
+  "title": zod.string().min(1).max(reviewEvidenceRenewalReplacementResponsePlanAffectedPursuitsItemTitleMax)
+}).strict()).min(1).max(reviewEvidenceRenewalReplacementResponsePlanAffectedPursuitsMax),
+  "status": zod.enum(['planned', 'replacement_staged', 'promoted', 'rejected']),
+  "version": zod.number().min(1).max(reviewEvidenceRenewalReplacementResponsePlanVersionMax),
+  "stagedReplacement": zod.union([zod.object({
+  "documentId": zod.string().uuid(),
+  "documentVersionId": zod.string().uuid(),
+  "documentVersionNumber": zod.number().min(1),
+  "sha256": zod.string().regex(reviewEvidenceRenewalReplacementResponsePlanStagedReplacementOneSha256RegExp),
+  "issueDate": zod.date(),
+  "expiryDate": zod.date(),
+  "expectedVaultItemVersion": zod.number().min(1),
+  "stagedByUserId": zod.string().uuid(),
+  "stagedAt": zod.date()
+}).strict(),zod.null()]),
+  "reviewReasonCode": zod.union([zod.literal('replacement_verified'),zod.literal('incorrect_document'),zod.literal('expiry_unacceptable'),zod.literal('quality_issue'),zod.literal(null)]).nullable(),
+  "createdByUserId": zod.string().uuid(),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date(),
+  "latestReceiptSha256": zod.string().regex(reviewEvidenceRenewalReplacementResponsePlanLatestReceiptSha256RegExp),
+  "promotionReceiptSha256": zod.string().regex(reviewEvidenceRenewalReplacementResponsePlanPromotionReceiptSha256RegExp).nullable(),
+  "receipts": zod.array(zod.object({
+  "version": zod.number().min(1).max(reviewEvidenceRenewalReplacementResponsePlanReceiptsItemVersionMax),
+  "kind": zod.enum(['plan_created', 'replacement_staged', 'replacement_reviewed']),
+  "occurredAt": zod.date(),
+  "actorUserId": zod.string().uuid(),
+  "sha256": zod.string().regex(reviewEvidenceRenewalReplacementResponsePlanReceiptsItemSha256RegExp)
+}).strict()).min(1).max(reviewEvidenceRenewalReplacementResponsePlanReceiptsMax),
+  "externalMessageSent": zod.literal(false)
+}).strict(),
+  "replayed": zod.boolean(),
+  "externalMessageSent": zod.literal(false),
+  "authorityNote": zod.literal("This register records a receipt-backed internal due reminder and named-human evidence-renewal workflow. It does not send an external message, contact an issuer or client, approve a pursuit, or claim delivery outside Valo.")
 }).strict()
 
 

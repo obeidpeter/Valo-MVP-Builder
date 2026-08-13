@@ -304,6 +304,262 @@ export interface ClientAcknowledgementInput {
   statement: string;
 }
 
+export interface ClientActionUploadLeaseRequest {
+  /**
+     * Exact current evidence-request record version.
+     * @minimum 1
+     * @maximum 9007199254740991
+     */
+  expectedVersion: number;
+  /** Latest unfinalized intent in the named active request slot. */
+  intentId: string;
+}
+
+export type ClientActionUploadLeaseGrantContentType = typeof ClientActionUploadLeaseGrantContentType[keyof typeof ClientActionUploadLeaseGrantContentType];
+
+
+export const ClientActionUploadLeaseGrantContentType = {
+  'application/pdf': 'application/pdf',
+  'application/vndopenxmlformats-officedocumentwordprocessingmldocument': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vndopenxmlformats-officedocumentspreadsheetmlsheet': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/zip': 'application/zip',
+  'application/x-zip-compressed': 'application/x-zip-compressed',
+  'image/png': 'image/png',
+  'image/jpeg': 'image/jpeg',
+} as const;
+
+export interface ClientActionUploadLeaseGrant {
+  leaseId: string;
+  recordId: string;
+  slotId: string;
+  intentId: string;
+  /**
+     * @minimum 1
+     * @maximum 9007199254740991
+     */
+  recordVersion: number;
+  /**
+     * @maxLength 512
+     * @pattern ^/objects/tenants/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/uploads/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+     */
+  objectPath: string;
+  /**
+     * HTTPS signed PUT URL; loopback HTTP is allowed only in local development.
+     * @maxLength 8192
+     */
+  uploadUrl: string;
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  filename: string;
+  contentType: ClientActionUploadLeaseGrantContentType;
+  /**
+     * @minimum 1
+     * @maximum 52428800
+     */
+  sizeBytes: number;
+  /** @pattern ^[a-f0-9]{64}$ */
+  declaredSha256: string;
+  expiresAt: string;
+  replayed: boolean;
+  lateRewriteClosure: 'bounded-cushion-and-post-expiry-reconcile';
+  rawFileAcceptedByApi: false;
+  externalMessageSentByValo: false;
+}
+
+export type ClientActionUploadLeaseReplayGrant = ClientActionUploadLeaseGrant & {
+  replayed: true;
+};
+
+export type ClientActionUploadLeaseCreatedGrant = ClientActionUploadLeaseGrant & {
+  replayed: false;
+};
+
+export type ClientActionUploadFinalizationReceiptDetectedMime = typeof ClientActionUploadFinalizationReceiptDetectedMime[keyof typeof ClientActionUploadFinalizationReceiptDetectedMime];
+
+
+export const ClientActionUploadFinalizationReceiptDetectedMime = {
+  'application/pdf': 'application/pdf',
+  'application/vndopenxmlformats-officedocumentwordprocessingmldocument': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vndopenxmlformats-officedocumentspreadsheetmlsheet': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/zip': 'application/zip',
+  'image/png': 'image/png',
+  'image/jpeg': 'image/jpeg',
+} as const;
+
+export interface ClientActionUploadFinalizationReceipt {
+  leaseId: string;
+  recordId: string;
+  slotId: string;
+  intentId: string;
+  /**
+     * @minimum 1
+     * @maximum 9007199254740991
+     */
+  recordVersion: number;
+  documentId: string;
+  documentVersionId: string;
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  filename: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  sha256: string;
+  /**
+     * @minimum 1
+     * @maximum 52428800
+     */
+  sizeBytes: number;
+  detectedMime: ClientActionUploadFinalizationReceiptDetectedMime;
+  /** @pattern ^[a-f0-9]{64}$ */
+  receiptSha256: string;
+  replayed: boolean;
+  extractionStarted: false;
+  rawFileAcceptedByApi: false;
+  externalMessageSentByValo: false;
+}
+
+export type ClientActionUploadFinalizationReplayReceipt = ClientActionUploadFinalizationReceipt & {
+  replayed: true;
+};
+
+export type ClientActionUploadFinalizationCreatedReceipt = ClientActionUploadFinalizationReceipt & {
+  replayed: false;
+};
+
+export interface ClientActionUploadTransportError {
+  /** @minLength 1 */
+  error: string;
+}
+
+export type ClientActionUploadGovernedErrorCode = typeof ClientActionUploadGovernedErrorCode[keyof typeof ClientActionUploadGovernedErrorCode];
+
+
+export const ClientActionUploadGovernedErrorCode = {
+  invalid_request: 'invalid_request',
+  scope_denied: 'scope_denied',
+  not_found: 'not_found',
+  stale_version: 'stale_version',
+  conflict: 'conflict',
+  expired: 'expired',
+  capacity_exceeded: 'capacity_exceeded',
+  intake_rejected: 'intake_rejected',
+  cleanup_unconfirmed: 'cleanup_unconfirmed',
+  unavailable: 'unavailable',
+} as const;
+
+export type ClientActionUploadGovernedErrorReferencesItem = typeof ClientActionUploadGovernedErrorReferencesItem[keyof typeof ClientActionUploadGovernedErrorReferencesItem];
+
+
+export const ClientActionUploadGovernedErrorReferencesItem = {
+  document: 'document',
+  document_version: 'document_version',
+  vault_item: 'vault_item',
+  report: 'report',
+  package_version: 'package_version',
+  partner_branding: 'partner_branding',
+  upload_session: 'upload_session',
+} as const;
+
+export type ClientActionUploadGovernedErrorFindingsItem = typeof ClientActionUploadGovernedErrorFindingsItem[keyof typeof ClientActionUploadGovernedErrorFindingsItem];
+
+
+export const ClientActionUploadGovernedErrorFindingsItem = {
+  filename_unsafe: 'filename_unsafe',
+  empty_file: 'empty_file',
+  file_too_large: 'file_too_large',
+  page_limit_exceeded: 'page_limit_exceeded',
+  unsupported_format: 'unsupported_format',
+  mime_signature_mismatch: 'mime_signature_mismatch',
+  password_protected: 'password_protected',
+  corrupt_file: 'corrupt_file',
+  malware_detected: 'malware_detected',
+  malware_scan_incomplete: 'malware_scan_incomplete',
+  archive_manifest_missing: 'archive_manifest_missing',
+  archive_entry_limit: 'archive_entry_limit',
+  archive_expansion_limit: 'archive_expansion_limit',
+  archive_bomb_suspected: 'archive_bomb_suspected',
+  archive_path_traversal: 'archive_path_traversal',
+  archive_executable: 'archive_executable',
+  archive_encrypted: 'archive_encrypted',
+  idempotency_key_missing: 'idempotency_key_missing',
+  duplicate_document: 'duplicate_document',
+} as const;
+
+export interface ClientActionUploadGovernedError {
+  /** @minLength 1 */
+  error: string;
+  code: ClientActionUploadGovernedErrorCode;
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  leaseStatus?: string;
+  /** @maxItems 7 */
+  references?: ClientActionUploadGovernedErrorReferencesItem[];
+  /** @maxItems 19 */
+  findings?: ClientActionUploadGovernedErrorFindingsItem[];
+  cleanupConfirmed?: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     * @nullable
+     */
+  quarantinedPath?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     * @nullable
+     */
+  possibleQuarantinedPath?: string | null;
+  quarantineCopyConfirmed?: boolean;
+  activation?: 'blocked';
+  sideEffectsApplied?: false;
+}
+
+export type ClientActionUploadInvalidRequestError = ClientActionUploadGovernedError & {
+  code: 'invalid_request';
+};
+
+export type ClientActionUploadScopeDeniedError = ClientActionUploadGovernedError & {
+  code: 'scope_denied';
+};
+
+export type ClientActionUploadNotFoundError = ClientActionUploadGovernedError & {
+  code: 'not_found';
+};
+
+export type ClientActionUploadConflictErrorCode = typeof ClientActionUploadConflictErrorCode[keyof typeof ClientActionUploadConflictErrorCode];
+
+
+export const ClientActionUploadConflictErrorCode = {
+  stale_version: 'stale_version',
+  conflict: 'conflict',
+  cleanup_unconfirmed: 'cleanup_unconfirmed',
+} as const;
+
+export type ClientActionUploadConflictError = ClientActionUploadGovernedError & {
+  code: ClientActionUploadConflictErrorCode;
+};
+
+export type ClientActionUploadExpiredError = ClientActionUploadGovernedError & {
+  code: 'expired';
+};
+
+export type ClientActionUploadCapacityExceededError = ClientActionUploadGovernedError & {
+  code: 'capacity_exceeded';
+};
+
+export type ClientActionUploadIntakeRejectedError = ClientActionUploadGovernedError & {
+  code: 'intake_rejected';
+};
+
+export type ClientActionUploadUnavailableError = ClientActionUploadGovernedError & {
+  code: 'unavailable';
+};
+
 export interface ClientUploadIntentInput {
   /** @minimum 1 */
   expectedVersion: number;
@@ -830,6 +1086,587 @@ export interface OpportunitySourceListResult {
   limit: number;
   truncated: false;
   authority: OpportunitySourceAuthority;
+}
+
+export interface OpportunityPursuitHandoffAuthority {
+  sourceReopenRequired: true;
+  namedHumanConfirmationRequired: true;
+  makerCheckerRequired: true;
+  conflictRevalidationRequired: true;
+  createdPursuitState: 'intake';
+  pursuitActivated: false;
+  providerFetchPerformed: false;
+  autonomousPursuitActivationAllowed: false;
+}
+
+export interface OpportunityPursuitSourceSnapshot {
+  candidateId: string;
+  /** @minimum 1 */
+  candidateVersion: number;
+  /** @pattern ^[a-f0-9]{64}$ */
+  sourceReceiptSha256: string;
+  /**
+     * @minLength 1
+     * @maxLength 2048
+     */
+  sourceLocator: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  sourceLocatorSha256: string;
+  tenderId: string;
+  /** @minimum 1 */
+  tenderVersion: number;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  buyer: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  reference: string;
+  /** @nullable */
+  submissionDeadline: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  recordedByName: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  confirmedByName: string;
+}
+
+export interface OpportunityPursuitClientChoice {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  name: string;
+  /** @minimum 1 */
+  version: number;
+}
+
+export interface OpportunityPursuitReviewerChoice {
+  userId: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  name: string;
+}
+
+export interface OpportunityPursuitLotChoice {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  reference: string;
+  /**
+     * @maxLength 512
+     * @nullable
+     */
+  title: string | null;
+  /** @nullable */
+  submissionDeadline: string | null;
+  /** @minimum 1 */
+  version: number;
+}
+
+export type OpportunityPursuitConflictMatchStatus = typeof OpportunityPursuitConflictMatchStatus[keyof typeof OpportunityPursuitConflictMatchStatus];
+
+
+export const OpportunityPursuitConflictMatchStatus = {
+  intake: 'intake',
+  extraction: 'extraction',
+  review: 'review',
+  defects: 'defects',
+  reporting: 'reporting',
+  signed_off: 'signed_off',
+} as const;
+
+export interface OpportunityPursuitConflictMatch {
+  projectId: string;
+  /**
+     * @maxLength 512
+     * @nullable
+     */
+  lot: string | null;
+  status: OpportunityPursuitConflictMatchStatus;
+  /** @minimum 1 */
+  version: number;
+}
+
+export type OpportunityPursuitConflictBoundaryLimit = typeof OpportunityPursuitConflictBoundaryLimit[keyof typeof OpportunityPursuitConflictBoundaryLimit];
+
+
+export const OpportunityPursuitConflictBoundaryLimit = {
+  NUMBER_100: 100,
+} as const;
+
+export interface OpportunityPursuitConflictBoundary {
+  /** @pattern ^[a-f0-9]{64}$ */
+  sha256: string;
+  /** @maxItems 100 */
+  matches: OpportunityPursuitConflictMatch[];
+  limit: OpportunityPursuitConflictBoundaryLimit;
+  truncated: false;
+}
+
+export interface OpportunityPursuitHandoffReceipt {
+  schema: 'valo.opportunity-pursuit-handoff/v1';
+  organisationId: string;
+  candidateId: string;
+  projectId: string;
+  clientId: string;
+  /** @minimum 1 */
+  clientVersion: number;
+  tenderId: string;
+  /** @nullable */
+  tenderLotId: string | null;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  tenderLotVersion: number | null;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     * @nullable
+     */
+  confirmedLotReference: string | null;
+  reviewerUserId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  sourceReceiptSha256: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  sourceLocatorSha256: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  confirmedBuyer: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  confirmedReference: string;
+  /** @nullable */
+  confirmedSubmissionDeadline: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     */
+  confirmationNote: string;
+  confirmedByUserId: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  confirmedByName: string;
+  confirmedAt: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  conflictBoundarySha256: string;
+  conflictStatus: 'clear';
+  /** @nullable */
+  matchedProjectId: null;
+  projectStatus: 'intake';
+  /** @pattern ^[a-f0-9]{64}$ */
+  idempotencyKeySha256: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  requestSha256: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  receiptSha256: string;
+}
+
+export interface OpportunityPursuitHandoffReady {
+  state: 'ready';
+  source: OpportunityPursuitSourceSnapshot;
+  /** @maxItems 100 */
+  clients: OpportunityPursuitClientChoice[];
+  /** @maxItems 100 */
+  reviewers: OpportunityPursuitReviewerChoice[];
+  /** @maxItems 100 */
+  lots: OpportunityPursuitLotChoice[];
+  conflictBoundary: OpportunityPursuitConflictBoundary;
+  authority: OpportunityPursuitHandoffAuthority;
+}
+
+export interface OpportunityPursuitHandoffCompleted {
+  state: 'completed';
+  receipt: OpportunityPursuitHandoffReceipt;
+  authority: OpportunityPursuitHandoffAuthority;
+}
+
+export type OpportunityPursuitHandoffPreparation = OpportunityPursuitHandoffReady | OpportunityPursuitHandoffCompleted;
+
+export type OpportunityPursuitHandoffConfirmation = unknown & ({
+  /** @minimum 1 */
+  expectedCandidateVersion: number;
+  /** @pattern ^[a-f0-9]{64}$ */
+  expectedSourceReceiptSha256: string;
+  /** @minimum 1 */
+  expectedTenderVersion: number;
+  /** @pattern ^[a-f0-9]{64}$ */
+  expectedConflictBoundarySha256: string;
+  clientId: string;
+  /** @minimum 1 */
+  expectedClientVersion: number;
+  /** @nullable */
+  tenderLotId: string | null;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  expectedTenderLotVersion: number | null;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     * @nullable
+     */
+  confirmedLotReference: string | null;
+  reviewerUserId: string;
+  officialSourceReopened: true;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  confirmedBuyer: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  confirmedReference: string;
+  /** @nullable */
+  confirmedSubmissionDeadline: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 1024
+     */
+  confirmationNote: string;
+});
+
+export type OpportunityPursuitHandoffResultOutcome = typeof OpportunityPursuitHandoffResultOutcome[keyof typeof OpportunityPursuitHandoffResultOutcome];
+
+
+export const OpportunityPursuitHandoffResultOutcome = {
+  created: 'created',
+  replayed: 'replayed',
+} as const;
+
+export interface OpportunityPursuitHandoffResult {
+  outcome: OpportunityPursuitHandoffResultOutcome;
+  receipt: OpportunityPursuitHandoffReceipt;
+  authority: OpportunityPursuitHandoffAuthority;
+}
+
+/**
+ * @minLength 8
+ * @maxLength 128
+ * @pattern ^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$
+ */
+export type EvidenceRenewalIdempotencyKey = string;
+
+export type EvidenceRenewalAffectedPursuitDraftImpact = typeof EvidenceRenewalAffectedPursuitDraftImpact[keyof typeof EvidenceRenewalAffectedPursuitDraftImpact];
+
+
+export const EvidenceRenewalAffectedPursuitDraftImpact = {
+  blocked: 'blocked',
+  at_risk: 'at_risk',
+  monitor: 'monitor',
+} as const;
+
+export interface EvidenceRenewalAffectedPursuitDraft {
+  projectId: string;
+  impact: EvidenceRenewalAffectedPursuitDraftImpact;
+}
+
+export interface EvidenceRenewalCreateDraft {
+  vaultItemId: string;
+  ownerUserId: string;
+  verifierUserId: string;
+  targetDate: string;
+  /**
+     * @minItems 1
+     * @maxItems 25
+     */
+  affectedPursuits: EvidenceRenewalAffectedPursuitDraft[];
+  idempotencyKey: EvidenceRenewalIdempotencyKey;
+}
+
+export interface EvidenceRenewalStageDraft {
+  documentId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  sha256: string;
+  issueDate: string;
+  expiryDate: string;
+  idempotencyKey: EvidenceRenewalIdempotencyKey;
+}
+
+export type EvidenceRenewalReviewDraft = {
+  decision: 'approve';
+  reasonCode: 'replacement_verified';
+  idempotencyKey: EvidenceRenewalIdempotencyKey;
+} | {
+  decision: 'reject';
+  reasonCode: 'incorrect_document' | 'expiry_unacceptable' | 'quality_issue';
+  idempotencyKey: EvidenceRenewalIdempotencyKey;
+};
+
+export type EvidenceRenewalReceiptKind = typeof EvidenceRenewalReceiptKind[keyof typeof EvidenceRenewalReceiptKind];
+
+
+export const EvidenceRenewalReceiptKind = {
+  plan_created: 'plan_created',
+  replacement_staged: 'replacement_staged',
+  replacement_reviewed: 'replacement_reviewed',
+} as const;
+
+export interface EvidenceRenewalReceipt {
+  /**
+     * @minimum 1
+     * @maximum 3
+     */
+  version: number;
+  kind: EvidenceRenewalReceiptKind;
+  occurredAt: string;
+  actorUserId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  sha256: string;
+}
+
+export interface EvidenceRenewalAuthorityAssignment {
+  userId: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  name: string;
+  current: boolean;
+}
+
+export type EvidenceRenewalAffectedPursuitImpact = typeof EvidenceRenewalAffectedPursuitImpact[keyof typeof EvidenceRenewalAffectedPursuitImpact];
+
+
+export const EvidenceRenewalAffectedPursuitImpact = {
+  blocked: 'blocked',
+  at_risk: 'at_risk',
+  monitor: 'monitor',
+} as const;
+
+export interface EvidenceRenewalAffectedPursuit {
+  projectId: string;
+  impact: EvidenceRenewalAffectedPursuitImpact;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  title: string;
+}
+
+export interface EvidenceRenewalStagedReplacement {
+  documentId: string;
+  documentVersionId: string;
+  /** @minimum 1 */
+  documentVersionNumber: number;
+  /** @pattern ^[a-f0-9]{64}$ */
+  sha256: string;
+  issueDate: string;
+  expiryDate: string;
+  /** @minimum 1 */
+  expectedVaultItemVersion: number;
+  stagedByUserId: string;
+  stagedAt: string;
+}
+
+export type EvidenceRenewalInternalReminderStatus = typeof EvidenceRenewalInternalReminderStatus[keyof typeof EvidenceRenewalInternalReminderStatus];
+
+
+export const EvidenceRenewalInternalReminderStatus = {
+  open: 'open',
+  resolved: 'resolved',
+} as const;
+
+export interface EvidenceRenewalInternalReminder {
+  channel: 'valo_evidence_renewal_register';
+  assignedOwnerUserId: string;
+  dueAt: string;
+  status: EvidenceRenewalInternalReminderStatus;
+  /** @pattern ^[a-f0-9]{64}$ */
+  recordedReceiptSha256: string;
+  /**
+     * @nullable
+     * @pattern ^[a-f0-9]{64}$
+     */
+  resolvedReceiptSha256: string | null;
+  /** @nullable */
+  externalDeliveryReceipt: null;
+}
+
+export type EvidenceRenewalPlanStatus = typeof EvidenceRenewalPlanStatus[keyof typeof EvidenceRenewalPlanStatus];
+
+
+export const EvidenceRenewalPlanStatus = {
+  planned: 'planned',
+  replacement_staged: 'replacement_staged',
+  promoted: 'promoted',
+  rejected: 'rejected',
+} as const;
+
+/**
+ * @nullable
+ */
+export type EvidenceRenewalPlanReviewReasonCode = typeof EvidenceRenewalPlanReviewReasonCode[keyof typeof EvidenceRenewalPlanReviewReasonCode] | null;
+
+
+export const EvidenceRenewalPlanReviewReasonCode = {
+  replacement_verified: 'replacement_verified',
+  incorrect_document: 'incorrect_document',
+  expiry_unacceptable: 'expiry_unacceptable',
+  quality_issue: 'quality_issue',
+} as const;
+
+export interface EvidenceRenewalPlan {
+  id: string;
+  organisationId: string;
+  projectId: string;
+  vaultItemId: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  artefactType: string;
+  owner: EvidenceRenewalAuthorityAssignment;
+  verifier: EvidenceRenewalAuthorityAssignment;
+  targetDate: string;
+  internalReminder: EvidenceRenewalInternalReminder;
+  /**
+     * @minItems 1
+     * @maxItems 25
+     */
+  affectedPursuits: EvidenceRenewalAffectedPursuit[];
+  status: EvidenceRenewalPlanStatus;
+  /**
+     * @minimum 1
+     * @maximum 3
+     */
+  version: number;
+  stagedReplacement: EvidenceRenewalStagedReplacement | null;
+  /** @nullable */
+  reviewReasonCode: EvidenceRenewalPlanReviewReasonCode;
+  createdByUserId: string;
+  createdAt: string;
+  updatedAt: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  latestReceiptSha256: string;
+  /**
+     * @nullable
+     * @pattern ^[a-f0-9]{64}$
+     */
+  promotionReceiptSha256: string | null;
+  /**
+     * @minItems 1
+     * @maxItems 3
+     */
+  receipts: EvidenceRenewalReceipt[];
+  externalMessageSent: false;
+}
+
+export type EvidenceRenewalSnapshotLimit = typeof EvidenceRenewalSnapshotLimit[keyof typeof EvidenceRenewalSnapshotLimit];
+
+
+export const EvidenceRenewalSnapshotLimit = {
+  NUMBER_100: 100,
+} as const;
+
+export interface EvidenceRenewalSnapshot {
+  organisationId: string;
+  projectId: string;
+  generatedAt: string;
+  /** @maxItems 100 */
+  items: EvidenceRenewalPlan[];
+  limit: EvidenceRenewalSnapshotLimit;
+  truncated: false;
+  externalMessagingConnected: false;
+  authorityNote: 'This register records a receipt-backed internal due reminder and named-human evidence-renewal workflow. It does not send an external message, contact an issuer or client, approve a pursuit, or claim delivery outside Valo.';
+}
+
+export interface EvidenceRenewalAuthority {
+  userId: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  name: string;
+}
+
+export type EvidenceRenewalAuthorityListLimit = typeof EvidenceRenewalAuthorityListLimit[keyof typeof EvidenceRenewalAuthorityListLimit];
+
+
+export const EvidenceRenewalAuthorityListLimit = {
+  NUMBER_100: 100,
+} as const;
+
+export interface EvidenceRenewalAuthorityList {
+  organisationId: string;
+  /** @maxItems 100 */
+  owners: EvidenceRenewalAuthority[];
+  /** @maxItems 100 */
+  verifiers: EvidenceRenewalAuthority[];
+  limit: EvidenceRenewalAuthorityListLimit;
+  truncated: false;
+}
+
+export interface EvidenceRenewalCreateSuccess {
+  outcome: 'created';
+  plan: EvidenceRenewalPlan;
+  replayed: boolean;
+  externalMessageSent: false;
+  authorityNote: 'This register records a receipt-backed internal due reminder and named-human evidence-renewal workflow. It does not send an external message, contact an issuer or client, approve a pursuit, or claim delivery outside Valo.';
+}
+
+export interface EvidenceRenewalUpdateSuccess {
+  outcome: 'updated';
+  plan: EvidenceRenewalPlan;
+  replayed: boolean;
+  externalMessageSent: false;
+  authorityNote: 'This register records a receipt-backed internal due reminder and named-human evidence-renewal workflow. It does not send an external message, contact an issuer or client, approve a pursuit, or claim delivery outside Valo.';
+}
+
+export type EvidenceRenewalMutationErrorError = typeof EvidenceRenewalMutationErrorError[keyof typeof EvidenceRenewalMutationErrorError];
+
+
+export const EvidenceRenewalMutationErrorError = {
+  not_found: 'not_found',
+  version_conflict: 'version_conflict',
+  state_conflict: 'state_conflict',
+  authority_conflict: 'authority_conflict',
+  maker_checker_conflict: 'maker_checker_conflict',
+  idempotency_conflict: 'idempotency_conflict',
+  evidence_conflict: 'evidence_conflict',
+  vault_conflict: 'vault_conflict',
+  archived: 'archived',
+  capacity_exceeded: 'capacity_exceeded',
+} as const;
+
+export interface EvidenceRenewalMutationError {
+  error: EvidenceRenewalMutationErrorError;
+  externalMessageSent: false;
+  authorityNote: 'This register records a receipt-backed internal due reminder and named-human evidence-renewal workflow. It does not send an external message, contact an issuer or client, approve a pursuit, or claim delivery outside Valo.';
+}
+
+export interface EvidenceRenewalUnavailableError {
+  error: 'Evidence renewal records are unavailable';
+  externalMessageSent: false;
+  authorityNote: 'This register records a receipt-backed internal due reminder and named-human evidence-renewal workflow. It does not send an external message, contact an issuer or client, approve a pursuit, or claim delivery outside Valo.';
 }
 
 export type CommunicationTemplateContext = {
@@ -4428,6 +5265,121 @@ export interface OperationsWorkItemApproval {
   reason: string | null;
 }
 
+export interface OperationsFieldDraftPromotionChecklistItem {
+  id: OperationsReferenceId;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  label: string;
+  completed: boolean;
+}
+
+export type OperationsFieldDraftPromotionDraftKind = typeof OperationsFieldDraftPromotionDraftKind[keyof typeof OperationsFieldDraftPromotionDraftKind];
+
+
+export const OperationsFieldDraftPromotionDraftKind = {
+  site_visit_note: 'site_visit_note',
+  delivery_receipt_note: 'delivery_receipt_note',
+  checklist_progress: 'checklist_progress',
+} as const;
+
+export interface OperationsFieldDraftPromotionDraft {
+  id: string;
+  /**
+     * @minimum 1
+     * @maximum 9007199254740991
+     */
+  version: number;
+  organisationId: string;
+  actorUserId: string;
+  projectId: string;
+  kind: OperationsFieldDraftPromotionDraftKind;
+  updatedAt: string;
+}
+
+/**
+ * One non-empty tuple in canonical title, note, checklist order.
+ */
+export type OperationsFieldDraftPromotionSelectedFields = ['title'] | ['note'] | ['checklist'] | ['title', 'note'] | ['title', 'checklist'] | ['note', 'checklist'] | ['title', 'note', 'checklist'];
+
+export interface OperationsFieldDraftPromotionValues {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  title?: string;
+  /** @maxLength 4000 */
+  note?: string;
+  /** @maxItems 20 */
+  checklist?: OperationsFieldDraftPromotionChecklistItem[];
+}
+
+export type OperationsFieldDraftPromotionRequest = unknown & unknown & unknown & {
+  schema: 'valo.encrypted-field-promotion/v1';
+  draft: OperationsFieldDraftPromotionDraft;
+  /**
+     * @minimum 1
+     * @maximum 9007199254740991
+     */
+  expectedTargetVersion: number;
+  selectedFields: OperationsFieldDraftPromotionSelectedFields;
+  values: OperationsFieldDraftPromotionValues;
+};
+
+export interface OperationsStoredFieldDraftPromotionReceipt {
+  schema: 'valo.field-draft-promotion-receipt/v1';
+  organisationId: string;
+  projectId: string;
+  targetRecordId: OperationsReferenceId;
+  targetKind: 'work_item';
+  /** @minimum 2 */
+  targetVersion: number;
+  draftId: string;
+  /**
+     * @minimum 1
+     * @maximum 9007199254740991
+     */
+  draftVersion: number;
+  promotedByUserId: string;
+  selectedFields: OperationsFieldDraftPromotionSelectedFields;
+  idempotencyKey: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  requestSha256: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  receiptSha256: string;
+  promotedAt: string;
+  authoritativeEvidenceCreated: false;
+  localDraftDeleted: false;
+}
+
+export interface OperationsFieldDraftPromotionReceipt {
+  schema: 'valo.field-draft-promotion-receipt/v1';
+  organisationId: string;
+  projectId: string;
+  targetRecordId: OperationsReferenceId;
+  targetKind: 'work_item';
+  /** @minimum 2 */
+  targetVersion: number;
+  draftId: string;
+  /**
+     * @minimum 1
+     * @maximum 9007199254740991
+     */
+  draftVersion: number;
+  promotedByUserId: string;
+  selectedFields: OperationsFieldDraftPromotionSelectedFields;
+  idempotencyKey: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  requestSha256: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  receiptSha256: string;
+  promotedAt: string;
+  authoritativeEvidenceCreated: false;
+  localDraftDeleted: false;
+  replayed: boolean;
+}
+
 export type OperationsWorkItemRecordPriority = typeof OperationsWorkItemRecordPriority[keyof typeof OperationsWorkItemRecordPriority];
 
 
@@ -4477,6 +5429,8 @@ export type OperationsWorkItemRecord = OperationsRecordBase & ({
   approval: OperationsWorkItemApproval;
   /** @maxItems 100 */
   statusReasonHistory: OperationsStatusReason[];
+  /** @maxItems 25 */
+  fieldPromotionReceipts?: OperationsStoredFieldDraftPromotionReceipt[];
 });
 
 export interface OperationsEvidenceRequestSlotInput {
@@ -7148,6 +8102,19 @@ export interface RetentionCompletionConflict {
   commercialFinancialBlockers?: RetentionCompletionConflictCommercialFinancialBlockers;
 }
 
+export interface RetentionCompletionUnavailable {
+  /** @minLength 1 */
+  error: string;
+  code: 'RETENTION_COMPLETION_NOT_ACTIVATED';
+  sideEffectsApplied: false;
+  requiredWorkflow: 'durable_two_phase_detach_reconcile_certify';
+  /**
+     * @minItems 4
+     * @maxItems 4
+     */
+  requiredCoverage: ['project_content_rows', 'object_storage', 'upload_sessions', 'storage_lifecycle_control_rows'];
+}
+
 export interface SeverityWeights {
   /**
      * @minimum 0
@@ -8948,6 +9915,76 @@ export type RoadmapCapacityExceededResponse = ErrorEnvelope;
 export type RoadmapPolicyDeniedResponse = ErrorEnvelope;
 
 /**
+ * The bounded metadata request, path identity or Idempotency-Key is invalid.
+ */
+export type ClientActionUploadBadRequestResponse = ClientActionUploadTransportError | ClientActionUploadInvalidRequestError;
+
+/**
+ * The caller is not authenticated.
+ */
+export type ClientActionUploadUnauthorizedResponse = ClientActionUploadTransportError;
+
+/**
+ * The current direct membership, tenant scope or document-upload authority is denied.
+ */
+export type ClientActionUploadForbiddenResponse = ClientActionUploadTransportError | ClientActionUploadScopeDeniedError;
+
+/**
+ * The exact-scope project, evidence request or governed lease was not found.
+ */
+export type ClientActionUploadNotFoundResponse = ClientActionUploadTransportError | ClientActionUploadNotFoundError;
+
+/**
+ * The record version, active slot intent, lease binding, persisted receipt or storage disposition conflicts with current state.
+ */
+export type ClientActionUploadConflictResponse = ClientActionUploadConflictError;
+
+/**
+ * The database-backed 15-minute upload lease expired before this operation completed.
+ */
+export type ClientActionUploadExpiredResponse = ClientActionUploadExpiredError;
+
+/**
+ * The 4,096-byte metadata-body bound or 200-active-lease project bound was exceeded.
+ */
+export type ClientActionUploadCapacityExceededResponse = ClientActionUploadTransportError | ClientActionUploadCapacityExceededError;
+
+/**
+ * The staged object was missing, mismatched, unsafe or quarantined by secure intake.
+ */
+export type ClientActionUploadIntakeRejectedResponse = ClientActionUploadIntakeRejectedError;
+
+/**
+ * Authentication, tenant transaction commit or unexpected request processing failed.
+ */
+export type ClientActionUploadInternalErrorResponse = ClientActionUploadTransportError;
+
+/**
+ * A required governed database identity or secure-intake capability is unavailable.
+ */
+export type ClientActionUploadUnavailableResponse = ClientActionUploadUnavailableError;
+
+/**
+ * The renewal plan, authority, receipt identity, evidence, vault projection or expected version conflicts with current state.
+ */
+export type EvidenceRenewalConflictResponse = EvidenceRenewalMutationError;
+
+/**
+ * The exact-scope project or renewal plan was not found.
+ */
+export type EvidenceRenewalNotFoundResponse = EvidenceRenewalMutationError;
+
+/**
+ * The bounded project renewal ledger has reached its safe record capacity.
+ */
+export type EvidenceRenewalCapacityExceededResponse = EvidenceRenewalMutationError;
+
+/**
+ * The governed evidence-renewal repository or projection is unavailable.
+ */
+export type EvidenceRenewalUnavailableResponse = EvidenceRenewalUnavailableError;
+
+/**
  * The bounded operations request is invalid.
  */
 export type OperationsBadRequestResponse = OperationsSuiteErrorEnvelope;
@@ -8996,6 +10033,21 @@ export type CanonicalEvidenceProjectIdParameter = string;
  * Maximum canonical evidence options. The wire value is one to three decimal digits with no leading zero.
  */
 export type CanonicalEvidenceLimitParameter = number;
+
+/**
+ * Stable 16-to-128-code-unit identity. Leading or trailing whitespace, control characters and unpaired UTF-16 surrogates are rejected; reuse is accepted only for the exact governed upload material.
+ */
+export type ClientActionUploadIdempotencyKeyParameter = string;
+
+/**
+ * Stable confirmation identity; reuse is accepted only for the exact same request.
+ */
+export type OpportunityHandoffIdempotencyKeyParameter = string;
+
+/**
+ * Stable UUID persisted with the content-free promotion receipt.
+ */
+export type FieldDraftPromotionIdempotencyKeyParameter = string;
 
 export type CommercialProjectIdQueryParameter = string;
 

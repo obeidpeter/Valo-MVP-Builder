@@ -17,6 +17,8 @@ const strictRoadmapOperationIds = [
   "createClientEvidenceRequest",
   "acknowledgeClientEvidenceRequest",
   "createClientUploadIntent",
+  "issueClientActionUploadLease",
+  "finalizeClientActionUploadLease",
   "attachClientEvidenceDocument",
   "reviewClientEvidenceSlot",
   "acknowledgeClientEvidenceCorrection",
@@ -26,6 +28,13 @@ const strictRoadmapOperationIds = [
   "getOpportunitySourceCandidate",
   "recordManualOpportunitySource",
   "decideOpportunitySourceCandidate",
+  "prepareOpportunityPursuitHandoff",
+  "confirmOpportunityPursuitHandoff",
+  "getEvidenceRenewalSnapshot",
+  "listEvidenceRenewalAuthorities",
+  "createEvidenceRenewalPlan",
+  "stageEvidenceRenewalReplacement",
+  "reviewEvidenceRenewalReplacement",
   "getReconciledCommunications",
   "listProjectCommunicationReferences",
   "queueCommunicationIntent",
@@ -60,6 +69,7 @@ const strictRoadmapOperationIds = [
   "getClaimsDesk",
   "createClaimsDeskRecord",
   "transitionClaimsDeskRecord",
+  "promoteFieldDraftToOperationsWorkItem",
 ] as const;
 
 const strictRoadmapOperations = Object.fromEntries(

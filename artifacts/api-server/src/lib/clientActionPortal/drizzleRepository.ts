@@ -437,6 +437,13 @@ function parseEnvelope(
   return structuredClone(record as ClientActionRecord);
 }
 
+// Governed adjacent workflows (for example, atomic client upload
+// finalisation) must use the identical durable-envelope parser and serializer
+// rather than maintaining a weaker parallel interpretation of work_tasks.
+export const parsePersistedClientActionEnvelope = parseEnvelope;
+export const serializePersistedClientActionEnvelope = serialize;
+export const persistedClientActionTitle = recordTitle;
+
 export class DrizzleClientActionRepository implements ClientActionRepository {
   async #lock(scope: ClientActionScope): Promise<void> {
     assertScope(scope);

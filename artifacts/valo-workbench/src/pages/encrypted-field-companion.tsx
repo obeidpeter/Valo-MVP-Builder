@@ -5,6 +5,7 @@ import {
   useListProjects,
 } from "@workspace/api-client-react";
 import { ClipboardList, LockKeyhole, ShieldAlert, WifiOff } from "lucide-react";
+import { FieldDraftPromotionReview } from "@/components/encrypted-field/field-draft-promotion-review";
 import {
   LoadingPanel,
   PageHeader,
@@ -49,6 +50,8 @@ export default function EncryptedFieldCompanionPage() {
   const { toast } = useToast();
   const organisationId = access?.activeOrganisation?.id ?? "";
   const actorUserId = meQuery.data?.id ?? "";
+  const actorLabel =
+    meQuery.data?.name?.trim() || meQuery.data?.email?.trim() || "";
   const permissions = access?.effectivePermissions ?? [];
   const direct =
     access?.activeOrganisation?.accessSource === "membership" &&
@@ -59,6 +62,7 @@ export default function EncryptedFieldCompanionPage() {
     direct &&
     permissions.includes("project:read"),
   );
+  const canPromote = canUse && permissions.includes("project:update");
   const activeScopeRef = useRef({ organisationId, actorUserId });
   activeScopeRef.current = { organisationId, actorUserId };
   const projectsQuery = useListProjects(undefined, {
@@ -300,7 +304,7 @@ export default function EncryptedFieldCompanionPage() {
       <PageHeader
         eyebrow="Local field workspace"
         title="Encrypted Field Companion"
-        description="Capture small draft notes and checklist progress while this signed-in session is open. Drafts stay for at most seven days under a user-bound, non-extractable AES-GCM key and never become server evidence or approval."
+        description="Capture small draft notes and checklist progress while this signed-in session is open. After reconnecting, a named operator may review selected fields against one existing governed work item. Drafts never become evidence or approval and remain local after a verified receipt."
       />
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -322,8 +326,8 @@ export default function EncryptedFieldCompanionPage() {
           <div>
             <p className="font-medium">No automatic sync</p>
             <p className="text-sm text-muted-foreground">
-              Reconnect and manually re-enter reviewed facts into the governed
-              workflow.
+              Reconnect, choose one compatible target, inspect the field diff
+              and confirm the bounded copy.
             </p>
           </div>
         </div>
@@ -501,6 +505,9 @@ export default function EncryptedFieldCompanionPage() {
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <CardTitle className="text-base">{draft.title}</CardTitle>
                     <Badge variant="secondary">{KIND_LABELS[draft.kind]}</Badge>
+                    {draft.promotion ? (
+                      <Badge variant="outline">Promoted copy recorded</Badge>
+                    ) : null}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Updated {new Date(draft.updatedAt).toLocaleString()} ·
@@ -527,7 +534,11 @@ export default function EncryptedFieldCompanionPage() {
                             <input
                               type="checkbox"
                               checked={item.completed}
-                              disabled={pending}
+                              disabled={
+                                pending ||
+                                Boolean(draft.promotion) ||
+                                Boolean(draft.pendingPromotion)
+                              }
                               onChange={() =>
                                 void toggleChecklist(draft, item.id)
                               }
@@ -555,22 +566,59 @@ export default function EncryptedFieldCompanionPage() {
                       type="button"
                       variant="outline"
                       className="min-h-11"
-                      disabled={pending}
+                      disabled={pending || Boolean(draft.pendingPromotion)}
                       onClick={() => {
                         setEditing(draft);
                         setKind(draft.kind);
                       }}
                     >
-                      Edit draft
+                      {draft.promotion ? "Revise local draft" : "Edit draft"}
                     </Button>
+                    {!draft.promotion ? (
+                      <FieldDraftPromotionReview
+                        draft={draft}
+                        organisationId={organisationId}
+                        actorUserId={actorUserId}
+                        actorLabel={actorLabel}
+                        projectTitle={
+                          (draft.projectId
+                            ? projectsById.get(draft.projectId)?.tenderTitle
+                            : null) ?? "Selected pursuit"
+                        }
+                        online={online}
+                        canPromote={canPromote}
+                        disabled={pending}
+                        beginCriticalWorkflow={
+                          access?.beginCriticalWorkflow ??
+                          (() => () => undefined)
+                        }
+                        onMarked={async () => {
+                          await refresh(organisationId, actorUserId);
+                          toast({
+                            title: "Governed copy recorded",
+                            description:
+                              "The verified receipt is marked on the retained encrypted draft. Delete it only when you choose.",
+                          });
+                        }}
+                      />
+                    ) : (
+                      <p className="basis-full text-sm text-muted-foreground">
+                        Verified receipt{" "}
+                        {draft.promotion.receiptSha256.slice(0, 12)}… recorded
+                        for target version {draft.promotion.targetVersion}. The
+                        encrypted draft is still local and is not evidence.
+                      </p>
+                    )}
                     <Button
                       type="button"
                       variant="destructive"
                       className="min-h-11"
-                      disabled={pending}
+                      disabled={pending || Boolean(draft.pendingPromotion)}
                       onClick={() => void remove(draft)}
                     >
-                      Delete local draft
+                      {draft.promotion
+                        ? "Delete promoted local draft"
+                        : "Delete local draft"}
                     </Button>
                   </div>
                 </CardContent>

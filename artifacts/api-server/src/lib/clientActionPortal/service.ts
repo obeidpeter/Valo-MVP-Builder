@@ -236,7 +236,7 @@ function latest(slot: ClientEvidenceSlot) {
   return slot.attempts.at(-1) ?? null;
 }
 
-function requestStatus(
+export function deriveClientEvidenceRequestStatus(
   slots: readonly ClientEvidenceSlot[],
 ): ClientEvidenceRequestRecord["status"] {
   const attempts = slots.map(latest);
@@ -642,7 +642,7 @@ export class ClientActionService {
         return this.#touch(scope, {
           ...current,
           slots,
-          status: requestStatus(slots),
+          status: deriveClientEvidenceRequestStatus(slots),
           completionReceiptSha256: null,
         });
       },
@@ -729,7 +729,7 @@ export class ClientActionService {
         return this.#touch(scope, {
           ...current,
           slots,
-          status: requestStatus(slots),
+          status: deriveClientEvidenceRequestStatus(slots),
         });
       },
     )) as ClientEvidenceRequestRecord;
@@ -811,7 +811,7 @@ export class ClientActionService {
               }
             : candidate,
         );
-        const status = requestStatus(slots);
+        const status = deriveClientEvidenceRequestStatus(slots);
         return this.#touch(scope, {
           ...current,
           slots,

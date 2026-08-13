@@ -128,8 +128,8 @@ async function requireCurrentActor(
   tx: RepositoryTx,
   scope: OpportunitySourceScope,
   manage: boolean,
+  now: Date,
 ): Promise<LocalUser> {
-  const now = new Date();
   const memberships = await tx
     .select({ membershipId: organisationMemberships.id, actor: users })
     .from(organisationMemberships)
@@ -185,6 +185,49 @@ async function requireCurrentActor(
     );
   }
   return membership.actor as LocalUser;
+}
+
+async function lockMembershipAdministrationBoundary(
+  tx: RepositoryTx,
+  organisationId: string,
+): Promise<void> {
+  await tx.execute(sql`SET LOCAL lock_timeout = '3s'`);
+  await tx.execute(sql`
+    SELECT pg_advisory_xact_lock(
+      pg_catalog.hashtextextended(
+        ${`valo.membership-administration:${organisationId}`},
+        0
+      )
+    )
+  `);
+  await tx.execute(sql`
+    SELECT id FROM public.organisation_memberships
+    WHERE organisation_id = ${organisationId}::uuid
+    ORDER BY id FOR UPDATE
+  `);
+  await tx.execute(sql`
+    SELECT grant_row.id
+    FROM public.role_grants AS grant_row
+    INNER JOIN public.organisation_memberships AS membership_row
+      ON membership_row.id = grant_row.membership_id
+    WHERE membership_row.organisation_id = ${organisationId}::uuid
+    ORDER BY grant_row.id FOR UPDATE OF grant_row
+  `);
+}
+
+async function currentDatabaseTime(tx: RepositoryTx): Promise<Date> {
+  const result = await tx.execute(
+    sql`SELECT pg_catalog.clock_timestamp() AS "now"`,
+  );
+  const value = (result.rows[0] as { now?: unknown } | undefined)?.now;
+  const now = value instanceof Date ? value : new Date(String(value));
+  if (!Number.isFinite(now.valueOf())) {
+    throw new OpportunitySourceNetworkError(
+      "source_unavailable",
+      "Current database time could not be verified.",
+    );
+  }
+  return now;
 }
 
 function parseCreated(
@@ -424,7 +467,7 @@ async function loadCandidates(
   );
 }
 
-async function lockNetwork(
+export async function lockOpportunitySourceNetwork(
   tx: RepositoryTx,
   organisationId: string,
 ): Promise<void> {
@@ -435,6 +478,24 @@ async function lockNetwork(
   `);
 }
 
+/**
+ * Loads one candidate through the caller's already-scoped tenant transaction.
+ * Callers that need a write-stable snapshot must acquire
+ * `lockOpportunitySourceNetwork` first.
+ */
+export async function loadOpportunitySourceCandidateTx(
+  tx: RepositoryTx,
+  organisationId: string,
+  candidateId: string,
+): Promise<OpportunitySourceCandidate | null> {
+  if (!UUID.test(candidateId)) return null;
+  return (
+    (await loadCandidates(tx, organisationId)).find(
+      ({ id }) => id === candidateId,
+    ) ?? null
+  );
+}
+
 export class AuditOpportunitySourceRepository implements OpportunitySourceRepository {
   async list(
     scope: OpportunitySourceScope,
@@ -442,7 +503,10 @@ export class AuditOpportunitySourceRepository implements OpportunitySourceReposi
     assertScope(scope);
     return db.transaction(
       async (tx) => {
-        await requireCurrentActor(tx, scope, false);
+        await lockMembershipAdministrationBoundary(tx, scope.organisationId);
+        await lockOpportunitySourceNetwork(tx, scope.organisationId);
+        const now = await currentDatabaseTime(tx);
+        await requireCurrentActor(tx, scope, false, now);
         return loadCandidates(tx, scope.organisationId);
       },
       { isolationLevel: "read committed" },
@@ -466,8 +530,10 @@ export class AuditOpportunitySourceRepository implements OpportunitySourceReposi
     assertScope(scope);
     return db.transaction(
       async (tx) => {
-        await lockNetwork(tx, scope.organisationId);
-        const actor = await requireCurrentActor(tx, scope, true);
+        await lockMembershipAdministrationBoundary(tx, scope.organisationId);
+        await lockOpportunitySourceNetwork(tx, scope.organisationId);
+        const now = await currentDatabaseTime(tx);
+        const actor = await requireCurrentActor(tx, scope, true, now);
         const current = await loadCandidates(tx, scope.organisationId);
         const duplicate = current.find(
           ({ dedupeKey }) => dedupeKey === input.dedupeKey,
@@ -524,8 +590,10 @@ export class AuditOpportunitySourceRepository implements OpportunitySourceReposi
     }
     return db.transaction(
       async (tx) => {
-        await lockNetwork(tx, scope.organisationId);
-        const actor = await requireCurrentActor(tx, scope, true);
+        await lockMembershipAdministrationBoundary(tx, scope.organisationId);
+        await lockOpportunitySourceNetwork(tx, scope.organisationId);
+        const now = await currentDatabaseTime(tx);
+        const actor = await requireCurrentActor(tx, scope, true, now);
         const current = (await loadCandidates(tx, scope.organisationId)).find(
           ({ id }) => id === candidateId,
         );

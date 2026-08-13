@@ -44,6 +44,19 @@ import {
 import type { OperationsSuiteStore } from "./store";
 import { requiredId } from "./validation";
 import { evaluateVisualPackageQa } from "./visualQa";
+import {
+  assertFieldDraftChecklistCommentCapacity,
+  assertFieldDraftPromotionReceiptCapacity,
+  createFieldDraftPromotionReceipt,
+  fieldDraftChecklistComment,
+  fieldDraftPromotionRequestSha256,
+  fieldDraftPromotionResponse,
+  parseFieldDraftPromotionIdempotencyKey,
+  parseFieldDraftPromotionRequest,
+  readFieldDraftPromotionReceipts,
+  type FieldDraftPromotionReceipt,
+  type WorkItemWithFieldPromotionReceipts,
+} from "./fieldDraftPromotion";
 
 export interface OperationsSuiteReferenceGuard {
   assertUser(scope: OperationsScope, userId: string): Promise<void>;
@@ -775,6 +788,248 @@ export class OperationsSuiteService {
       },
     );
     return updated as WorkItemRecord;
+  }
+
+  /**
+   * Copies explicitly selected fields from one actor-bound device draft into
+   * one existing governed work item. The draft itself is never accepted as
+   * evidence and this operation cannot delete or mutate browser storage.
+   */
+  async promoteFieldDraftToWorkItem(
+    scopeInput: OperationsScope,
+    recordId: string,
+    raw: unknown,
+    rawIdempotencyKey: unknown,
+    assertCurrentAuthority: (scope: OperationsScope) => Promise<void>,
+  ): Promise<FieldDraftPromotionReceipt> {
+    const scope = this.#scope(scopeInput);
+    const targetRecordId = requiredId(recordId, "recordId");
+    const input = parseFieldDraftPromotionRequest(raw);
+    const idempotencyKey =
+      parseFieldDraftPromotionIdempotencyKey(rawIdempotencyKey);
+    if (
+      input.draft.organisationId !== scope.organisationId ||
+      input.draft.actorUserId !== scope.actorUserId ||
+      input.draft.projectId !== scope.projectId
+    ) {
+      throw new OperationsSuiteError(
+        "scope_denied",
+        "The encrypted draft does not match the current actor and project scope.",
+      );
+    }
+    const requestSha256 = fieldDraftPromotionRequestSha256(
+      input,
+      targetRecordId,
+      idempotencyKey,
+    );
+
+    const replay = (
+      record: OperationsRecord,
+      replayed: boolean,
+    ): FieldDraftPromotionReceipt | null => {
+      if (!isKind(record, "work_item")) {
+        throw new OperationsSuiteError(
+          "not_found",
+          "The governed work-item target was not found.",
+        );
+      }
+      const receipts = readFieldDraftPromotionReceipts(
+        record as WorkItemRecord & WorkItemWithFieldPromotionReceipts,
+      );
+      const receipt = receipts.find(
+        (candidate) => candidate.idempotencyKey === idempotencyKey,
+      );
+      if (!receipt) return null;
+      if (
+        receipt.requestSha256 !== requestSha256 ||
+        receipt.organisationId !== scope.organisationId ||
+        receipt.projectId !== scope.projectId ||
+        receipt.targetRecordId !== targetRecordId ||
+        receipt.draftId !== input.draft.id ||
+        receipt.draftVersion !== input.draft.version ||
+        receipt.promotedByUserId !== scope.actorUserId
+      ) {
+        throw new OperationsSuiteError(
+          "conflict",
+          "The Idempotency-Key is already bound to a different promotion.",
+        );
+      }
+      return fieldDraftPromotionResponse(receipt, replayed);
+    };
+
+    const assertDraftRevisionAvailable = (record: OperationsRecord): void => {
+      if (!isKind(record, "work_item")) {
+        throw new OperationsSuiteError(
+          "not_found",
+          "The governed work-item target was not found.",
+        );
+      }
+      const receipts = readFieldDraftPromotionReceipts(
+        record as WorkItemRecord & WorkItemWithFieldPromotionReceipts,
+      );
+      if (
+        receipts.some(
+          (candidate) =>
+            candidate.organisationId === scope.organisationId &&
+            candidate.projectId === scope.projectId &&
+            candidate.draftId === input.draft.id &&
+            candidate.draftVersion === input.draft.version,
+        )
+      ) {
+        throw new OperationsSuiteError(
+          "conflict",
+          "This encrypted draft revision has already been promoted to the target.",
+        );
+      }
+    };
+
+    // The resolver takes the membership-administration transaction lock. It
+    // is checked once before any receipt is disclosed, and again from inside
+    // the compare-and-swap mutation after the target lock is held.
+    await assertCurrentAuthority(scope);
+    const before = await this.#store.get(scope, targetRecordId);
+    if (!before) {
+      throw new OperationsSuiteError(
+        "not_found",
+        "The governed work-item target was not found.",
+      );
+    }
+    const priorReceipt = replay(before, true);
+    if (priorReceipt) return priorReceipt;
+    assertDraftRevisionAvailable(before);
+
+    try {
+      const updated = await this.#store.compareAndSwap(
+        scope,
+        targetRecordId,
+        input.expectedTargetVersion,
+        async (record) => {
+          await assertCurrentAuthority(scope);
+          if (!isKind(record, "work_item")) {
+            throw new OperationsSuiteError(
+              "not_found",
+              "The governed work-item target was not found.",
+            );
+          }
+          const receipts = readFieldDraftPromotionReceipts(
+            record as WorkItemRecord & WorkItemWithFieldPromotionReceipts,
+          );
+          const racedReceipt = receipts.find(
+            (candidate) => candidate.idempotencyKey === idempotencyKey,
+          );
+          if (racedReceipt) {
+            throw new OperationsSuiteError(
+              "conflict",
+              racedReceipt.requestSha256 === requestSha256
+                ? "The promotion was committed concurrently; retry to verify its receipt."
+                : "The Idempotency-Key is already bound to a different promotion.",
+            );
+          }
+          if (
+            receipts.some(
+              (candidate) =>
+                candidate.organisationId === scope.organisationId &&
+                candidate.projectId === scope.projectId &&
+                candidate.draftId === input.draft.id &&
+                candidate.draftVersion === input.draft.version,
+            )
+          ) {
+            throw new OperationsSuiteError(
+              "conflict",
+              "This encrypted draft revision has already been promoted to the target.",
+            );
+          }
+          if (
+            record.status === "done" ||
+            record.status === "cancelled" ||
+            record.approval.status === "approved"
+          ) {
+            throw new OperationsSuiteError(
+              "policy_denied",
+              "The selected work item is not compatible with field-draft promotion.",
+            );
+          }
+          assertFieldDraftPromotionReceiptCapacity(receipts.length);
+          const checklistItems = input.values.checklist ?? [];
+          assertFieldDraftChecklistCommentCapacity(
+            record.comments.length,
+            checklistItems.length,
+          );
+          const changesContent =
+            (input.selectedFields.includes("title") &&
+              input.values.title !== record.title) ||
+            (input.selectedFields.includes("note") &&
+              input.values.note !== (record.description ?? "")) ||
+            checklistItems.length > 0;
+          if (!changesContent) {
+            throw new OperationsSuiteError(
+              "policy_denied",
+              "The selected fields do not change the governed target.",
+            );
+          }
+          const promotedAt = this.#now().toISOString();
+          const receipt = createFieldDraftPromotionReceipt({
+            organisationId: scope.organisationId,
+            projectId: scope.projectId,
+            targetRecordId,
+            targetVersion: record.version + 1,
+            draftId: input.draft.id,
+            draftVersion: input.draft.version,
+            promotedByUserId: scope.actorUserId,
+            selectedFields: input.selectedFields,
+            idempotencyKey,
+            requestSha256,
+            promotedAt,
+          });
+          return this.#touch(scope, {
+            ...record,
+            ...(input.selectedFields.includes("title")
+              ? { title: input.values.title as string }
+              : {}),
+            ...(input.selectedFields.includes("note")
+              ? {
+                  description: input.values.note
+                    ? (input.values.note as string)
+                    : null,
+                }
+              : {}),
+            comments: [
+              ...record.comments,
+              ...checklistItems.map((item) => ({
+                id: this.#idFactory(),
+                body: fieldDraftChecklistComment(item),
+                authorUserId: scope.actorUserId,
+                createdAt: promotedAt,
+              })),
+            ],
+            fieldPromotionReceipts: [...receipts, receipt],
+          });
+        },
+      );
+      const receipt = replay(updated, false);
+      if (!receipt) {
+        throw new OperationsSuiteError(
+          "policy_denied",
+          "The field-draft promotion receipt was not persisted.",
+        );
+      }
+      return receipt;
+    } catch (error) {
+      if (
+        !(error instanceof OperationsSuiteError) ||
+        error.code !== "stale_version"
+      ) {
+        throw error;
+      }
+      // A concurrent identical request may have committed after our first
+      // read. Recheck fresh authority and return only its verified receipt.
+      await assertCurrentAuthority(scope);
+      const after = await this.#store.get(scope, targetRecordId);
+      const racedReceipt = after ? replay(after, true) : null;
+      if (racedReceipt) return racedReceipt;
+      if (after) assertDraftRevisionAvailable(after);
+      throw error;
+    }
   }
 
   async decideWorkItemApproval(

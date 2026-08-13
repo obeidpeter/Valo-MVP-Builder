@@ -27,6 +27,9 @@ The machine-readable alert pack is `config/observability/alerts.v2.5.json`. CI v
 - Extraction quality is evaluated against the promoted holdout; a missing holdout result is a failed signal, not a zero-error result.
 - Unit-cost thresholds are effective-dated configuration and must not be embedded in source.
 - Tenant-denial and break-glass alerts are security events; access to their details follows the restricted audit role, not ordinary project membership.
+- Durable storage deletion exposes a dead-letter transition counter and an oldest-age sample. The age alert is valid only when the same run emits `valo.storage.deletion_sample_complete=1`; a partial rotating tenant page must never be presented as the global backlog. Source now includes the tenant-fair reconciler entrypoint, but a platform schedule, provider-timeout proof and verified alert delivery receipt remain required before storage lifecycle automation can be called operationally active.
+- Browser PUT grants close before their database lease and the reconciler waits a further bounded grace, but the current Replit/GCS sidecar contract does not prove a maximum duration for a PUT accepted before URL expiry. Production activation therefore remains blocked until the deployment proves an upper request-duration cap within that grace or replaces the signer with a create-only/generation-preconditioned capability. The response and status model deliberately call this bounded reconciliation, never exact late-write prevention.
+- The deletion worker remains activation-gated until a content-minimised terminal-row retention policy and an operator-authorised, tamper-evident dead-letter replay/resolution workflow are implemented and rehearsed. Retry and dead-letter transitions are audited today; this does not imply that operator replay is available.
 
 ## Operator evidence record
 

@@ -25,7 +25,7 @@ Sign in from the landing page (email-based sign-in). The **first person ever to 
 
 | Role                   | Can do                                                                                                                                                                                      |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Admin**              | Everything: all reviewer/analyst work, plus manage users, delete projects and documents, run retention (deletion) workflows, see the Settings page, monthly cost and access-review reports. |
+| **Admin**              | Everything: all reviewer/analyst work, plus manage users, delete projects and documents, manage the retention-request queue, see the Settings page, monthly cost and access-review reports. |
 | **Reviewer / Analyst** | All day-to-day work: clients, projects, documents, requirements, evidence, defects, BOQ, risk, reports, sign-offs.                                                                          |
 | **None**               | Nothing — waiting for approval.                                                                                                                                                             |
 
@@ -192,21 +192,21 @@ Your library of BPP Standard Bidding Document templates. Create templates by cod
 - **Scoring & Risk Bands** — adjust the severity weights and band cutoffs the risk score uses. Changes apply to new computations only; historic signed reports are never rescored.
 - **Report Template & Retention** — the firm name and confidentiality legend printed on reports, and the default retention window.
 - **Personnel Management** — assign roles (`admin`, `reviewer`, `analyst`, `none`) and enable/disable accounts.
-- **Retention Workflows** — the queue of deletion requests (see §9), with a **Complete** button for each pending request and the deletion certificate for finished ones.
+- **Retention Workflows** — the queue of deletion requests (see §9). Requests can be opened and reviewed, but completion is activation-gated in this release. Historic completed records continue to show their certificate.
 
 ---
 
-## 9. Deleting an engagement (retention workflow)
+## 9. Requesting engagement deletion (completion unavailable)
 
 When a client asks for their data to be deleted (or the retention period ends):
 
 1. On the project's **Overview tab**, open a **Retention Request** with a reason. One open request per project; the due date defaults to 14 days out (the NDPR-aligned window). A scheduled scan (`retention:scan`, run in the deploy environment) also auto-opens requests for engagements that reach the 12-month retention mark — it only _opens_ them; deletion always remains a human admin decision.
-2. An **admin** completes it from **Settings → Retention Workflows**. Completion refuses to run until the project's physical archive instruction is recorded (the same gate as archiving) — the system will not certify digital deletion while nobody has said what happens to the paper.
-3. Completion then deletes, in a single all-or-nothing operation: every stored file, all extracted requirement text, evidence excerpts, defect records, BOQ lines, AI-run summaries, and the project's narrative fields. If any stored file cannot be deleted (e.g. storage is down), **no certificate is issued** and the request stays pending for retry.
-4. What is _kept_, on purpose: the project's bare metadata, the retention record itself, the tamper-evident audit chain (your accountability record), and any files owned by the client's Certificate Vault (those belong to the client relationship, not the engagement).
-5. The **deletion certificate** states exactly what was purged, item by item, and what was retained. It's shown in the Settings queue — that text is your formal representation to the client.
+2. An **admin** can review the request in **Settings → Retention Workflows**. Pending requests show **Activation required** instead of a completion control.
+3. The completion API returns `503 RETENTION_COMPLETION_NOT_ACTIVATED`. It deletes no blobs or database rows, does not change the project or request, writes no refusal audit event, and issues no deletion certificate.
+4. Reactivation requires a durable two-phase **detach → reconcile → certify** workflow. It must cover project content rows, object storage, `upload_sessions`, storage-lifecycle/deletion-intent control rows, legal holds, and records governed by a separate financial or statutory retention basis. A certificate may be issued only after reconciliation has proved every required deletion and retention outcome.
+5. Historic certificates remain visible for already-completed records. Do not represent a pending request or the current `503` refusal as evidence that deletion occurred.
 
-Deleting a project outright (admin, Projects) removes everything at once, with the same vault-file protection — but produces no certificate. Use the retention workflow when the client needs one.
+Direct project deletion is not a substitute for a deletion certificate. Keep the retention request pending and follow the approved privacy escalation process until completion is reactivated.
 
 ---
 
@@ -238,30 +238,29 @@ Every AI call records its token usage. The project Overview shows the engagement
 | Sign off a report               | Open fatal/likely-fatal defect          | Resolve or waive it — there is no override                                                                     |
 | Export ZIP / archive            | No physical archive instruction         | Record the return/destroy instruction on Overview                                                              |
 | Export ZIP                      | No signed-off report                    | Generate and sign off a report first                                                                           |
-| Complete a retention request    | Archive gate fails                      | Record the physical archive instruction first                                                                  |
-| Complete a retention request    | A stored file couldn't be deleted       | Retry when storage is reachable — certificates are never issued over undeleted files                           |
-| Open a second retention request | One is already pending                  | Complete or wait on the existing one                                                                           |
+| Complete a retention request    | Completion is activation-gated          | Keep the request pending; use the approved privacy escalation process. No data or certificate changed          |
+| Open a second retention request | One is already pending                  | Review or wait on the existing request; do not treat it as completed                                           |
 | Save an empty edit              | No fields changed                       | Change something before saving                                                                                 |
 
 ---
 
 ## 13. Glossary
 
-| Term                     | Meaning                                                                                                                          |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| **Autopsy**              | Forensic review of a tender/bid pair to find disqualification risks                                                              |
-| **Engagement / Project** | One tender/bid review for one client                                                                                             |
-| **Mandatory recall**     | Share of human-confirmed mandatory requirements the AI surfaced by itself (85% is Gate-0 only; production requires at least 95%) |
-| **Fatal-block rule**     | No sign-off while a confirmed fatal/likely-fatal defect is open — enforced in code                                               |
-| **Readiness gate**       | The twelve-check dashboard on a project's Overview tab                                                                           |
-| **SLA class**            | Turnaround commitment: standard = 5 working days, live = 48 hours                                                                |
-| **Red-team window**      | Final hostile review pass in the 72 hours before the tender deadline                                                             |
-| **Certificate Vault**    | A client's long-lived compliance artefacts with expiry tracking                                                                  |
-| **Claimable**            | A capability claim that has both evidence and named approval                                                                     |
-| **BOQ**                  | Bill of Quantities — priced schedule of works/goods, verified in exact kobo                                                      |
-| **Provenance stamp**     | The engine/prompt/model/taxonomy versions recorded on every report                                                               |
-| **Deletion certificate** | The formal statement of what a retention completion purged and retained                                                          |
-| **Audit chain**          | The append-only, hash-linked log of every action in the system                                                                   |
+| Term                     | Meaning                                                                                                                               |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **Autopsy**              | Forensic review of a tender/bid pair to find disqualification risks                                                                   |
+| **Engagement / Project** | One tender/bid review for one client                                                                                                  |
+| **Mandatory recall**     | Share of human-confirmed mandatory requirements the AI surfaced by itself (85% is Gate-0 only; production requires at least 95%)      |
+| **Fatal-block rule**     | No sign-off while a confirmed fatal/likely-fatal defect is open — enforced in code                                                    |
+| **Readiness gate**       | The twelve-check dashboard on a project's Overview tab                                                                                |
+| **SLA class**            | Turnaround commitment: standard = 5 working days, live = 48 hours                                                                     |
+| **Red-team window**      | Final hostile review pass in the 72 hours before the tender deadline                                                                  |
+| **Certificate Vault**    | A client's long-lived compliance artefacts with expiry tracking                                                                       |
+| **Claimable**            | A capability claim that has both evidence and named approval                                                                          |
+| **BOQ**                  | Bill of Quantities — priced schedule of works/goods, verified in exact kobo                                                           |
+| **Provenance stamp**     | The engine/prompt/model/taxonomy versions recorded on every report                                                                    |
+| **Deletion certificate** | A formal statement issued only after a governed workflow has proved what was deleted and retained; new issuance is currently disabled |
+| **Audit chain**          | The append-only, hash-linked log of every action in the system                                                                        |
 
 ---
 

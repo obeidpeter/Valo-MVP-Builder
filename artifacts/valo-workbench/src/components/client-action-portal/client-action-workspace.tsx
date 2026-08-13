@@ -1,10 +1,5 @@
 import { useState } from "react";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  FileCheck2,
-  UploadCloud,
-} from "lucide-react";
+import { AlertTriangle, CheckCircle2, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +11,10 @@ import type {
   ClientActionSnapshot,
   ClientEvidenceRequest,
 } from "./client-action-contract";
+import {
+  ClientActionUploadControl,
+  type ClientActionUploadControlProps,
+} from "./client-action-upload-control";
 
 export interface ClientActionMutation {
   path: string;
@@ -25,12 +24,16 @@ export interface ClientActionMutation {
 export interface ClientActionWorkspaceProps {
   snapshot: ClientActionSnapshot;
   currentUserId: string;
+  membershipId?: string;
   canReview: boolean;
   canCreateEvidenceRequest?: boolean;
   authorityOptions?: readonly ClientActionAuthorityOption[];
   authorityState?: "loading" | "error" | "ready";
   pending?: boolean;
   onMutate?: (mutation: ClientActionMutation) => void;
+  canUpload?: boolean;
+  onUpload?: ClientActionUploadControlProps["onUpload"];
+  onReload?: ClientActionUploadControlProps["onReload"];
 }
 
 function latest(request: ClientEvidenceRequest, slotId: string) {
@@ -245,12 +248,16 @@ function EvidenceRequestCreator(props: {
 export function ClientActionWorkspace({
   snapshot,
   currentUserId,
+  membershipId = "",
   canReview,
   canCreateEvidenceRequest = false,
   authorityOptions = [],
   authorityState = "ready",
   pending = false,
   onMutate,
+  canUpload = false,
+  onUpload,
+  onReload,
 }: ClientActionWorkspaceProps) {
   const [intents, setIntents] = useState<
     Record<
@@ -262,9 +269,6 @@ export function ClientActionWorkspace({
         sha256: string;
       }
     >
-  >({});
-  const [attachments, setAttachments] = useState<
-    Record<string, { documentId: string; sha256: string }>
   >({});
   const [reviewReasons, setReviewReasons] = useState<Record<string, string>>(
     {},
@@ -282,7 +286,7 @@ export function ClientActionWorkspace({
       <StatusPanel
         state="partial"
         title="Controlled actions only"
-        description="This workspace records acknowledgements, upload intent and canonical document references. It does not upload a file, send a message or transfer a package. Use the governed Documents intake before attaching a document ID."
+        description="This workspace records acknowledgements and exact upload intents. For the current named recipient only, an acknowledged active intent can use governed direct-to-storage intake; the Valo API never accepts raw file bytes, and no message or package transfer is performed."
       />
 
       {canCreateEvidenceRequest ? (
@@ -366,10 +370,6 @@ export function ClientActionWorkspace({
                       filename: "",
                       contentType: "application/pdf",
                       sizeBytes: "",
-                      sha256: "",
-                    };
-                    const attachment = attachments[slot.id] ?? {
-                      documentId: "",
                       sha256: "",
                     };
                     const reviewReason = reviewReasons[slot.id] ?? "";
@@ -554,71 +554,42 @@ export function ClientActionWorkspace({
                         ) : null}
 
                         {isRecipient && attempt && !attempt.document ? (
-                          <form
-                            className="grid gap-3 md:grid-cols-2"
-                            onSubmit={(event) => {
-                              event.preventDefault();
-                              onMutate?.({
-                                path: `evidence-requests/${request.id}/slots/${slot.id}/documents`,
-                                body: {
-                                  expectedVersion: request.version,
-                                  intentId: attempt.intent.id,
-                                  documentId: attachment.documentId,
-                                  sha256: attachment.sha256,
-                                },
-                              });
-                            }}
-                          >
-                            <div>
-                              <Label htmlFor={`${slot.id}-document`}>
-                                Canonical document ID
-                              </Label>
-                              <Input
-                                id={`${slot.id}-document`}
-                                value={attachment.documentId}
-                                required
-                                onChange={(event) =>
-                                  setAttachments((values) => ({
-                                    ...values,
-                                    [slot.id]: {
-                                      ...attachment,
-                                      documentId: event.target.value,
-                                    },
-                                  }))
-                                }
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor={`${slot.id}-canonical-digest`}>
-                                Canonical SHA-256
-                              </Label>
-                              <Input
-                                id={`${slot.id}-canonical-digest`}
-                                value={attachment.sha256}
-                                minLength={64}
-                                maxLength={64}
-                                required
-                                onChange={(event) =>
-                                  setAttachments((values) => ({
-                                    ...values,
-                                    [slot.id]: {
-                                      ...attachment,
-                                      sha256: event.target.value,
-                                    },
-                                  }))
-                                }
-                              />
-                            </div>
-                            <Button
-                              type="submit"
-                              variant="outline"
+                          canUpload &&
+                          onUpload &&
+                          onReload &&
+                          request.status === "in_progress" &&
+                          request.requestAcknowledgement
+                            ?.acknowledgedByUserId === currentUserId &&
+                          attempt.intent.recordedByUserId === currentUserId &&
+                          !attempt.review ? (
+                            <ClientActionUploadControl
+                              key={`${snapshot.organisationId}:${membershipId}:${currentUserId}:${request.id}:${request.version}:${slot.id}:${attempt.intent.id}`}
+                              binding={{
+                                organisationId: snapshot.organisationId,
+                                projectId: snapshot.projectId,
+                                recordId: request.id,
+                                slotId: slot.id,
+                                intentId: attempt.intent.id,
+                                expectedRecordVersion: request.version,
+                                filename: attempt.intent.filename,
+                                contentType: attempt.intent.contentType,
+                                sizeBytes: attempt.intent.sizeBytes,
+                                declaredSha256: attempt.intent.declaredSha256,
+                                acceptedContentTypes: slot.acceptedContentTypes,
+                              }}
+                              membershipId={membershipId}
+                              actorUserId={currentUserId}
                               disabled={pending}
-                              className="md:col-span-2"
-                            >
-                              <FileCheck2 className="mr-2 h-4 w-4" />
-                              Attach governed document record
-                            </Button>
-                          </form>
+                              onUpload={onUpload}
+                              onReload={onReload}
+                            />
+                          ) : (
+                            <StatusPanel
+                              state="unavailable"
+                              title="Governed upload is not current"
+                              description="Reload the exact acknowledged request, named recipient, active slot, latest intent and record version before selecting file bytes."
+                            />
+                          )
                         ) : null}
 
                         {canReview &&

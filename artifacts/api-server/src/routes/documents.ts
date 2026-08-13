@@ -41,6 +41,7 @@ import { isOwnedStagedUploadPath } from "../lib/stagedUploadCleanup";
 import { lockStagedUploadObject } from "../lib/stagedUploadLock";
 import { storagePathReferenceKinds } from "../lib/storageReferences";
 import { lockCanonicalEvidenceDigest } from "../lib/canonicalEvidence";
+import { enqueueStorageDeletionIntent } from "../lib/storageLifecycle/repository";
 import { holdTenantDatabaseUntilComplete } from "../middlewares/databaseTenancy";
 
 const sha256Hex = (buf: Buffer): string =>
@@ -1304,18 +1305,25 @@ router.delete(
       deleted.objectPath,
     );
     const referencedElsewhere = remainingReferences.length > 0;
-    let blobDeleted = false;
+    let deletionIntentId: string | null = null;
     if (!referencedElsewhere) {
-      try {
-        blobDeleted = await objectStorage.deleteObjectEntity(
-          deleted.objectPath,
-        );
-      } catch (error) {
-        req.log.error(
-          { err: error, objectPath: deleted.objectPath },
-          "failed to delete document blob",
+      const organisationId = getOrganisationId(req);
+      if (!organisationId) {
+        throw new Error(
+          "Active organisation is required for durable document cleanup",
         );
       }
+      const intent = await enqueueStorageDeletionIntent({
+        organisationId,
+        projectId: deleted.projectId,
+        objectPath: deleted.objectPath,
+        aggregateType: "document",
+        aggregateId: deleted.id,
+        reason: "record_deleted",
+        requestedAt: new Date(),
+        actor: getLocalUser(req),
+      });
+      deletionIntentId = intent.id;
     }
     await writeAudit({
       user: getLocalUser(req),
@@ -1326,10 +1334,8 @@ router.delete(
       details: `${deleted.filename} (file ${
         referencedElsewhere
           ? `retained for ${remainingReferences.join(", ")}`
-          : blobDeleted
-            ? "purged"
-            : "not found"
-      } in storage)`,
+          : `queued for durable deletion reconciliation (${deletionIntentId})`
+      })`,
     });
     res.status(204).end();
   },
