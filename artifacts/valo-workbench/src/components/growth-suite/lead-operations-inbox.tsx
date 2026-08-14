@@ -12,20 +12,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-
-function readable(value: string): string {
-  return value.replaceAll("_", " ");
-}
+import { formatWatInstant, humaniseToken as readable } from "@/lib/format";
 
 function compactDate(value: string | null): string {
   if (!value) return "Not set";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return new Intl.DateTimeFormat("en-NG", {
-    dateStyle: "medium",
-    timeStyle: value.includes("T") ? "short" : undefined,
-    timeZone: "Africa/Lagos",
-  }).format(parsed);
+  return formatWatInstant(value, { withTime: value.includes("T") });
 }
 
 export function LeadOperationsInbox({

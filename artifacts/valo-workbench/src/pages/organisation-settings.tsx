@@ -60,27 +60,11 @@ import {
 import { useOrganisationAccess } from "@/contexts/organisation-context";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { useToast } from "@/hooks/use-toast";
-import { errorMessage } from "@/lib/errors";
+import { errorMessage, requestStatus as apiStatus } from "@/lib/errors";
+import { formatWatInstant, watDateParts } from "@/lib/format";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function apiStatus(error: unknown): number | undefined {
-  return (error as { status?: number } | null)?.status;
-}
-
-function watDateParts(value = new Date()): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    timeZone: "Africa/Lagos",
-  }).formatToParts(value);
-  const year = parts.find((part) => part.type === "year")?.value;
-  const month = parts.find((part) => part.type === "month")?.value;
-  const day = parts.find((part) => part.type === "day")?.value;
-  return year && month && day ? `${year}-${month}-${day}` : "";
-}
 
 function dateInputValue(value: string | null): string {
   if (!value) return "";
@@ -97,14 +81,11 @@ function validFutureEndDate(date: string): boolean {
 }
 
 function formatDateTime(value: string | null): string {
-  if (!value) return "No expiry";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "Invalid stored date";
-  return `${new Intl.DateTimeFormat("en-NG", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Africa/Lagos",
-  }).format(parsed)} WAT`;
+  return formatWatInstant(value, {
+    empty: "No expiry",
+    invalid: "Invalid stored date",
+    suffix: " WAT",
+  });
 }
 
 function membershipState(membership: OrganisationMembershipView): {

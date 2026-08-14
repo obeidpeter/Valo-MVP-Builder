@@ -16,6 +16,7 @@ import type {
   OpportunitySourceSnapshot,
 } from "./opportunity-source-contract";
 import { OpportunityPursuitHandoffWorkflow } from "./opportunity-pursuit-handoff-workflow";
+import { formatWatInstant } from "@/lib/format";
 
 export interface OpportunitySourceConsoleProps {
   snapshot: OpportunitySourceSnapshot;
@@ -30,12 +31,7 @@ export interface OpportunitySourceConsoleProps {
 }
 
 function displayDate(value: string | null): string {
-  if (!value) return "Not recorded";
-  return new Intl.DateTimeFormat("en-NG", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Africa/Lagos",
-  }).format(new Date(value));
+  return formatWatInstant(value, { empty: "Not recorded" });
 }
 
 function ManualSourceForm({

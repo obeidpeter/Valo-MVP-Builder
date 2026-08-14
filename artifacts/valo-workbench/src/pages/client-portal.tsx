@@ -18,6 +18,7 @@ import {
   type SurfaceState,
 } from "@/components/platform-states";
 import { platformFeatureFlags } from "@/lib/platform-access";
+import { formatWatInstant } from "@/lib/format";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 
 const OPEN_PROJECT_STATUSES = new Set<ProjectSummary["status"]>([
@@ -29,14 +30,7 @@ const OPEN_PROJECT_STATUSES = new Set<ProjectSummary["status"]>([
 ]);
 
 function formatDateTime(value: string | null | undefined): string {
-  if (!value) return "Not recorded";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return `${new Intl.DateTimeFormat("en-NG", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Africa/Lagos",
-  }).format(parsed)} WAT`;
+  return formatWatInstant(value, { empty: "Not recorded", suffix: " WAT" });
 }
 
 function projectState(project: ProjectSummary): {

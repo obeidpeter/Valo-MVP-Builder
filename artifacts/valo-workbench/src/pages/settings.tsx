@@ -31,7 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { errorMessage } from "@/lib/errors";
+import { mutationErrorToast } from "@/lib/errors";
 
 export default function Settings() {
   const { data: users, isLoading } = useListUsers();
@@ -104,12 +104,11 @@ export default function Settings() {
               "New scores use the updated settings. Historic reports are unchanged.",
           });
         },
-        onError: (err) =>
-          toast({
-            variant: "destructive",
-            title: "Could not save configuration",
-            description: errorMessage(err, "The update was refused."),
-          }),
+        onError: mutationErrorToast(
+          toast,
+          "Could not save configuration",
+          "The update was refused.",
+        ),
       },
     );
   };

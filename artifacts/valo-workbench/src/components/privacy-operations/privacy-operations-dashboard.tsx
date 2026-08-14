@@ -11,20 +11,13 @@ import type {
   PrivacyOperationsDashboard,
   PrivacyReviewPosture,
 } from "./privacy-operations-contract";
+import { formatWatInstant, humaniseToken as readable } from "@/lib/format";
 
 function formattedDate(value: string | null): string {
-  if (!value) return "Not recorded";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "Invalid date";
-  return new Intl.DateTimeFormat("en-NG", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Africa/Lagos",
-  }).format(parsed);
-}
-
-function readable(value: string): string {
-  return value.replaceAll("_", " ");
+  return formatWatInstant(value, {
+    empty: "Not recorded",
+    invalid: "Invalid date",
+  });
 }
 
 function EvidenceBadge({ state }: { state: PrivacyEvidenceState }) {

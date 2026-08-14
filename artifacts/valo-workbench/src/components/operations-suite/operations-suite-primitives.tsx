@@ -2,16 +2,13 @@ import type { ReactNode } from "react";
 import { ShieldCheck } from "lucide-react";
 import { LoadingPanel, StatusPanel } from "@/components/platform-states";
 import { Button } from "@/components/ui/button";
+import { formatWatInstant } from "@/lib/format";
 
 export function formatOperationsDate(value: string | null): string {
-  if (!value) return "Not recorded";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Date unavailable";
-  return new Intl.DateTimeFormat("en-NG", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Africa/Lagos",
-  }).format(date);
+  return formatWatInstant(value, {
+    empty: "Not recorded",
+    invalid: "Date unavailable",
+  });
 }
 
 export function safeCount(value: number): number {

@@ -7,6 +7,7 @@ import {
   useListClientDocuments,
   getListVaultItemsQueryKey,
   type VaultItem,
+  type VaultItemExpiryBand,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,7 @@ const ARTEFACT_TYPES = [
 const OTHER = "__other__";
 const NO_SOURCE_DOCUMENT = "__none__";
 
-const BAND_STYLES: Record<string, string> = {
+const BAND_STYLES: Record<VaultItemExpiryBand, string> = {
   expired: "bg-destructive/10 text-destructive border-destructive/30",
   critical: "bg-destructive/10 text-destructive border-destructive/30",
   warning:

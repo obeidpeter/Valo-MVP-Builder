@@ -34,6 +34,7 @@ import {
   normalizePlatformRoles,
   platformFeatureFlags,
   type PlatformNavItem,
+  type PlatformRole,
 } from "@/lib/platform-access";
 import {
   LoadingPanel,
@@ -43,6 +44,7 @@ import {
 } from "@/components/platform-states";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
+import { requestStatus } from "@/lib/errors";
 import {
   OrganisationLoadError,
   OrganisationSelectionGate,
@@ -88,6 +90,9 @@ const NAV_GROUPS: PlatformNavItem["group"][] = [
 ];
 
 const ROLE_LABELS: Record<string, string> = {
+  // Keys are checked against the PlatformRole union via the trailing
+  // `satisfies`; the wider Record<string, string> annotation keeps the
+  // roleLabel fallback path for unknown role strings.
   admin: "Administrator",
   reviewer: "Reviewer",
   analyst: "Analyst",
@@ -112,7 +117,7 @@ const ROLE_LABELS: Record<string, string> = {
   partner_analyst: "Partner analyst",
   partner_reviewer: "Partner reviewer",
   consultancy_partner_analyst_reviewer: "Partner analyst and reviewer",
-};
+} satisfies Partial<Record<PlatformRole, string>>;
 
 function roleLabel(role: string): string {
   return (
@@ -224,7 +229,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     query: {
       queryKey: getGetMeQueryKey(),
       retry: (failureCount, err) => {
-        const status = (err as { status?: number } | null)?.status;
+        const status = requestStatus(err);
         if (status === 403) return false;
         return failureCount < 3;
       },

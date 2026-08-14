@@ -13,15 +13,10 @@ import {
   StateBadge,
   StatusPanel,
 } from "@/components/platform-states";
+import { formatWatInstant } from "@/lib/format";
 
 function formatDate(value?: string | null): string {
-  if (!value) return "Not generated";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("en-NG", {
-    dateStyle: "medium",
-    timeZone: "Africa/Lagos",
-  }).format(date);
+  return formatWatInstant(value, { empty: "Not generated", withTime: false });
 }
 
 export default function ReportsIndex() {

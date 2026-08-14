@@ -15,6 +15,10 @@ import {
   StatusPanel,
 } from "@/components/platform-states";
 import { useOnlineStatus } from "@/hooks/use-online-status";
+import {
+  formatWatInstant,
+  humaniseToken as readableIdentifier,
+} from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -40,10 +44,6 @@ const AI_BLOCKER_LABELS: Record<string, string> = {
   AI_CAPABILITY_DISABLED: "No capability is enabled for this tenant",
 };
 
-function readableIdentifier(value: string): string {
-  return value.replaceAll("_", " ");
-}
-
 function blockerLabel(value: string): string {
   return AI_BLOCKER_LABELS[value] ?? readableIdentifier(value);
 }
@@ -65,13 +65,7 @@ function formatMinorAmount(currency: string, minor: number): string {
 }
 
 function compactDate(value: string): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return new Intl.DateTimeFormat("en-NG", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Africa/Lagos",
-  }).format(parsed);
+  return formatWatInstant(value);
 }
 
 export default function OperationsConsole() {

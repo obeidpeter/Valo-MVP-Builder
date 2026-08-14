@@ -19,6 +19,7 @@ import type {
   ConsortiumResponsibility,
   ConsortiumSnapshot,
 } from "./partner-consortium-contract";
+import { formatWatInstant } from "@/lib/format";
 
 const QA_LABELS: Readonly<Record<ConsortiumQaItem["code"], string>> = {
   evidence_quality_review: "Evidence quality review",
@@ -45,12 +46,7 @@ function short(value: string, start = 8, end = 6): string {
 }
 
 function dateTime(value: string | null): string {
-  if (!value) return "Not set";
-  return new Intl.DateTimeFormat("en-NG", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Africa/Lagos",
-  }).format(new Date(value));
+  return formatWatInstant(value, { empty: "Not set" });
 }
 
 function localIso(value: string): string | null {

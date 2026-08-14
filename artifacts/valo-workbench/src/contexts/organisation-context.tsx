@@ -16,6 +16,7 @@ import {
 } from "@workspace/api-client-react";
 import { useIsMutating, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/clerk-react";
+import { requestStatus } from "@/lib/errors";
 
 export type OrganisationType = "client" | "valo" | "consultancy_partner";
 
@@ -187,7 +188,7 @@ export function OrganisationProvider({ children }: { children: ReactNode }) {
     query: {
       queryKey: getGetMeQueryKey(),
       retry: (failureCount, error) => {
-        const status = (error as { status?: number } | null)?.status;
+        const status = requestStatus(error);
         if (status === 403) return false;
         return failureCount < 3;
       },

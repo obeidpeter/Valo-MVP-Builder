@@ -20,22 +20,11 @@ import {
   type SurfaceState,
 } from "@/components/platform-states";
 import { MyWorkInbox } from "@/components/my-work-inbox";
+import { formatWatInstant } from "@/lib/format";
 
 const TERMINAL_STATUSES = new Set(["signed_off", "exported", "archived"]);
-const WAT_TIME_ZONE = "Africa/Lagos";
 const LOADING_VALUE = "\u2026";
 const UNAVAILABLE_VALUE = "\u2014";
-
-const watDateTimeFormatter = new Intl.DateTimeFormat("en-NG", {
-  dateStyle: "medium",
-  timeStyle: "short",
-  timeZone: WAT_TIME_ZONE,
-});
-
-const watDateFormatter = new Intl.DateTimeFormat("en-NG", {
-  dateStyle: "medium",
-  timeZone: WAT_TIME_ZONE,
-});
 
 const countFormatter = new Intl.NumberFormat("en-NG");
 
@@ -51,13 +40,13 @@ function parseRecordedDate(value: string): Date {
 function formatWatDateTime(value: string): string {
   const parsed = parseRecordedDate(value);
   if (Number.isNaN(parsed.getTime())) return "Invalid recorded date";
-  return `${watDateTimeFormatter.format(parsed)} WAT`;
+  return formatWatInstant(parsed, { suffix: " WAT" });
 }
 
 function formatWatDate(value: string): string {
   const parsed = parseRecordedDate(value);
   if (Number.isNaN(parsed.getTime())) return "Invalid recorded date";
-  return watDateFormatter.format(parsed);
+  return formatWatInstant(parsed, { withTime: false });
 }
 
 function deadlineTime(project: ProjectSummary): number | null {

@@ -9,15 +9,12 @@ import {
   type ProductionAcceptanceCategory,
   type ProductionAcceptanceEvidenceDraft,
 } from "./production-acceptance-contract";
+import { humaniseToken as readable } from "@/lib/format";
 
 const SELECT_CLASS =
   "flex min-h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-
-function readable(value: string): string {
-  return value.replaceAll("_", " ");
-}
 
 function idempotencyKey(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
