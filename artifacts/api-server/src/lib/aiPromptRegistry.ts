@@ -103,25 +103,73 @@ const nullableString = (maxLength: number) => ({
   maxLength,
 });
 
+// ---------------------------------------------------------------------------
+// AI output taxonomies — the single source for the registered output schemas,
+// the registry validators, sanitizeLlm's clamps, and llm.ts's result types.
+// Element order is part of the schema-hash contract: schema hashes are
+// computed at runtime from these arrays, so reordering elements changes
+// persisted registry hashes. Never reorder; append only with governance.
+// ---------------------------------------------------------------------------
+export const REQUIREMENT_CATEGORIES = [
+  "eligibility",
+  "administrative",
+  "technical",
+  "financial_format",
+  "other",
+] as const;
+export const CONFIDENCE_LEVELS = ["high", "medium", "low", "unclear"] as const;
+export const EVIDENCE_STATUSES = [
+  "present",
+  "missing",
+  "expired",
+  "unclear",
+  "not_applicable",
+  "pending",
+] as const;
+export const DEFECT_TYPES = [
+  "omission",
+  "expiry",
+  "arithmetic",
+  "formatting",
+  "responsiveness",
+  "eligibility",
+  "unsupported_claim",
+  "validity",
+] as const;
+export const DEFECT_SEVERITIES = [
+  "fatal",
+  "likely_fatal",
+  "scoring_risk",
+  "cosmetic",
+] as const;
+
+export const REQUIREMENT_CATEGORY_SET: ReadonlySet<string> = new Set(
+  REQUIREMENT_CATEGORIES,
+);
+export const CONFIDENCE_LEVEL_SET: ReadonlySet<string> = new Set(
+  CONFIDENCE_LEVELS,
+);
+export const EVIDENCE_STATUS_SET: ReadonlySet<string> = new Set(
+  EVIDENCE_STATUSES,
+);
+export const DEFECT_TYPE_SET: ReadonlySet<string> = new Set(DEFECT_TYPES);
+export const DEFECT_SEVERITY_SET: ReadonlySet<string> = new Set(
+  DEFECT_SEVERITIES,
+);
+
 const requirementItemSchema = objectSchema(
   {
     text: { type: "string", minLength: 1, maxLength: 4000 },
     sourceQuote: { type: "string", minLength: 1, maxLength: 4000 },
     category: {
       type: "string",
-      enum: [
-        "eligibility",
-        "administrative",
-        "technical",
-        "financial_format",
-        "other",
-      ],
+      enum: [...REQUIREMENT_CATEGORIES],
     },
     expectedEvidence: nullableString(1000),
     isMandatory: { type: "boolean" },
     confidence: {
       type: ["string", "null"],
-      enum: ["high", "medium", "low", "unclear", null],
+      enum: [...CONFIDENCE_LEVELS, null],
     },
     pageRef: nullableString(100),
     clauseRef: nullableString(100),
@@ -146,14 +194,7 @@ const evidenceItemSchema = objectSchema(
     documentId: nullableString(100),
     evidenceStatus: {
       type: "string",
-      enum: [
-        "present",
-        "missing",
-        "expired",
-        "unclear",
-        "not_applicable",
-        "pending",
-      ],
+      enum: [...EVIDENCE_STATUSES],
     },
     excerpt: nullableString(4000),
     notes: nullableString(1000),
@@ -166,20 +207,11 @@ const defectItemSchema = objectSchema(
     requirementId: nullableString(100),
     type: {
       type: "string",
-      enum: [
-        "omission",
-        "expiry",
-        "arithmetic",
-        "formatting",
-        "responsiveness",
-        "eligibility",
-        "unsupported_claim",
-        "validity",
-      ],
+      enum: [...DEFECT_TYPES],
     },
     severity: {
       type: "string",
-      enum: ["fatal", "likely_fatal", "scoring_risk", "cosmetic"],
+      enum: [...DEFECT_SEVERITIES],
     },
     description: { type: "string", minLength: 1, maxLength: 4000 },
     remediation: nullableString(1000),
@@ -615,20 +647,12 @@ function validRequirement(value: unknown): boolean {
   ) {
     return false;
   }
-  if (
-    !new Set([
-      "eligibility",
-      "administrative",
-      "technical",
-      "financial_format",
-      "other",
-    ]).has(String(value.category))
-  ) {
+  if (!REQUIREMENT_CATEGORY_SET.has(String(value.category))) {
     return false;
   }
   if (
     value.confidence != null &&
-    !new Set(["high", "medium", "low", "unclear"]).has(String(value.confidence))
+    !CONFIDENCE_LEVEL_SET.has(String(value.confidence))
   ) {
     return false;
   }
@@ -657,14 +681,7 @@ function validEvidence(value: unknown): boolean {
     typeof value.requirementId === "string" &&
     value.requirementId.length > 0 &&
     value.requirementId.length <= 100 &&
-    new Set([
-      "present",
-      "missing",
-      "expired",
-      "unclear",
-      "not_applicable",
-      "pending",
-    ]).has(String(value.evidenceStatus)) &&
+    EVIDENCE_STATUS_SET.has(String(value.evidenceStatus)) &&
     nullableText(value.documentId, 100) &&
     nullableText(value.excerpt, 4000) &&
     nullableText(value.notes, 1000)
@@ -685,19 +702,8 @@ function validDefect(value: unknown): boolean {
     return false;
   }
   return (
-    new Set([
-      "omission",
-      "expiry",
-      "arithmetic",
-      "formatting",
-      "responsiveness",
-      "eligibility",
-      "unsupported_claim",
-      "validity",
-    ]).has(String(value.type)) &&
-    new Set(["fatal", "likely_fatal", "scoring_risk", "cosmetic"]).has(
-      String(value.severity),
-    ) &&
+    DEFECT_TYPE_SET.has(String(value.type)) &&
+    DEFECT_SEVERITY_SET.has(String(value.severity)) &&
     typeof value.description === "string" &&
     value.description.trim().length > 0 &&
     value.description.length <= 4000 &&

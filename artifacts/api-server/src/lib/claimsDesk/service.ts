@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { canonicalJsonLocale, sha256Hex } from "../canonicalDigest";
 import {
   CLAIMS_DESK_ACTIONS,
   CLAIMS_DESK_ASSESSMENT_CODES,
@@ -219,18 +219,11 @@ export function parseClaimsDeskTransitionDraft(
 }
 
 export function canonicalJson(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  return `{${Object.entries(value as JsonObject)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`)
-    .join(",")}}`;
+  return canonicalJsonLocale(value);
 }
 
 export function claimsDeskSha256(value: unknown): string {
-  return createHash("sha256")
-    .update(canonicalJson(value), "utf8")
-    .digest("hex");
+  return sha256Hex(canonicalJson(value));
 }
 
 import { deterministicUuidFromHex } from "../deterministicUuid";

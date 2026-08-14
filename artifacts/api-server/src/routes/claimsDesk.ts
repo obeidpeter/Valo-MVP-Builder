@@ -6,6 +6,7 @@ import {
   type Response,
 } from "express";
 import { getLocalUser } from "../middlewares/auth";
+import { privateResponse } from "../middlewares/privateResponse";
 import {
   getAccessContext,
   parseExpectedVersion,
@@ -41,16 +42,6 @@ export interface ClaimsDeskRouterOptions {
     context: AccessContext | undefined,
     actorUserId: string | undefined,
   ) => Promise<CurrentDirectAuthority | null>;
-}
-
-function privateResponse(
-  _request: Request,
-  response: Response,
-  next: NextFunction,
-): void {
-  response.setHeader("Cache-Control", "private, no-store");
-  response.vary("X-Valo-Organisation-Id");
-  next();
 }
 
 async function authorisedScopeFor(

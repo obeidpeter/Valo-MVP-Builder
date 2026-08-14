@@ -435,178 +435,261 @@ router.get(
   },
 );
 
+type ParsedProjectPatchBody = Extract<
+  ReturnType<typeof UpdateProjectBody.safeParse>,
+  { success: true }
+>;
+
+/**
+ * Pre-transaction PATCH validation (moved verbatim out of the handler):
+ * canonicalises the deadline, parses and bounds the body, and rejects
+ * server-managed payment/conflict/status fields. Returns null after sending
+ * the matching error response.
+ */
+function parseProjectPatchPayload(req: Request, res: Response) {
+  const rawDeadline =
+    req.body && typeof req.body === "object" && !Array.isArray(req.body)
+      ? (req.body as Record<string, unknown>).deadline
+      : undefined;
+  const canonicalDeadline =
+    rawDeadline === undefined
+      ? undefined
+      : typeof rawDeadline === "string"
+        ? canonicalProjectDeadline(rawDeadline)
+        : null;
+  if (canonicalDeadline === null) {
+    res.status(400).json({
+      error:
+        "Submission deadline must be an explicit RFC 3339 date-time with a Z or numeric offset.",
+    });
+    return;
+  }
+  const parsed = UpdateProjectBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+  if (Object.keys(parsed.data).length === 0) {
+    res.status(400).json({ error: "No fields to update" });
+    return;
+  }
+  if (parsed.data.reviewerId !== undefined && !isUuid(parsed.data.reviewerId)) {
+    res
+      .status(400)
+      .json({ error: "Reviewer identifier must be a valid UUID." });
+    return;
+  }
+  const { deadline: _parsedDeadline, ...parsedUpdateFields } = parsed.data;
+  const updateFields = {
+    ...parsedUpdateFields,
+    ...(canonicalDeadline === undefined ? {} : { deadline: canonicalDeadline }),
+  };
+  const editsResponsiveness = parsed.data.responsivenessReview !== undefined;
+  if (editsResponsiveness && !hasRequestPermission(req, "report:sign_off")) {
+    res.status(403).json({
+      error:
+        "Editing or approving the responsiveness review requires report:sign_off.",
+    });
+    return;
+  }
+  if (
+    parsed.data.paymentStatus !== undefined ||
+    parsed.data.conflictStatus !== undefined ||
+    parsed.data.conflictDecision !== undefined ||
+    parsed.data.conflictRationale !== undefined
+  ) {
+    res.status(409).json({
+      error:
+        "Payment and conflict decisions are controlled by dedicated authorised workflows.",
+    });
+    return;
+  }
+  if (
+    isSystemManagedProjectStatus(parsed.data.status) ||
+    parsed.data.status === "archived"
+  ) {
+    res.status(409).json({
+      error:
+        parsed.data.status === "archived"
+          ? "Archived state is controlled by the governed retention workflow."
+          : "Signed-off and exported states are controlled by the governed sign-off/export routes.",
+    });
+    return;
+  }
+  return { parsed, updateFields, editsResponsiveness };
+}
+
+type ProjectPatchPayload = NonNullable<
+  ReturnType<typeof parseProjectPatchPayload>
+>;
+
+/**
+ * Loads the tenant-scoped PATCH target and its optimistic-concurrency
+ * version, and gates supplied reviewer assignments on project:assign.
+ * Returns undefined after sending the matching error response.
+ */
+async function loadProjectPatchTarget(
+  req: Request,
+  res: Response,
+  parsed: ParsedProjectPatchBody,
+  organisationId: string,
+) {
+  const [existing] = await db
+    .select()
+    .from(projects)
+    .where(
+      and(
+        eq(projects.id, String(req.params.id)),
+        eq(projects.organisationId, organisationId),
+      ),
+    );
+  if (!existing) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  const expectedVersion = parseExpectedVersion(req.header("if-match"));
+  if (expectedVersion === null) {
+    res.status(428).json({ error: "A valid If-Match version is required" });
+    return;
+  }
+  if (
+    parsed.data.reviewerId !== undefined &&
+    !hasRequestPermission(req, "project:assign")
+  ) {
+    res
+      .status(403)
+      .json({ error: "Project reviewer assignment requires project:assign" });
+    return;
+  }
+  return { existing, expectedVersion };
+}
+
+/**
+ * Computes the canonical tender identity, the prospective row state and the
+ * conflict flags, and enforces the deterministic status-transition gate.
+ * Returns null after sending the matching error response.
+ */
+async function evaluateProjectPatchTransition({
+  req,
+  res,
+  parsed,
+  updateFields,
+  existing,
+}: {
+  req: Request;
+  res: Response;
+  parsed: ParsedProjectPatchBody;
+  updateFields: ProjectPatchPayload["updateFields"];
+  existing: typeof projects.$inferSelect;
+}) {
+  const existingTenderReference = canonicalOpportunityPursuitConflictValue(
+    existing.tenderRef,
+  );
+  const existingLotReference = canonicalOpportunityPursuitConflictValue(
+    existing.lot,
+  );
+  const nextTenderReference =
+    parsed.data.tenderRef === undefined
+      ? existingTenderReference
+      : canonicalOpportunityPursuitConflictValue(parsed.data.tenderRef);
+  const nextLotReference =
+    parsed.data.lot === undefined
+      ? existingLotReference
+      : canonicalOpportunityPursuitConflictValue(parsed.data.lot);
+  const next = {
+    ...existing,
+    ...updateFields,
+    tenderRef: nextTenderReference,
+    lot: nextLotReference,
+  };
+  const user = getLocalUser(req);
+  if (parsed.data.status && parsed.data.status !== existing.status) {
+    const gate = validateProjectTransition({
+      fromStatus: existing.status as ProjectStatus,
+      toStatus: parsed.data.status as ProjectStatus,
+      reviewerId: next.reviewerId,
+      paymentStatus: next.paymentStatus as PaymentStatus,
+      paymentConfirmedByFounder: next.paymentConfirmedByFounder,
+      paymentConfirmedByAdvisor: next.paymentConfirmedByAdvisor,
+      paymentFounderConfirmedBy: next.paymentFounderConfirmedBy,
+      paymentAdvisorConfirmedBy: next.paymentAdvisorConfirmedBy,
+      conflictStatus: next.conflictStatus as ConflictStatus,
+      physicalArchiveInstruction: next.physicalArchiveInstruction,
+    });
+    if (!gate.ok) {
+      await writeAudit({
+        user,
+        projectId: existing.id,
+        eventType: "project.transition_denied",
+        objectType: "project",
+        objectId: existing.id,
+        details: gate.reason,
+      });
+      res
+        .status(409)
+        .json({ error: gate.reason ?? "Project transition blocked" });
+      return;
+    }
+  }
+  // A consent only covers the tender identity it was granted for. So:
+  //  - an unrelated PATCH (deadline edit, status move) on a consented/declined
+  //    project must NOT silently re-block it or duplicate conflict_records;
+  //  - but a PATCH that CHANGES tenderRef/lot has moved the project onto a
+  //    different tender — any match there is a brand-new conflict the old
+  //    consent cannot waive, and it must block afresh.
+  const conflictIdentityChanged =
+    nextTenderReference !== existingTenderReference ||
+    nextLotReference !== existingLotReference;
+  const decidedConflict =
+    (parsed.data.conflictStatus === "consented" ||
+      parsed.data.conflictStatus === "declined") &&
+    existing.conflictStatus !== parsed.data.conflictStatus;
+  return {
+    nextTenderReference,
+    nextLotReference,
+    next,
+    user,
+    conflictIdentityChanged,
+    decidedConflict,
+  };
+}
+
 router.patch(
   "/projects/:id",
   requirePermissionOrLegacy("project:update"),
   async (req: Request, res: Response) => {
-    const rawDeadline =
-      req.body && typeof req.body === "object" && !Array.isArray(req.body)
-        ? (req.body as Record<string, unknown>).deadline
-        : undefined;
-    const canonicalDeadline =
-      rawDeadline === undefined
-        ? undefined
-        : typeof rawDeadline === "string"
-          ? canonicalProjectDeadline(rawDeadline)
-          : null;
-    if (canonicalDeadline === null) {
-      res.status(400).json({
-        error:
-          "Submission deadline must be an explicit RFC 3339 date-time with a Z or numeric offset.",
-      });
-      return;
-    }
-    const parsed = UpdateProjectBody.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: "Invalid request" });
-      return;
-    }
-    if (Object.keys(parsed.data).length === 0) {
-      res.status(400).json({ error: "No fields to update" });
-      return;
-    }
-    if (
-      parsed.data.reviewerId !== undefined &&
-      !isUuid(parsed.data.reviewerId)
-    ) {
-      res
-        .status(400)
-        .json({ error: "Reviewer identifier must be a valid UUID." });
-      return;
-    }
-    const { deadline: _parsedDeadline, ...parsedUpdateFields } = parsed.data;
-    const updateFields = {
-      ...parsedUpdateFields,
-      ...(canonicalDeadline === undefined
-        ? {}
-        : { deadline: canonicalDeadline }),
-    };
-    const editsResponsiveness = parsed.data.responsivenessReview !== undefined;
-    if (editsResponsiveness && !hasRequestPermission(req, "report:sign_off")) {
-      res.status(403).json({
-        error:
-          "Editing or approving the responsiveness review requires report:sign_off.",
-      });
-      return;
-    }
-    if (
-      parsed.data.paymentStatus !== undefined ||
-      parsed.data.conflictStatus !== undefined ||
-      parsed.data.conflictDecision !== undefined ||
-      parsed.data.conflictRationale !== undefined
-    ) {
-      res.status(409).json({
-        error:
-          "Payment and conflict decisions are controlled by dedicated authorised workflows.",
-      });
-      return;
-    }
-    if (
-      isSystemManagedProjectStatus(parsed.data.status) ||
-      parsed.data.status === "archived"
-    ) {
-      res.status(409).json({
-        error:
-          parsed.data.status === "archived"
-            ? "Archived state is controlled by the governed retention workflow."
-            : "Signed-off and exported states are controlled by the governed sign-off/export routes.",
-      });
-      return;
-    }
+    const payload = parseProjectPatchPayload(req, res);
+    if (!payload) return;
+    const { parsed, updateFields, editsResponsiveness } = payload;
     const organisationId = getOrganisationId(req);
     if (!organisationId) {
       res.status(403).json({ error: "Organisation context is required." });
       return;
     }
-    const [existing] = await db
-      .select()
-      .from(projects)
-      .where(
-        and(
-          eq(projects.id, String(req.params.id)),
-          eq(projects.organisationId, organisationId),
-        ),
-      );
-    if (!existing) {
-      res.status(404).json({ error: "Not found" });
-      return;
-    }
-    const expectedVersion = parseExpectedVersion(req.header("if-match"));
-    if (expectedVersion === null) {
-      res.status(428).json({ error: "A valid If-Match version is required" });
-      return;
-    }
-    if (
-      parsed.data.reviewerId !== undefined &&
-      !hasRequestPermission(req, "project:assign")
-    ) {
-      res
-        .status(403)
-        .json({ error: "Project reviewer assignment requires project:assign" });
-      return;
-    }
-    const existingTenderReference = canonicalOpportunityPursuitConflictValue(
-      existing.tenderRef,
+    const target = await loadProjectPatchTarget(
+      req,
+      res,
+      parsed,
+      organisationId,
     );
-    const existingLotReference = canonicalOpportunityPursuitConflictValue(
-      existing.lot,
-    );
-    const nextTenderReference =
-      parsed.data.tenderRef === undefined
-        ? existingTenderReference
-        : canonicalOpportunityPursuitConflictValue(parsed.data.tenderRef);
-    const nextLotReference =
-      parsed.data.lot === undefined
-        ? existingLotReference
-        : canonicalOpportunityPursuitConflictValue(parsed.data.lot);
-    const next = {
-      ...existing,
-      ...updateFields,
-      tenderRef: nextTenderReference,
-      lot: nextLotReference,
-    };
-    const user = getLocalUser(req);
-    if (parsed.data.status && parsed.data.status !== existing.status) {
-      const gate = validateProjectTransition({
-        fromStatus: existing.status as ProjectStatus,
-        toStatus: parsed.data.status as ProjectStatus,
-        reviewerId: next.reviewerId,
-        paymentStatus: next.paymentStatus as PaymentStatus,
-        paymentConfirmedByFounder: next.paymentConfirmedByFounder,
-        paymentConfirmedByAdvisor: next.paymentConfirmedByAdvisor,
-        paymentFounderConfirmedBy: next.paymentFounderConfirmedBy,
-        paymentAdvisorConfirmedBy: next.paymentAdvisorConfirmedBy,
-        conflictStatus: next.conflictStatus as ConflictStatus,
-        physicalArchiveInstruction: next.physicalArchiveInstruction,
-      });
-      if (!gate.ok) {
-        await writeAudit({
-          user,
-          projectId: existing.id,
-          eventType: "project.transition_denied",
-          objectType: "project",
-          objectId: existing.id,
-          details: gate.reason,
-        });
-        res
-          .status(409)
-          .json({ error: gate.reason ?? "Project transition blocked" });
-        return;
-      }
-    }
-    // A consent only covers the tender identity it was granted for. So:
-    //  - an unrelated PATCH (deadline edit, status move) on a consented/declined
-    //    project must NOT silently re-block it or duplicate conflict_records;
-    //  - but a PATCH that CHANGES tenderRef/lot has moved the project onto a
-    //    different tender — any match there is a brand-new conflict the old
-    //    consent cannot waive, and it must block afresh.
-    const conflictIdentityChanged =
-      nextTenderReference !== existingTenderReference ||
-      nextLotReference !== existingLotReference;
-    const decidedConflict =
-      (parsed.data.conflictStatus === "consented" ||
-        parsed.data.conflictStatus === "declined") &&
-      existing.conflictStatus !== parsed.data.conflictStatus;
+    if (!target) return;
+    const { existing, expectedVersion } = target;
+    const evaluation = await evaluateProjectPatchTransition({
+      req,
+      res,
+      parsed,
+      updateFields,
+      existing,
+    });
+    if (!evaluation) return;
+    const {
+      nextTenderReference,
+      nextLotReference,
+      next,
+      user,
+      conflictIdentityChanged,
+      decidedConflict,
+    } = evaluation;
     const outcome = await db.transaction(
       async (tx) => {
         // Every supplied reviewerId is an assignment. Equality against the

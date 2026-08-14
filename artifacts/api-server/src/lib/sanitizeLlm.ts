@@ -23,43 +23,17 @@ import type {
   MappedEvidence,
   SuggestedDefect,
 } from "./llm";
+import {
+  CONFIDENCE_LEVEL_SET,
+  DEFECT_SEVERITY_SET,
+  DEFECT_TYPE_SET,
+  EVIDENCE_STATUS_SET,
+  REQUIREMENT_CATEGORY_SET,
+} from "./aiPromptRegistry";
 
 const MAX_ITEMS = 500;
 const MAX_TEXT = 4000;
 const MAX_NOTE = 1000;
-
-const REQUIREMENT_CATEGORIES = new Set([
-  "eligibility",
-  "administrative",
-  "technical",
-  "financial_format",
-  "other",
-]);
-const CONFIDENCE_LEVELS = new Set(["high", "medium", "low", "unclear"]);
-const EVIDENCE_STATUSES = new Set([
-  "present",
-  "missing",
-  "expired",
-  "unclear",
-  "not_applicable",
-  "pending",
-]);
-const DEFECT_TYPES = new Set([
-  "omission",
-  "expiry",
-  "arithmetic",
-  "formatting",
-  "responsiveness",
-  "eligibility",
-  "unsupported_claim",
-  "validity",
-]);
-const DEFECT_SEVERITIES = new Set([
-  "fatal",
-  "likely_fatal",
-  "scoring_risk",
-  "cosmetic",
-]);
 
 function asText(value: unknown, cap: number): string | null {
   if (typeof value !== "string") return null;
@@ -89,12 +63,12 @@ export function sanitizeExtractedRequirements(
     const sourceDocId = asText(item.sourceDocId, 100);
     out.push({
       text,
-      category: (category && REQUIREMENT_CATEGORIES.has(category)
+      category: (category && REQUIREMENT_CATEGORY_SET.has(category)
         ? category
         : "other") as ExtractedRequirement["category"],
       expectedEvidence: asText(item.expectedEvidence, MAX_NOTE),
       isMandatory: item.isMandatory === true,
-      confidence: (confidence && CONFIDENCE_LEVELS.has(confidence)
+      confidence: (confidence && CONFIDENCE_LEVEL_SET.has(confidence)
         ? confidence
         : "unclear") as ExtractedRequirement["confidence"],
       pageRef: asText(item.pageRef, 100),
@@ -126,7 +100,7 @@ export function sanitizeMappedEvidence(
     const excerpt = asText(item.excerpt, MAX_TEXT);
     const proposedStatus = asText(item.evidenceStatus, 30);
     let evidenceStatus = (
-      proposedStatus && EVIDENCE_STATUSES.has(proposedStatus)
+      proposedStatus && EVIDENCE_STATUS_SET.has(proposedStatus)
         ? proposedStatus
         : "unclear"
     ) as MappedEvidence["evidenceStatus"];
@@ -163,8 +137,8 @@ export function sanitizeSuggestedDefects(
     // Type and severity drive the defect register and (once confirmed) the
     // risk score: an out-of-taxonomy value means the item is dropped, never
     // coerced into a guess.
-    if (!description || !type || !DEFECT_TYPES.has(type)) continue;
-    if (!severity || !DEFECT_SEVERITIES.has(severity)) continue;
+    if (!description || !type || !DEFECT_TYPE_SET.has(type)) continue;
+    if (!severity || !DEFECT_SEVERITY_SET.has(severity)) continue;
 
     const requirementId = asText(item.requirementId, 100);
     out.push({

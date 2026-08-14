@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { canonicalJsonCodeUnit, sha256Hex } from "../canonicalDigest";
 import {
   evaluationCases,
   evaluationResults,
@@ -368,17 +368,11 @@ type CanonicalValue =
   | { readonly [key: string]: CanonicalValue };
 
 function canonicalJson(value: CanonicalValue): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  const record = value as Readonly<Record<string, CanonicalValue>>;
-  return `{${Object.keys(record)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key]!)}`)
-    .join(",")}}`;
+  return canonicalJsonCodeUnit(value);
 }
 
 function evaluationHash(value: CanonicalValue): string {
-  return createHash("sha256").update(canonicalJson(value)).digest("hex");
+  return sha256Hex(canonicalJson(value));
 }
 
 function validUuid(value: unknown): value is string {

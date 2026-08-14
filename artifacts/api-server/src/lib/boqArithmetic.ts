@@ -1,4 +1,5 @@
 import type { Severity } from "./riskScoring";
+import { parseNumberDecimal, rescale, type Decimal } from "./decimalMoney";
 
 export type BoqCheckType =
   | "extension_mismatch"
@@ -48,60 +49,18 @@ export interface BoqRunResult {
 // finding.
 // ---------------------------------------------------------------------------
 
-interface ScaledDecimal {
-  /** All significant digits as an integer (sign included). */
-  digits: bigint;
-  /** Number of decimal places `digits` is scaled by. */
-  scale: number;
-}
-
-const DECIMAL_RE = /^(-?)(\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/;
-
-/** Parse a finite JS number's decimal string form exactly. */
-function parseScaled(value: number): ScaledDecimal | null {
-  if (typeof value !== "number" || !Number.isFinite(value)) return null;
-  const m = DECIMAL_RE.exec(String(value));
-  if (!m) return null;
-  const [, sign, intPart, fracPart = "", expPart] = m;
-  let digits = BigInt(intPart + fracPart);
-  let scale = fracPart.length;
-  const exp = expPart ? Number(expPart) : 0;
-  if (exp > 0) {
-    if (exp >= scale) {
-      digits *= 10n ** BigInt(exp - scale);
-      scale = 0;
-    } else {
-      scale -= exp;
-    }
-  } else if (exp < 0) {
-    scale += -exp;
-  }
-  return { digits: sign === "-" ? -digits : digits, scale };
-}
-
-/** Rescale to `scale` decimal places, rounding half away from zero. */
-function rescale(d: ScaledDecimal, scale: number): bigint {
-  if (d.scale === scale) return d.digits;
-  if (d.scale < scale) return d.digits * 10n ** BigInt(scale - d.scale);
-  const divisor = 10n ** BigInt(d.scale - scale);
-  const quotient = d.digits / divisor;
-  const remainder = d.digits % divisor;
-  const half = divisor / 2n;
-  if (remainder >= half) return quotient + 1n;
-  if (-remainder >= half) return quotient - 1n;
-  return quotient;
-}
+type ScaledDecimal = Decimal;
 
 /** A currency amount as integer kobo (half-away-from-zero at 2dp). */
 export function toKobo(value: number): bigint | null {
-  const scaled = parseScaled(value);
+  const scaled: ScaledDecimal | null = parseNumberDecimal(value);
   return scaled === null ? null : rescale(scaled, 2);
 }
 
 /** Exact product of two decimal figures, rounded half away from zero to kobo. */
 export function mulToKobo(a: number, b: number): bigint | null {
-  const sa = parseScaled(a);
-  const sb = parseScaled(b);
+  const sa = parseNumberDecimal(a);
+  const sb = parseNumberDecimal(b);
   if (sa === null || sb === null) return null;
   return rescale(
     { digits: sa.digits * sb.digits, scale: sa.scale + sb.scale },

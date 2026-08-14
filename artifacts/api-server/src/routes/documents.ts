@@ -303,141 +303,16 @@ router.post(
         ? productionFeatureIssues("document_intake")
         : [];
     if (!inspection.mayProcess || providerIssues.length > 0) {
-      let storedObjectDisposition = "retained outside the document corpus";
-      let quarantinedPath: string | null = null;
-      let possibleQuarantinedPath: string | null = null;
-      let quarantineRetained: boolean | null = false;
-      let cleanupConfirmed = false;
-      try {
-        if (
-          inspection.disposition === "rejected" ||
-          inspection.disposition === "duplicate"
-        ) {
-          const deleted = await objectStorage.deleteObjectEntity(
-            parsed.data.objectPath,
-          );
-          storedObjectDisposition = deleted ? "purged" : "already absent";
-          cleanupConfirmed = true;
-        } else {
-          quarantinedPath = await objectStorage.quarantineObjectEntity(
-            parsed.data.objectPath,
-            buffer,
-            parsed.data.contentType ?? null,
-          );
-          storedObjectDisposition = "moved to inaccessible quarantine";
-          quarantineRetained = true;
-          cleanupConfirmed = true;
-        }
-      } catch (error) {
-        req.log.error(
-          { err: error, objectPath: parsed.data.objectPath },
-          "failed to move rejected intake into quarantine",
-        );
-        if (error instanceof ObjectQuarantinePartialMoveError) {
-          // The exact inspected copy is either confirmed retained, or its
-          // write/cleanup acknowledgement is explicitly unknown. A second
-          // source cleanup must never erase that fact from response or audit.
-          quarantinedPath = error.quarantineCopyConfirmed
-            ? error.quarantinePath
-            : null;
-          possibleQuarantinedPath = error.quarantineCopyConfirmed
-            ? null
-            : error.quarantinePath;
-          quarantineRetained = error.quarantineCopyConfirmed ? true : null;
-          storedObjectDisposition = error.quarantineCopyConfirmed
-            ? "security-quarantine copy retained; original staging cleanup could not be confirmed"
-            : "security-quarantine copy may be retained; copy and original staging dispositions could not be confirmed";
-          try {
-            const deleted = await objectStorage.deleteObjectEntity(
-              parsed.data.objectPath,
-            );
-            storedObjectDisposition = error.quarantineCopyConfirmed
-              ? deleted
-                ? "original staging object purged; security-quarantine copy retained"
-                : "original staging object already absent; security-quarantine copy retained"
-              : deleted
-                ? "original staging object purged; security-quarantine copy disposition remains unconfirmed"
-                : "original staging object already absent; security-quarantine copy disposition remains unconfirmed";
-            cleanupConfirmed = error.quarantineCopyConfirmed;
-          } catch (deleteError) {
-            req.log.error(
-              { err: deleteError, objectPath: parsed.data.objectPath },
-              "failed to confirm staging cleanup after quarantine copy succeeded",
-            );
-          }
-        } else {
-          try {
-            const deleted = await objectStorage.deleteObjectEntity(
-              parsed.data.objectPath,
-            );
-            storedObjectDisposition = deleted
-              ? "purged after quarantine move failed"
-              : "not found after quarantine move failed";
-            cleanupConfirmed = true;
-          } catch (deleteError) {
-            req.log.error(
-              { err: deleteError, objectPath: parsed.data.objectPath },
-              "failed to purge rejected intake after quarantine move failed",
-            );
-            storedObjectDisposition = "quarantine move and purge both failed";
-          }
-        }
-      }
-      const eventDisposition = providerIssues.length
-        ? "quarantined"
-        : inspection.disposition;
-      await writeAudit({
+      await disposeRejectedIntake({
+        req,
+        res,
         user,
         projectId,
-        eventType: `document.intake_${eventDisposition}`,
-        objectType: "project",
-        objectId: projectId,
-        details: JSON.stringify({
-          filename: parsed.data.filename,
-          sha256: inspection.sha256,
-          detectedFormat: inspection.detectedFormat,
-          findings: inspection.findings.map((finding) => finding.code),
-          providerIssues: providerIssues.map((issue) => ({
-            kind: issue.kind,
-            code: issue.code,
-          })),
-          malware: {
-            state: inspection.malware.state,
-            provider: inspection.malware.provider,
-            engineVersion: inspection.malware.engineVersion,
-          },
-          archiveReason: inspection.archiveReason,
-          storedObjectDisposition,
-          quarantinedPath,
-          possibleQuarantinedPath,
-        }),
+        parsed,
+        buffer,
+        inspection,
+        providerIssues,
       });
-      const scannerUnavailable =
-        inspection.findings.some(
-          (finding) => finding.code === "malware_scan_incomplete",
-        ) || providerIssues.length > 0;
-      res
-        .status(
-          scannerUnavailable
-            ? 503
-            : inspection.disposition === "duplicate"
-              ? 409
-              : 422,
-        )
-        .json({
-          error: scannerUnavailable
-            ? "Secure document intake is temporarily unavailable. The file was not accepted or extracted."
-            : "The file failed secure intake and was not accepted or extracted.",
-          disposition: eventDisposition,
-          findings: inspection.findings.map((finding) => finding.code),
-          providerIssues: providerIssues.map((issue) => ({
-            kind: issue.kind,
-            code: issue.code,
-          })),
-          storedObjectDisposition,
-          quarantineRetained,
-          cleanupConfirmed,
-        });
       return;
     }
     const sha256 = inspection.sha256;
@@ -581,86 +456,14 @@ router.post(
         details: EXCLUDED_EXTRACTION_NOTES,
       });
     } catch (error) {
-      const cleanupPath =
-        error instanceof ObjectPromotionCleanupError
-          ? error.destinationPath
-          : finalizedObjectPath;
-      let cleanupConfirmed = cleanupPath === null;
-      let storedObjectDisposition = cleanupPath
-        ? "promoted copy cleanup not yet attempted"
-        : "no promoted copy was retained; original staging cleanup is pending";
-      if (cleanupPath) {
-        try {
-          const deleted = await objectStorage.deleteObjectEntity(cleanupPath);
-          cleanupConfirmed = true;
-          storedObjectDisposition = deleted
-            ? "promoted copy purged"
-            : "promoted copy already absent";
-        } catch (cleanupError) {
-          req.log.error(
-            { err: cleanupError, objectPath: cleanupPath },
-            "could not confirm cleanup of failed document promotion",
-          );
-          storedObjectDisposition =
-            "promoted copy cleanup could not be confirmed";
-        }
-      }
-
-      req.log.error(
-        { err: error, objectPath: parsed.data.objectPath },
-        "document promotion or registration failed",
-      );
-      await writeAudit({
+      await cleanupFailedPromotion({
+        req,
+        res,
         user,
         projectId,
-        eventType: "document.intake_failed",
-        objectType: "project",
-        objectId: projectId,
-        details: JSON.stringify({
-          filename: parsed.data.filename,
-          reason:
-            error instanceof PromotedObjectIntegrityError
-              ? "promoted_object_integrity_mismatch"
-              : error instanceof ObjectNotFoundError
-                ? "staged_or_promoted_object_missing"
-                : "promotion_or_registration_failed",
-          storedObjectDisposition,
-          cleanupConfirmed,
-        }),
-      });
-
-      if (!cleanupConfirmed) {
-        res.status(503).json({
-          error:
-            "The document was not registered, and cleanup of its promoted storage copy could not be confirmed. Contact an administrator before retrying.",
-          storedObjectDisposition,
-          cleanupConfirmed: false,
-        });
-        return;
-      }
-      if (error instanceof PromotedObjectIntegrityError) {
-        res.status(422).json({
-          error:
-            "The promoted object failed its integrity check, so no document was registered.",
-          storedObjectDisposition,
-          cleanupConfirmed: true,
-        });
-        return;
-      }
-      if (error instanceof ObjectNotFoundError) {
-        res.status(422).json({
-          error:
-            "The uploaded object disappeared during secure finalisation, so no document was registered. Upload the file again.",
-          storedObjectDisposition,
-          cleanupConfirmed: true,
-        });
-        return;
-      }
-      res.status(503).json({
-        error:
-          "Secure document finalisation failed, so no document was registered.",
-        storedObjectDisposition,
-        cleanupConfirmed: true,
+        parsed,
+        error,
+        finalizedObjectPath,
       });
       return;
     }
@@ -668,6 +471,273 @@ router.post(
     res.status(201).json(serializeDocument(created, user?.name));
   },
 );
+
+/**
+ * Rejected-intake disposition ladder (moved verbatim out of the create
+ * handler): purge or quarantine the staged object, record the content-free
+ * audit manifest, and answer with the explicit storage disposition. Ambiguous
+ * quarantine retention stays explicitly unknown in both audit and response.
+ */
+async function disposeRejectedIntake({
+  req,
+  res,
+  user,
+  projectId,
+  parsed,
+  buffer,
+  inspection,
+  providerIssues,
+}: {
+  req: Request;
+  res: Response;
+  user: ReturnType<typeof getLocalUser>;
+  projectId: string;
+  parsed: { data: ReturnType<(typeof CreateDocumentBody)["parse"]> };
+  buffer: Buffer;
+  inspection: Awaited<ReturnType<typeof inspectDocumentIntake>>;
+  providerIssues: ReturnType<typeof productionFeatureIssues>;
+}): Promise<void> {
+  let storedObjectDisposition = "retained outside the document corpus";
+  let quarantinedPath: string | null = null;
+  let possibleQuarantinedPath: string | null = null;
+  let quarantineRetained: boolean | null = false;
+  let cleanupConfirmed = false;
+  try {
+    if (
+      inspection.disposition === "rejected" ||
+      inspection.disposition === "duplicate"
+    ) {
+      const deleted = await objectStorage.deleteObjectEntity(
+        parsed.data.objectPath,
+      );
+      storedObjectDisposition = deleted ? "purged" : "already absent";
+      cleanupConfirmed = true;
+    } else {
+      quarantinedPath = await objectStorage.quarantineObjectEntity(
+        parsed.data.objectPath,
+        buffer,
+        parsed.data.contentType ?? null,
+      );
+      storedObjectDisposition = "moved to inaccessible quarantine";
+      quarantineRetained = true;
+      cleanupConfirmed = true;
+    }
+  } catch (error) {
+    req.log.error(
+      { err: error, objectPath: parsed.data.objectPath },
+      "failed to move rejected intake into quarantine",
+    );
+    if (error instanceof ObjectQuarantinePartialMoveError) {
+      // The exact inspected copy is either confirmed retained, or its
+      // write/cleanup acknowledgement is explicitly unknown. A second
+      // source cleanup must never erase that fact from response or audit.
+      quarantinedPath = error.quarantineCopyConfirmed
+        ? error.quarantinePath
+        : null;
+      possibleQuarantinedPath = error.quarantineCopyConfirmed
+        ? null
+        : error.quarantinePath;
+      quarantineRetained = error.quarantineCopyConfirmed ? true : null;
+      storedObjectDisposition = error.quarantineCopyConfirmed
+        ? "security-quarantine copy retained; original staging cleanup could not be confirmed"
+        : "security-quarantine copy may be retained; copy and original staging dispositions could not be confirmed";
+      try {
+        const deleted = await objectStorage.deleteObjectEntity(
+          parsed.data.objectPath,
+        );
+        storedObjectDisposition = error.quarantineCopyConfirmed
+          ? deleted
+            ? "original staging object purged; security-quarantine copy retained"
+            : "original staging object already absent; security-quarantine copy retained"
+          : deleted
+            ? "original staging object purged; security-quarantine copy disposition remains unconfirmed"
+            : "original staging object already absent; security-quarantine copy disposition remains unconfirmed";
+        cleanupConfirmed = error.quarantineCopyConfirmed;
+      } catch (deleteError) {
+        req.log.error(
+          { err: deleteError, objectPath: parsed.data.objectPath },
+          "failed to confirm staging cleanup after quarantine copy succeeded",
+        );
+      }
+    } else {
+      try {
+        const deleted = await objectStorage.deleteObjectEntity(
+          parsed.data.objectPath,
+        );
+        storedObjectDisposition = deleted
+          ? "purged after quarantine move failed"
+          : "not found after quarantine move failed";
+        cleanupConfirmed = true;
+      } catch (deleteError) {
+        req.log.error(
+          { err: deleteError, objectPath: parsed.data.objectPath },
+          "failed to purge rejected intake after quarantine move failed",
+        );
+        storedObjectDisposition = "quarantine move and purge both failed";
+      }
+    }
+  }
+  const eventDisposition = providerIssues.length
+    ? "quarantined"
+    : inspection.disposition;
+  await writeAudit({
+    user,
+    projectId,
+    eventType: `document.intake_${eventDisposition}`,
+    objectType: "project",
+    objectId: projectId,
+    details: JSON.stringify({
+      filename: parsed.data.filename,
+      sha256: inspection.sha256,
+      detectedFormat: inspection.detectedFormat,
+      findings: inspection.findings.map((finding) => finding.code),
+      providerIssues: providerIssues.map((issue) => ({
+        kind: issue.kind,
+        code: issue.code,
+      })),
+      malware: {
+        state: inspection.malware.state,
+        provider: inspection.malware.provider,
+        engineVersion: inspection.malware.engineVersion,
+      },
+      archiveReason: inspection.archiveReason,
+      storedObjectDisposition,
+      quarantinedPath,
+      possibleQuarantinedPath,
+    }),
+  });
+  const scannerUnavailable =
+    inspection.findings.some(
+      (finding) => finding.code === "malware_scan_incomplete",
+    ) || providerIssues.length > 0;
+  res
+    .status(
+      scannerUnavailable
+        ? 503
+        : inspection.disposition === "duplicate"
+          ? 409
+          : 422,
+    )
+    .json({
+      error: scannerUnavailable
+        ? "Secure document intake is temporarily unavailable. The file was not accepted or extracted."
+        : "The file failed secure intake and was not accepted or extracted.",
+      disposition: eventDisposition,
+      findings: inspection.findings.map((finding) => finding.code),
+      providerIssues: providerIssues.map((issue) => ({
+        kind: issue.kind,
+        code: issue.code,
+      })),
+      storedObjectDisposition,
+      quarantineRetained,
+      cleanupConfirmed,
+    });
+}
+
+/**
+ * Promotion-failure cleanup ladder (moved verbatim out of the create
+ * handler): confirm or report the disposition of any promoted copy, audit the
+ * failure reason, and answer with the matching status without ever claiming
+ * an unconfirmed cleanup.
+ */
+async function cleanupFailedPromotion({
+  req,
+  res,
+  user,
+  projectId,
+  parsed,
+  error,
+  finalizedObjectPath,
+}: {
+  req: Request;
+  res: Response;
+  user: ReturnType<typeof getLocalUser>;
+  projectId: string;
+  parsed: { data: ReturnType<(typeof CreateDocumentBody)["parse"]> };
+  error: unknown;
+  finalizedObjectPath: string | null;
+}): Promise<void> {
+  const cleanupPath =
+    error instanceof ObjectPromotionCleanupError
+      ? error.destinationPath
+      : finalizedObjectPath;
+  let cleanupConfirmed = cleanupPath === null;
+  let storedObjectDisposition = cleanupPath
+    ? "promoted copy cleanup not yet attempted"
+    : "no promoted copy was retained; original staging cleanup is pending";
+  if (cleanupPath) {
+    try {
+      const deleted = await objectStorage.deleteObjectEntity(cleanupPath);
+      cleanupConfirmed = true;
+      storedObjectDisposition = deleted
+        ? "promoted copy purged"
+        : "promoted copy already absent";
+    } catch (cleanupError) {
+      req.log.error(
+        { err: cleanupError, objectPath: cleanupPath },
+        "could not confirm cleanup of failed document promotion",
+      );
+      storedObjectDisposition = "promoted copy cleanup could not be confirmed";
+    }
+  }
+
+  req.log.error(
+    { err: error, objectPath: parsed.data.objectPath },
+    "document promotion or registration failed",
+  );
+  await writeAudit({
+    user,
+    projectId,
+    eventType: "document.intake_failed",
+    objectType: "project",
+    objectId: projectId,
+    details: JSON.stringify({
+      filename: parsed.data.filename,
+      reason:
+        error instanceof PromotedObjectIntegrityError
+          ? "promoted_object_integrity_mismatch"
+          : error instanceof ObjectNotFoundError
+            ? "staged_or_promoted_object_missing"
+            : "promotion_or_registration_failed",
+      storedObjectDisposition,
+      cleanupConfirmed,
+    }),
+  });
+
+  if (!cleanupConfirmed) {
+    res.status(503).json({
+      error:
+        "The document was not registered, and cleanup of its promoted storage copy could not be confirmed. Contact an administrator before retrying.",
+      storedObjectDisposition,
+      cleanupConfirmed: false,
+    });
+    return;
+  }
+  if (error instanceof PromotedObjectIntegrityError) {
+    res.status(422).json({
+      error:
+        "The promoted object failed its integrity check, so no document was registered.",
+      storedObjectDisposition,
+      cleanupConfirmed: true,
+    });
+    return;
+  }
+  if (error instanceof ObjectNotFoundError) {
+    res.status(422).json({
+      error:
+        "The uploaded object disappeared during secure finalisation, so no document was registered. Upload the file again.",
+      storedObjectDisposition,
+      cleanupConfirmed: true,
+    });
+    return;
+  }
+  res.status(503).json({
+    error:
+      "Secure document finalisation failed, so no document was registered.",
+    storedObjectDisposition,
+    cleanupConfirmed: true,
+  });
+}
 
 /**
  * Run text extraction only after the route atomically changed the persisted

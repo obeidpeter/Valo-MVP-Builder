@@ -21,6 +21,11 @@ import {
   buildRegisteredPdfOcrContent,
   buildRegisteredRequirementPrompt,
   buildRegisteredResponsivenessPrompt,
+  type CONFIDENCE_LEVELS,
+  type DEFECT_SEVERITIES,
+  type DEFECT_TYPES,
+  type EVIDENCE_STATUSES,
+  type REQUIREMENT_CATEGORIES,
 } from "./aiPromptRegistry";
 import { executeProjectAi } from "./aiRuntime";
 import { completeBoundedInput } from "./sourceGrounding";
@@ -214,15 +219,10 @@ export interface DocForLlm {
 
 export interface ExtractedRequirement {
   text: string;
-  category:
-    | "eligibility"
-    | "administrative"
-    | "technical"
-    | "financial_format"
-    | "other";
+  category: (typeof REQUIREMENT_CATEGORIES)[number];
   expectedEvidence?: string | null;
   isMandatory: boolean;
-  confidence?: "high" | "medium" | "low" | "unclear";
+  confidence?: (typeof CONFIDENCE_LEVELS)[number];
   pageRef?: string | null;
   clauseRef?: string | null;
   sourceDocId?: string | null;
@@ -276,13 +276,7 @@ export async function extractRequirements(
 export interface MappedEvidence {
   requirementId: string;
   documentId?: string | null;
-  evidenceStatus:
-    | "present"
-    | "missing"
-    | "expired"
-    | "unclear"
-    | "not_applicable"
-    | "pending";
+  evidenceStatus: (typeof EVIDENCE_STATUSES)[number];
   excerpt?: string | null;
   notes?: string | null;
 }
@@ -333,16 +327,8 @@ export async function mapEvidence(
 
 export interface SuggestedDefect {
   requirementId?: string | null;
-  type:
-    | "omission"
-    | "expiry"
-    | "arithmetic"
-    | "formatting"
-    | "responsiveness"
-    | "eligibility"
-    | "unsupported_claim"
-    | "validity";
-  severity: "fatal" | "likely_fatal" | "scoring_risk" | "cosmetic";
+  type: (typeof DEFECT_TYPES)[number];
+  severity: (typeof DEFECT_SEVERITIES)[number];
   description: string;
   remediation?: string | null;
 }

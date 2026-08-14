@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { canonicalJsonCodeUnit, sha256Hex } from "../canonicalDigest";
 import {
   PRIVACY_DSR_REASON_CODES,
   PRIVACY_DSR_STATUSES,
@@ -104,26 +104,16 @@ export class PrivacyOperationsValidationError extends Error {
 }
 
 function canonicalJson(value: CanonicalValue): string {
-  if (value === null || typeof value !== "object") {
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  const record = value as Readonly<Record<string, CanonicalValue>>;
-  return `{${Object.keys(record)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key]!)}`)
-    .join(",")}}`;
+  return canonicalJsonCodeUnit(value);
 }
 
 function workflowDigest(evidence: PrivacyWorkflowEvidence): string {
-  return createHash("sha256")
-    .update(
-      canonicalJson({
-        schema: PRIVACY_OPERATIONS_AUDIT_SCHEMA,
-        ...evidence,
-      }),
-    )
-    .digest("hex");
+  return sha256Hex(
+    canonicalJson({
+      schema: PRIVACY_OPERATIONS_AUDIT_SCHEMA,
+      ...evidence,
+    }),
+  );
 }
 
 export function createPrivacyWorkflowAuditDetails(
