@@ -28,6 +28,10 @@ describe("server-permission action gates", () => {
     ["./pages/sbd.tsx", ["requirement:review"]],
     ["./pages/sbd-details.tsx", ["requirement:review"]],
     ["./pages/project-tabs/boq-tab.tsx", ["defect:write"]],
+    [
+      "./pages/project-tabs/boq-commercial-verification.tsx",
+      ["defect:write", "defect:review"],
+    ],
     ["./pages/project-tabs/risk-tab.tsx", ["defect:review"]],
     ["./pages/client-details.tsx", ["client:update", "project:create"]],
   ])("gates %s with the API permissions", (path, permissions) => {
