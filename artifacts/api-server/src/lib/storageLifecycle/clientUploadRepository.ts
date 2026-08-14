@@ -12,6 +12,7 @@ import {
 import { and, asc, eq, gt, sql } from "drizzle-orm";
 import { writeAuditTx } from "../audit";
 import { lockCanonicalEvidenceDigest } from "../canonicalEvidence";
+import { parseInstantViaString } from "../dbClock";
 import {
   parsePersistedClientActionEnvelope,
   persistedClientActionTitle,
@@ -151,10 +152,11 @@ function deterministicLeaseId(
 
 export const clientUploadLeaseId = deterministicLeaseId;
 
-function databaseInstant(result: { rows: unknown[] }): Date {
-  const first = result.rows[0] as { now?: unknown } | undefined;
-  const now = new Date(String(first?.now ?? ""));
-  if (!Number.isFinite(now.valueOf())) {
+function databaseInstant(result: {
+  rows: Array<Record<string, unknown>>;
+}): Date {
+  const now = parseInstantViaString(result.rows[0]?.now);
+  if (now === null) {
     fail("unavailable", "Database time is unavailable.");
   }
   return now;

@@ -5,7 +5,7 @@ import {
   withReviewState,
   requirementReviewState,
   suggestedFlagReviewState,
-} from "./reports";
+} from "../lib/reportCsv";
 
 /**
  * Guards the export handler's `review_state` stamping so a future refactor of
@@ -18,7 +18,10 @@ import {
  */
 
 /** Parse a CSV string into a header list and an array of row objects. */
-function parseCsv(csv: string): { headers: string[]; rows: Record<string, string>[] } {
+function parseCsv(csv: string): {
+  headers: string[];
+  rows: Record<string, string>[];
+} {
   const lines = csv.split("\n");
   const headers = lines[0].split(",");
   const rows = lines.slice(1).map((line) => {
@@ -30,10 +33,22 @@ function parseCsv(csv: string): { headers: string[]; rows: Record<string, string
 
 describe("export review_state derivation", () => {
   test("a requirement is suggested only when reviewStatus === 'suggested'", () => {
-    assert.equal(requirementReviewState({ reviewStatus: "suggested" }), "suggested");
-    assert.equal(requirementReviewState({ reviewStatus: "pending" }), "confirmed");
-    assert.equal(requirementReviewState({ reviewStatus: "accepted" }), "confirmed");
-    assert.equal(requirementReviewState({ reviewStatus: "rejected" }), "confirmed");
+    assert.equal(
+      requirementReviewState({ reviewStatus: "suggested" }),
+      "suggested",
+    );
+    assert.equal(
+      requirementReviewState({ reviewStatus: "pending" }),
+      "confirmed",
+    );
+    assert.equal(
+      requirementReviewState({ reviewStatus: "accepted" }),
+      "confirmed",
+    );
+    assert.equal(
+      requirementReviewState({ reviewStatus: "rejected" }),
+      "confirmed",
+    );
   });
 
   test("evidence/defects are driven by their `suggested` boolean", () => {
@@ -47,13 +62,21 @@ describe("export review_state derivation", () => {
     for (const reviewStatus of reqStatuses) {
       const docxConfirmed = reviewStatus !== "suggested";
       const state = requirementReviewState({ reviewStatus });
-      assert.equal(state === "confirmed", docxConfirmed, `requirement ${reviewStatus}`);
+      assert.equal(
+        state === "confirmed",
+        docxConfirmed,
+        `requirement ${reviewStatus}`,
+      );
     }
     // docx.ts confirmed defects: !d.suggested
     for (const suggested of [true, false]) {
       const docxConfirmed = !suggested;
       const state = suggestedFlagReviewState({ suggested });
-      assert.equal(state === "confirmed", docxConfirmed, `defect suggested=${suggested}`);
+      assert.equal(
+        state === "confirmed",
+        docxConfirmed,
+        `defect suggested=${suggested}`,
+      );
     }
   });
 });
@@ -110,7 +133,9 @@ describe("export CSVs carry a correct review_state column", () => {
       { id: "r1", reviewStatus: "suggested" },
       { id: "r2", reviewStatus: "suggested" },
     ];
-    const { rows } = parseCsv(toCsv(withReviewState(reqs, requirementReviewState)));
+    const { rows } = parseCsv(
+      toCsv(withReviewState(reqs, requirementReviewState)),
+    );
     assert.ok(rows.every((r) => r.review_state === "suggested"));
     assert.ok(!rows.some((r) => r.review_state === "confirmed"));
   });

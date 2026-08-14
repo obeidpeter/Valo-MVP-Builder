@@ -18,6 +18,7 @@ import {
 } from "@workspace/db";
 import {
   ORGANISATION_ROLES,
+  ORGANISATION_TYPES,
   ROLE_PERMISSIONS,
   isRoleAllowedForOrganisation,
   type OrganisationRole,
@@ -26,12 +27,6 @@ import {
 } from "../permissions";
 import { CLIENT_ACTION_BOUNDS, type ClientActionScope } from "./contracts";
 import { ClientActionError } from "./errors";
-
-const ORGANISATION_TYPES = [
-  "client",
-  "valo",
-  "consultancy_partner",
-] as const satisfies readonly OrganisationType[];
 
 export type ClientActionAuthorityRoles = Readonly<
   Record<OrganisationType, readonly OrganisationRole[]>

@@ -7,12 +7,14 @@ import {
   users,
 } from "@workspace/db";
 import type { AccessContext } from "../middlewares/tenancy";
+import { parseInstantViaString } from "./dbClock";
 import {
   ORGANISATION_ROLES,
   isOrganisationRole,
   isRoleAllowedForOrganisation,
   permissionsForRoles,
   type OrganisationRole,
+  type OrganisationType,
   type Permission,
 } from "./permissions";
 
@@ -58,8 +60,8 @@ export async function resolveCurrentDirectAuthority(
   const nowResult = requestedNow
     ? { rows: [{ now: requestedNow }] }
     : await db.execute(sql`SELECT clock_timestamp() AS now`);
-  const now = new Date(String(nowResult.rows[0]?.now ?? ""));
-  if (!Number.isFinite(now.getTime())) return null;
+  const now = parseInstantViaString(nowResult.rows[0]?.now);
+  if (now === null) return null;
 
   const rows = await db
     .select({
@@ -114,10 +116,7 @@ export async function resolveCurrentDirectAuthority(
     .filter((role) =>
       isRoleAllowedForOrganisation(
         role,
-        membership.organisationType as
-          | "client"
-          | "valo"
-          | "consultancy_partner",
+        membership.organisationType as OrganisationType,
       ),
     );
   if (roles.length === 0) return null;

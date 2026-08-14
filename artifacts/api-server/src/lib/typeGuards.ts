@@ -22,3 +22,14 @@ export function isPlainRecord(
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+
+/**
+ * Narrowing membership test replacing the includes-then-cast idiom: true iff
+ * `value` is one of `allowed`, narrowing `value` to the tuple's element union.
+ */
+export function isOneOf<const T extends readonly string[]>(
+  value: unknown,
+  allowed: T,
+): value is T[number] {
+  return typeof value === "string" && allowed.includes(value);
+}

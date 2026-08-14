@@ -261,6 +261,19 @@ export async function createReleaseManifest({
   };
 }
 
+function assertManifestSource(manifest, expectedSourceCommit) {
+  assert.match(
+    expectedSourceCommit,
+    COMMIT_SHA,
+    "Expected source SHA must be exact",
+  );
+  assert.equal(
+    manifest.source.commitSha,
+    expectedSourceCommit,
+    "Release manifest source differs from the expected source",
+  );
+}
+
 function assertManifestShape(manifest) {
   assert.equal(
     manifest?.schemaVersion,
@@ -349,6 +362,13 @@ export async function verifyReleaseManifest({ root, manifest }) {
     "Release identity does not match its source and artifacts",
   );
   return manifest;
+}
+
+function assertTimeoutMillis(value, label) {
+  assert.ok(
+    Number.isSafeInteger(value) && value >= 100 && value <= 30_000,
+    `${label} must be between 100 and 30000 milliseconds`,
+  );
 }
 
 function positiveDecimal(value, label) {
@@ -739,6 +759,53 @@ async function readBoundedResponseBody(response, maximumBytes, label) {
   return Buffer.concat(chunks, bodyBytes).toString("utf8");
 }
 
+/**
+ * Shared bounded HTTPS JSON fetch. `label` carries each caller's exact
+ * assertion messages; `assertResponse` runs between the content-type check
+ * and the body read so per-caller header assertions keep their position in
+ * the failure order.
+ */
+async function fetchBoundedJson({
+  url,
+  headers,
+  timeoutMillis,
+  maxBytes,
+  label,
+  assertResponse,
+}) {
+  const started = performance.now();
+  const response = await fetch(url, {
+    headers,
+    redirect: "error",
+    signal: AbortSignal.timeout(timeoutMillis),
+  });
+  const durationMillis = Math.round(performance.now() - started);
+  assert.equal(response.status, 200, label.requestFailed);
+  assert.match(
+    response.headers.get("content-type") ?? "",
+    /^application\/json(?:;|$)/iu,
+    label.expectedJson,
+  );
+  assertResponse?.(response);
+  const body = await readBoundedResponseBody(
+    response,
+    maxBytes,
+    label.responseBody,
+  );
+  let parsed;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    assert.fail(label.malformedJson);
+  }
+  return {
+    status: response.status,
+    durationMillis,
+    body: parsed,
+    headers: response.headers,
+  };
+}
+
 export async function fetchGitHubCandidateRunAttestation({
   token,
   expectedRepository,
@@ -761,43 +828,28 @@ export async function fetchGitHubCandidateRunAttestation({
     "Expected GitHub repository is invalid",
   );
   const runId = positiveDecimal(expectedRunId, "Expected run id");
-  assert.ok(
-    Number.isSafeInteger(timeoutMillis) &&
-      timeoutMillis >= 100 &&
-      timeoutMillis <= 30_000,
-    "GitHub API timeout must be between 100 and 30000 milliseconds",
-  );
+  assertTimeoutMillis(timeoutMillis, "GitHub API timeout");
   const [owner, repository] = expectedRepository.split("/");
   const url =
     `https://api.github.com/repos/${encodeURIComponent(owner)}/` +
     `${encodeURIComponent(repository)}/actions/runs/${runId}`;
-  const response = await fetch(url, {
+  const { body: run } = await fetchBoundedJson({
+    url,
     headers: {
       Accept: "application/vnd.github+json",
       Authorization: `Bearer ${token}`,
       "User-Agent": "valo-release-provenance",
       "X-GitHub-Api-Version": "2022-11-28",
     },
-    redirect: "error",
-    signal: AbortSignal.timeout(timeoutMillis),
+    timeoutMillis,
+    maxBytes: MAX_GITHUB_API_BODY_BYTES,
+    label: {
+      requestFailed: "GitHub candidate run lookup failed",
+      expectedJson: "GitHub candidate run lookup must return JSON",
+      responseBody: "GitHub candidate run response",
+      malformedJson: "GitHub candidate run lookup returned malformed JSON",
+    },
   });
-  assert.equal(response.status, 200, "GitHub candidate run lookup failed");
-  assert.match(
-    response.headers.get("content-type") ?? "",
-    /^application\/json(?:;|$)/iu,
-    "GitHub candidate run lookup must return JSON",
-  );
-  const body = await readBoundedResponseBody(
-    response,
-    MAX_GITHUB_API_BODY_BYTES,
-    "GitHub candidate run response",
-  );
-  let run;
-  try {
-    run = JSON.parse(body);
-  } catch {
-    assert.fail("GitHub candidate run lookup returned malformed JSON");
-  }
   return attestGitHubCandidateRun({
     run,
     expectedRepository,
@@ -813,45 +865,25 @@ export async function fetchGitHubCandidateRunAttestation({
 async function probeJson({ url, releaseSha256, timeoutMillis, authorization }) {
   const headers = { Accept: "application/json" };
   if (authorization) headers.Authorization = authorization;
-  const started = performance.now();
-  const response = await fetch(url, {
+  return fetchBoundedJson({
+    url,
     headers,
-    redirect: "error",
-    signal: AbortSignal.timeout(timeoutMillis),
+    timeoutMillis,
+    maxBytes: MAX_PROBE_BODY_BYTES,
+    label: {
+      requestFailed: `Deployment probe failed: ${new URL(url).pathname}`,
+      expectedJson: "Deployment probe must return JSON",
+      responseBody: "Deployment probe",
+      malformedJson: "Deployment probe returned malformed JSON",
+    },
+    assertResponse: (response) => {
+      assert.equal(
+        response.headers.get("x-valo-release-sha256"),
+        releaseSha256,
+        "Deployment release identity mismatch",
+      );
+    },
   });
-  const durationMillis = Math.round(performance.now() - started);
-  assert.equal(
-    response.status,
-    200,
-    `Deployment probe failed: ${new URL(url).pathname}`,
-  );
-  assert.match(
-    response.headers.get("content-type") ?? "",
-    /^application\/json(?:;|$)/iu,
-    "Deployment probe must return JSON",
-  );
-  assert.equal(
-    response.headers.get("x-valo-release-sha256"),
-    releaseSha256,
-    "Deployment release identity mismatch",
-  );
-  const body = await readBoundedResponseBody(
-    response,
-    MAX_PROBE_BODY_BYTES,
-    "Deployment probe",
-  );
-  let parsed;
-  try {
-    parsed = JSON.parse(body);
-  } catch {
-    assert.fail("Deployment probe returned malformed JSON");
-  }
-  return {
-    status: response.status,
-    durationMillis,
-    body: parsed,
-    headers: response.headers,
-  };
 }
 
 export async function verifyDeploymentReadiness({
@@ -870,12 +902,7 @@ export async function verifyDeploymentReadiness({
     ["staging", "production"].includes(environment),
     "Environment is invalid",
   );
-  assert.ok(
-    Number.isSafeInteger(timeoutMillis) &&
-      timeoutMillis >= 100 &&
-      timeoutMillis <= 30_000,
-    "Probe timeout must be between 100 and 30000 milliseconds",
-  );
+  assertTimeoutMillis(timeoutMillis, "Probe timeout");
   if (authorization !== null) {
     assert.equal(
       typeof authorization,
@@ -1062,10 +1089,14 @@ async function readManifest(path) {
 
 async function readRunAttestation(path) {
   await regularFile(path, "Candidate run attestation");
+  const bytes = await readFile(path);
   try {
-    return validateGitHubRunAttestation(
-      JSON.parse(await readFile(path, "utf8")),
-    );
+    return {
+      bytes,
+      attestation: validateGitHubRunAttestation(
+        JSON.parse(bytes.toString("utf8")),
+      ),
+    };
   } catch (error) {
     if (error instanceof SyntaxError) {
       assert.fail("Candidate run attestation must contain valid JSON");
@@ -1134,25 +1165,14 @@ async function main(argv, environment = process.env) {
     await verifyReleaseManifest({ root, manifest });
     const expectedSourceCommit = options.get("--expected-source-commit");
     if (expectedSourceCommit !== undefined) {
-      assert.match(
-        expectedSourceCommit,
-        COMMIT_SHA,
-        "Expected source SHA must be exact",
-      );
-      assert.equal(
-        manifest.source.commitSha,
-        expectedSourceCommit,
-        "Release manifest source differs from the expected source",
-      );
+      assertManifestSource(manifest, expectedSourceCommit);
     }
     const runAttestationPath = options.get("--run-attestation");
     if (runAttestationPath !== undefined) {
-      verifyManifestCandidateRun({
-        manifest,
-        attestation: await readRunAttestation(
-          resolve(root, runAttestationPath),
-        ),
-      });
+      const { attestation } = await readRunAttestation(
+        resolve(root, runAttestationPath),
+      );
+      verifyManifestCandidateRun({ manifest, attestation });
     }
     process.stdout.write(`${manifest.releaseSha256}\n`);
     return;
@@ -1162,24 +1182,13 @@ async function main(argv, environment = process.env) {
     const manifestBytes = await readFile(manifestPath);
     const manifest = JSON.parse(manifestBytes.toString("utf8"));
     await verifyReleaseManifest({ root, manifest });
-    const expectedSourceCommit = required(options, "--expected-source-commit");
-    assert.match(
-      expectedSourceCommit,
-      COMMIT_SHA,
-      "Expected source SHA must be exact",
-    );
-    assert.equal(
-      manifest.source.commitSha,
-      expectedSourceCommit,
-      "Release manifest source differs from the expected source",
+    assertManifestSource(
+      manifest,
+      required(options, "--expected-source-commit"),
     );
     const runAttestationPath = required(options, "--run-attestation");
-    const runAttestationBytes = await readFile(
-      resolve(root, runAttestationPath),
-    );
-    const runAttestation = validateGitHubRunAttestation(
-      JSON.parse(runAttestationBytes.toString("utf8")),
-    );
+    const { bytes: runAttestationBytes, attestation: runAttestation } =
+      await readRunAttestation(resolve(root, runAttestationPath));
     verifyManifestCandidateRun({ manifest, attestation: runAttestation });
     const record = await verifyDeploymentReadiness({
       manifest,

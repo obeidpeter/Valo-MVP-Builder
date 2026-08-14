@@ -21,10 +21,11 @@ import {
   ORGANISATION_ROLES,
   hasPermission,
   isOrganisationRole,
+  isOrganisationType,
   isRoleAllowedForOrganisation,
   type OrganisationRole,
-  type OrganisationType,
 } from "./permissions";
+import { parseInstantPreserving } from "./dbClock";
 import { validProjectReviewerName } from "./projectReviewerNamePolicy";
 
 type ReviewerAuthorityTransaction = Parameters<
@@ -37,12 +38,6 @@ export interface CurrentProjectMembershipAuthority {
   userId: string;
   roles: OrganisationRole[];
 }
-
-const ORGANISATION_TYPES = new Set<OrganisationType>([
-  "client",
-  "valo",
-  "consultancy_partner",
-]);
 
 export const PROJECT_REVIEWER_ROLES = ORGANISATION_ROLES.filter((role) =>
   hasPermission([role], "draft:review"),
@@ -98,9 +93,8 @@ export async function currentProjectReviewerAuthorityTime(
   const rows = await database.execute(
     sql`SELECT pg_catalog.clock_timestamp() AS "now"`,
   );
-  const value = (rows.rows[0] as { now?: unknown } | undefined)?.now;
-  const parsed = value instanceof Date ? value : new Date(String(value));
-  if (!Number.isFinite(parsed.getTime())) {
+  const parsed = parseInstantPreserving(rows.rows[0]?.now);
+  if (parsed === null) {
     throw new Error("Current database time could not be verified");
   }
   return parsed;
@@ -192,12 +186,12 @@ export async function loadCurrentProjectMembershipAuthorities(
     if (
       seenUsers.has(membership.userId) ||
       !validProjectReviewerName(membership.userName) ||
-      !ORGANISATION_TYPES.has(membership.organisationType as OrganisationType)
+      !isOrganisationType(membership.organisationType)
     ) {
       continue;
     }
     seenUsers.add(membership.userId);
-    const organisationType = membership.organisationType as OrganisationType;
+    const organisationType = membership.organisationType;
     const granted =
       grantsByMembership.get(membership.membershipId) ?? new Set();
     const roles = ORGANISATION_ROLES.filter(

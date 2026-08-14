@@ -25,7 +25,7 @@ const MAX_ENVELOPE_BYTES = 2_097_152;
 const BUSINESS_TIME_ZONE = "Africa/Lagos" as const;
 const PRIORITIES = new Set(["low", "normal", "high", "critical"]);
 
-interface ProjectedRow {
+type ProjectedRow = {
   overflow: boolean;
   id: string;
   organisationId: string;
@@ -55,7 +55,7 @@ interface ProjectedRow {
   startsAt: string | null;
   priority: string | null;
   sla: string | null;
-}
+};
 
 function finiteInteger(value: unknown): number {
   const parsed = Number(value);
@@ -230,7 +230,7 @@ export async function readWorkInbox(
   const canReadRetainer =
     authority.permissions.has("billing:read") &&
     authority.permissions.has("entitlement:read");
-  const result = await db.execute(sql`
+  const result = await db.execute<ProjectedRow>(sql`
     WITH native_candidates AS MATERIALIZED (
       SELECT task.id
       FROM work_tasks AS task
@@ -372,7 +372,7 @@ export async function readWorkInbox(
       id ASC
     LIMIT ${limit + 1}
   `);
-  const projectedRows = result.rows as unknown as ProjectedRow[];
+  const projectedRows = result.rows;
   if (projectedRows.some((row) => row.overflow)) {
     throw new WorkInboxUnavailableError();
   }

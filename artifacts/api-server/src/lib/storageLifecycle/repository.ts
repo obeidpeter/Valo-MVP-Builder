@@ -19,6 +19,7 @@ import {
 } from "drizzle-orm";
 import type { LocalUser } from "../../middlewares/auth";
 import { writeAuditTx } from "../audit";
+import { parseInstantViaString } from "../dbClock";
 import { lockStagedUploadObject } from "../stagedUploadLock";
 import { storagePathReferenceKinds } from "../storageReferences";
 import {
@@ -517,13 +518,11 @@ export async function replayStorageDeletionDeadLetter(input: {
       ) {
         throw new StorageLifecycleRepositoryError("invalid_state");
       }
-      const clock = await tx.execute(
+      const clock = await tx.execute<{ now: unknown }>(
         sql`SELECT pg_catalog.clock_timestamp() AS now`,
       );
-      const now = new Date(
-        String((clock.rows[0] as { now?: unknown } | undefined)?.now ?? ""),
-      );
-      if (!Number.isFinite(now.valueOf())) {
+      const now = parseInstantViaString(clock.rows[0]?.now);
+      if (now === null) {
         throw new StorageLifecycleRepositoryError("persistence_unavailable");
       }
       const [updated] = await tx
@@ -612,13 +611,11 @@ export async function resolveStorageDeletionDeadLetter(input: {
       if (event.status !== "dead_letter") {
         throw new StorageLifecycleRepositoryError("invalid_state");
       }
-      const clock = await tx.execute(
+      const clock = await tx.execute<{ now: unknown }>(
         sql`SELECT pg_catalog.clock_timestamp() AS now`,
       );
-      const now = new Date(
-        String((clock.rows[0] as { now?: unknown } | undefined)?.now ?? ""),
-      );
-      if (!Number.isFinite(now.valueOf())) {
+      const now = parseInstantViaString(clock.rows[0]?.now);
+      if (now === null) {
         throw new StorageLifecycleRepositoryError("persistence_unavailable");
       }
       const [updated] = await tx
@@ -696,13 +693,11 @@ export async function purgeRetainedStorageDeletionTerminals(
       )
       .limit(limit + 1)
       .for("update");
-    const clock = await tx.execute(
+    const clock = await tx.execute<{ now: unknown }>(
       sql`SELECT pg_catalog.clock_timestamp() AS now`,
     );
-    const now = new Date(
-      String((clock.rows[0] as { now?: unknown } | undefined)?.now ?? ""),
-    );
-    if (!Number.isFinite(now.valueOf())) {
+    const now = parseInstantViaString(clock.rows[0]?.now);
+    if (now === null) {
       throw new StorageLifecycleRepositoryError("persistence_unavailable");
     }
     const cutoff = new Date(
@@ -789,12 +784,11 @@ export async function sweepExpiredClientUploadLeases(
     throw new StorageLifecycleRepositoryError("invalid_scope");
   }
   return db.transaction(async (tx) => {
-    const nowResult = await tx.execute(
+    const nowResult = await tx.execute<{ now: unknown }>(
       sql`SELECT pg_catalog.clock_timestamp() AS now`,
     );
-    const nowValue = (nowResult.rows[0] as { now?: unknown } | undefined)?.now;
-    const now = new Date(String(nowValue ?? ""));
-    if (!Number.isFinite(now.valueOf())) {
+    const now = parseInstantViaString(nowResult.rows[0]?.now);
+    if (now === null) {
       throw new StorageLifecycleRepositoryError("persistence_unavailable");
     }
     const eligibleBefore = new Date(
@@ -1039,13 +1033,11 @@ export async function reconcileStorageDeletionIntent(input: {
       throw new StorageLifecycleRepositoryError("not_found");
     }
     const event = parseStoredEvent(rows[0]!);
-    const clock = await tx.execute(
+    const clock = await tx.execute<{ now: unknown }>(
       sql`SELECT pg_catalog.clock_timestamp() AS now`,
     );
-    const now = new Date(
-      String((clock.rows[0] as { now?: unknown } | undefined)?.now ?? ""),
-    );
-    if (!Number.isFinite(now.valueOf())) {
+    const now = parseInstantViaString(clock.rows[0]?.now);
+    if (now === null) {
       throw new StorageLifecycleRepositoryError("persistence_unavailable");
     }
     if (

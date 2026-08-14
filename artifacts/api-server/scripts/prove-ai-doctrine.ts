@@ -17,23 +17,10 @@
  * runner. Offline mode is fast, side-effect free and safe for CI.
  */
 import { computeRisk } from "../src/lib/deterministic";
+import { createChecker } from "./lib/proofCheck";
 
-let failures = 0;
-let passes = 0;
-function check(label: string, ok: boolean, detail?: string): boolean {
-  if (ok) {
-    passes++;
-    console.log(`  \u2713 ${label}`);
-  } else {
-    failures++;
-    console.log(`  \u2717 ${label}${detail ? ` \u2014 ${detail}` : ""}`);
-  }
-  return ok;
-}
-
-function section(title: string): void {
-  console.log(`\n=== ${title} ===`);
-}
+const checker = createChecker();
+const { check, section } = checker;
 
 /** Normalise text for a robust verbatim-substring comparison. */
 function norm(s: string): string {
@@ -488,8 +475,10 @@ async function main(): Promise<void> {
   }
 
   console.log(`\n---------------------------------------------`);
-  console.log(`RESULT: ${passes} passed, ${failures} failed`);
-  if (failures > 0) process.exit(1);
+  console.log(
+    `RESULT: ${checker.passes()} passed, ${checker.failures()} failed`,
+  );
+  if (checker.failures() > 0) process.exit(1);
 }
 
 main()

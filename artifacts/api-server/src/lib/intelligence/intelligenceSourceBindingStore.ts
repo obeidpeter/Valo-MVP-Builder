@@ -237,7 +237,11 @@ async function loadPersistedRowTextBounds(
     ids.map((id) => sql`${id}::uuid`),
     sql`, `,
   );
-  const result = await db.execute(sql`
+  const result = await db.execute<{
+    id: string;
+    codeUnits: number | string | null;
+    bytes: number | string | null;
+  }>(sql`
     SELECT
       id::text AS id,
       char_length(to_jsonb(${tableIdentifier})::text) AS "codeUnits",
@@ -246,11 +250,7 @@ async function loadPersistedRowTextBounds(
     WHERE id IN (${idValues})
     LIMIT ${maximum}
   `);
-  return result.rows as Array<{
-    id: string;
-    codeUnits: number | string | null;
-    bytes: number | string | null;
-  }>;
+  return result.rows;
 }
 
 function record(

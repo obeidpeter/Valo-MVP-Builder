@@ -27,6 +27,7 @@ import {
   hasPermission,
   isActiveAccessWindow,
   isOrganisationRole,
+  isOrganisationType,
   isRoleAllowedForOrganisation,
   partnerDerivedPermissionsForRoles,
   permissionsForRoles,
@@ -48,11 +49,6 @@ import {
 } from "../lib/bootstrap";
 
 const router: IRouter = Router();
-const ORGANISATION_TYPES = new Set<OrganisationType>([
-  "client",
-  "valo",
-  "consultancy_partner",
-]);
 
 type OrganisationTransaction = Parameters<
   Parameters<typeof db.transaction>[0]
@@ -512,7 +508,7 @@ router.post(
       name.length > 160 ||
       !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(slug) ||
       typeof type !== "string" ||
-      !ORGANISATION_TYPES.has(type as OrganisationType)
+      !isOrganisationType(type)
     ) {
       res.status(400).json({ error: "Invalid organisation" });
       return;
@@ -538,7 +534,7 @@ router.post(
               .returning();
             await tx.insert(roleGrants).values({
               membershipId: membership.id,
-              role: defaultOwnerRole(type as OrganisationType),
+              role: defaultOwnerRole(type),
             });
             await writeAuditTx(tx, {
               user,
