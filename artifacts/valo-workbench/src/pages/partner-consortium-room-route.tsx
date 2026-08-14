@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
 import { useToast } from "@/hooks/use-toast";
 import { assertAuthorityScopeCurrent } from "@/lib/authority-scope";
+import { requestStatus } from "@/lib/errors";
 
 const QUERY_ROOT = "partner-consortium-room";
 const CONSORTIUM_QUERY_CAPABILITIES = [
@@ -81,7 +82,7 @@ async function getSnapshot(input: {
       input.relationshipId,
     );
   } catch (error) {
-    if ((error as { status?: number } | null)?.status === 404) return null;
+    if (requestStatus(error) === 404) return null;
     throw error;
   }
 }

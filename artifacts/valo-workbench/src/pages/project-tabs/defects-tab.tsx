@@ -45,7 +45,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { errorMessage } from "@/lib/errors";
+import { mutationErrorToast } from "@/lib/errors";
 import { useOrganisationPermission } from "@/contexts/organisation-context";
 
 const DEFECT_TYPES = [
@@ -126,12 +126,7 @@ export function DefectsTab({ projectId }: { projectId: string }) {
       { id: projectId },
       {
         onSuccess: refresh,
-        onError: (err) =>
-          toast({
-            variant: "destructive",
-            title: "Defect suggestion failed",
-            description: errorMessage(err, ""),
-          }),
+        onError: mutationErrorToast(toast, "Defect suggestion failed"),
       },
     );
   };
@@ -142,12 +137,7 @@ export function DefectsTab({ projectId }: { projectId: string }) {
       { defect: d, data },
       {
         onSuccess: refresh,
-        onError: (err) =>
-          toast({
-            variant: "destructive",
-            title: `Could not ${verb} defect`,
-            description: errorMessage(err, ""),
-          }),
+        onError: mutationErrorToast(toast, `Could not ${verb} defect`),
         onSettled: () => setActingId(null),
       },
     );
@@ -196,12 +186,7 @@ export function DefectsTab({ projectId }: { projectId: string }) {
         setDialogOpen(false);
         refresh();
       },
-      onError: (err: unknown) =>
-        toast({
-          variant: "destructive",
-          title: "Could not save defect",
-          description: errorMessage(err, ""),
-        }),
+      onError: mutationErrorToast(toast, "Could not save defect"),
     };
     if (editingId) {
       const current = defects?.find((defect) => defect.id === editingId);

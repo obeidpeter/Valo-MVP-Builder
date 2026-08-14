@@ -32,11 +32,8 @@ import {
   type ClaimsDeskRecordType,
   type ClaimsDeskTransitionDraft,
 } from "./claims-desk-contract";
+import { humaniseTokenCapitalised as label } from "@/lib/format";
 
-const label = (value: string) =>
-  value
-    .replaceAll("_", " ")
-    .replace(/^./u, (character) => character.toUpperCase());
 const key = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
 const actionsFor = (status: string): readonly ClaimsDeskAction[] => {

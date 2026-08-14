@@ -14,6 +14,7 @@ import {
   StatusPanel,
 } from "@/components/platform-states";
 import { useOnlineStatus } from "@/hooks/use-online-status";
+import { formatWatInstant } from "@/lib/format";
 
 function currentMonth(): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -29,15 +30,7 @@ function currentMonth(): string {
 }
 
 function auditTime(value: string): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return (
-    new Intl.DateTimeFormat("en-NG", {
-      dateStyle: "medium",
-      timeStyle: "short",
-      timeZone: "Africa/Lagos",
-    }).format(parsed) + " WAT"
-  );
+  return formatWatInstant(value, { suffix: " WAT" });
 }
 
 export default function SecurityAudit() {

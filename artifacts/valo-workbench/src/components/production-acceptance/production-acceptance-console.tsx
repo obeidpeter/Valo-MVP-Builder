@@ -10,6 +10,7 @@ import type {
   ProductionAcceptanceSnapshot,
   ProductionAcceptanceState,
 } from "./production-acceptance-contract";
+import { formatWatInstant, humaniseToken as readable } from "@/lib/format";
 
 const SURFACE_STATE: Readonly<Record<ProductionAcceptanceState, SurfaceState>> =
   {
@@ -31,17 +32,7 @@ const STATE_LABEL: Readonly<Record<ProductionAcceptanceState, string>> = {
 };
 
 function formattedDate(value: string): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return new Intl.DateTimeFormat("en-NG", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Africa/Lagos",
-  }).format(parsed);
-}
-
-function readable(value: string): string {
-  return value.replaceAll("_", " ");
+  return formatWatInstant(value);
 }
 
 export function ProductionAcceptanceConsole({

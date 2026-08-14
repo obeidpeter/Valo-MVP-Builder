@@ -46,7 +46,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { errorMessage } from "@/lib/errors";
+import { mutationErrorToast } from "@/lib/errors";
 import { useOrganisationPermission } from "@/contexts/organisation-context";
 
 const STATUSES = [
@@ -110,12 +110,7 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
       { id: projectId },
       {
         onSuccess: refresh,
-        onError: (err) =>
-          toast({
-            variant: "destructive",
-            title: "Auto-map failed",
-            description: errorMessage(err, ""),
-          }),
+        onError: mutationErrorToast(toast, "Auto-map failed"),
       },
     );
   };
@@ -126,12 +121,7 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
       { id: item.id, data: { evidenceStatus } as never },
       {
         onSuccess: refresh,
-        onError: (err) =>
-          toast({
-            variant: "destructive",
-            title: "Could not update status",
-            description: errorMessage(err, ""),
-          }),
+        onError: mutationErrorToast(toast, "Could not update status"),
         onSettled: () => setActingId(null),
       },
     );
@@ -143,12 +133,7 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
       { id: item.id, data: { suggested: false } as never },
       {
         onSuccess: refresh,
-        onError: (err) =>
-          toast({
-            variant: "destructive",
-            title: "Could not confirm evidence",
-            description: errorMessage(err, ""),
-          }),
+        onError: mutationErrorToast(toast, "Could not confirm evidence"),
         onSettled: () => setActingId(null),
       },
     );
@@ -160,12 +145,7 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
       { id: item.id },
       {
         onSuccess: refresh,
-        onError: (err) =>
-          toast({
-            variant: "destructive",
-            title: "Could not delete evidence",
-            description: errorMessage(err, ""),
-          }),
+        onError: mutationErrorToast(toast, "Could not delete evidence"),
         onSettled: () => setActingId(null),
       },
     );
@@ -205,12 +185,7 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
         setDialogOpen(false);
         refresh();
       },
-      onError: (err: unknown) =>
-        toast({
-          variant: "destructive",
-          title: "Could not save evidence",
-          description: errorMessage(err, ""),
-        }),
+      onError: mutationErrorToast(toast, "Could not save evidence"),
     };
     if (editingId) {
       updateEvidence.mutate(

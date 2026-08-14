@@ -45,7 +45,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { errorMessage } from "@/lib/errors";
+import { errorMessage, mutationErrorToast, requestStatus } from "@/lib/errors";
 import {
   ProjectReadinessGate,
   type ProjectTab,
@@ -131,11 +131,6 @@ const PROJECT_TABS: readonly ProjectTab[] = [
 
 function isProjectTab(value: string | null): value is ProjectTab {
   return PROJECT_TABS.some((tab) => tab === value);
-}
-
-function requestStatus(error: unknown): number | undefined {
-  const status = (error as { status?: unknown } | null)?.status;
-  return typeof status === "number" ? status : undefined;
 }
 
 export default function ProjectDetails() {
@@ -265,15 +260,11 @@ export default function ProjectDetails() {
           refreshProject();
           toast({ title: "Governance controls updated" });
         },
-        onError: (err) =>
-          toast({
-            variant: "destructive",
-            title: "Update blocked",
-            description: errorMessage(
-              err,
-              "The project transition or governance update was rejected.",
-            ),
-          }),
+        onError: mutationErrorToast(
+          toast,
+          "Update blocked",
+          "The project transition or governance update was rejected.",
+        ),
       },
     );
   };
@@ -329,12 +320,7 @@ export default function ProjectDetails() {
           });
           toast({ title: "Notification logged" });
         },
-        onError: (err) =>
-          toast({
-            variant: "destructive",
-            title: "Notification failed",
-            description: errorMessage(err, ""),
-          }),
+        onError: mutationErrorToast(toast, "Notification failed"),
       },
     );
   };
@@ -352,12 +338,7 @@ export default function ProjectDetails() {
           });
           toast({ title: "Retention request opened" });
         },
-        onError: (err) =>
-          toast({
-            variant: "destructive",
-            title: "Retention request failed",
-            description: errorMessage(err, ""),
-          }),
+        onError: mutationErrorToast(toast, "Retention request failed"),
       },
     );
   };
@@ -371,15 +352,11 @@ export default function ProjectDetails() {
           refreshProject();
           toast({ title: `Payment confirmed (${role} leg)` });
         },
-        onError: (err) =>
-          toast({
-            variant: "destructive",
-            title: "Confirmation rejected",
-            description: errorMessage(
-              err,
-              "Dual confirmation requires two distinct people.",
-            ),
-          }),
+        onError: mutationErrorToast(
+          toast,
+          "Confirmation rejected",
+          "Dual confirmation requires two distinct people.",
+        ),
       },
     );
   };

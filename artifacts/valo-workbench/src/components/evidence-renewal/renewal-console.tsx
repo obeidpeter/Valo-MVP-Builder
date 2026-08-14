@@ -23,6 +23,7 @@ import type {
   CanonicalEvidenceBinding,
   CanonicalEvidenceOption,
 } from "@/lib/canonical-evidence-options";
+import { humaniseToken as label } from "@/lib/format";
 
 interface PursuitOption {
   projectId: string;
@@ -43,10 +44,6 @@ function statusState(status: EvidenceRenewalPlan["status"]) {
   if (status === "promoted") return "active" as const;
   if (status === "rejected") return "blocked" as const;
   return "pending" as const;
-}
-
-function label(value: string): string {
-  return value.replaceAll("_", " ");
 }
 
 function CreateRenewalPlan({

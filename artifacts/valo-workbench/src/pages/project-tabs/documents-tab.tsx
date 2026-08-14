@@ -37,7 +37,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { errorMessage } from "@/lib/errors";
+import { errorMessage, mutationErrorToast } from "@/lib/errors";
 import { useOrganisationPermission } from "@/contexts/organisation-context";
 
 const NDA_ALLOWED = new Set(["signed", "not_required"]);
@@ -106,12 +106,7 @@ export function DocumentsTab({
       { id, data: data as never },
       {
         onSuccess: refresh,
-        onError: (err) =>
-          toast({
-            variant: "destructive",
-            title: `Could not update ${label}`,
-            description: errorMessage(err, ""),
-          }),
+        onError: mutationErrorToast(toast, `Could not update ${label}`),
       },
     );
   };
@@ -121,15 +116,11 @@ export function DocumentsTab({
       { id },
       {
         onSuccess: refresh,
-        onError: (err) =>
-          toast({
-            variant: "destructive",
-            title: "Could not delete document",
-            description: errorMessage(
-              err,
-              "Only an admin can delete documents.",
-            ),
-          }),
+        onError: mutationErrorToast(
+          toast,
+          "Could not delete document",
+          "Only an admin can delete documents.",
+        ),
       },
     );
   };

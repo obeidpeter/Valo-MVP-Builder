@@ -8,11 +8,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ClaimsDeskSnapshot } from "./claims-desk-contract";
-
-const label = (value: string) =>
-  value
-    .replaceAll("_", " ")
-    .replace(/^./u, (character) => character.toUpperCase());
+import { humaniseTokenCapitalised as label } from "@/lib/format";
 
 function minorAmount(amount: number | null, currency: string | null): string {
   if (amount === null || !currency) return "No amount recorded";

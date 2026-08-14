@@ -20,6 +20,7 @@ import type {
   IntelligenceCapabilitySnapshot,
   IntelligenceCapabilityState,
 } from "./intelligence-contract";
+import { formatWatInstant } from "@/lib/format";
 
 const STATE_PRESENTATION: Record<
   IntelligenceCapabilityState,
@@ -39,14 +40,10 @@ function formatCount(value: number | null | undefined): string {
 }
 
 function formatTimestamp(value: string | null | undefined): string {
-  if (!value) return "Not reported";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Not reported";
-  return new Intl.DateTimeFormat("en-NG", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Africa/Lagos",
-  }).format(date);
+  return formatWatInstant(value, {
+    empty: "Not reported",
+    invalid: "Not reported",
+  });
 }
 
 export function IntelligenceCapabilityCard({

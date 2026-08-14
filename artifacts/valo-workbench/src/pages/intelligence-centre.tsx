@@ -24,6 +24,7 @@ import {
   type IntelligenceCentreLoadState,
 } from "@/components/intelligence/intelligence-contract";
 import { Card, CardContent } from "@/components/ui/card";
+import { formatWatInstant } from "@/lib/format";
 
 export type { IntelligenceCentreLoadState } from "@/components/intelligence/intelligence-contract";
 
@@ -71,14 +72,10 @@ function fallbackCapability(
 }
 
 function formatTimestamp(value: string | null): string {
-  if (!value) return "No connected snapshot";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Snapshot time unavailable";
-  return new Intl.DateTimeFormat("en-NG", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Africa/Lagos",
-  }).format(date);
+  return formatWatInstant(value, {
+    empty: "No connected snapshot",
+    invalid: "Snapshot time unavailable",
+  });
 }
 
 function overallState(loadState: IntelligenceCentreLoadState): SurfaceState {

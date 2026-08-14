@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { formatWatInstant } from "@/lib/format";
 
 export const INTELLIGENCE_REVIEW_STATUSES = [
   "pending",
@@ -142,11 +143,7 @@ function dueDatePresentation(value: string | null): {
     return { label: "Due date unavailable", overdue: false };
   }
   return {
-    label: new Intl.DateTimeFormat("en-NG", {
-      dateStyle: "medium",
-      timeStyle: "short",
-      timeZone: "Africa/Lagos",
-    }).format(date),
+    label: formatWatInstant(date),
     dateTime: date.toISOString(),
     overdue: date.getTime() < Date.now(),
   };

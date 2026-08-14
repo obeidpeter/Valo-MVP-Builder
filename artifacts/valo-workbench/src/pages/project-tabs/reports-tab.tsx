@@ -28,7 +28,7 @@ import {
   ScrollText,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { errorMessage } from "@/lib/errors";
+import { errorMessage, mutationErrorToast } from "@/lib/errors";
 import { DataErrorPanel } from "@/components/platform-states";
 import { useEffect, useRef, useState } from "react";
 import { useOrganisationPermission } from "@/contexts/organisation-context";
@@ -83,12 +83,7 @@ export function ReportsTab({ projectId }: { projectId: string }) {
       { id: projectId },
       {
         onSuccess: invalidateAll,
-        onError: (err) =>
-          toast({
-            variant: "destructive",
-            title: "Report generation failed",
-            description: errorMessage(err, ""),
-          }),
+        onError: mutationErrorToast(toast, "Report generation failed"),
       },
     );
   };
@@ -104,15 +99,11 @@ export function ReportsTab({ projectId }: { projectId: string }) {
       },
       {
         onSuccess: invalidateAll,
-        onError: (err) =>
-          toast({
-            variant: "destructive",
-            title: "Sign-off blocked",
-            description: errorMessage(
-              err,
-              "The report could not be signed off. Resolve any open fatal defects and try again.",
-            ),
-          }),
+        onError: mutationErrorToast(
+          toast,
+          "Sign-off blocked",
+          "The report could not be signed off. Resolve any open fatal defects and try again.",
+        ),
       },
     );
   };
@@ -155,15 +146,11 @@ export function ReportsTab({ projectId }: { projectId: string }) {
               "The suggested narrative was saved to the project and will appear in section E of the next report. Review it before sign-off.",
           });
         },
-        onError: (err) =>
-          toast({
-            variant: "destructive",
-            title: "Responsiveness review failed",
-            description: errorMessage(
-              err,
-              "The LLM review did not complete. Try again.",
-            ),
-          }),
+        onError: mutationErrorToast(
+          toast,
+          "Responsiveness review failed",
+          "The LLM review did not complete. Try again.",
+        ),
       },
     );
   };

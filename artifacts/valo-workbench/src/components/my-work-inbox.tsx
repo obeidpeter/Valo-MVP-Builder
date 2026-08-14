@@ -12,6 +12,7 @@ import {
   type WorkInboxItem,
 } from "@/lib/work-inbox";
 import { LoadingPanel, StateBadge, StatusPanel } from "./platform-states";
+import { formatWatInstant, humaniseToken } from "@/lib/format";
 
 const GROUP_LABELS: Record<WorkInboxGroup, string> = {
   overdue: "Overdue",
@@ -21,16 +22,11 @@ const GROUP_LABELS: Record<WorkInboxGroup, string> = {
 };
 
 function itemKind(kind: WorkInboxItem["kind"]): string {
-  return kind.replaceAll("_", " ");
+  return humaniseToken(kind);
 }
 
 function dueLabel(value: string | null): string {
-  if (!value) return "No due date recorded";
-  return new Intl.DateTimeFormat("en-NG", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Africa/Lagos",
-  }).format(new Date(value));
+  return formatWatInstant(value, { empty: "No due date recorded" });
 }
 
 export function MyWorkInbox() {
