@@ -21,6 +21,7 @@ import {
   vaultItems,
 } from "@workspace/db";
 import { getLocalUser } from "../middlewares/auth";
+import { setPrivateResponseHeaders } from "../middlewares/privateResponse";
 import {
   getAccessContext,
   getOrganisationId,
@@ -678,7 +679,7 @@ export function createOperationsSuiteRouter(
             }),
           });
         }
-        res.setHeader("Cache-Control", "private, no-store");
+        setPrivateResponseHeaders(res);
         res.status(created ? 201 : 200).json(result);
       } catch (error) {
         if (!sendKnownError(res, error)) next(error);

@@ -1,3 +1,11 @@
+import {
+  absBig,
+  divideRound,
+  parseDecimalString,
+  rescale,
+  type Decimal,
+} from "./decimalMoney";
+
 export type BoqExceptionCode =
   | "invalid_decimal"
   | "extension_mismatch"
@@ -86,35 +94,8 @@ export interface BoqVerificationResult {
   policyVersion: string;
 }
 
-interface Decimal {
-  digits: bigint;
-  scale: number;
-}
-
-const DECIMAL = /^(-?)(\d+)(?:\.(\d+))?$/;
-
 function parseDecimal(value: string): Decimal | null {
-  const match = DECIMAL.exec(value.trim());
-  if (!match) return null;
-  const [, sign, whole, fraction = ""] = match;
-  const digits = BigInt(`${whole}${fraction}`);
-  return { digits: sign === "-" ? -digits : digits, scale: fraction.length };
-}
-
-function divideRound(numerator: bigint, denominator: bigint): bigint {
-  if (denominator <= 0n) throw new Error("A positive denominator is required");
-  const quotient = numerator / denominator;
-  const remainder = numerator % denominator;
-  if (remainder * 2n >= denominator) return quotient + 1n;
-  if (remainder * 2n <= -denominator) return quotient - 1n;
-  return quotient;
-}
-
-function rescale(value: Decimal, scale: number): bigint {
-  if (value.scale === scale) return value.digits;
-  if (value.scale < scale)
-    return value.digits * 10n ** BigInt(scale - value.scale);
-  return divideRound(value.digits, 10n ** BigInt(value.scale - scale));
+  return parseDecimalString(value);
 }
 
 function moneyMinor(value: string, scale: number): bigint | null {
@@ -140,7 +121,7 @@ function applyBasisPoints(amountMinor: bigint, basisPoints: number): bigint {
   return divideRound(amountMinor * BigInt(Math.trunc(basisPoints)), 10_000n);
 }
 
-const abs = (value: bigint): bigint => (value < 0n ? -value : value);
+const abs = absBig;
 
 /**
  * Verifies client-supplied BOQ figures only. It never invents quantities,

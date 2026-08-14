@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { canonicalJsonLocale, sha256Hex } from "../canonicalDigest";
 import {
   EVIDENCE_RENEWAL_BOUNDS,
   EVIDENCE_RENEWAL_IMPACTS,
@@ -256,23 +256,11 @@ export function parseEvidenceRenewalReviewDraft(
 }
 
 export function canonicalEvidenceRenewalJson(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) {
-    return `[${value.map(canonicalEvidenceRenewalJson).join(",")}]`;
-  }
-  return `{${Object.entries(value as JsonObject)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(
-      ([key, item]) =>
-        `${JSON.stringify(key)}:${canonicalEvidenceRenewalJson(item)}`,
-    )
-    .join(",")}}`;
+  return canonicalJsonLocale(value);
 }
 
 export function evidenceRenewalSha256(value: unknown): string {
-  return createHash("sha256")
-    .update(canonicalEvidenceRenewalJson(value), "utf8")
-    .digest("hex");
+  return sha256Hex(canonicalEvidenceRenewalJson(value));
 }
 
 import { deterministicUuidFromHex } from "../deterministicUuid";

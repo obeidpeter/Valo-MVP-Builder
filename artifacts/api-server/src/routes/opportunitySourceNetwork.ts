@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import { setPrivateResponseHeaders } from "../middlewares/privateResponse";
 import {
   getAccessContext,
   requirePermissionOrLegacy,
@@ -79,7 +80,7 @@ export function createOpportunitySourceNetworkRouter(
           response.status(403).json({ error: "Organisation access denied" });
           return;
         }
-        response.setHeader("Cache-Control", "private, no-store");
+        setPrivateResponseHeaders(response);
         response.json(await service.list(scope));
       } catch (error) {
         if (!sendKnownError(response, error)) next(error);
@@ -97,7 +98,7 @@ export function createOpportunitySourceNetworkRouter(
           response.status(403).json({ error: "Organisation access denied" });
           return;
         }
-        response.setHeader("Cache-Control", "private, no-store");
+        setPrivateResponseHeaders(response);
         response.json(
           await service.get(scope, String(request.params.candidateId)),
         );
@@ -122,7 +123,7 @@ export function createOpportunitySourceNetworkRouter(
           response.status(400).json({ error: "Source input is invalid" });
           return;
         }
-        response.setHeader("Cache-Control", "private, no-store");
+        setPrivateResponseHeaders(response);
         response.status(201).json(await service.recordManual(scope, input));
       } catch (error) {
         if (!sendKnownError(response, error)) next(error);
@@ -145,7 +146,7 @@ export function createOpportunitySourceNetworkRouter(
           response.status(400).json({ error: "Decision input is invalid" });
           return;
         }
-        response.setHeader("Cache-Control", "private, no-store");
+        setPrivateResponseHeaders(response);
         response.json(
           await service.decide(
             scope,

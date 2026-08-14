@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import { setPrivateResponseHeaders } from "../middlewares/privateResponse";
 import { holdTenantDatabaseUntilComplete } from "../middlewares/databaseTenancy";
 import {
   getAccessContext,
@@ -99,7 +100,7 @@ export function createOpportunityPursuitHandoffRouter(
           response.status(403).json({ error: "Direct membership required" });
           return;
         }
-        response.setHeader("Cache-Control", "private, no-store");
+        setPrivateResponseHeaders(response);
         response.json(
           await service.prepare(scope, String(request.params.candidateId)),
         );
@@ -139,7 +140,7 @@ export function createOpportunityPursuitHandoffRouter(
           body,
         );
         release();
-        response.setHeader("Cache-Control", "private, no-store");
+        setPrivateResponseHeaders(response);
         response.status(result.outcome === "created" ? 201 : 200).json(result);
       } catch (error) {
         if (error instanceof OpportunityPursuitHandoffError) {

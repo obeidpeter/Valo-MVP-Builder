@@ -1,20 +1,10 @@
+import { Router, type IRouter, type Request, type Response } from "express";
+import { privateResponse } from "../middlewares/privateResponse";
 import {
-  Router,
-  type IRouter,
-  type NextFunction,
-  type Request,
-  type Response,
-} from "express";
-import { getLocalUser } from "../middlewares/auth";
-import {
-  getAccessContext,
   parseExpectedVersion,
   type AccessContext,
 } from "../middlewares/tenancy";
-import {
-  resolveCurrentDirectAuthority,
-  type CurrentDirectAuthority,
-} from "../lib/directMembershipAuthority";
+import type { CurrentDirectAuthority } from "../lib/directMembershipAuthority";
 import {
   PRIVACY_OPERATIONS_DEFAULT_ITEMS,
   PRIVACY_OPERATIONS_MAX_ASSIGNEES,
@@ -36,6 +26,10 @@ import {
   recordPrivacyLegalHoldReview,
   triagePrivacyDsr,
 } from "../lib/privacyOperationsCentre/service";
+import {
+  authorisedScopeFor,
+  resolveSuiteAuthorityDefaults,
+} from "./suiteRouterKit";
 
 export interface PrivacyOperationsRouterOptions {
   repository?: PrivacyOperationsRepository;
@@ -48,14 +42,13 @@ export interface PrivacyOperationsRouterOptions {
   ) => Promise<CurrentDirectAuthority | null>;
 }
 
-function privateResponse(
-  _request: Request,
-  response: Response,
-  next: NextFunction,
-): void {
-  response.setHeader("Cache-Control", "private, no-store");
-  response.vary("X-Valo-Organisation-Id");
-  next();
+function privacyOperationsScope(
+  authority: CurrentDirectAuthority,
+): PrivacyOperationsScope {
+  return {
+    organisationId: authority.organisationId,
+    actorUserId: authority.actorUserId,
+  };
 }
 
 function parseLimit(value: unknown): number | null {
@@ -117,28 +110,13 @@ export function createPrivacyOperationsRouter(
   const router: IRouter = Router();
   const repository = options.repository ?? postgresPrivacyOperationsRepository;
   const now = options.now ?? (() => new Date());
-  const resolveAccess = options.resolveAccess ?? getAccessContext;
-  const resolveActorUserId =
-    options.resolveActorUserId ??
-    ((request: Request) => getLocalUser(request)?.id);
-  const resolveAuthority =
-    options.resolveAuthority ?? resolveCurrentDirectAuthority;
+  const resolvers = resolveSuiteAuthorityDefaults(options);
 
-  const authorisedScope = async (
+  const authorisedScope = (
     request: Request,
     permission: "privacy:read" | "privacy:manage",
-  ): Promise<PrivacyOperationsScope | null> => {
-    const authority = await resolveAuthority(
-      resolveAccess(request),
-      resolveActorUserId(request),
-    );
-    return authority?.permissions.has(permission)
-      ? {
-          organisationId: authority.organisationId,
-          actorUserId: authority.actorUserId,
-        }
-      : null;
-  };
+  ): Promise<PrivacyOperationsScope | null> =>
+    authorisedScopeFor(request, permission, resolvers, privacyOperationsScope);
 
   router.use("/privacy-operations", privateResponse);
 

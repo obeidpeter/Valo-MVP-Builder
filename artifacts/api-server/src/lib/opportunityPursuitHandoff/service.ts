@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { canonicalJsonStrict, sha256Hex } from "../canonicalDigest";
 import {
   OPPORTUNITY_PURSUIT_HANDOFF_BOUNDS,
   OpportunityPursuitHandoffError,
@@ -18,32 +18,16 @@ const IDEMPOTENCY = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/u;
 const CONTROL = /[\u0000-\u001f\u007f]/u;
 
 function canonicalJson(value: unknown): string {
-  if (
-    value === null ||
-    typeof value === "boolean" ||
-    typeof value === "number" ||
-    typeof value === "string"
-  ) {
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  if (typeof value !== "object") {
+  return canonicalJsonStrict(value, () => {
     throw new OpportunityPursuitHandoffError(
       "invalid_request",
       "The handoff digest input is invalid.",
     );
-  }
-  const record = value as Readonly<Record<string, unknown>>;
-  return `{${Object.keys(record)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key]!)}`)
-    .join(",")}}`;
+  });
 }
 
 export function hashOpportunityPursuitHandoff(value: unknown): string {
-  return createHash("sha256")
-    .update(canonicalJson(value), "utf8")
-    .digest("hex");
+  return sha256Hex(canonicalJson(value));
 }
 
 function text(value: unknown, maximum: number, field: string): string {

@@ -1,11 +1,6 @@
-import {
-  Router,
-  type IRouter,
-  type NextFunction,
-  type Request,
-  type Response,
-} from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { getLocalUser } from "../middlewares/auth";
+import { privateResponse } from "../middlewares/privateResponse";
 import { getAccessContext, type AccessContext } from "../middlewares/tenancy";
 import type { OrganisationRole } from "../lib/permissions";
 import {
@@ -64,16 +59,6 @@ export function canRecordProductionAcceptance(
   );
 }
 
-function setPrivateResponseHeaders(
-  _request: Request,
-  response: Response,
-  next: NextFunction,
-): void {
-  response.setHeader("Cache-Control", "private, no-store");
-  response.vary("X-Valo-Organisation-Id");
-  next();
-}
-
 function sendRepositoryUnavailable(
   response: Response,
   error: unknown,
@@ -117,7 +102,7 @@ export function createProductionAcceptanceRouter(
       : null;
   };
 
-  router.use("/production-acceptance", setPrivateResponseHeaders);
+  router.use("/production-acceptance", privateResponse);
 
   router.get("/production-acceptance", async (request, response, next) => {
     const context = resolveAccess(request);

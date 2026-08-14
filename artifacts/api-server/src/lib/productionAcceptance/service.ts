@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { canonicalJsonCodeUnit, sha256Hex } from "../canonicalDigest";
 import {
   PRODUCTION_ACCEPTANCE_BOUNDS,
   PRODUCTION_ACCEPTANCE_CATEGORIES,
@@ -65,21 +65,13 @@ type CanonicalValue =
   | { readonly [key: string]: CanonicalValue };
 
 function canonicalJson(value: CanonicalValue): string {
-  if (value === null || typeof value !== "object") {
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  const record = value as Readonly<Record<string, CanonicalValue>>;
-  return `{${Object.keys(record)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key]!)}`)
-    .join(",")}}`;
+  return canonicalJsonCodeUnit(value);
 }
 
 function evidenceDigest(
   input: Omit<ProductionAcceptanceEvidenceRecord, "id" | "evidenceDigest">,
 ): string {
-  return createHash("sha256").update(canonicalJson(input)).digest("hex");
+  return sha256Hex(canonicalJson(input));
 }
 
 function evidenceCore(
@@ -107,7 +99,7 @@ function evidenceRequestDigest(
   record: ProductionAcceptanceEvidenceRecord,
 ): string {
   const { recordedAt: _recordedAt, ...requestCore } = evidenceCore(record);
-  return createHash("sha256").update(canonicalJson(requestCore)).digest("hex");
+  return sha256Hex(canonicalJson(requestCore));
 }
 
 function normalizeIso(value: string): string {

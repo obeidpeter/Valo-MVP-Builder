@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { canonicalJsonStrict, sha256Hex } from "../canonicalDigest";
 
 export const CLIENT_UPLOAD_LEASE_SCHEMA =
   "valo.client-action-upload-lease/v1" as const;
@@ -67,29 +67,13 @@ export class StorageLifecycleContractError extends Error {
 }
 
 function canonicalJson(value: unknown): string {
-  if (
-    value === null ||
-    typeof value === "boolean" ||
-    typeof value === "number" ||
-    typeof value === "string"
-  ) {
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  if (typeof value !== "object") {
+  return canonicalJsonStrict(value, () => {
     throw new StorageLifecycleContractError("invalid");
-  }
-  const record = value as Readonly<Record<string, unknown>>;
-  return `{${Object.keys(record)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key]!)}`)
-    .join(",")}}`;
+  });
 }
 
 export function storageLifecycleSha256(value: unknown): string {
-  return createHash("sha256")
-    .update(canonicalJson(value), "utf8")
-    .digest("hex");
+  return sha256Hex(canonicalJson(value));
 }
 
 function exactObject(value: unknown, keys: readonly string[]) {
