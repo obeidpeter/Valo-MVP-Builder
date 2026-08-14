@@ -1,5 +1,4 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { getLocalUser } from "../middlewares/auth";
 import { holdTenantDatabaseUntilComplete } from "../middlewares/databaseTenancy";
 import {
   getAccessContext,
@@ -15,6 +14,7 @@ import {
   type OpportunityPursuitHandoffScope,
 } from "../lib/opportunityPursuitHandoff";
 import { createBoundedJsonBody } from "./boundedJsonBody";
+import { resolveMembershipActorScope } from "./membershipActorScope";
 
 export interface OpportunityPursuitHandoffRouterOptions {
   service?: OpportunityPursuitHandoffService;
@@ -26,26 +26,15 @@ function scopeFromRequest(
   request: Request,
   resolveAccess: (request: Request) => AccessContext | undefined,
 ): OpportunityPursuitHandoffScope | null {
-  const access = resolveAccess(request);
-  const actor = getLocalUser(request);
-  if (
-    !access ||
-    access.source !== "membership" ||
-    !access.membershipId ||
-    access.membershipOrganisationId !== access.organisationId ||
-    !actor ||
-    actor.status !== "active" ||
-    typeof actor.name !== "string" ||
-    actor.name !== actor.name.trim() ||
-    actor.name.length < 1
-  ) {
-    return null;
-  }
+  const scope = resolveMembershipActorScope(request, resolveAccess, {
+    requireMembershipOrganisationMatch: true,
+  });
+  if (!scope) return null;
   return {
-    organisationId: access.organisationId,
-    actorUserId: actor.id,
-    actorName: actor.name,
-    actorMembershipId: access.membershipId,
+    organisationId: scope.organisationId,
+    actorUserId: scope.actorUserId,
+    actorName: scope.actorName,
+    actorMembershipId: scope.membershipId,
   };
 }
 

@@ -30,6 +30,7 @@ import {
   REQUIRED_STRUCTURAL_TAXONOMY,
   type InjectionFixture,
 } from "./injection-corpus/corpus";
+import { createChecker } from "./lib/proofCheck";
 
 const DOC_IDS: ReadonlySet<string> = new Set(ENGAGEMENT_DOC_IDS);
 const REQ_IDS: ReadonlySet<string> = new Set(ENGAGEMENT_REQ_IDS);
@@ -78,18 +79,8 @@ const DEFECT_SEVERITIES = new Set([
 const MAX_ITEMS = 500;
 const MAX_TEXT = 4000;
 
-let passes = 0;
-let failures = 0;
-function check(label: string, ok: boolean, detail?: string): boolean {
-  if (ok) {
-    passes++;
-    console.log(`  ✓ ${label}`);
-  } else {
-    failures++;
-    console.log(`  ✗ ${label}${detail ? ` — ${detail}` : ""}`);
-  }
-  return ok;
-}
+const checker = createChecker();
+const { check } = checker;
 
 function ownKeys(obj: object): string[] {
   return Object.keys(obj);
@@ -377,8 +368,10 @@ async function main(): Promise<void> {
   if (!offline) {
     await livePass();
   }
-  console.log(`\n=== RESULT: ${passes} passed, ${failures} failed ===`);
-  if (failures > 0) process.exit(1);
+  console.log(
+    `\n=== RESULT: ${checker.passes()} passed, ${checker.failures()} failed ===`,
+  );
+  if (checker.failures() > 0) process.exit(1);
 }
 
 main()

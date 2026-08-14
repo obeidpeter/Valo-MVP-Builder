@@ -10,6 +10,7 @@ import {
 } from "@workspace/db";
 import type { LocalUser } from "../../middlewares/auth";
 import { writeAuditTx } from "../audit";
+import { parseInstantPreserving } from "../dbClock";
 import { ORGANISATION_ROLES, hasPermission } from "../permissions";
 import {
   OPPORTUNITY_SOURCE_NETWORK_BOUNDS,
@@ -211,12 +212,11 @@ async function lockMembershipAdministrationBoundary(
 }
 
 async function currentDatabaseTime(tx: RepositoryTx): Promise<Date> {
-  const result = await tx.execute(
+  const result = await tx.execute<{ now: unknown }>(
     sql`SELECT pg_catalog.clock_timestamp() AS "now"`,
   );
-  const value = (result.rows[0] as { now?: unknown } | undefined)?.now;
-  const now = value instanceof Date ? value : new Date(String(value));
-  if (!Number.isFinite(now.valueOf())) {
+  const now = parseInstantPreserving(result.rows[0]?.now);
+  if (now === null) {
     throw new OpportunitySourceNetworkError(
       "source_unavailable",
       "Current database time could not be verified.",

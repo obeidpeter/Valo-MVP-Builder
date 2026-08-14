@@ -360,7 +360,12 @@ async function verifyDocuments(
       ),
     );
   if (documentRows.length !== ids.length) return false;
-  const versionResult = await tx.execute(sql`
+  const versionResult = await tx.execute<{
+    documentId: string;
+    sha256: string;
+    malwareStatus: string;
+    quarantineStatus: string;
+  }>(sql`
     SELECT
       current_version.document_id::text AS "documentId",
       current_version.sha256 AS sha256,
@@ -382,12 +387,7 @@ async function verifyDocuments(
     LIMIT ${CLAIMS_DESK_BOUNDS.documentsPerEvent + 1}
   `);
   if (versionResult.rows.length !== ids.length) return false;
-  const versionRows = versionResult.rows as Array<{
-    documentId: string;
-    sha256: string;
-    malwareStatus: string;
-    quarantineStatus: string;
-  }>;
+  const versionRows = versionResult.rows;
   const bindingById = new Map(
     bindings.map((binding) => [binding.documentId, binding]),
   );

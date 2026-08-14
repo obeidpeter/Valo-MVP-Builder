@@ -1,10 +1,10 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { getLocalUser } from "../middlewares/auth";
 import {
   getAccessContext,
   requirePermissionOrLegacy,
   type AccessContext,
 } from "../middlewares/tenancy";
+import { resolveMembershipActorScope } from "./membershipActorScope";
 import {
   AuditOpportunitySourceRepository,
   OpportunitySourceNetworkError,
@@ -23,24 +23,14 @@ function scopeFromRequest(
   request: Request,
   resolveAccess: (request: Request) => AccessContext | undefined,
 ): OpportunitySourceScope | null {
-  const access = resolveAccess(request);
-  const actor = getLocalUser(request);
-  if (
-    !access ||
-    access.source !== "membership" ||
-    !access.membershipId ||
-    !actor ||
-    actor.status !== "active" ||
-    typeof actor.name !== "string" ||
-    actor.name !== actor.name.trim() ||
-    actor.name.length < 1
-  ) {
-    return null;
-  }
+  const scope = resolveMembershipActorScope(request, resolveAccess, {
+    requireMembershipOrganisationMatch: false,
+  });
+  if (!scope) return null;
   return {
-    organisationId: access.organisationId,
-    actorUserId: actor.id,
-    actorName: actor.name,
+    organisationId: scope.organisationId,
+    actorUserId: scope.actorUserId,
+    actorName: scope.actorName,
   };
 }
 

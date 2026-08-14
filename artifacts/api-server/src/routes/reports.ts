@@ -42,6 +42,12 @@ import {
   TAXONOMY_VERSION,
 } from "../lib/provenance";
 import { computeRisk, type Severity } from "../lib/deterministic";
+import {
+  toCsv,
+  requirementReviewState,
+  suggestedFlagReviewState,
+  withReviewState,
+} from "../lib/reportCsv";
 import { evaluateSubmissionReadiness } from "../lib/submissionReadiness";
 import { getActiveConfig } from "../lib/appConfig";
 import { computeScorecard } from "../lib/scorecard";
@@ -71,6 +77,8 @@ import {
   SHA256_HEX_PATTERN as SHA256_PATTERN,
   UUID_V1_5_PATTERN as UUID_PATTERN,
 } from "../lib/identifierPatterns";
+import { isOneOf } from "../lib/typeGuards";
+import { parseInstantViaString } from "../lib/dbClock";
 
 // archiver@8 dropped the classic default `archiver(format, options)` factory and
 // now only exports named classes, so we construct a `ZipArchive` directly.
@@ -540,13 +548,11 @@ router.post(
     const reviewerName = user?.name || user?.email || "Unknown reviewer";
     const updated = await db.transaction(
       async (tx) => {
-        const clock = await tx.execute(
+        const clock = await tx.execute<{ now: unknown }>(
           sql`SELECT pg_catalog.clock_timestamp() AS now`,
         );
-        const signedOffAt = new Date(
-          String((clock.rows[0] as { now?: unknown } | undefined)?.now ?? ""),
-        );
-        if (!Number.isFinite(signedOffAt.valueOf())) {
+        const signedOffAt = parseInstantViaString(clock.rows[0]?.now);
+        if (signedOffAt === null) {
           throw new Error("Database clock is unavailable during sign-off");
         }
         const [signed] = await tx
@@ -603,16 +609,29 @@ router.post(
   },
 );
 
-router.get(
-  "/reports/:id/download",
-  requirePermissionOrLegacy("report:export"),
-  async (req: Request, res: Response) => {
+/**
+ * Shared handler for the twin signed-report download endpoints (DOCX / PDF).
+ * The two registrations differ only in which stored artefact path they serve,
+ * the response MIME type/extension and the audit/log wording.
+ */
+function reportDownloadHandler(options: {
+  pathField: "docxPath" | "pdfPath";
+  mime: string;
+  extension: "docx" | "pdf";
+  denialPrefix: string;
+  auditSuffix: string;
+  logLabel: string;
+}) {
+  const { pathField, mime, extension, denialPrefix, auditSuffix, logLabel } =
+    options;
+  return async (req: Request, res: Response) => {
     const user = getLocalUser(req);
     const [report] = await db
       .select()
       .from(reports)
       .where(eq(reports.id, String(req.params.id)));
-    if (!report || !report.docxPath) {
+    const artefactPath = report?.[pathField];
+    if (!report || !artefactPath) {
       res.status(404).json({ error: "Not found" });
       return;
     }
@@ -628,7 +647,7 @@ router.get(
         eventType: "report.export_denied",
         objectType: "report",
         objectId: report.id,
-        details: `Export blocked: ${exportDenial}.`,
+        details: `${denialPrefix} blocked: ${exportDenial}.`,
       });
       res.status(exportDenial === "stale_version" ? 409 : 403).json({
         error:
@@ -639,12 +658,12 @@ router.get(
       return;
     }
     try {
-      const file = await objectStorage.getObjectEntityFile(report.docxPath);
+      const file = await objectStorage.getObjectEntityFile(artefactPath);
       const [buffer] = await file.download();
-      res.setHeader("Content-Type", DOCX_MIME);
+      res.setHeader("Content-Type", mime);
       res.setHeader(
         "Content-Disposition",
-        `attachment; filename="bid-autopsy-report-v${report.version}.docx"`,
+        `attachment; filename="bid-autopsy-report-v${report.version}.${extension}"`,
       );
       await writeAudit({
         user,
@@ -652,123 +671,41 @@ router.get(
         eventType: "report.exported",
         objectType: "report",
         objectId: report.id,
-        details: `Exported signed-off report v${report.version}.`,
+        details: `Exported signed-off report v${report.version}${auditSuffix}.`,
       });
       res.send(buffer);
     } catch (error) {
-      req.log.error({ err: error }, "report download failed");
+      req.log.error({ err: error }, logLabel);
       res.status(404).json({ error: "Report file not found" });
     }
-  },
+  };
+}
+
+router.get(
+  "/reports/:id/download",
+  requirePermissionOrLegacy("report:export"),
+  reportDownloadHandler({
+    pathField: "docxPath",
+    mime: DOCX_MIME,
+    extension: "docx",
+    denialPrefix: "Export",
+    auditSuffix: "",
+    logLabel: "report download failed",
+  }),
 );
 
 router.get(
   "/reports/:id/download-pdf",
   requirePermissionOrLegacy("report:export"),
-  async (req: Request, res: Response) => {
-    const user = getLocalUser(req);
-    const [report] = await db
-      .select()
-      .from(reports)
-      .where(eq(reports.id, String(req.params.id)));
-    if (!report || !report.pdfPath) {
-      res.status(404).json({ error: "Not found" });
-      return;
-    }
-    const exportDenial = reportExportDenial(
-      report,
-      await latestReportForProject(report.projectId),
-    );
-    if (exportDenial) {
-      await writeAudit({
-        user,
-        organisationId: getOrganisationId(req),
-        projectId: report.projectId,
-        eventType: "report.export_denied",
-        objectType: "report",
-        objectId: report.id,
-        details: `PDF export blocked: ${exportDenial}.`,
-      });
-      res.status(exportDenial === "stale_version" ? 409 : 403).json({
-        error:
-          exportDenial === "stale_version"
-            ? "Only the latest signed report version can be exported"
-            : "Report must be signed off before it can be exported",
-      });
-      return;
-    }
-    try {
-      const file = await objectStorage.getObjectEntityFile(report.pdfPath);
-      const [buffer] = await file.download();
-      res.setHeader("Content-Type", PDF_MIME);
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename="bid-autopsy-report-v${report.version}.pdf"`,
-      );
-      await writeAudit({
-        user,
-        projectId: report.projectId,
-        eventType: "report.exported",
-        objectType: "report",
-        objectId: report.id,
-        details: `Exported signed-off report v${report.version} (PDF).`,
-      });
-      res.send(buffer);
-    } catch (error) {
-      req.log.error({ err: error }, "report pdf download failed");
-      res.status(404).json({ error: "Report file not found" });
-    }
-  },
+  reportDownloadHandler({
+    pathField: "pdfPath",
+    mime: PDF_MIME,
+    extension: "pdf",
+    denialPrefix: "PDF export",
+    auditSuffix: " (PDF)",
+    logLabel: "report pdf download failed",
+  }),
 );
-
-export function toCsv(rows: Record<string, unknown>[]): string {
-  if (rows.length === 0) return "";
-  const headers = Object.keys(rows[0]);
-  const escape = (v: unknown) => {
-    let s = v == null ? "" : String(v);
-    // CSV formula-injection defense: requirement text / evidence excerpts are
-    // verbatim untrusted tender content. A leading =, +, -, @, tab or CR makes
-    // a spreadsheet treat the cell as a formula on open (e.g. =IMPORTXML(...)),
-    // which for confidential exports is a data-exfiltration vector. Prefix a
-    // single quote so the cell is always treated as literal text.
-    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  return [
-    headers.join(","),
-    ...rows.map((r) => headers.map((h) => escape(r[h])).join(",")),
-  ].join("\n");
-}
-
-export type ReviewState = "confirmed" | "suggested";
-
-/**
- * Derive the export `review_state` for a register row, so recipients can tell
- * reviewer-confirmed findings from raw AI suggestions. This is the single
- * source of truth for the CSV column and must stay consistent with how the
- * signed DOCX report (`lib/docx.ts`) segregates confirmed vs suggested items:
- *   - a requirement is confirmed unless its `reviewStatus` is still "suggested"
- *   - evidence and defects carry an explicit `suggested` boolean
- */
-export function requirementReviewState(row: {
-  reviewStatus: string;
-}): ReviewState {
-  return row.reviewStatus === "suggested" ? "suggested" : "confirmed";
-}
-
-export function suggestedFlagReviewState(row: {
-  suggested: boolean;
-}): ReviewState {
-  return row.suggested ? "suggested" : "confirmed";
-}
-
-/** Prepend a `review_state` column to each row for CSV export. */
-export function withReviewState<T extends Record<string, unknown>>(
-  rows: T[],
-  reviewState: (row: T) => ReviewState,
-): (T & { review_state: ReviewState })[] {
-  return rows.map((row) => ({ review_state: reviewState(row), ...row }));
-}
 
 router.get(
   "/projects/:id/package-versions",
@@ -837,7 +774,7 @@ router.get(
       .map((row) => {
         if (
           row.packageType !== PROJECT_EXPORT_PACKAGE_TYPE ||
-          !["pending", "passed", "failed"].includes(row.renderQaStatus) ||
+          !isOneOf(row.renderQaStatus, ["pending", "passed", "failed"]) ||
           !UUID_PATTERN.test(row.packageId) ||
           !UUID_PATTERN.test(row.packageVersionId) ||
           !Number.isSafeInteger(row.versionNumber) ||
@@ -854,7 +791,7 @@ router.get(
           packageType: PROJECT_EXPORT_PACKAGE_TYPE,
           versionNumber: row.versionNumber,
           manifestSha256: row.manifestSha256,
-          renderQaStatus: row.renderQaStatus as "pending" | "passed" | "failed",
+          renderQaStatus: row.renderQaStatus,
           createdAt: row.createdAt.toISOString(),
         };
       });

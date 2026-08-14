@@ -15,7 +15,12 @@ import {
   TableOfContents,
 } from "docx";
 
-import { ENGINE_VERSION, PROMPT_PACK_VERSION, MODEL_ID, TAXONOMY_VERSION } from "./provenance";
+import {
+  ENGINE_VERSION,
+  PROMPT_PACK_VERSION,
+  MODEL_ID,
+  TAXONOMY_VERSION,
+} from "./provenance";
 
 export const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -28,15 +33,85 @@ export const PROCESS_WARRANTY =
 const NAVY = "1E3A5F";
 const GREY = "666666";
 
+/**
+ * Minimal structural shapes for the report model: only the fields the DOCX and
+ * PDF renderers actually read. Drizzle rows (and test fixtures) satisfy these
+ * structurally; unused columns stay invisible to the renderers.
+ */
+export interface ReportProject {
+  tenderTitle: string;
+  issuingEntity?: string | null;
+  tenderRef?: string | null;
+  segment?: string | null;
+  deadline?: string | null;
+  valueBand?: string | null;
+  status: string;
+  redactionScope?: string | null;
+  restrictedMode?: boolean;
+  scope?: string | null;
+  limitations?: string | null;
+  responsivenessReview?: string | null;
+  responsivenessSuggested?: boolean;
+}
+
+export interface ReportClient {
+  name: string;
+  ndaStatus?: string | null;
+}
+
+export interface ReportRequirement {
+  id: string;
+  text: string;
+  category: string;
+  isMandatory: boolean;
+  sourceDocName?: string | null;
+  clauseRef?: string | null;
+  pageRef?: string | null;
+  reviewStatus: string;
+}
+
+export interface ReportEvidence {
+  requirementId: string;
+  evidenceStatus: string;
+  excerpt?: string | null;
+  notes?: string | null;
+  suggested: boolean;
+}
+
+export interface ReportDefect {
+  description: string;
+  type: string;
+  severity: string;
+  status: string;
+  remediation?: string | null;
+  owner?: string | null;
+  suggested: boolean;
+}
+
+export interface ReportBoqCheck {
+  lineRef?: string | null;
+  checkType: string;
+  finding: string;
+  severity: string;
+  status: string;
+}
+
 export interface ReportData {
-  project: any;
-  client: any;
+  project: ReportProject;
+  client: ReportClient | null;
   reviewerName: string | null;
-  requirements: any[];
-  evidence: any[];
-  defects: any[];
-  boqChecks: any[];
-  risk: { score: number; band: string; explanation: string; overrideBand?: string | null; overrideNote?: string | null; overrideBy?: string | null };
+  requirements: ReportRequirement[];
+  evidence: ReportEvidence[];
+  defects: ReportDefect[];
+  boqChecks: ReportBoqCheck[];
+  risk: {
+    score: number;
+    band: string;
+    explanation: string;
+    overrideBand?: string | null;
+    overrideNote?: string | null;
+    overrideBy?: string | null;
+  };
   template?: { firmName: string; confidentialityLegend: string };
   version: number;
   generatedByName: string | null;
@@ -66,34 +141,64 @@ function subheading(text: string): Paragraph {
   });
 }
 
-function para(text: string, opts: { italics?: boolean; bold?: boolean; color?: string } = {}): Paragraph {
+function para(
+  text: string,
+  opts: { italics?: boolean; bold?: boolean; color?: string } = {},
+): Paragraph {
   return new Paragraph({
     spacing: { after: 120 },
-    children: [new TextRun({ text, italics: opts.italics, bold: opts.bold, color: opts.color })],
-  });
-}
-
-function cell(text: string, opts: { bold?: boolean; width?: number } = {}): TableCell {
-  return new TableCell({
-    width: opts.width ? { size: opts.width, type: WidthType.PERCENTAGE } : undefined,
-    margins: { top: 60, bottom: 60, left: 80, right: 80 },
     children: [
-      new Paragraph({
-        children: [new TextRun({ text: text || "—", bold: opts.bold, size: 18 })],
+      new TextRun({
+        text,
+        italics: opts.italics,
+        bold: opts.bold,
+        color: opts.color,
       }),
     ],
   });
 }
 
-function makeTable(headers: string[], rows: string[][], widths?: number[]): Table {
+function cell(
+  text: string,
+  opts: { bold?: boolean; width?: number } = {},
+): TableCell {
+  return new TableCell({
+    width: opts.width
+      ? { size: opts.width, type: WidthType.PERCENTAGE }
+      : undefined,
+    margins: { top: 60, bottom: 60, left: 80, right: 80 },
+    children: [
+      new Paragraph({
+        children: [
+          new TextRun({ text: text || "—", bold: opts.bold, size: 18 }),
+        ],
+      }),
+    ],
+  });
+}
+
+function makeTable(
+  headers: string[],
+  rows: string[][],
+  widths?: number[],
+): Table {
   const border = { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" };
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
-    borders: { top: border, bottom: border, left: border, right: border, insideHorizontal: border, insideVertical: border },
+    borders: {
+      top: border,
+      bottom: border,
+      left: border,
+      right: border,
+      insideHorizontal: border,
+      insideVertical: border,
+    },
     rows: [
       new TableRow({
         tableHeader: true,
-        children: headers.map((h, i) => cell(h, { bold: true, width: widths?.[i] })),
+        children: headers.map((h, i) =>
+          cell(h, { bold: true, width: widths?.[i] }),
+        ),
       }),
       ...rows.map(
         (r) =>
@@ -106,7 +211,8 @@ function makeTable(headers: string[], rows: string[][], widths?: number[]): Tabl
 }
 
 export async function buildReportDocx(data: ReportData): Promise<Buffer> {
-  const { project, client, requirements, evidence, defects, boqChecks, risk } = data;
+  const { project, client, requirements, evidence, defects, boqChecks, risk } =
+    data;
   // Explicit locale + timezone: the deliverable is stamped in Nigerian local
   // time regardless of where the server runs, and the golden-file test stays
   // deterministic across environments.
@@ -123,14 +229,31 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
   children.push(
     new Paragraph({
       spacing: { after: 60 },
-      children: [new TextRun({ text: template.firmName, bold: true, size: 40, color: NAVY })],
+      children: [
+        new TextRun({
+          text: template.firmName,
+          bold: true,
+          size: 40,
+          color: NAVY,
+        }),
+      ],
     }),
     new Paragraph({
       spacing: { after: 40 },
-      children: [new TextRun({ text: "Bid Autopsy Report", bold: true, size: 32, color: NAVY })],
+      children: [
+        new TextRun({
+          text: "Bid Autopsy Report",
+          bold: true,
+          size: 32,
+          color: NAVY,
+        }),
+      ],
     }),
     para(`${project.tenderTitle}`, { bold: true }),
-    para(`Client: ${client?.name ?? "—"}   |   Version ${data.version}   |   Generated ${generatedAt}`, { color: GREY }),
+    para(
+      `Client: ${client?.name ?? "—"}   |   Version ${data.version}   |   Generated ${generatedAt}`,
+      { color: GREY },
+    ),
     para(template.confidentialityLegend, { italics: true, color: GREY }),
   );
 
@@ -146,7 +269,10 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
         ["Generated", generatedAt],
         ["Prepared by", data.generatedByName ?? "—"],
         ["Named reviewer", data.reviewerName ?? "—"],
-        ["Engine / prompt pack / model", `${ENGINE_VERSION} · ${PROMPT_PACK_VERSION} · ${MODEL_ID}`],
+        [
+          "Engine / prompt pack / model",
+          `${ENGINE_VERSION} · ${PROMPT_PACK_VERSION} · ${MODEL_ID}`,
+        ],
         ["Defect taxonomy", TAXONOMY_VERSION],
         ["Classification", "CONFIDENTIAL — internal review only"],
       ],
@@ -164,10 +290,13 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
     }),
   );
   children.push(
-    para("Right-click the contents above and choose “Update Field” to refresh page numbers.", {
-      italics: true,
-      color: GREY,
-    }),
+    para(
+      "Right-click the contents above and choose “Update Field” to refresh page numbers.",
+      {
+        italics: true,
+        color: GREY,
+      },
+    ),
   );
 
   // A. Engagement summary
@@ -214,19 +343,24 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
   // Split each register into reviewer-confirmed items (which drive the risk
   // score and form the signed report body) and unconfirmed AI suggestions,
   // which are segregated so nothing counts until a named human confirms it.
-  const confirmedReqs = requirements.filter((r) => r.reviewStatus !== "suggested");
-  const suggestedReqs = requirements.filter((r) => r.reviewStatus === "suggested");
+  const confirmedReqs = requirements.filter(
+    (r) => r.reviewStatus !== "suggested",
+  );
+  const suggestedReqs = requirements.filter(
+    (r) => r.reviewStatus === "suggested",
+  );
   const confirmedDefects = defects.filter((d) => !d.suggested);
   const suggestedDefects = defects.filter((d) => d.suggested);
 
-  const requirementRow = (r: any) => [
+  const requirementRow = (r: ReportRequirement) => [
     r.text,
     r.category,
     r.isMandatory ? "Yes" : "No",
-    [r.sourceDocName, r.clauseRef, r.pageRef].filter(Boolean).join(" · ") || "—",
+    [r.sourceDocName, r.clauseRef, r.pageRef].filter(Boolean).join(" · ") ||
+      "—",
     r.reviewStatus,
   ];
-  const defectRow = (d: any) => [
+  const defectRow = (d: ReportDefect) => [
     d.description,
     d.type,
     d.severity,
@@ -237,7 +371,9 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
   // B. Requirement matrix
   children.push(heading("B. Requirement Matrix"));
   if (confirmedReqs.length === 0) {
-    children.push(para("No reviewer-confirmed requirements recorded.", { italics: true }));
+    children.push(
+      para("No reviewer-confirmed requirements recorded.", { italics: true }),
+    );
   } else {
     children.push(
       makeTable(
@@ -248,7 +384,11 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
     );
   }
   if (suggestedReqs.length > 0) {
-    children.push(subheading("Suggested requirements — pending named-reviewer confirmation"));
+    children.push(
+      subheading(
+        "Suggested requirements — pending named-reviewer confirmation",
+      ),
+    );
     children.push(
       para(
         `${suggestedReqs.length} AI-suggested requirement(s) below are not yet confirmed and do not contribute to the risk score.`,
@@ -267,10 +407,12 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
   // Evidence trace: the excerpt-level provenance behind the matrix above.
   // Evidence-first doctrine — a requirement ruling without its mapped
   // excerpt is an assertion, not a finding.
-  const reqTextById = new Map<string, string>(requirements.map((r: any) => [r.id, r.text]));
+  const reqTextById = new Map<string, string>(
+    requirements.map((r) => [r.id, r.text]),
+  );
   const confirmedEvidence = evidence.filter((e) => !e.suggested);
   const suggestedEvidence = evidence.filter((e) => e.suggested);
-  const evidenceRow = (e: any) => [
+  const evidenceRow = (e: ReportEvidence) => [
     reqTextById.get(e.requirementId) ?? "—",
     e.evidenceStatus,
     e.excerpt ?? "—",
@@ -278,7 +420,9 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
   ];
   children.push(subheading("Evidence trace"));
   if (confirmedEvidence.length === 0) {
-    children.push(para("No confirmed evidence mappings recorded.", { italics: true }));
+    children.push(
+      para("No confirmed evidence mappings recorded.", { italics: true }),
+    );
   } else {
     children.push(
       makeTable(
@@ -307,7 +451,9 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
   // C. Defect register
   children.push(heading("C. Defect Register"));
   if (confirmedDefects.length === 0) {
-    children.push(para("No reviewer-confirmed defects recorded.", { italics: true }));
+    children.push(
+      para("No reviewer-confirmed defects recorded.", { italics: true }),
+    );
   } else {
     children.push(
       makeTable(
@@ -318,7 +464,9 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
     );
   }
   if (suggestedDefects.length > 0) {
-    children.push(subheading("Suggested defects — pending named-reviewer confirmation"));
+    children.push(
+      subheading("Suggested defects — pending named-reviewer confirmation"),
+    );
     children.push(
       para(
         `${suggestedDefects.length} AI-suggested defect(s) below are not yet confirmed and do not contribute to the risk score.`,
@@ -337,7 +485,9 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
   // D. Disqualification-risk score
   children.push(heading("D. Disqualification-Risk Score"));
   children.push(
-    para(`Score: ${risk.score} / 100    Band: ${risk.band.toUpperCase()}`, { bold: true }),
+    para(`Score: ${risk.score} / 100    Band: ${risk.band.toUpperCase()}`, {
+      bold: true,
+    }),
   );
   if (risk.overrideBand) {
     children.push(
@@ -353,13 +503,20 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
   children.push(heading("E. Responsiveness Review"));
   if (project.responsivenessReview) {
     if (project.responsivenessSuggested) {
-      children.push(para("Suggested narrative — pending named-reviewer confirmation.", { italics: true, color: GREY }));
+      children.push(
+        para("Suggested narrative — pending named-reviewer confirmation.", {
+          italics: true,
+          color: GREY,
+        }),
+      );
     }
     for (const block of String(project.responsivenessReview).split("\n\n")) {
       if (block.trim()) children.push(para(block.trim()));
     }
   } else {
-    children.push(para("No responsiveness review recorded.", { italics: true }));
+    children.push(
+      para("No responsiveness review recorded.", { italics: true }),
+    );
   }
 
   // F. BOQ verification annex
@@ -370,7 +527,13 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
     children.push(
       makeTable(
         ["Line", "Check", "Finding", "Severity", "Status"],
-        boqChecks.map((b) => [b.lineRef ?? "—", b.checkType, b.finding, b.severity, b.status]),
+        boqChecks.map((b) => [
+          b.lineRef ?? "—",
+          b.checkType,
+          b.finding,
+          b.severity,
+          b.status,
+        ]),
         [10, 18, 42, 15, 15],
       ),
     );
@@ -385,7 +548,13 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
     children.push(
       makeTable(
         ["Defect", "Severity", "Owner", "Remediation", "Status"],
-        remediable.map((d) => [d.description, d.severity, d.owner ?? "—", d.remediation ?? "—", d.status]),
+        remediable.map((d) => [
+          d.description,
+          d.severity,
+          d.owner ?? "—",
+          d.remediation ?? "—",
+          d.status,
+        ]),
         [30, 13, 15, 30, 12],
       ),
     );
@@ -430,12 +599,37 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
     makeTable(
       ["Point", "Location / cross-reference", "Signed", "Sealed"],
       [
-        ["Form of Tender / Bid submission sheet", "Tender document — Form of Tender", CHECK, CHECK],
-        ["Price schedule / BOQ summary", "See § F. BOQ Verification Annex", CHECK, CHECK],
-        ["Declaration of eligibility & non-collusion", "Tender document — Declarations", CHECK, CHECK],
-        ["CAC & compliance certificate copies", "Certificate Vault artefacts", CHECK, CHECK],
+        [
+          "Form of Tender / Bid submission sheet",
+          "Tender document — Form of Tender",
+          CHECK,
+          CHECK,
+        ],
+        [
+          "Price schedule / BOQ summary",
+          "See § F. BOQ Verification Annex",
+          CHECK,
+          CHECK,
+        ],
+        [
+          "Declaration of eligibility & non-collusion",
+          "Tender document — Declarations",
+          CHECK,
+          CHECK,
+        ],
+        [
+          "CAC & compliance certificate copies",
+          "Certificate Vault artefacts",
+          CHECK,
+          CHECK,
+        ],
         ["Each page initialled by signatory", "Full package", CHECK, "—"],
-        ["Bid security / bank guarantee (if required)", "Tender document — Bid Security", CHECK, CHECK],
+        [
+          "Bid security / bank guarantee (if required)",
+          "Tender document — Bid Security",
+          CHECK,
+          CHECK,
+        ],
       ],
       [34, 34, 16, 16],
     ),
@@ -444,14 +638,46 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
   // J. Sign-off page
   children.push(heading("J. Sign-Off"));
   children.push(
-    para("This report is a DRAFT until a named reviewer signs off below. Export is blocked until sign-off is recorded.", { italics: true }),
-    new Paragraph({ spacing: { before: 200 }, children: [new TextRun({ text: "Reviewer name: ______________________________", size: 22 })] }),
-    new Paragraph({ spacing: { before: 120 }, children: [new TextRun({ text: "Attestation: ________________________________", size: 22 })] }),
-    new Paragraph({ spacing: { before: 120 }, children: [new TextRun({ text: "Date: _______________________________________", size: 22 })] }),
+    para(
+      "This report is a DRAFT until a named reviewer signs off below. Export is blocked until sign-off is recorded.",
+      { italics: true },
+    ),
+    new Paragraph({
+      spacing: { before: 200 },
+      children: [
+        new TextRun({
+          text: "Reviewer name: ______________________________",
+          size: 22,
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { before: 120 },
+      children: [
+        new TextRun({
+          text: "Attestation: ________________________________",
+          size: 22,
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { before: 120 },
+      children: [
+        new TextRun({
+          text: "Date: _______________________________________",
+          size: 22,
+        }),
+      ],
+    }),
   );
 
   children.push(
-    new Paragraph({ spacing: { before: 320 }, children: [new TextRun({ text: "Process Warranty", bold: true, color: NAVY })] }),
+    new Paragraph({
+      spacing: { before: 320 },
+      children: [
+        new TextRun({ text: "Process Warranty", bold: true, color: NAVY }),
+      ],
+    }),
     para(PROCESS_WARRANTY, { italics: true }),
     // Full provenance stamp (NFR-AUD-01): the signed deliverable names the
     // exact engine, prompt pack, and model configuration that produced it.
@@ -473,8 +699,16 @@ export async function buildReportDocx(data: ReportData): Promise<Buffer> {
               new Paragraph({
                 alignment: AlignmentType.CENTER,
                 children: [
-                  new TextRun({ text: `CONFIDENTIAL — ${template.firmName} Bid Autopsy Report — Page `, size: 16, color: GREY }),
-                  new TextRun({ children: [PageNumber.CURRENT], size: 16, color: GREY }),
+                  new TextRun({
+                    text: `CONFIDENTIAL — ${template.firmName} Bid Autopsy Report — Page `,
+                    size: 16,
+                    color: GREY,
+                  }),
+                  new TextRun({
+                    children: [PageNumber.CURRENT],
+                    size: 16,
+                    color: GREY,
+                  }),
                 ],
               }),
             ],

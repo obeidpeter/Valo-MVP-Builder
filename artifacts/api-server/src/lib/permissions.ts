@@ -3,6 +3,8 @@
  * middleware consume the same matrix, and security tests can exercise every
  * decision without a database or a live identity provider.
  */
+import { isOneOf } from "./typeGuards";
+
 export const ORGANISATION_ROLES = [
   "client_organisation_owner",
   "client_administrator",
@@ -378,7 +380,18 @@ export function hasPermission(
   return roles.some((role) => ROLE_PERMISSIONS[role].includes(permission));
 }
 
-export type OrganisationType = "client" | "valo" | "consultancy_partner";
+export const ORGANISATION_TYPES = [
+  "client",
+  "valo",
+  "consultancy_partner",
+] as const;
+
+export type OrganisationType = (typeof ORGANISATION_TYPES)[number];
+
+/** Narrowing guard for values (e.g. persisted rows) claiming to be an organisation type. */
+export function isOrganisationType(value: unknown): value is OrganisationType {
+  return isOneOf(value, ORGANISATION_TYPES);
+}
 
 export function isRoleAllowedForOrganisation(
   role: OrganisationRole,

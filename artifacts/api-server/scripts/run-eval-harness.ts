@@ -34,6 +34,7 @@ import {
 } from "../src/lib/evalHarness";
 import { CORPUS } from "./eval-corpus/corpus";
 import { CURRENT_CORPUS_MANIFEST } from "./eval-corpus/manifest";
+import { createChecker } from "./lib/proofCheck";
 
 const RUNS_DIR = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -61,19 +62,8 @@ interface RecordedRun {
   report: EvalReport;
 }
 
-let passes = 0;
-let failures = 0;
-
-function check(label: string, ok: boolean, detail?: string): boolean {
-  if (ok) {
-    passes += 1;
-    console.log(`  ✓ ${label}`);
-  } else {
-    failures += 1;
-    console.log(`  ✗ ${label}${detail ? ` — ${detail}` : ""}`);
-  }
-  return ok;
-}
+const checker = createChecker();
+const { check } = checker;
 
 const pct = (value: number | null): string =>
   value === null ? "not measured" : `${(value * 100).toFixed(1)}%`;
@@ -341,7 +331,7 @@ async function main(): Promise<void> {
       const run = JSON.parse(readFileSync(LATEST_PATH, "utf-8")) as RecordedRun;
       const report = recomputeFromStored(run);
       enforceGates(run, report, profile);
-      if (failures === 0) {
+      if (checker.failures() === 0) {
         copyFileSync(LATEST_PATH, BASELINE_PATH);
         console.log(`Promoted ${LATEST_PATH} -> ${BASELINE_PATH}`);
       }
@@ -362,8 +352,10 @@ async function main(): Promise<void> {
   }
 
   console.log("\n---------------------------------------------");
-  console.log(`RESULT: ${passes} passed, ${failures} failed`);
-  if (failures > 0) process.exitCode = 1;
+  console.log(
+    `RESULT: ${checker.passes()} passed, ${checker.failures()} failed`,
+  );
+  if (checker.failures() > 0) process.exitCode = 1;
 }
 
 main().catch((error: unknown) => {

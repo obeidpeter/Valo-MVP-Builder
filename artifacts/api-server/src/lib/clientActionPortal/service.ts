@@ -2,7 +2,6 @@ import { createHash, randomUUID } from "node:crypto";
 import {
   CLIENT_ACTION_BOUNDS,
   CLIENT_ACTION_PURPOSES,
-  type ClientActionPurpose,
   type ClientActionRecord,
   type ClientActionRecordKind,
   type ClientActionScope,
@@ -18,6 +17,7 @@ import {
   SHA256_HEX_PATTERN as SHA256_PATTERN,
   UUID_PATTERN,
 } from "../identifierPatterns";
+import { isOneOf } from "../typeGuards";
 const CONTENT_TYPE_PATTERN =
   /^[a-z0-9][a-z0-9!#$&^_.+-]{0,63}\/[a-z0-9][a-z0-9!#$&^_.+-]{0,127}$/u;
 
@@ -169,7 +169,7 @@ function parseCreateRequest(
     ["purpose", "purposeStatement", "recipientUserId", "slots"],
     ["dueAt"],
   );
-  if (!CLIENT_ACTION_PURPOSES.includes(body.purpose as ClientActionPurpose)) {
+  if (!isOneOf(body.purpose, CLIENT_ACTION_PURPOSES)) {
     invalid("purpose is not supported.");
   }
   if (
@@ -221,7 +221,7 @@ function parseCreateRequest(
     }
   }
   return {
-    purpose: body.purpose as ClientActionPurpose,
+    purpose: body.purpose,
     purposeStatement: text(
       body.purposeStatement,
       "purposeStatement",
@@ -746,13 +746,9 @@ export class ClientActionService {
     const body = object(raw);
     exactKeys(body, ["expectedVersion", "decision", "reason"]);
     const expected = version(body.expectedVersion);
-    if (
-      !(["accepted", "correction_required"] as const).includes(
-        body.decision as "accepted" | "correction_required",
-      )
-    )
+    if (!isOneOf(body.decision, ["accepted", "correction_required"]))
       invalid("decision is invalid.");
-    const decision = body.decision as "accepted" | "correction_required";
+    const decision = body.decision;
     const reason = text(body.reason, "reason", CLIENT_ACTION_BOUNDS.statement);
     return (await this.#repository.compareAndSwap(
       scope,

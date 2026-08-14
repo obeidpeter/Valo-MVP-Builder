@@ -23,14 +23,17 @@ import {
   workTasks,
 } from "@workspace/db";
 import { writeAuditTx } from "../audit";
+import { parseInstantViaString } from "../dbClock";
 import { lockStagedUploadObject } from "../stagedUploadLock";
 import { enqueueStorageDeletionIntentTx } from "../storageLifecycle/repository";
 import {
   ORGANISATION_ROLES,
   hasPermission,
   isOrganisationRole,
+  isOrganisationType,
   isRoleAllowedForOrganisation,
   type OrganisationRole,
+  type OrganisationType,
   type Permission,
 } from "../permissions";
 import {
@@ -149,8 +152,8 @@ async function authoritativeDatabaseNow(tx: RenewalTx): Promise<Date> {
   const result = await tx.execute(
     sql`SELECT pg_catalog.clock_timestamp() AS now`,
   );
-  const now = new Date(String(result.rows[0]?.now ?? ""));
-  if (result.rows.length !== 1 || !Number.isFinite(now.valueOf())) {
+  const now = parseInstantViaString(result.rows[0]?.now);
+  if (result.rows.length !== 1 || now === null) {
     throw new EvidenceRenewalUnavailableError(
       "Authoritative renewal clock is unavailable",
     );
@@ -259,8 +262,7 @@ async function queryCurrentPeople(
     membershipRows.length > uniqueIds.length ||
     membershipRows.some(
       ({ name, organisationType }) =>
-        !validName(name) ||
-        !["client", "valo", "consultancy_partner"].includes(organisationType),
+        !validName(name) || !isOrganisationType(organisationType),
     )
   ) {
     throw new EvidenceRenewalUnavailableError(
@@ -306,7 +308,7 @@ async function queryCurrentPeople(
         (role) =>
           isRoleAllowedForOrganisation(
             role,
-            row.organisationType as "client" | "valo" | "consultancy_partner",
+            row.organisationType as OrganisationType,
           ),
       );
       return roles.length > 0

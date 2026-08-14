@@ -70,10 +70,14 @@ import {
   SHA256_HEX_PATTERN as SHA256,
   UUID_V1_5_PATTERN as UUID,
 } from "../identifierPatterns";
+import { isOneOf } from "../typeGuards";
 const CONTROL_IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const CAPABILITIES = new Set<string>(AI_CAPABILITY_IDS);
 const SAFE_ERROR_CODES = new Set<string>(AI_SAFE_ERROR_CODES);
-const CLAIMABLE_STATUSES = new Set<JobStatus>(["queued", "retry_wait"]);
+const CLAIMABLE_STATUSES = [
+  "queued",
+  "retry_wait",
+] as const satisfies readonly JobStatus[];
 const TERMINAL_STATUSES = new Set<JobStatus>([
   "succeeded",
   "dead_letter",
@@ -456,7 +460,7 @@ export class DurableWorkflowStore {
       await this.repository.findJob(input, input.jobId),
       input.expectedVersion,
     );
-    if (!CLAIMABLE_STATUSES.has(job.status as JobStatus)) {
+    if (!isOneOf(job.status, CLAIMABLE_STATUSES)) {
       throw new DurableWorkflowStoreError("invalid_transition");
     }
     if (job.attempts >= job.maxAttempts) {
@@ -468,7 +472,7 @@ export class DurableWorkflowStore {
     return requirePersisted(
       await this.repository.claim({
         ...input,
-        expectedStatus: job.status as "queued" | "retry_wait",
+        expectedStatus: job.status,
         now,
         leaseExpiresAt: new Date(now.getTime() + input.leaseDurationMs),
         nextVersion: job.version + 1,

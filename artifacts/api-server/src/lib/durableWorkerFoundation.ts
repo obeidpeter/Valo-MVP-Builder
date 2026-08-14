@@ -16,6 +16,7 @@ import {
   type TransactionalOutboxEvent,
   type TransactionalOutboxIntent,
 } from "./transactionalOutbox";
+import { isOneOf } from "./typeGuards";
 
 async function appendAuditTx(
   tx: Parameters<
@@ -579,7 +580,7 @@ export class DurableWorkerService {
     if (!deadlineExpired && !leaseExpired) {
       throw new DurableWorkerError("lease_not_expired");
     }
-    if (!["queued", "retry_wait", "running"].includes(job.status)) {
+    if (!isOneOf(job.status, ["queued", "retry_wait", "running"])) {
       throw new DurableWorkerError("invalid_transition");
     }
     const nextStatus =
@@ -593,7 +594,7 @@ export class DurableWorkerService {
     const result = await this.repository.recover({
       ...input,
       projectId: job.projectId,
-      expectedStatus: job.status as "queued" | "retry_wait" | "running",
+      expectedStatus: job.status,
       now,
       nextStatus,
       availableAt,

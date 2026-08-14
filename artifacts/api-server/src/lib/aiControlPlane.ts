@@ -1025,6 +1025,354 @@ function ownsLiveLease(run: AiDurableRun, command: AiRunCommand): boolean {
   );
 }
 
+function handleCancelCommand(input: {
+  run: AiDurableRun;
+  command: Extract<AiRunCommand, { kind: "cancel" }>;
+}): AiRunTransitionDecision {
+  const { run, command } = input;
+  const authorised =
+    command.actor.kind === "system" ||
+    (command.actor.kind === "human" &&
+      (command.actor.actorId === run.requesterId ||
+        command.actor.permissions.includes("ai:run:cancel")));
+  if (!authorised) return deny(run, "cancellation_authority_denied");
+  return {
+    allowed: true,
+    event: "cancelled",
+    next: withCommonUpdate(run, command.now, {
+      status: "cancelled",
+      nextEligibleAt: null,
+      leaseOwner: null,
+      leaseExpiresAt: null,
+      lastSafeErrorCode: "AI_CANCELLED",
+    }),
+  };
+}
+
+function handleClaimCommand(input: {
+  run: AiDurableRun;
+  definition: AiWorkflowDefinition;
+  command: Extract<AiRunCommand, { kind: "claim" }>;
+  nowMs: number;
+}): AiRunTransitionDecision {
+  const { run, definition, command, nowMs } = input;
+  if (!new Set<AiDurableRunStatus>(["queued", "retry_wait"]).has(run.status)) {
+    return deny(run, "invalid_transition");
+  }
+  if (
+    run.status === "retry_wait" &&
+    run.nextEligibleAt != null &&
+    nowMs < Date.parse(run.nextEligibleAt)
+  ) {
+    return deny(run, "invalid_transition");
+  }
+  if (run.attempts >= definition.maxAttempts)
+    return deny(run, "attempts_exhausted");
+  const leaseMs = Date.parse(command.leaseExpiresAt) - nowMs;
+  if (
+    command.actor.kind !== "worker" ||
+    !validIsoTimestamp(command.leaseExpiresAt) ||
+    leaseMs <= 0 ||
+    leaseMs > definition.maxLeaseMs ||
+    Date.parse(command.leaseExpiresAt) > Date.parse(run.deadlineAt)
+  ) {
+    return deny(run, "lease_invalid");
+  }
+  return {
+    allowed: true,
+    event: "claimed",
+    next: withCommonUpdate(run, command.now, {
+      status: "running",
+      attempts: run.attempts + 1,
+      nextEligibleAt: null,
+      leaseOwner: command.actor.actorId,
+      leaseExpiresAt: command.leaseExpiresAt,
+    }),
+  };
+}
+
+function handleExpireLeaseCommand(input: {
+  run: AiDurableRun;
+  definition: AiWorkflowDefinition;
+  command: Extract<AiRunCommand, { kind: "expire_lease" }>;
+  nowMs: number;
+}): AiRunTransitionDecision {
+  const { run, definition, command, nowMs } = input;
+  if (
+    command.actor.kind !== "system" ||
+    run.status !== "running" ||
+    run.leaseExpiresAt == null ||
+    nowMs <= Date.parse(run.leaseExpiresAt) ||
+    !validIsoTimestamp(command.retryAt) ||
+    Date.parse(command.retryAt) < nowMs ||
+    Date.parse(command.retryAt) > Date.parse(run.deadlineAt)
+  ) {
+    return deny(run, "lease_invalid");
+  }
+  const exhausted = run.attempts >= definition.maxAttempts;
+  return {
+    allowed: true,
+    event: exhausted ? "dead_lettered" : "retry_scheduled",
+    next: withCommonUpdate(run, command.now, {
+      status: exhausted ? "dead_letter" : "retry_wait",
+      nextEligibleAt: exhausted ? null : command.retryAt,
+      leaseOwner: null,
+      leaseExpiresAt: null,
+      lastSafeErrorCode: "AI_WORKER_LEASE_EXPIRED",
+    }),
+  };
+}
+
+function handleReviewCommand(input: {
+  run: AiDurableRun;
+  command: Extract<AiRunCommand, { kind: "review" }>;
+}): AiRunTransitionDecision {
+  const { run, command } = input;
+  if (run.status !== "waiting_for_review" || run.review.state !== "pending") {
+    return deny(run, "invalid_transition");
+  }
+  if (
+    command.actor.kind !== "human" ||
+    !command.actor.permissions.includes(run.review.requiredPermission) ||
+    !validIdentifier(command.approvalReference) ||
+    !new Set(["approve", "reject"]).has(command.decision)
+  ) {
+    return deny(run, "review_authority_denied");
+  }
+  if (
+    !SHA256.test(command.artifactSha256) ||
+    command.artifactSha256 !== run.review.artifactSha256 ||
+    command.artifactSha256 !== run.workingArtifactSha256
+  ) {
+    return deny(run, "artifact_mismatch");
+  }
+  if (
+    command.actor.actorId === run.requesterId ||
+    run.review.approvals.some(
+      (approval) => approval.reviewerId === command.actor.actorId,
+    )
+  ) {
+    return deny(run, "reviewer_not_independent");
+  }
+  if (command.decision === "reject") {
+    return {
+      allowed: true,
+      event: "review_rejected",
+      next: withCommonUpdate(run, command.now, {
+        status: "failed",
+        review: { ...run.review, state: "rejected" },
+        lastSafeErrorCode: "AI_HUMAN_REVIEW_REJECTED",
+      }),
+    };
+  }
+  const approvals = [
+    ...run.review.approvals,
+    {
+      reviewerId: command.actor.actorId,
+      approvalReference: command.approvalReference,
+      artifactSha256: command.artifactSha256,
+      reviewedAt: command.now,
+    },
+  ];
+  const approved = approvals.length >= run.review.requiredApprovals;
+  return {
+    allowed: true,
+    event: "review_approved",
+    next: withCommonUpdate(run, command.now, {
+      status: approved ? "queued" : "waiting_for_review",
+      review: {
+        ...run.review,
+        state: approved ? "approved" : "pending",
+        approvals,
+      },
+    }),
+  };
+}
+
+function handleHeartbeatCommand(input: {
+  run: AiDurableRun;
+  definition: AiWorkflowDefinition;
+  command: Extract<AiRunCommand, { kind: "heartbeat" }>;
+  nowMs: number;
+}): AiRunTransitionDecision {
+  const { run, definition, command, nowMs } = input;
+  const leaseMs = Date.parse(command.leaseExpiresAt) - nowMs;
+  if (
+    !validIsoTimestamp(command.leaseExpiresAt) ||
+    leaseMs <= 0 ||
+    leaseMs > definition.maxLeaseMs ||
+    Date.parse(command.leaseExpiresAt) > Date.parse(run.deadlineAt)
+  ) {
+    return deny(run, "lease_invalid");
+  }
+  if (
+    !validUnitScore(command.progressPercent / 100) ||
+    command.progressPercent < run.progressPercent
+  ) {
+    return deny(run, "progress_regressed");
+  }
+  return {
+    allowed: true,
+    event: "heartbeat",
+    next: withCommonUpdate(run, command.now, {
+      progressPercent: command.progressPercent,
+      leaseExpiresAt: command.leaseExpiresAt,
+    }),
+  };
+}
+
+function handleRecordStepCommand(input: {
+  run: AiDurableRun;
+  definition: AiWorkflowDefinition;
+  command: Extract<AiRunCommand, { kind: "record_step" }>;
+}): AiRunTransitionDecision {
+  const { run, definition, command } = input;
+  if (run.review.state === "approved") return deny(run, "invalid_transition");
+  if (!definition.allowedStages.includes(command.stage)) {
+    return deny(run, "stage_not_allowed");
+  }
+  if (run.stepCount >= definition.maxSteps)
+    return deny(run, "step_limit_exceeded");
+  if (
+    !validUnitScore(command.progressPercent / 100) ||
+    command.progressPercent < run.progressPercent
+  ) {
+    return deny(run, "progress_regressed");
+  }
+  if (
+    !validNonNegativeInteger(command.additionalOutputTokens) ||
+    run.outputTokens + command.additionalOutputTokens >
+      definition.maxOutputTokens
+  ) {
+    return deny(run, "token_limit_exceeded");
+  }
+  if (
+    !validNonNegativeInteger(command.additionalCostMinor) ||
+    run.costMinor + command.additionalCostMinor > definition.maxCostMinor
+  ) {
+    return deny(run, "cost_limit_exceeded");
+  }
+  if (!SHA256.test(command.artifactSha256)) {
+    return deny(run, "artifact_mismatch");
+  }
+  return {
+    allowed: true,
+    event: "step_recorded",
+    next: withCommonUpdate(run, command.now, {
+      stepCount: run.stepCount + 1,
+      progressPercent: command.progressPercent,
+      outputTokens: run.outputTokens + command.additionalOutputTokens,
+      costMinor: run.costMinor + command.additionalCostMinor,
+      workingArtifactSha256: command.artifactSha256,
+    }),
+  };
+}
+
+function handleRequestReviewCommand(input: {
+  run: AiDurableRun;
+  command: Extract<AiRunCommand, { kind: "request_review" }>;
+}): AiRunTransitionDecision {
+  const { run, command } = input;
+  if (!run.review.required || run.review.state !== "not_requested") {
+    return deny(run, "invalid_transition");
+  }
+  if (
+    !SHA256.test(command.artifactSha256) ||
+    command.artifactSha256 !== run.workingArtifactSha256
+  ) {
+    return deny(run, "artifact_mismatch");
+  }
+  return {
+    allowed: true,
+    event: "review_requested",
+    next: withCommonUpdate(run, command.now, {
+      status: "waiting_for_review",
+      leaseOwner: null,
+      leaseExpiresAt: null,
+      review: {
+        ...run.review,
+        state: "pending",
+        artifactSha256: command.artifactSha256,
+        approvals: [],
+      },
+    }),
+  };
+}
+
+function handleCompleteCommand(input: {
+  run: AiDurableRun;
+  command: Extract<AiRunCommand, { kind: "complete" }>;
+}): AiRunTransitionDecision {
+  const { run, command } = input;
+  if (run.review.required && run.review.state !== "approved") {
+    return deny(run, "review_required");
+  }
+  if (
+    !SHA256.test(command.artifactSha256) ||
+    command.artifactSha256 !== run.workingArtifactSha256 ||
+    (run.review.required &&
+      command.artifactSha256 !== run.review.artifactSha256)
+  ) {
+    return deny(run, "artifact_mismatch");
+  }
+  return {
+    allowed: true,
+    event: "succeeded",
+    next: withCommonUpdate(run, command.now, {
+      status: "succeeded",
+      progressPercent: 100,
+      leaseOwner: null,
+      leaseExpiresAt: null,
+    }),
+  };
+}
+
+function handleFailCommand(input: {
+  run: AiDurableRun;
+  definition: AiWorkflowDefinition;
+  command: Extract<AiRunCommand, { kind: "fail" }>;
+  nowMs: number;
+}): AiRunTransitionDecision {
+  const { run, definition, command, nowMs } = input;
+  if (
+    !(AI_SAFE_ERROR_CODES as readonly string[]).includes(command.safeErrorCode)
+  ) {
+    return deny(run, "run_invalid");
+  }
+  const exhausted = run.attempts >= definition.maxAttempts;
+  if (command.retryable && !exhausted) {
+    if (
+      !command.retryAt ||
+      !validIsoTimestamp(command.retryAt) ||
+      Date.parse(command.retryAt) < nowMs ||
+      Date.parse(command.retryAt) > Date.parse(run.deadlineAt)
+    ) {
+      return deny(run, "run_invalid");
+    }
+    return {
+      allowed: true,
+      event: "retry_scheduled",
+      next: withCommonUpdate(run, command.now, {
+        status: "retry_wait",
+        nextEligibleAt: command.retryAt,
+        leaseOwner: null,
+        leaseExpiresAt: null,
+        lastSafeErrorCode: command.safeErrorCode,
+      }),
+    };
+  }
+  return {
+    allowed: true,
+    event: exhausted && command.retryable ? "dead_lettered" : "failed",
+    next: withCommonUpdate(run, command.now, {
+      status: exhausted && command.retryable ? "dead_letter" : "failed",
+      leaseOwner: null,
+      leaseExpiresAt: null,
+      lastSafeErrorCode: command.safeErrorCode,
+    }),
+  };
+}
+
 export function transitionAiDurableRun(input: {
   run: AiDurableRun;
   definition: AiWorkflowDefinition;
@@ -1082,314 +1430,33 @@ export function transitionAiDurableRun(input: {
     };
   }
 
-  if (command.kind === "cancel") {
-    const authorised =
-      command.actor.kind === "system" ||
-      (command.actor.kind === "human" &&
-        (command.actor.actorId === run.requesterId ||
-          command.actor.permissions.includes("ai:run:cancel")));
-    if (!authorised) return deny(run, "cancellation_authority_denied");
-    return {
-      allowed: true,
-      event: "cancelled",
-      next: withCommonUpdate(run, command.now, {
-        status: "cancelled",
-        nextEligibleAt: null,
-        leaseOwner: null,
-        leaseExpiresAt: null,
-        lastSafeErrorCode: "AI_CANCELLED",
-      }),
-    };
-  }
-
-  if (command.kind === "claim") {
-    if (
-      !new Set<AiDurableRunStatus>(["queued", "retry_wait"]).has(run.status)
-    ) {
-      return deny(run, "invalid_transition");
-    }
-    if (
-      run.status === "retry_wait" &&
-      run.nextEligibleAt != null &&
-      nowMs < Date.parse(run.nextEligibleAt)
-    ) {
-      return deny(run, "invalid_transition");
-    }
-    if (run.attempts >= definition.maxAttempts)
-      return deny(run, "attempts_exhausted");
-    const leaseMs = Date.parse(command.leaseExpiresAt) - nowMs;
-    if (
-      command.actor.kind !== "worker" ||
-      !validIsoTimestamp(command.leaseExpiresAt) ||
-      leaseMs <= 0 ||
-      leaseMs > definition.maxLeaseMs ||
-      Date.parse(command.leaseExpiresAt) > Date.parse(run.deadlineAt)
-    ) {
-      return deny(run, "lease_invalid");
-    }
-    return {
-      allowed: true,
-      event: "claimed",
-      next: withCommonUpdate(run, command.now, {
-        status: "running",
-        attempts: run.attempts + 1,
-        nextEligibleAt: null,
-        leaseOwner: command.actor.actorId,
-        leaseExpiresAt: command.leaseExpiresAt,
-      }),
-    };
-  }
-
-  if (command.kind === "expire_lease") {
-    if (
-      command.actor.kind !== "system" ||
-      run.status !== "running" ||
-      run.leaseExpiresAt == null ||
-      nowMs <= Date.parse(run.leaseExpiresAt) ||
-      !validIsoTimestamp(command.retryAt) ||
-      Date.parse(command.retryAt) < nowMs ||
-      Date.parse(command.retryAt) > Date.parse(run.deadlineAt)
-    ) {
-      return deny(run, "lease_invalid");
-    }
-    const exhausted = run.attempts >= definition.maxAttempts;
-    return {
-      allowed: true,
-      event: exhausted ? "dead_lettered" : "retry_scheduled",
-      next: withCommonUpdate(run, command.now, {
-        status: exhausted ? "dead_letter" : "retry_wait",
-        nextEligibleAt: exhausted ? null : command.retryAt,
-        leaseOwner: null,
-        leaseExpiresAt: null,
-        lastSafeErrorCode: "AI_WORKER_LEASE_EXPIRED",
-      }),
-    };
-  }
-
-  if (command.kind === "review") {
-    if (run.status !== "waiting_for_review" || run.review.state !== "pending") {
-      return deny(run, "invalid_transition");
-    }
-    if (
-      command.actor.kind !== "human" ||
-      !command.actor.permissions.includes(run.review.requiredPermission) ||
-      !validIdentifier(command.approvalReference) ||
-      !new Set(["approve", "reject"]).has(command.decision)
-    ) {
-      return deny(run, "review_authority_denied");
-    }
-    if (
-      !SHA256.test(command.artifactSha256) ||
-      command.artifactSha256 !== run.review.artifactSha256 ||
-      command.artifactSha256 !== run.workingArtifactSha256
-    ) {
-      return deny(run, "artifact_mismatch");
-    }
-    if (
-      command.actor.actorId === run.requesterId ||
-      run.review.approvals.some(
-        (approval) => approval.reviewerId === command.actor.actorId,
-      )
-    ) {
-      return deny(run, "reviewer_not_independent");
-    }
-    if (command.decision === "reject") {
-      return {
-        allowed: true,
-        event: "review_rejected",
-        next: withCommonUpdate(run, command.now, {
-          status: "failed",
-          review: { ...run.review, state: "rejected" },
-          lastSafeErrorCode: "AI_HUMAN_REVIEW_REJECTED",
-        }),
-      };
-    }
-    const approvals = [
-      ...run.review.approvals,
-      {
-        reviewerId: command.actor.actorId,
-        approvalReference: command.approvalReference,
-        artifactSha256: command.artifactSha256,
-        reviewedAt: command.now,
-      },
-    ];
-    const approved = approvals.length >= run.review.requiredApprovals;
-    return {
-      allowed: true,
-      event: "review_approved",
-      next: withCommonUpdate(run, command.now, {
-        status: approved ? "queued" : "waiting_for_review",
-        review: {
-          ...run.review,
-          state: approved ? "approved" : "pending",
-          approvals,
-        },
-      }),
-    };
+  switch (command.kind) {
+    case "cancel":
+      return handleCancelCommand({ run, command });
+    case "claim":
+      return handleClaimCommand({ run, definition, command, nowMs });
+    case "expire_lease":
+      return handleExpireLeaseCommand({ run, definition, command, nowMs });
+    case "review":
+      return handleReviewCommand({ run, command });
+    default:
+      break;
   }
 
   if (run.status !== "running") return deny(run, "invalid_transition");
   if (!ownsLiveLease(run, command)) return deny(run, "lease_mismatch");
 
-  if (command.kind === "heartbeat") {
-    const leaseMs = Date.parse(command.leaseExpiresAt) - nowMs;
-    if (
-      !validIsoTimestamp(command.leaseExpiresAt) ||
-      leaseMs <= 0 ||
-      leaseMs > definition.maxLeaseMs ||
-      Date.parse(command.leaseExpiresAt) > Date.parse(run.deadlineAt)
-    ) {
-      return deny(run, "lease_invalid");
-    }
-    if (
-      !validUnitScore(command.progressPercent / 100) ||
-      command.progressPercent < run.progressPercent
-    ) {
-      return deny(run, "progress_regressed");
-    }
-    return {
-      allowed: true,
-      event: "heartbeat",
-      next: withCommonUpdate(run, command.now, {
-        progressPercent: command.progressPercent,
-        leaseExpiresAt: command.leaseExpiresAt,
-      }),
-    };
-  }
-
-  if (command.kind === "record_step") {
-    if (run.review.state === "approved") return deny(run, "invalid_transition");
-    if (!definition.allowedStages.includes(command.stage)) {
-      return deny(run, "stage_not_allowed");
-    }
-    if (run.stepCount >= definition.maxSteps)
-      return deny(run, "step_limit_exceeded");
-    if (
-      !validUnitScore(command.progressPercent / 100) ||
-      command.progressPercent < run.progressPercent
-    ) {
-      return deny(run, "progress_regressed");
-    }
-    if (
-      !validNonNegativeInteger(command.additionalOutputTokens) ||
-      run.outputTokens + command.additionalOutputTokens >
-        definition.maxOutputTokens
-    ) {
-      return deny(run, "token_limit_exceeded");
-    }
-    if (
-      !validNonNegativeInteger(command.additionalCostMinor) ||
-      run.costMinor + command.additionalCostMinor > definition.maxCostMinor
-    ) {
-      return deny(run, "cost_limit_exceeded");
-    }
-    if (!SHA256.test(command.artifactSha256)) {
-      return deny(run, "artifact_mismatch");
-    }
-    return {
-      allowed: true,
-      event: "step_recorded",
-      next: withCommonUpdate(run, command.now, {
-        stepCount: run.stepCount + 1,
-        progressPercent: command.progressPercent,
-        outputTokens: run.outputTokens + command.additionalOutputTokens,
-        costMinor: run.costMinor + command.additionalCostMinor,
-        workingArtifactSha256: command.artifactSha256,
-      }),
-    };
-  }
-
-  if (command.kind === "request_review") {
-    if (!run.review.required || run.review.state !== "not_requested") {
-      return deny(run, "invalid_transition");
-    }
-    if (
-      !SHA256.test(command.artifactSha256) ||
-      command.artifactSha256 !== run.workingArtifactSha256
-    ) {
-      return deny(run, "artifact_mismatch");
-    }
-    return {
-      allowed: true,
-      event: "review_requested",
-      next: withCommonUpdate(run, command.now, {
-        status: "waiting_for_review",
-        leaseOwner: null,
-        leaseExpiresAt: null,
-        review: {
-          ...run.review,
-          state: "pending",
-          artifactSha256: command.artifactSha256,
-          approvals: [],
-        },
-      }),
-    };
-  }
-
-  if (command.kind === "complete") {
-    if (run.review.required && run.review.state !== "approved") {
-      return deny(run, "review_required");
-    }
-    if (
-      !SHA256.test(command.artifactSha256) ||
-      command.artifactSha256 !== run.workingArtifactSha256 ||
-      (run.review.required &&
-        command.artifactSha256 !== run.review.artifactSha256)
-    ) {
-      return deny(run, "artifact_mismatch");
-    }
-    return {
-      allowed: true,
-      event: "succeeded",
-      next: withCommonUpdate(run, command.now, {
-        status: "succeeded",
-        progressPercent: 100,
-        leaseOwner: null,
-        leaseExpiresAt: null,
-      }),
-    };
-  }
-
-  if (command.kind === "fail") {
-    if (
-      !(AI_SAFE_ERROR_CODES as readonly string[]).includes(
-        command.safeErrorCode,
-      )
-    ) {
-      return deny(run, "run_invalid");
-    }
-    const exhausted = run.attempts >= definition.maxAttempts;
-    if (command.retryable && !exhausted) {
-      if (
-        !command.retryAt ||
-        !validIsoTimestamp(command.retryAt) ||
-        Date.parse(command.retryAt) < nowMs ||
-        Date.parse(command.retryAt) > Date.parse(run.deadlineAt)
-      ) {
-        return deny(run, "run_invalid");
-      }
-      return {
-        allowed: true,
-        event: "retry_scheduled",
-        next: withCommonUpdate(run, command.now, {
-          status: "retry_wait",
-          nextEligibleAt: command.retryAt,
-          leaseOwner: null,
-          leaseExpiresAt: null,
-          lastSafeErrorCode: command.safeErrorCode,
-        }),
-      };
-    }
-    return {
-      allowed: true,
-      event: exhausted && command.retryable ? "dead_lettered" : "failed",
-      next: withCommonUpdate(run, command.now, {
-        status: exhausted && command.retryable ? "dead_letter" : "failed",
-        leaseOwner: null,
-        leaseExpiresAt: null,
-        lastSafeErrorCode: command.safeErrorCode,
-      }),
-    };
+  switch (command.kind) {
+    case "heartbeat":
+      return handleHeartbeatCommand({ run, definition, command, nowMs });
+    case "record_step":
+      return handleRecordStepCommand({ run, definition, command });
+    case "request_review":
+      return handleRequestReviewCommand({ run, command });
+    case "complete":
+      return handleCompleteCommand({ run, command });
+    case "fail":
+      return handleFailCommand({ run, definition, command, nowMs });
   }
 
   return deny(run, "invalid_transition");

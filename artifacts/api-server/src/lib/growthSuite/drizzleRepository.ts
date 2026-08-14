@@ -52,7 +52,7 @@ const EVENT_TYPES = {
 type LeadEventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];
 type QueueDeliveryStatus = "stored" | "follow_up_started" | "closed";
 
-export interface GrowthSuiteQueueRow {
+export type GrowthSuiteQueueRow = {
   requestId: string;
   organisationLabel: string;
   tenderCategory: string;
@@ -60,15 +60,15 @@ export interface GrowthSuiteQueueRow {
   tenderDeadline: string | Date | null;
   deliveryStatus: string;
   receivedAt: string | Date;
-}
+};
 
-export interface GrowthSuiteLeadEventRow {
+export type GrowthSuiteLeadEventRow = {
   objectId: string;
   eventType: string;
   details: string;
   seq: number | string;
   createdAt: string | Date;
-}
+};
 
 export interface GrowthSuiteLeadEventSummary {
   objectId: string;
@@ -76,12 +76,12 @@ export interface GrowthSuiteLeadEventSummary {
   latest: readonly GrowthSuiteLeadEventRow[];
 }
 
-export interface GrowthSuiteContactHandoffRow {
+export type GrowthSuiteContactHandoffRow = {
   requestId: string;
   contactName: string;
   preferredContactMethod: string;
   contactValue: string;
-}
+};
 
 export interface GrowthSuiteDurableTransaction {
   requireHumanActor(scope: GrowthSuiteScope): Promise<boolean>;
@@ -312,7 +312,7 @@ class DrizzleGrowthSuiteTransaction implements GrowthSuiteDurableTransaction {
   }
 
   async listQueue(limit: number): Promise<readonly GrowthSuiteQueueRow[]> {
-    const result = await this.#transaction.execute(sql`
+    const result = await this.#transaction.execute<GrowthSuiteQueueRow>(sql`
       SELECT
         request_id::text AS "requestId",
         organisation_label AS "organisationLabel",
@@ -323,7 +323,7 @@ class DrizzleGrowthSuiteTransaction implements GrowthSuiteDurableTransaction {
         received_at AS "receivedAt"
       FROM valo_intake.list_bid_autopsy_work_queue(${limit}::integer)
     `);
-    return result.rows as unknown as GrowthSuiteQueueRow[];
+    return result.rows;
   }
 
   async loadLeadEvents(
@@ -397,7 +397,7 @@ class DrizzleGrowthSuiteTransaction implements GrowthSuiteDurableTransaction {
       (total, value) => total + value.distinctTypes,
       0,
     );
-    const latest = await this.#transaction.execute(sql`
+    const latest = await this.#transaction.execute<GrowthSuiteLeadEventRow>(sql`
       SELECT DISTINCT ON (object_id, event_type)
         object_id AS "objectId",
         event_type AS "eventType",
@@ -414,8 +414,7 @@ class DrizzleGrowthSuiteTransaction implements GrowthSuiteDurableTransaction {
     `);
     if (latest.rows.length !== expectedLatestRows) throw unavailable();
     const byId = new Map<string, GrowthSuiteLeadEventRow[]>();
-    for (const unknownRow of latest.rows) {
-      const row = unknownRow as unknown as GrowthSuiteLeadEventRow;
+    for (const row of latest.rows) {
       if (
         typeof row.objectId !== "string" ||
         !counts.has(row.objectId) ||
@@ -458,7 +457,8 @@ class DrizzleGrowthSuiteTransaction implements GrowthSuiteDurableTransaction {
   async getContactHandoff(
     leadId: string,
   ): Promise<GrowthSuiteContactHandoffRow | null> {
-    const result = await this.#transaction.execute(sql`
+    const result = await this.#transaction
+      .execute<GrowthSuiteContactHandoffRow>(sql`
       SELECT
         request_id::text AS "requestId",
         contact_name AS "contactName",
@@ -468,7 +468,7 @@ class DrizzleGrowthSuiteTransaction implements GrowthSuiteDurableTransaction {
     `);
     if (result.rows.length === 0) return null;
     if (result.rows.length !== 1) throw unavailable();
-    return result.rows[0] as unknown as GrowthSuiteContactHandoffRow;
+    return result.rows[0];
   }
 
   async appendLeadEvent(
