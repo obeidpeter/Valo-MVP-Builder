@@ -166,17 +166,7 @@ function binding(value: unknown): value is ClaimsDeskDocumentBinding {
   const row = object(value);
   return Boolean(
     row &&
-    exactKeys(row, [
-      "action",
-      "reasonCode",
-      "assessmentCode",
-      "fromStatus",
-      "toStatus",
-      "actorUserId",
-      "occurredAt",
-      "receiptSha256",
-    ]) &&
-    Object.keys(row).length === 2 &&
+    exactKeys(row, ["documentId", "sha256"]) &&
     typeof row.documentId === "string" &&
     UUID.test(row.documentId) &&
     typeof row.sha256 === "string" &&
@@ -189,29 +179,19 @@ function history(value: unknown): value is ClaimsDeskReasonHistoryEntry {
   return Boolean(
     row &&
     exactKeys(row, [
-      "id",
-      "organisationId",
-      "projectId",
-      "recordType",
-      "reference",
-      "eventDate",
-      "dueAt",
-      "amountMinor",
-      "currency",
-      "documentBindings",
-      "status",
+      "action",
+      "reasonCode",
       "assessmentCode",
-      "pendingMakerUserId",
-      "version",
-      "createdByUserId",
-      "createdAt",
-      "updatedAt",
-      "latestReceiptSha256",
-      "reasonHistory",
+      "fromStatus",
+      "toStatus",
+      "actorUserId",
+      "occurredAt",
+      "receiptSha256",
     ]) &&
     typeof row.action === "string" &&
     CLAIMS_DESK_ACTIONS.includes(row.action as ClaimsDeskAction) &&
     typeof row.reasonCode === "string" &&
+    (row.assessmentCode === null || typeof row.assessmentCode === "string") &&
     typeof row.fromStatus === "string" &&
     STATUSES.has(row.fromStatus) &&
     typeof row.toStatus === "string" &&
