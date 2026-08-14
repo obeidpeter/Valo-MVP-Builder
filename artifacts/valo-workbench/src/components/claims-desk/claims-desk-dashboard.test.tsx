@@ -83,6 +83,73 @@ describe("ClaimsDeskDashboard", () => {
     ).toBeInTheDocument();
   });
 
+  it("accepts a server-shaped snapshot with bindings and reason history", () => {
+    // Regression: binding() and history() once carried each other's key
+    // lists, so any snapshot containing a real record failed the closed
+    // contract and the desk showed only its error state. The positive path
+    // must stay asserted.
+    const adapted = adaptClaimsDeskSnapshot(snapshot(), ORG, PROJECT);
+    expect(adapted.records).toHaveLength(1);
+    expect(adapted.records[0]?.documentBindings).toEqual([
+      { documentId: DOC, sha256: SHA },
+    ]);
+    expect(adapted.records[0]?.reasonHistory[0]?.action).toBe("start_review");
+  });
+
+  it("rejects malformed bindings and history entries individually", () => {
+    const withBinding = (binding: unknown) => {
+      const base = snapshot();
+      base.records[0]!.documentBindings = [
+        binding as (typeof base.records)[number]["documentBindings"][number],
+      ];
+      return base;
+    };
+    expect(() =>
+      adaptClaimsDeskSnapshot(
+        withBinding({ documentId: DOC, sha256: SHA, extra: true }),
+        ORG,
+        PROJECT,
+      ),
+    ).toThrow(/closed contract/u);
+    expect(() =>
+      adaptClaimsDeskSnapshot(
+        withBinding({ documentId: DOC, sha256: "not-a-sha" }),
+        ORG,
+        PROJECT,
+      ),
+    ).toThrow(/closed contract/u);
+
+    const withHistory = (entry: Record<string, unknown>) => {
+      const base = snapshot();
+      base.records[0]!.reasonHistory = [
+        entry as (typeof base.records)[number]["reasonHistory"][number],
+      ];
+      return base;
+    };
+    const validEntry = () => ({
+      action: "start_review",
+      reasonCode: "evidence_received",
+      assessmentCode: null,
+      fromStatus: "registered",
+      toStatus: "under_review",
+      actorUserId: ACTOR,
+      occurredAt: "2026-08-02T12:00:00.000Z",
+      receiptSha256: "b".repeat(64),
+    });
+    expect(() =>
+      adaptClaimsDeskSnapshot(
+        withHistory({ ...validEntry(), toStatus: "not_a_status" }),
+        ORG,
+        PROJECT,
+      ),
+    ).toThrow(/closed contract/u);
+    const missingKey = validEntry() as Record<string, unknown>;
+    delete missingKey.receiptSha256;
+    expect(() =>
+      adaptClaimsDeskSnapshot(withHistory(missingKey), ORG, PROJECT),
+    ).toThrow(/closed contract/u);
+  });
+
   it("fails closed on unknown response keys, automated claims and scope mismatch", () => {
     expect(() =>
       adaptClaimsDeskSnapshot(
