@@ -288,6 +288,11 @@ async function livePass(profile: EvalGateProfile): Promise<void> {
   const report = aggregateReport(perTender, profile.minimumOverallRecall);
   const { PROMPT_PACK_VERSION, MODEL_ID } =
     await import("../src/lib/provenance");
+  // Retrieval/index identities come only from the live deployed-registry
+  // attestation; an unavailable registry records the blocking placeholder.
+  const { attestDeployedRetrievalRegistry } =
+    await import("../src/lib/aiRetrievalRegistry");
+  const registry = await attestDeployedRetrievalRegistry();
   const run: RecordedRun = {
     recordedAt: new Date().toISOString(),
     live: true,
@@ -296,8 +301,12 @@ async function livePass(profile: EvalGateProfile): Promise<void> {
     model: MODEL_ID,
     promptVersion: PROMPT_PACK_VERSION,
     schemaVersion: "legacy-sanitizer-v1",
-    retrievalVersion: "not_implemented",
-    indexVersion: "not_implemented",
+    retrievalVersion: registry.available
+      ? registry.retrievalVersion
+      : "not_implemented",
+    indexVersion: registry.available
+      ? registry.indexVersion
+      : "not_implemented",
     target: profile.minimumOverallRecall,
     outputs,
     report,

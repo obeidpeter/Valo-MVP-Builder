@@ -18,7 +18,10 @@ import {
   type AiRuntimeEnvironment,
 } from "./aiPolicy";
 import { canonicalJson, sha256, AI_PROMPT_REGISTRY } from "./aiPromptRegistry";
-import { attestDeployedRetrievalRegistry } from "./aiRetrievalRegistry";
+import {
+  attestDeployedRetrievalRegistry,
+  type RetrievalRegistryAttestation,
+} from "./aiRetrievalRegistry";
 import {
   evaluateAiRelease,
   type AiReleaseGateInput,
@@ -79,14 +82,13 @@ function expectedPromptSetVersion(): string {
   }));
 }
 
-export function configuredAiExpectedVersions(
+function expectedVersionsWithRegistry(
   runtime: AiRuntimeConfiguration,
-  _variables: NodeJS.ProcessEnv = process.env,
+  registry: RetrievalRegistryAttestation,
 ): AiReleaseVersions {
   // Retrieval and index identities come only from the deployed-registry
   // attestation (see aiRetrievalRegistry.ts); operator-authored labels are
   // structurally ignored, so an unavailable registry yields empty versions.
-  const registry = attestDeployedRetrievalRegistry();
   return {
     model: runtime.modelConfiguration.model,
     modelConfiguration: runtime.modelConfiguration.configurationVersion,
@@ -98,8 +100,15 @@ export function configuredAiExpectedVersions(
   };
 }
 
-function productionRegistryBlockers(): string[] {
-  const registry = attestDeployedRetrievalRegistry();
+export async function configuredAiExpectedVersions(
+  runtime: AiRuntimeConfiguration,
+  _variables: NodeJS.ProcessEnv = process.env,
+): Promise<AiReleaseVersions> {
+  const registry = await attestDeployedRetrievalRegistry();
+  return expectedVersionsWithRegistry(runtime, registry);
+}
+
+function registryBlockers(registry: RetrievalRegistryAttestation): string[] {
   return registry.available ? [] : [registry.blocker];
 }
 
@@ -178,21 +187,21 @@ export function configuredAiReleaseRuntimeMismatchCodes(
  * evidence bundle. A boolean environment attestation cannot bypass the live
  * evaluation, provider/privacy/budget, version, or rollout decisions.
  */
-export function configuredAiReleaseGateStatus(
+export async function configuredAiReleaseGateStatus(
   runtime: AiRuntimeConfiguration,
   variables: NodeJS.ProcessEnv = process.env,
-): AiRuntimeReleaseGateStatus {
+): Promise<AiRuntimeReleaseGateStatus> {
   if (runtime.environment !== "production")
     return { applicable: false, allowed: false, blockerCodes: [] };
+  // One live registry recomputation per gate evaluation; every branch below
+  // reports against the same attested identity.
+  const registry = await attestDeployedRetrievalRegistry();
   const evidencePath = variables.VALO_AI_RELEASE_EVIDENCE_PATH?.trim();
   if (!evidencePath || !isAbsolute(evidencePath))
     return {
       applicable: true,
       allowed: false,
-      blockerCodes: [
-        "release_evidence_missing",
-        ...productionRegistryBlockers(),
-      ],
+      blockerCodes: ["release_evidence_missing", ...registryBlockers(registry)],
     };
   try {
     const stat = lstatSync(evidencePath);
@@ -208,7 +217,7 @@ export function configuredAiReleaseGateStatus(
         allowed: false,
         blockerCodes: [
           "release_evidence_unsafe",
-          ...productionRegistryBlockers(),
+          ...registryBlockers(registry),
         ],
       };
     }
@@ -217,7 +226,7 @@ export function configuredAiReleaseGateStatus(
     ) as Partial<AiReleaseGateInput>;
     const evaluated = evaluateAiRelease({
       ...supplied,
-      expectedVersions: configuredAiExpectedVersions(runtime, variables),
+      expectedVersions: expectedVersionsWithRegistry(runtime, registry),
     });
     const runtimeMismatches = configuredAiReleaseRuntimeMismatchCodes(
       runtime,
@@ -229,12 +238,12 @@ export function configuredAiReleaseGateStatus(
       allowed:
         evaluated.allowed &&
         runtimeMismatches.length === 0 &&
-        productionRegistryBlockers().length === 0,
+        registryBlockers(registry).length === 0,
       blockerCodes: Array.from(
         new Set([
           ...evaluated.blockers.map((blocker) => blocker.code),
           ...runtimeMismatches,
-          ...productionRegistryBlockers(),
+          ...registryBlockers(registry),
         ]),
       ),
     };
@@ -242,10 +251,7 @@ export function configuredAiReleaseGateStatus(
     return {
       applicable: true,
       allowed: false,
-      blockerCodes: [
-        "release_evidence_invalid",
-        ...productionRegistryBlockers(),
-      ],
+      blockerCodes: ["release_evidence_invalid", ...registryBlockers(registry)],
     };
   }
 }
@@ -370,7 +376,7 @@ export async function executeProjectAi(
   const organisationId = project.organisationId;
 
   const runtime = configuredAiRuntime();
-  const releaseGate = configuredAiReleaseGateStatus(runtime);
+  const releaseGate = await configuredAiReleaseGateStatus(runtime);
   if (releaseGate.applicable && !releaseGate.allowed)
     throw new AiGatewayError("AI_RELEASE_GATE_DENIED");
   const productionEnvironmentApproval =

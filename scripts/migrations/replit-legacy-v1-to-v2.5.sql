@@ -82,7 +82,8 @@ INSERT INTO _valo_bridge_inputs VALUES (
 CREATE TEMPORARY TABLE _valo_bridge_state (
   is_legacy boolean NOT NULL,
   is_complete boolean NOT NULL,
-  production_assurance_expected boolean NOT NULL
+  production_assurance_expected boolean NOT NULL,
+  retrieval_registry_expected boolean NOT NULL
 ) ON COMMIT DROP;
 
 CREATE TEMPORARY TABLE _valo_expected_legacy_columns (
@@ -185,6 +186,7 @@ DECLARE
   legacy_match boolean;
   complete_match boolean;
   production_assurance_match boolean;
+  retrieval_registry_match boolean;
 BEGIN
   SELECT * INTO STRICT inputs FROM _valo_bridge_inputs;
   IF inputs.acknowledgement <> 'RESTORE_VERIFIED_AND_APPLICATION_QUIESCED' THEN
@@ -345,12 +347,21 @@ BEGIN
 
   complete_match := false;
   production_assurance_match := false;
+  -- 0009's registry table is global (never RLS) and only ever exists on top
+  -- of the 0008 production-assurance catalog, so it adjusts the table count
+  -- without touching the RLS or policy expectations.
+  retrieval_registry_match := COALESCE(
+    'ai_retrieval_registry' = ANY(actual_tables),
+    false
+  );
   IF has_hash_version
      AND to_regnamespace('valo_legacy_bridge_archive') IS NULL THEN
     production_assurance_match := COALESCE(
       cardinality(actual_tables) = cardinality(target_tables) + 1
+        + retrieval_registry_match::integer
       AND actual_tables @> target_tables
       AND 'authenticated_rate_limit_buckets' = ANY(actual_tables)
+      AND NOT ('ai_retrieval_registry' = ANY(actual_rls_tables))
       AND cardinality(actual_rls_tables) = cardinality(rls_tables) + 1
       AND actual_rls_tables @> rls_tables
       AND 'authenticated_rate_limit_buckets' = ANY(actual_rls_tables)
@@ -377,10 +388,15 @@ BEGIN
   END IF;
 
   IF legacy_match THEN
-    INSERT INTO _valo_bridge_state VALUES (true, false, false);
+    INSERT INTO _valo_bridge_state VALUES (true, false, false, false);
   ELSIF complete_match THEN
     INSERT INTO _valo_bridge_state
-      VALUES (false, true, production_assurance_match);
+      VALUES (
+        false,
+        true,
+        production_assurance_match,
+        production_assurance_match AND retrieval_registry_match
+      );
   ELSE
     RAISE EXCEPTION
       'schema is neither the exact unjournalled legacy baseline nor the fully reconciled v2.5 target';
@@ -7531,11 +7547,12 @@ DECLARE
   expected_table_count integer;
   expected_policy_count integer;
   assurance_expected boolean;
+  registry_expected boolean;
   policy_count integer;
   authenticated_rate_limit_policy_matches boolean;
 BEGIN
-  SELECT state.production_assurance_expected
-    INTO STRICT assurance_expected
+  SELECT state.production_assurance_expected, state.retrieval_registry_expected
+    INTO STRICT assurance_expected, registry_expected
     FROM _valo_bridge_state AS state;
   IF assurance_expected THEN
     expected_table_count := 97;
@@ -7547,6 +7564,11 @@ BEGIN
     expected_policy_count := 104;
     required_rls_tables := expected_rls_tables;
   END IF;
+  -- The 0009 registry table is global-scope: it raises the table count but
+  -- must never appear in the RLS inventory or the policy catalog.
+  IF registry_expected THEN
+    expected_table_count := expected_table_count + 1;
+  END IF;
 
   SELECT array_agg(c.relname ORDER BY c.relname)
     INTO actual_tables
@@ -7554,7 +7576,9 @@ BEGIN
     WHERE n.nspname='public' AND c.relkind IN ('r','p');
   IF cardinality(actual_tables) <> expected_table_count
      OR assurance_expected IS DISTINCT FROM
-       ('authenticated_rate_limit_buckets' = ANY(actual_tables)) THEN
+       ('authenticated_rate_limit_buckets' = ANY(actual_tables))
+     OR registry_expected IS DISTINCT FROM
+       ('ai_retrieval_registry' = ANY(actual_tables)) THEN
     RAISE EXCEPTION 'target table inventory is not the exact expected % table variant',
       expected_table_count;
   END IF;
@@ -7747,6 +7771,12 @@ BEGIN
       role_name
     );
   END IF;
+  IF (SELECT retrieval_registry_expected FROM _valo_bridge_state) THEN
+    EXECUTE format(
+      'REVOKE DELETE ON TABLE public.ai_retrieval_registry FROM %I',
+      role_name
+    );
+  END IF;
   EXECUTE format('GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO %I', role_name);
   EXECUTE format('REVOKE UPDATE ON ALL SEQUENCES IN SCHEMA public FROM %I', role_name);
   EXECUTE format('REVOKE INSERT, UPDATE, DELETE ON TABLE public.audit_events FROM %I', role_name);
@@ -7869,7 +7899,8 @@ BEGIN
               ))
             OR has_table_privilege(role_name, relation.oid, 'DELETE') IS DISTINCT FROM
               (relation.relname NOT IN (
-                'audit_events','authenticated_rate_limit_buckets',
+                'ai_retrieval_registry','audit_events',
+                'authenticated_rate_limit_buckets',
                 'break_glass_sessions','legacy_audit_events',
                 'legacy_audit_integrity_assessments',
                 'organisation_memberships','organisations',

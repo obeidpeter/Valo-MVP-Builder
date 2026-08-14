@@ -153,8 +153,8 @@ router.get(
       return;
     }
     const runtime = configuredAiRuntime();
-    const releaseGate = configuredAiReleaseGateStatus(runtime);
-    const expectedVersions = configuredAiExpectedVersions(runtime);
+    const releaseGate = await configuredAiReleaseGateStatus(runtime);
+    const expectedVersions = await configuredAiExpectedVersions(runtime);
     const adapters = configuredModelAdapters();
     const capabilities = await Promise.all(
       Object.values(AI_CAPABILITY_POLICY).map(async (policy) => {

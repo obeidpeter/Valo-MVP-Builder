@@ -7,6 +7,7 @@ import {
   closeDatabasePool,
   databasePoolSnapshot,
 } from "@workspace/db";
+import { registerDeployedRetrievalRegistry } from "./lib/aiRetrievalRegistry";
 import { startOperationalSignalHeartbeat } from "./lib/observability";
 import {
   createGracefulShutdown,
@@ -54,6 +55,18 @@ if (Number.isNaN(port) || port <= 0) {
 
 async function start(): Promise<void> {
   await assertRuntimeDatabaseSecurity();
+  // The deployed environment self-registers its code-derived retrieval and
+  // corpus-index identities after the database security attestation, so the
+  // AI release gate can recompute them live from the registry table.
+  const retrievalRegistry = await registerDeployedRetrievalRegistry();
+  logger.info(
+    {
+      changed: retrievalRegistry.changed,
+      retrievalVersion: retrievalRegistry.retrievalVersion,
+      indexVersion: retrievalRegistry.indexVersion,
+    },
+    "Deployed retrieval registry identity registered",
+  );
   const stopOperationalSignals = startOperationalSignalHeartbeat({
     getDatabasePool: databasePoolSnapshot,
     getLifecycle: () => runtimeReadiness.current(),

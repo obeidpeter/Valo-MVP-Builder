@@ -11,8 +11,39 @@ const {
   configuredAiReleaseRuntimeMismatchCodes,
   configuredAiRuntime,
 } = await import("./aiRuntime");
+const { attestDeployedRetrievalRegistry } =
+  await import("./aiRetrievalRegistry");
+const { db } = await import("@workspace/db");
+const { sql } = await import("drizzle-orm");
 
-test("production runtime is disabled without explicit activation and approvals", () => {
+const databaseAvailable = await (async () => {
+  try {
+    await db.execute(sql`SELECT 1`);
+    return true;
+  } catch {
+    return false;
+  }
+})();
+
+/**
+ * Serialises reads of the live registry attestation against the state
+ * transitions performed by aiRetrievalRegistry.test.ts, so parallel test
+ * processes never observe a mid-transition registry. Without a reachable
+ * database the attestation is statically fail-closed and needs no lock.
+ */
+async function withRegistryStateLock<T>(work: () => Promise<T>): Promise<T> {
+  if (!databaseAvailable) return work();
+  return db.transaction(async (mutex) => {
+    await mutex.execute(
+      sql`SELECT pg_catalog.pg_advisory_xact_lock(
+        pg_catalog.hashtext('valo_ai_retrieval_registry_state')
+      )`,
+    );
+    return work();
+  });
+}
+
+test("production runtime is disabled without explicit activation and approvals", async () => {
   const runtime = configuredAiRuntime({ NODE_ENV: "production" });
   assert.equal(runtime.globalKillSwitchEngaged, true);
   assert.equal(runtime.modelConfiguration.configurationVersion, "");
@@ -21,25 +52,29 @@ test("production runtime is disabled without explicit activation and approvals",
   assert.equal(runtime.budget, null);
   assert.equal(runtime.providerPolicy.requiredRegion, "");
   assert.equal(runtime.providerPolicy.maxRetentionDays, -1);
-  assert.deepEqual(configuredAiExpectedVersions(runtime, {}), {
+  // Retrieval and index identities come only from the live deployed-registry
+  // attestation, so the expectation is derived from that attestation rather
+  // than assuming a particular database state.
+  const { registry, versions, gateStatus } = await withRegistryStateLock(
+    async () => ({
+      registry: await attestDeployedRetrievalRegistry(),
+      versions: await configuredAiExpectedVersions(runtime, {}),
+      gateStatus: await configuredAiReleaseGateStatus(runtime, {}),
+    }),
+  );
+  assert.deepEqual(versions, {
     model: "gpt-5.4",
     modelConfiguration: "",
     prompt: "ai-foundation-v1",
-    promptRegistry: configuredAiExpectedVersions(runtime, {}).promptRegistry,
-    schema: configuredAiExpectedVersions(runtime, {}).schema,
-    retrieval: "",
-    index: "",
+    promptRegistry: versions.promptRegistry,
+    schema: versions.schema,
+    retrieval: registry.available ? registry.retrievalVersion : "",
+    index: registry.available ? registry.indexVersion : "",
   });
-  assert.match(
-    configuredAiExpectedVersions(runtime, {}).schema,
-    /^[a-f0-9]{64}$/,
-  );
-  assert.match(
-    configuredAiExpectedVersions(runtime, {}).promptRegistry,
-    /^[a-f0-9]{64}$/,
-  );
+  assert.match(versions.schema, /^[a-f0-9]{64}$/);
+  assert.match(versions.promptRegistry, /^[a-f0-9]{64}$/);
   assert.equal(
-    configuredAiExpectedVersions(runtime, {}).promptRegistry,
+    versions.promptRegistry,
     sha256(
       canonicalJson(
         Object.fromEntries(
@@ -55,7 +90,7 @@ test("production runtime is disabled without explicit activation and approvals",
     ),
   );
   assert.equal(
-    configuredAiExpectedVersions(runtime, {}).schema,
+    versions.schema,
     sha256(
       canonicalJson(
         Object.fromEntries(
@@ -70,32 +105,34 @@ test("production runtime is disabled without explicit activation and approvals",
       ),
     ),
   );
-  assert.deepEqual(configuredAiReleaseGateStatus(runtime, {}), {
+  assert.deepEqual(gateStatus, {
     applicable: true,
     allowed: false,
-    blockerCodes: [
-      "release_evidence_missing",
-      "retrieval_registry_unavailable",
-    ],
+    blockerCodes: registry.available
+      ? ["release_evidence_missing"]
+      : ["release_evidence_missing", "retrieval_registry_unavailable"],
   });
 });
 
-test("operator-authored retrieval labels cannot unlock absent infrastructure", () => {
+test("operator-authored retrieval labels cannot influence registry identity", async () => {
   const runtime = configuredAiRuntime({ NODE_ENV: "production" });
   const variables = {
     VALO_AI_RETRIEVAL_VERSION: "invented-retrieval-v99",
     VALO_AI_INDEX_VERSION: "invented-index-v99",
   };
-  assert.deepEqual(configuredAiExpectedVersions(runtime, variables), {
-    ...configuredAiExpectedVersions(runtime, {}),
-    retrieval: "",
-    index: "",
+  await withRegistryStateLock(async () => {
+    const labelled = await configuredAiExpectedVersions(runtime, variables);
+    assert.deepEqual(labelled, await configuredAiExpectedVersions(runtime, {}));
+    assert.notEqual(labelled.retrieval, "invented-retrieval-v99");
+    assert.notEqual(labelled.index, "invented-index-v99");
+    const registry = await attestDeployedRetrievalRegistry();
+    const status = await configuredAiReleaseGateStatus(runtime, variables);
+    assert.equal(
+      status.blockerCodes.includes("retrieval_registry_unavailable"),
+      !registry.available,
+      "the registry blocker must reflect only the live attestation, never labels",
+    );
   });
-  assert.ok(
-    configuredAiReleaseGateStatus(runtime, variables).blockerCodes.includes(
-      "retrieval_registry_unavailable",
-    ),
-  );
 });
 
 test("runtime accepts only complete, integer, explicitly approved budget evidence", () => {
@@ -171,27 +208,30 @@ test("runtime accepts only complete, integer, explicitly approved budget evidenc
   }
 });
 
-test("development is not globally enabled when the emergency switch is set", () => {
+test("development is not globally enabled when the emergency switch is set", async () => {
   const runtime = configuredAiRuntime({
     NODE_ENV: "development",
     VALO_AI_KILL_SWITCH: "true",
   });
   assert.equal(runtime.globalKillSwitchEngaged, true);
-  assert.deepEqual(configuredAiReleaseGateStatus(runtime, {}), {
+  assert.deepEqual(await configuredAiReleaseGateStatus(runtime, {}), {
     applicable: false,
     allowed: false,
     blockerCodes: [],
   });
 });
 
-test("unknown or missing NODE_ENV fails closed as production", () => {
+test("unknown or missing NODE_ENV fails closed as production", async () => {
   for (const value of [undefined, "prodution", "staging"]) {
     const runtime = configuredAiRuntime(
       value === undefined ? {} : { NODE_ENV: value },
     );
     assert.equal(runtime.environment, "production");
     assert.equal(runtime.globalKillSwitchEngaged, true);
-    assert.equal(configuredAiReleaseGateStatus(runtime, {}).applicable, true);
+    assert.equal(
+      (await configuredAiReleaseGateStatus(runtime, {})).applicable,
+      true,
+    );
   }
 });
 

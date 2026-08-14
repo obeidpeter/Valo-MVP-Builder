@@ -74,9 +74,9 @@ sequenceDiagram
 ```
 
 The release-gate call is wired in the source runtime through a private
-`VALO_AI_RELEASE_EVIDENCE_PATH`. No valid production evidence bundle currently
-exists, and retrieval/index version evidence is not implemented, so the gate
-must deny production.
+`VALO_AI_RELEASE_EVIDENCE_PATH`. Retrieval/index identities are recomputed
+live from the deployed registry on every evaluation, but no valid production
+evidence bundle currently exists, so the gate must deny production.
 
 ## Inputs treated as hostile
 

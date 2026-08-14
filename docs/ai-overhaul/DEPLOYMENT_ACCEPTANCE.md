@@ -186,7 +186,9 @@ evidence denies release.
 - Provider, DPA, region/residency, retention and no-training approvals are not
   supplied.
 - Monthly/per-engagement budget and durable ledger are undecided.
-- Retrieval/index versions required by the current release gate are absent.
+- Retrieval/index versions are now attested live by the deployed registry
+  (`ai_retrieval_registry` plus `aiRetrievalRegistry.ts`); the retained
+  evaluation evidence must record the same attested identities.
 - No authorised live 25+ case production-profile evaluation exists.
 - No complete behavioural injection/OCR/citation/two-tenant proof exists.
 - No shadow, pilot, canary, alert delivery, rollback or deployed smoke evidence

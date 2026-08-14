@@ -64,6 +64,13 @@
       "when": 1786708800000,
       "tag": "0008_production_assurance",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786752000000,
+      "tag": "0009_ai_retrieval_registry",
+      "breakpoints": true
     }
   ]
 }
