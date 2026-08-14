@@ -654,12 +654,21 @@ describe("reviewer reassignment revalidates authority in the update transaction"
       name: "Founder One",
     } as LocalUser;
     const project = await createProject({ tenderTitle: "Assignment boundary" });
+    // The request-scoped tenant transaction commits on response finish, so the
+    // 201 can reach the client marginally before the commit lands. The project
+    // row and its creation audit event commit atomically, so waiting for the
+    // row pins the audit baseline before it is snapshotted.
+    await waitForProjectVisibility(project.id);
     const eventsBefore = (
       await db
         .select()
         .from(auditEvents)
         .where(eq(auditEvents.projectId, project.id))
     ).length;
+    assert.ok(
+      eventsBefore >= 1,
+      "the committed creation must already be in the audit baseline",
+    );
 
     for (const reviewerId of ineligibleReviewerIds) {
       const response = await patchProject(
@@ -701,6 +710,7 @@ describe("reviewer reassignment revalidates authority in the update transaction"
     const project = await createProject({
       tenderTitle: "Valid assignment boundary",
     });
+    await waitForProjectVisibility(project.id);
     const response = await patchProject(
       project.id,
       { reviewerId: alternateReviewerId },
