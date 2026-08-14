@@ -1,3 +1,5 @@
+import { exactKeys as exact, isRecord as record } from "@/lib/closed-contract";
+
 export type OpportunitySourceKind =
   | "manual_url"
   | "ocds"
@@ -120,20 +122,6 @@ const CANDIDATE_KEYS = [
   "decisionReason",
   "tenderId",
 ] as const;
-
-function record(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function exact(
-  value: Record<string, unknown>,
-  keys: readonly string[],
-): boolean {
-  return (
-    Object.keys(value).length === keys.length &&
-    keys.every((key) => key in value)
-  );
-}
 
 function text(value: unknown, maximum: number): value is string {
   return (
