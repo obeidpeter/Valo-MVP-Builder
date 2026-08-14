@@ -9,8 +9,8 @@ a live production-profile evaluation, authorised corpus, exact real
 model/prompt/schema/retrieval/index version match, approved
 provider/privacy/budget records, global and per-capability kill switches,
 tested rollback and an approved staged-rollout record. Production AI is
-currently disabled; retrieval/index versions and valid release evidence are
-absent.
+currently disabled; retrieval/index identities are attested live by the
+deployed registry, but valid release evidence is absent.
 
 ## Stages
 

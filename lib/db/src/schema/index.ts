@@ -842,6 +842,55 @@ export const appConfig = pgTable("app_config", {
   }),
 });
 
+// Global, deployment-scoped AI retrieval/index registry. Each row records the
+// content-addressed identity (canonical definition plus its SHA-256) of the
+// deployed retrieval pipeline or corpus-index definition. Version strings are
+// derived from the content digest by code, never authored by an operator, and
+// the release-gate attestation recomputes and cross-checks them live on every
+// evaluation. Rows are superseded, never deleted, so the registry keeps the
+// full deployment lineage. Holds no tenant data; tenant isolation of the
+// retrieval corpus itself is attested against the FORCE-RLS source tables.
+export const aiRetrievalRegistry = pgTable(
+  "ai_retrieval_registry",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    component: text("component").notNull(),
+    version: text("version").notNull(),
+    contentSha256: text("content_sha256").notNull(),
+    canonicalDefinition: text("canonical_definition").notNull(),
+    status: text("status").notNull().default("active"),
+    registeredAt: timestamp("registered_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    supersededAt: timestamp("superseded_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("ai_retrieval_registry_active_component_idx")
+      .on(t.component)
+      .where(sql`${t.status} = 'active'`),
+    check(
+      "ai_retrieval_registry_component_check",
+      sql`${t.component} IN ('retrieval', 'index')`,
+    ),
+    check(
+      "ai_retrieval_registry_status_check",
+      sql`${t.status} IN ('active', 'superseded')`,
+    ),
+    check(
+      "ai_retrieval_registry_content_sha256_check",
+      sql`${t.contentSha256} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "ai_retrieval_registry_version_check",
+      sql`${t.version} ~ '^[A-Za-z0-9][A-Za-z0-9./_-]{0,199}$'`,
+    ),
+    check(
+      "ai_retrieval_registry_superseded_check",
+      sql`(${t.status} = 'active') = (${t.supersededAt} IS NULL)`,
+    ),
+  ],
+);
+
 export const sbdTemplates = pgTable("sbd_templates", {
   id: uuid("id").primaryKey().defaultRandom(),
   organisationId: uuid("organisation_id").references(() => organisations.id, {

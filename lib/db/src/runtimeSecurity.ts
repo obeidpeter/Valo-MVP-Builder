@@ -99,6 +99,7 @@ const EXPECTED_FORCE_RLS_TABLES = [
 ] as const;
 
 const EXPECTED_GLOBAL_TABLES = [
+  "ai_retrieval_registry",
   "app_config",
   "benchmark_cohorts",
   "benchmark_releases",
@@ -316,6 +317,7 @@ const NO_TABLE_UPDATE = new Set([
   "role_grants",
 ]);
 const NO_TABLE_DELETE = new Set([
+  "ai_retrieval_registry",
   "audit_events",
   "authenticated_rate_limit_buckets",
   "break_glass_sessions",

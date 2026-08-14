@@ -1,6 +1,9 @@
 # Retrieval and grounding design
 
-Status: **target design only; no production retrieval/index is implemented**.
+Status: **target design only for hybrid/vector retrieval; no vector index is
+implemented**. The deployed retrieval/index _registry_ (section 11) is
+implemented: it attests the identity of the bounded complete-corpus pipeline
+that production would run, not a vector data plane.
 
 Current requirement extraction and evidence mapping send a complete, bounded
 selected corpus. Inputs above 60,000 characters fail closed rather than being
@@ -149,3 +152,34 @@ Retrieval is deferred. The current bounded complete-corpus workflows may be
 evaluated without it for documents within their limits. Do not add retrieval
 only to avoid the input bound; first approve the architecture, data model,
 provider/privacy posture, isolation tests and evaluation plan.
+
+## 11. Deployed retrieval/index registry (implemented)
+
+The release gate's retrieval and index versions come from a deployed,
+content-addressed registry rather than operator-authored labels:
+
+- **Storage** — `public.ai_retrieval_registry` (migration 0009), a global
+  control-plane table like `app_config`: append-and-supersede rows holding
+  each component's canonical definition JSON, its SHA-256, and a version
+  string derived from that digest. The runtime role cannot delete rows, so
+  the full deployment lineage is retained. The table sits inside the pinned
+  public-table inventory verified by startup attestation.
+- **Definitions** — `aiRetrievalRegistry.ts` defines the canonical
+  `bounded-complete-corpus` retrieval definition (60,000-character fail-closed
+  bound, no truncation/embedding/reranking/caching) and the
+  `tenant-cleared-document-corpus` index definition (SHA-256 content
+  addressing, current cleared document versions, FORCE-RLS source tables).
+  Changing either fact changes the digest and therefore the version identity.
+- **Registration** — server startup registers the code-derived identities
+  after the database security attestation; registration is idempotent and
+  accepts no caller input.
+- **Attestation** — `attestDeployedRetrievalRegistry()` recomputes the
+  identity live on every release-gate evaluation: it re-derives the digests
+  from both the stored definitions and the code, requires exact agreement,
+  and re-verifies from `pg_catalog` that the corpus source tables
+  (`documents`, `document_versions`, `projects`) still carry FORCE RLS. Any
+  mismatch, missing registration, or query failure fails closed to the
+  `retrieval_registry_unavailable` blocker.
+
+A future vector/hybrid data plane must register its corpus and index
+identities through the same registry before the gate will bind to them.
