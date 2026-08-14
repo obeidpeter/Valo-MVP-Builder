@@ -1,3 +1,11 @@
+import {
+  assertExactKeys,
+  boundedText,
+  requireRecord,
+  SHA256_PATTERN as HASH_PATTERN,
+  UUID_PATTERN,
+} from "./closed-contract";
+
 export type WorkInboxGroup = "overdue" | "today" | "upcoming" | "unscheduled";
 
 export interface WorkInboxItem {
@@ -19,9 +27,6 @@ export interface WorkInboxSnapshot {
   groups: Record<WorkInboxGroup, WorkInboxItem[]>;
 }
 
-const HASH_PATTERN = /^[a-f0-9]{64}$/u;
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const GROUPS = ["overdue", "today", "upcoming", "unscheduled"] as const;
 const KINDS = new Set([
   "work_item",
@@ -32,33 +37,21 @@ const KINDS = new Set([
 const PRIORITIES = new Set(["low", "normal", "high", "critical"]);
 
 function object(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
+  return requireRecord(value, () => {
     throw new Error("Work inbox is unavailable");
-  }
-  return value as Record<string, unknown>;
+  });
 }
 
 function exact(value: Record<string, unknown>, keys: readonly string[]): void {
-  const actual = Object.keys(value).sort();
-  const expected = [...keys].sort();
-  if (
-    actual.length !== expected.length ||
-    actual.some((key, index) => key !== expected[index])
-  ) {
+  assertExactKeys(value, keys, () => {
     throw new Error("Work inbox contract is unavailable");
-  }
+  });
 }
 
 function text(value: unknown, max: number): string {
-  if (
-    typeof value !== "string" ||
-    value.length < 1 ||
-    value.length > max ||
-    /[\u0000-\u001f\u007f\ud800-\udfff]/u.test(value)
-  ) {
+  return boundedText(value, max, () => {
     throw new Error("Work inbox content is unavailable");
-  }
-  return value;
+  });
 }
 
 function safeHref(value: unknown): string {

@@ -1,3 +1,9 @@
+import {
+  requireRecord,
+  SHA256_PATTERN as SHA,
+  UUID_PATTERN as UUID,
+} from "@/lib/closed-contract";
+
 export type ConsortiumParty = "client" | "partner";
 export type ConsortiumReasonCode =
   | "ownership_mismatch"
@@ -154,9 +160,6 @@ export interface ConsortiumMutation {
   body: Record<string, unknown>;
 }
 
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const SHA = /^[a-f0-9]{64}$/u;
 const PARTIES: readonly ConsortiumParty[] = ["client", "partner"];
 const REASONS: readonly ConsortiumReasonCode[] = [
   "ownership_mismatch",
@@ -178,8 +181,7 @@ function fail(): never {
 }
 
 function record(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) fail();
-  return value as Record<string, unknown>;
+  return requireRecord(value, fail);
 }
 
 function text(value: unknown, maximum = 1_000): string {

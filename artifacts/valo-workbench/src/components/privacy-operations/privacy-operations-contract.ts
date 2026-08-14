@@ -1,3 +1,5 @@
+import { isRecord } from "@/lib/closed-contract";
+
 export type PrivacyEvidenceState = "verified" | "missing" | "invalid";
 export type PrivacyReviewPosture =
   | "current"
@@ -194,10 +196,6 @@ const FORBIDDEN_SUBJECT_KEYS = new Set([
   "dataCategories",
   "subjectCategories",
 ]);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function exactKeys(
   value: Record<string, unknown>,

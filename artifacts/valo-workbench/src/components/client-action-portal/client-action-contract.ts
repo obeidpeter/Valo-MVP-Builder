@@ -1,3 +1,9 @@
+import {
+  requireRecord,
+  SHA256_PATTERN as SHA,
+  UUID_PATTERN as ID,
+} from "@/lib/closed-contract";
+
 export type ClientActionPurpose =
   | "tender_evidence"
   | "credential_refresh"
@@ -111,15 +117,10 @@ export interface ClientActionAuthorityDirectory {
   truncated: false;
 }
 
-const ID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const SHA = /^[a-f0-9]{64}$/u;
-
 function record(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
+  return requireRecord(value, () => {
     throw new Error("Invalid client-action response");
-  }
-  return value as Record<string, unknown>;
+  });
 }
 
 function string(value: unknown, maximum = 1_000): string {

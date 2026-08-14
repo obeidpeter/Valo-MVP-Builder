@@ -1,3 +1,5 @@
+import { isRecord, SHA256_PATTERN, UUID_PATTERN } from "@/lib/closed-contract";
+
 export const PRODUCTION_ACCEPTANCE_CATEGORIES = [
   "migration",
   "rls",
@@ -93,14 +95,6 @@ const STATE_SET = new Set<string>([
   "release_mismatch",
   "integrity_failed",
 ]);
-const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function isDate(value: unknown): value is string {
   return typeof value === "string" && !Number.isNaN(Date.parse(value));
 }

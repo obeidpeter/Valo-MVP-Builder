@@ -1,3 +1,5 @@
+import { UUID_PATTERN as UUID } from "@/lib/closed-contract";
+
 export const CLAIMS_DESK_RECORD_TYPES = [
   "contract_event",
   "notice_deadline",
@@ -118,8 +120,6 @@ export interface ClaimsDeskTransitionDraft {
   idempotencyKey: string;
 }
 
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const SHA = /^[0-9a-f]{64}$/u;
 const STATUSES = new Set([
   "registered",

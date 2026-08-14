@@ -1,6 +1,10 @@
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
+import {
+  assertExactKeys,
+  boundedText as sharedBoundedText,
+  requireRecord,
+  SHA256_PATTERN,
+  UUID_PATTERN,
+} from "./closed-contract";
 
 export interface CanonicalEvidenceOption {
   documentId: string;
@@ -26,10 +30,9 @@ export interface CanonicalEvidenceOptionsSnapshot {
 }
 
 function record(value: unknown, label: string): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
+  return requireRecord(value, () => {
     throw new Error(`${label} is unavailable`);
-  }
-  return value as Record<string, unknown>;
+  });
 }
 
 function exactKeys(
@@ -37,26 +40,15 @@ function exactKeys(
   keys: readonly string[],
   label: string,
 ): void {
-  const actual = Object.keys(value).sort();
-  const expected = [...keys].sort();
-  if (
-    actual.length !== expected.length ||
-    actual.some((key, index) => key !== expected[index])
-  ) {
+  assertExactKeys(value, keys, () => {
     throw new Error(`${label} contract is unavailable`);
-  }
+  });
 }
 
 function boundedText(value: unknown, label: string, max: number): string {
-  if (
-    typeof value !== "string" ||
-    value.length < 1 ||
-    value.length > max ||
-    /[\u0000-\u001f\u007f\ud800-\udfff]/u.test(value)
-  ) {
+  return sharedBoundedText(value, max, () => {
     throw new Error(`${label} is unavailable`);
-  }
-  return value;
+  });
 }
 
 export function adaptCanonicalEvidenceOptions(

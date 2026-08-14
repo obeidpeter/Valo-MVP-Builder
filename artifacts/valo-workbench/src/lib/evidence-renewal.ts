@@ -1,3 +1,10 @@
+import {
+  exactKeys as exact,
+  isRecord as record,
+  SHA256_PATTERN as SHA256,
+  UUID_PATTERN as UUID,
+} from "./closed-contract";
+
 export type EvidenceRenewalImpact = "blocked" | "at_risk" | "monitor";
 export type EvidenceRenewalStatus =
   | "planned"
@@ -116,9 +123,6 @@ export interface EvidenceRenewalReviewDraft {
   idempotencyKey: string;
 }
 
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const SHA256 = /^[a-f0-9]{64}$/u;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/u;
 const IMPACTS = new Set<EvidenceRenewalImpact>([
   "blocked",
@@ -137,20 +141,6 @@ const REASONS = new Set<EvidenceRenewalReviewReason>([
   "expiry_unacceptable",
   "quality_issue",
 ]);
-
-function record(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value));
-}
-
-function exact(
-  value: Record<string, unknown>,
-  keys: readonly string[],
-): boolean {
-  return (
-    Object.keys(value).length === keys.length &&
-    keys.every((key) => key in value)
-  );
-}
 
 function text(value: unknown, max: number): value is string {
   return (

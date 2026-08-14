@@ -16,7 +16,7 @@ import type {
   OperationsSuiteActions,
   WorkItemStatus,
 } from "@/components/operations-suite";
-import { StatusPanel } from "@/components/platform-states";
+import { PageGatePanel } from "@/components/platform-states";
 import { Button } from "@/components/ui/button";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
 import { useOnlineStatus } from "@/hooks/use-online-status";
@@ -434,13 +434,11 @@ export default function PursuitOperationsSuiteRoute() {
 
   if (!canRead) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="blocked"
-          title="Pursuit read access required"
-          description="The selected organisation context does not grant access to tenant-scoped pursuit records. No operations data was requested."
-        />
-      </div>
+      <PageGatePanel
+        state="blocked"
+        title="Pursuit read access required"
+        description="The selected organisation context does not grant access to tenant-scoped pursuit records. No operations data was requested."
+      />
     );
   }
 
@@ -465,13 +463,11 @@ export default function PursuitOperationsSuiteRoute() {
 
   if (!selectedProject) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="empty"
-          title="No authorised pursuits are available"
-          description="No server-authorised project was returned for this organisation. This does not establish that the organisation has no pursuits."
-        />
-      </div>
+      <PageGatePanel
+        state="empty"
+        title="No authorised pursuits are available"
+        description="No server-authorised project was returned for this organisation. This does not establish that the organisation has no pursuits."
+      />
     );
   }
 

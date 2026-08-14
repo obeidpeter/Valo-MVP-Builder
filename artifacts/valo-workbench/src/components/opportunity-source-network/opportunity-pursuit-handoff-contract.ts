@@ -1,5 +1,8 @@
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+import {
+  isRecord as record,
+  UUID_PATTERN as UUID,
+} from "@/lib/closed-contract";
+
 const SHA256 = /^[0-9a-f]{64}$/u;
 
 export const OPPORTUNITY_PURSUIT_HANDOFF_AUTHORITY = Object.freeze({
@@ -113,10 +116,6 @@ export interface OpportunityPursuitHandoffResult {
   outcome: "created" | "replayed";
   receipt: OpportunityPursuitHandoffReceipt;
   authority: typeof OPPORTUNITY_PURSUIT_HANDOFF_AUTHORITY;
-}
-
-function record(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function exact(

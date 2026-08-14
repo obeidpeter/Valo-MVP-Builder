@@ -10,7 +10,7 @@ import {
   adaptAiShadowSnapshot,
   type AiShadowPlanSnapshot,
 } from "@/components/ai-shadow-programme/ai-shadow-contract";
-import { StatusPanel } from "@/components/platform-states";
+import { PageGatePanel } from "@/components/platform-states";
 import { Button } from "@/components/ui/button";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
 import { useOnlineStatus } from "@/hooks/use-online-status";
@@ -143,52 +143,44 @@ export default function AiShadowProgrammePage() {
 
   if (!canRead)
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="blocked"
-          title="Internal evaluation authority required"
-          description="The AI Shadow Programme is restricted to direct named quality and operations memberships with evaluation-read authority. Partner-derived and emergency contexts are denied."
-        />
-      </div>
+      <PageGatePanel
+        state="blocked"
+        title="Internal evaluation authority required"
+        description="The AI Shadow Programme is restricted to direct named quality and operations memberships with evaluation-read authority. Partner-derived and emergency contexts are denied."
+      />
     );
   if (!online)
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="offline"
-          title="Live shadow evidence is unavailable offline"
-          description="Reconnect before reading or recording the append-only evaluation register."
-        />
-      </div>
+      <PageGatePanel
+        state="offline"
+        title="Live shadow evidence is unavailable offline"
+        description="Reconnect before reading or recording the append-only evaluation register."
+      />
     );
   if (snapshot.isLoading)
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="pending"
-          title="Loading AI shadow evidence"
-          description="Verifying tenant scope, exact version bindings and cohort coverage."
-        />
-      </div>
+      <PageGatePanel
+        state="pending"
+        title="Loading AI shadow evidence"
+        description="Verifying tenant scope, exact version bindings and cohort coverage."
+      />
     );
   if (snapshot.isError || !snapshot.data)
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="error"
-          title="AI shadow evidence could not be verified"
-          description="No empty, passing or activation state has been inferred."
+      <PageGatePanel
+        state="error"
+        title="AI shadow evidence could not be verified"
+        description="No empty, passing or activation state has been inferred."
+      >
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-11"
+          onClick={() => void snapshot.refetch()}
         >
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11"
-            onClick={() => void snapshot.refetch()}
-          >
-            Retry verification
-          </Button>
-        </StatusPanel>
-      </div>
+          Retry verification
+        </Button>
+      </PageGatePanel>
     );
 
   return (

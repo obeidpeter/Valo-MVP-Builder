@@ -1,3 +1,10 @@
+import {
+  assertExactKeys,
+  requireRecord,
+  SHA256_PATTERN as SHA256,
+  UUID_PATTERN as UUID,
+} from "@/lib/closed-contract";
+
 export type CommunicationChannel = "email" | "whatsapp_business";
 export type CommunicationTemplateId =
   | "deadline_reminder_v1"
@@ -125,9 +132,6 @@ export type CommunicationMutation =
       };
     };
 
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const SHA256 = /^[a-f0-9]{64}$/u;
 const REFERENCE = /^[A-Za-z0-9][A-Za-z0-9._:/-]*$/u;
 const CHANNELS: readonly CommunicationChannel[] = [
   "email",
@@ -164,8 +168,7 @@ function fail(): never {
 }
 
 function record(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) fail();
-  return value as Record<string, unknown>;
+  return requireRecord(value, fail);
 }
 
 function text(value: unknown, maximum = 1_000): string {
@@ -393,14 +396,7 @@ export function adaptCommunicationSnapshot(
 }
 
 function exactKeys(value: Record<string, unknown>, keys: readonly string[]) {
-  const actual = Object.keys(value).sort();
-  const expected = [...keys].sort();
-  if (
-    actual.length !== expected.length ||
-    actual.some((key, index) => key !== expected[index])
-  ) {
-    fail();
-  }
+  assertExactKeys(value, keys, fail);
 }
 
 export function adaptCommunicationReferences(

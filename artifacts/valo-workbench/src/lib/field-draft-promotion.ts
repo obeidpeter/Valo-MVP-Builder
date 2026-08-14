@@ -1,3 +1,9 @@
+import {
+  requireRecord,
+  SHA256_PATTERN as SHA256,
+  UUID_PATTERN as UUID,
+} from "./closed-contract";
+
 export const FIELD_DRAFT_PROMOTION_SCHEMA =
   "valo.encrypted-field-promotion/v1" as const;
 export const FIELD_DRAFT_PROMOTION_RECEIPT_SCHEMA =
@@ -111,19 +117,13 @@ export class FieldDraftPromotionError extends Error {
 }
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const SHA256 = /^[a-f0-9]{64}$/u;
 
 const fail = (code: FieldDraftPromotionError["code"]): never => {
   throw new FieldDraftPromotionError(code);
 };
 
 function object(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    fail("invalid_target");
-  }
-  return value as Record<string, unknown>;
+  return requireRecord(value, () => fail("invalid_target"));
 }
 
 function exactKeys(

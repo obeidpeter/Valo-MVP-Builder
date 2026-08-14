@@ -166,6 +166,20 @@ export function StatusPanel({
   );
 }
 
+export function PageGatePanel(props: {
+  state: SurfaceState;
+  title: string;
+  description: string;
+  children?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className="p-5 sm:p-8">
+      <StatusPanel {...props} />
+    </div>
+  );
+}
+
 export function FeatureActivationNotice({
   enabled,
   feature,
