@@ -22,6 +22,7 @@ import {
 } from "@/components/partner-consortium-room/partner-consortium-workspace";
 import {
   LoadingPanel,
+  PageGatePanel,
   PageHeader,
   StatusPanel,
 } from "@/components/platform-states";
@@ -325,13 +326,11 @@ export default function PartnerConsortiumRoomRoute() {
 
   if (!canRead) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="blocked"
-          title="Exact relationship access required"
-          description="Use a direct client membership or the active partner-authorised client context for this relationship."
-        />
-      </div>
+      <PageGatePanel
+        state="blocked"
+        title="Exact relationship access required"
+        description="Use a direct client membership or the active partner-authorised client context for this relationship."
+      />
     );
   }
   if (
@@ -347,24 +346,20 @@ export default function PartnerConsortiumRoomRoute() {
   }
   if (projectsQuery.isError || relationshipsQuery.isError || meQuery.isError) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="error"
-          title="Consortium authority could not be verified"
-          description="No relationship, responsibility, acceptance, or QA state has been inferred."
-        />
-      </div>
+      <PageGatePanel
+        state="error"
+        title="Consortium authority could not be verified"
+        description="No relationship, responsibility, acceptance, or QA state has been inferred."
+      />
     );
   }
   if (!projectId || !relationshipId || !selectedRelationship) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="empty"
-          title="No active relationship project is available"
-          description="The room requires both an authorised project and an active exact partner relationship."
-        />
-      </div>
+      <PageGatePanel
+        state="empty"
+        title="No active relationship project is available"
+        description="The room requires both an authorised project and an active exact partner relationship."
+      />
     );
   }
 

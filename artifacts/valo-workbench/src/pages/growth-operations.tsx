@@ -19,7 +19,11 @@ import { GrowthOnboardingJourney } from "@/components/growth-suite/onboarding-jo
 import { navigationForRole, platformFeatureFlags } from "@/lib/platform-access";
 import { LeadOperationsInbox } from "@/components/growth-suite/lead-operations-inbox";
 import { GrowthOfferCatalogue } from "@/components/growth-suite/offer-catalogue";
-import { PageHeader, StatusPanel } from "@/components/platform-states";
+import {
+  PageGatePanel,
+  PageHeader,
+  StatusPanel,
+} from "@/components/platform-states";
 import { Button } from "@/components/ui/button";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
 import { useToast } from "@/hooks/use-toast";
@@ -526,46 +530,38 @@ export default function GrowthOperationsPage() {
 
   if (meQuery.isLoading) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="pending"
-          title="Resolving your identity"
-          description="Growth operations remain unavailable until the current actor and organisation authority are bound."
-        />
-      </div>
+      <PageGatePanel
+        state="pending"
+        title="Resolving your identity"
+        description="Growth operations remain unavailable until the current actor and organisation authority are bound."
+      />
     );
   }
   if (meQuery.isError || (organisationId && directMembership && !actorUserId)) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="error"
-          title="Current identity could not be resolved"
-          description="No onboarding progress or role-derived destination is shown without an exact current actor."
-        />
-      </div>
+      <PageGatePanel
+        state="error"
+        title="Current identity could not be resolved"
+        description="No onboarding progress or role-derived destination is shown without an exact current actor."
+      />
     );
   }
   if (!canView) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="blocked"
-          title="Direct organisation membership required"
-          description="Growth onboarding and catalogue access are not available through partner-derived or emergency access."
-        />
-      </div>
+      <PageGatePanel
+        state="blocked"
+        title="Direct organisation membership required"
+        description="Growth onboarding and catalogue access are not available through partner-derived or emergency access."
+      />
     );
   }
   if (onboardingQuery.isLoading || offersQuery.isLoading) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="pending"
-          title="Loading growth operations"
-          description="Resolving your role-derived onboarding and the active offer catalogue."
-        />
-      </div>
+      <PageGatePanel
+        state="pending"
+        title="Loading growth operations"
+        description="Resolving your role-derived onboarding and the active offer catalogue."
+      />
     );
   }
   if (
@@ -575,24 +571,22 @@ export default function GrowthOperationsPage() {
     !offersQuery.data
   ) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="error"
-          title="Growth operations could not be loaded"
-          description="No empty onboarding state or catalogue should be inferred. Refresh after the route and durable onboarding repository are available."
+      <PageGatePanel
+        state="error"
+        title="Growth operations could not be loaded"
+        description="No empty onboarding state or catalogue should be inferred. Refresh after the route and durable onboarding repository are available."
+      >
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            void onboardingQuery.refetch();
+            void offersQuery.refetch();
+          }}
         >
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              void onboardingQuery.refetch();
-              void offersQuery.refetch();
-            }}
-          >
-            Retry
-          </Button>
-        </StatusPanel>
-      </div>
+          Retry
+        </Button>
+      </PageGatePanel>
     );
   }
 

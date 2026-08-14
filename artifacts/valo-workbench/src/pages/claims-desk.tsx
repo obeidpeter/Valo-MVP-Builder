@@ -17,7 +17,7 @@ import {
   type ClaimsDeskRecord,
   type ClaimsDeskTransitionDraft,
 } from "@/components/claims-desk";
-import { StatusPanel } from "@/components/platform-states";
+import { PageGatePanel, StatusPanel } from "@/components/platform-states";
 import { Button } from "@/components/ui/button";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
 import { useOnlineStatus } from "@/hooks/use-online-status";
@@ -233,81 +233,67 @@ export default function ClaimsDeskPage() {
 
   if (!canEnter)
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="blocked"
-          title="Direct project-read membership required"
-          description="This project desk rejects partner-derived and emergency access. A direct active tenant membership with project:read is required."
-        />
-      </div>
+      <PageGatePanel
+        state="blocked"
+        title="Direct project-read membership required"
+        description="This project desk rejects partner-derived and emergency access. A direct active tenant membership with project:read is required."
+      />
     );
   if (!online)
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="offline"
-          title="Live Claims Desk evidence is unavailable offline"
-          description="No cached commercial, deadline or claims posture is inferred. Reconnect to load the project ledger."
-        />
-      </div>
+      <PageGatePanel
+        state="offline"
+        title="Live Claims Desk evidence is unavailable offline"
+        description="No cached commercial, deadline or claims posture is inferred. Reconnect to load the project ledger."
+      />
     );
   if (projectsQuery.isLoading)
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="pending"
-          title="Loading available project scopes"
-          description="The desk remains unavailable until an exact non-archived project can be selected."
-        />
-      </div>
+      <PageGatePanel
+        state="pending"
+        title="Loading available project scopes"
+        description="The desk remains unavailable until an exact non-archived project can be selected."
+      />
     );
   if (projectsQuery.isError)
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="error"
-          title="Available projects could not be verified"
-          description="No commercial or claims posture has been inferred."
-        />
-      </div>
+      <PageGatePanel
+        state="error"
+        title="Available projects could not be verified"
+        description="No commercial or claims posture has been inferred."
+      />
     );
   if (!selectedProject)
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="empty"
-          title="No active project is available"
-          description="Create or receive direct access to a non-archived project before recording Claims Desk evidence."
-        />
-      </div>
+      <PageGatePanel
+        state="empty"
+        title="No active project is available"
+        description="Create or receive direct access to a non-archived project before recording Claims Desk evidence."
+      />
     );
   if (snapshotQuery.isLoading)
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="pending"
-          title="Loading the append-only project ledger"
-          description="Verifying scope, receipt chain and controlled workflow state."
-        />
-      </div>
+      <PageGatePanel
+        state="pending"
+        title="Loading the append-only project ledger"
+        description="Verifying scope, receipt chain and controlled workflow state."
+      />
     );
   if (snapshotQuery.isError || !snapshotQuery.data)
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="error"
-          title="Claims Desk evidence could not be verified"
-          description="The interface has failed closed and does not infer entitlement, valuation, notice delivery or payment state."
+      <PageGatePanel
+        state="error"
+        title="Claims Desk evidence could not be verified"
+        description="The interface has failed closed and does not infer entitlement, valuation, notice delivery or payment state."
+      >
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => void snapshotQuery.refetch()}
         >
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void snapshotQuery.refetch()}
-          >
-            Retry verification
-          </Button>
-        </StatusPanel>
-      </div>
+          Retry verification
+        </Button>
+      </PageGatePanel>
     );
 
   return (

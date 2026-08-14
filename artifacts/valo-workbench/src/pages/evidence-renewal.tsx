@@ -10,7 +10,7 @@ import {
 } from "@workspace/api-client-react";
 import { useSearchParams } from "wouter";
 import { EvidenceRenewalConsole } from "@/components/evidence-renewal";
-import { LoadingPanel, StatusPanel } from "@/components/platform-states";
+import { LoadingPanel, PageGatePanel } from "@/components/platform-states";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
@@ -325,24 +325,20 @@ export default function EvidenceRenewalPage() {
 
   if (!canEnter) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="blocked"
-          title="Direct evidence authority required"
-          description="Evidence renewal plans are unavailable through partner-derived or emergency access."
-        />
-      </div>
+      <PageGatePanel
+        state="blocked"
+        title="Direct evidence authority required"
+        description="Evidence renewal plans are unavailable through partner-derived or emergency access."
+      />
     );
   }
   if (!online) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="offline"
-          title="Evidence renewal is unavailable offline"
-          description="Reconnect before reading or changing the governed renewal register."
-        />
-      </div>
+      <PageGatePanel
+        state="offline"
+        title="Evidence renewal is unavailable offline"
+        description="Reconnect before reading or changing the governed renewal register."
+      />
     );
   }
   if (projectsQuery.isLoading || !actorUserId) {
@@ -354,17 +350,15 @@ export default function EvidenceRenewalPage() {
   }
   if (projectsQuery.isError || projects.length === 0) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state={projectsQuery.isError ? "error" : "empty"}
-          title={
-            projectsQuery.isError
-              ? "Pursuit scope is unavailable"
-              : "No active pursuit"
-          }
-          description="A current tenant-scoped pursuit is required before a renewal plan can be read."
-        />
-      </div>
+      <PageGatePanel
+        state={projectsQuery.isError ? "error" : "empty"}
+        title={
+          projectsQuery.isError
+            ? "Pursuit scope is unavailable"
+            : "No active pursuit"
+        }
+        description="A current tenant-scoped pursuit is required before a renewal plan can be read."
+      />
     );
   }
 
@@ -408,26 +402,24 @@ export default function EvidenceRenewalPage() {
         </div>
       ) : null}
       {requiredError ? (
-        <div className="p-5 sm:p-8">
-          <StatusPanel
-            state="error"
-            title="Evidence renewal records could not be verified"
-            description="No empty register, current assignment, canonical document, or successful message delivery has been inferred."
+        <PageGatePanel
+          state="error"
+          title="Evidence renewal records could not be verified"
+          description="No empty register, current assignment, canonical document, or successful message delivery has been inferred."
+        >
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              void snapshotQuery.refetch();
+              void authoritiesQuery.refetch();
+              void vaultQuery.refetch();
+              if (canManage) void canonicalQuery.refetch();
+            }}
           >
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                void snapshotQuery.refetch();
-                void authoritiesQuery.refetch();
-                void vaultQuery.refetch();
-                if (canManage) void canonicalQuery.refetch();
-              }}
-            >
-              Retry verification
-            </Button>
-          </StatusPanel>
-        </div>
+            Retry verification
+          </Button>
+        </PageGatePanel>
       ) : null}
       {!requiredLoading &&
       !requiredError &&

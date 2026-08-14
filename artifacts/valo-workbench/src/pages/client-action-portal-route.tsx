@@ -26,6 +26,7 @@ import {
 } from "@/components/client-action-portal/client-action-workspace";
 import {
   LoadingPanel,
+  PageGatePanel,
   PageHeader,
   StatusPanel,
 } from "@/components/platform-states";
@@ -365,13 +366,11 @@ export default function ClientActionPortalRoute() {
 
   if (!canAccess) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="blocked"
-          title="Direct client membership required"
-          description="Client actions are not available through partner-derived or emergency access."
-        />
-      </div>
+      <PageGatePanel
+        state="blocked"
+        title="Direct client membership required"
+        description="Client actions are not available through partner-derived or emergency access."
+      />
     );
   }
   if (meQuery.isLoading || projectsQuery.isLoading) {
@@ -383,24 +382,20 @@ export default function ClientActionPortalRoute() {
   }
   if (meQuery.isError || !meQuery.data || projectsQuery.isError) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="error"
-          title="Available pursuits could not be verified"
-          description="No project or client action has been inferred."
-        />
-      </div>
+      <PageGatePanel
+        state="error"
+        title="Available pursuits could not be verified"
+        description="No project or client action has been inferred."
+      />
     );
   }
   if (!canView) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="empty"
-          title="No pursuit is available"
-          description="An authorised bid lead must create or share a pursuit before client actions can be recorded."
-        />
-      </div>
+      <PageGatePanel
+        state="empty"
+        title="No pursuit is available"
+        description="An authorised bid lead must create or share a pursuit before client actions can be recorded."
+      />
     );
   }
 

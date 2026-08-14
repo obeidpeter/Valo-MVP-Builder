@@ -9,7 +9,7 @@ import {
   type ProductionAcceptanceEvidenceDraft,
 } from "@/components/production-acceptance/production-acceptance-contract";
 import { ProductionAcceptanceEvidenceForm } from "@/components/production-acceptance/production-acceptance-evidence-form";
-import { StatusPanel } from "@/components/platform-states";
+import { PageGatePanel } from "@/components/platform-states";
 import { Button } from "@/components/ui/button";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
 import { useOnlineStatus } from "@/hooks/use-online-status";
@@ -140,58 +140,50 @@ export default function ProductionAcceptancePage() {
 
   if (!canRead) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="blocked"
-          title="Internal audit membership required"
-          description="Production acceptance evidence is available only to named Valo operations, restricted-platform and quality roles with direct membership and audit-read authority. Partner-derived and emergency access are denied."
-        />
-      </div>
+      <PageGatePanel
+        state="blocked"
+        title="Internal audit membership required"
+        description="Production acceptance evidence is available only to named Valo operations, restricted-platform and quality roles with direct membership and audit-read authority. Partner-derived and emergency access are denied."
+      />
     );
   }
 
   if (!online) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="offline"
-          title="Live acceptance evidence is unavailable offline"
-          description="Do not infer a go decision from cached or absent evidence. Reconnect and refresh the server-verified register."
-        />
-      </div>
+      <PageGatePanel
+        state="offline"
+        title="Live acceptance evidence is unavailable offline"
+        description="Do not infer a go decision from cached or absent evidence. Reconnect and refresh the server-verified register."
+      />
     );
   }
 
   if (snapshotQuery.isLoading) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="pending"
-          title="Loading production acceptance evidence"
-          description="Verifying tenant scope, immutable digests, release binding and expiry windows."
-        />
-      </div>
+      <PageGatePanel
+        state="pending"
+        title="Loading production acceptance evidence"
+        description="Verifying tenant scope, immutable digests, release binding and expiry windows."
+      />
     );
   }
 
   if (snapshotQuery.isError || !snapshotQuery.data) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="error"
-          title="Production acceptance evidence could not be verified"
-          description="The safe state is no-go. No empty or successful release state has been inferred."
+      <PageGatePanel
+        state="error"
+        title="Production acceptance evidence could not be verified"
+        description="The safe state is no-go. No empty or successful release state has been inferred."
+      >
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-11"
+          onClick={() => void snapshotQuery.refetch()}
         >
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11"
-            onClick={() => void snapshotQuery.refetch()}
-          >
-            Retry verification
-          </Button>
-        </StatusPanel>
-      </div>
+          Retry verification
+        </Button>
+      </PageGatePanel>
     );
   }
 

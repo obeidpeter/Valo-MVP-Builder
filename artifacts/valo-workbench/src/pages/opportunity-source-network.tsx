@@ -8,7 +8,7 @@ import {
   type ManualOpportunitySourceDraft,
   type OpportunitySourceCandidate,
 } from "@/components/opportunity-source-network/opportunity-source-contract";
-import { StatusPanel } from "@/components/platform-states";
+import { PageGatePanel } from "@/components/platform-states";
 import { Button } from "@/components/ui/button";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
 import { useOnlineStatus } from "@/hooks/use-online-status";
@@ -98,52 +98,44 @@ export default function OpportunitySourceNetworkPage() {
 
   if (!canRead)
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="blocked"
-          title="Direct organisation membership required"
-          description="Opportunity source receipts are unavailable through partner-derived or emergency access."
-        />
-      </div>
+      <PageGatePanel
+        state="blocked"
+        title="Direct organisation membership required"
+        description="Opportunity source receipts are unavailable through partner-derived or emergency access."
+      />
     );
   if (!online)
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="offline"
-          title="Source verification is unavailable offline"
-          description="Reconnect before inspecting or deciding an external source receipt."
-        />
-      </div>
+      <PageGatePanel
+        state="offline"
+        title="Source verification is unavailable offline"
+        description="Reconnect before inspecting or deciding an external source receipt."
+      />
     );
   if (snapshot.isLoading)
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="pending"
-          title="Loading source receipts"
-          description="Checking tenant scope, receipt digests and review state."
-        />
-      </div>
+      <PageGatePanel
+        state="pending"
+        title="Loading source receipts"
+        description="Checking tenant scope, receipt digests and review state."
+      />
     );
   if (snapshot.isError || !snapshot.data)
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="error"
-          title="Source receipts could not be verified"
-          description="No empty inbox or accepted opportunity has been inferred."
+      <PageGatePanel
+        state="error"
+        title="Source receipts could not be verified"
+        description="No empty inbox or accepted opportunity has been inferred."
+      >
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-11"
+          onClick={() => void snapshot.refetch()}
         >
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11"
-            onClick={() => void snapshot.refetch()}
-          >
-            Retry
-          </Button>
-        </StatusPanel>
-      </div>
+          Retry
+        </Button>
+      </PageGatePanel>
     );
 
   return (

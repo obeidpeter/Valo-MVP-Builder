@@ -11,7 +11,7 @@ import {
 } from "@/components/privacy-operations/privacy-operations-contract";
 import { PrivacyOperationsDashboardView } from "@/components/privacy-operations/privacy-operations-dashboard";
 import { PrivacyWorkflowPanel } from "@/components/privacy-operations/privacy-workflow-panel";
-import { StatusPanel } from "@/components/platform-states";
+import { PageGatePanel, StatusPanel } from "@/components/platform-states";
 import { Button } from "@/components/ui/button";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
 import { useOnlineStatus } from "@/hooks/use-online-status";
@@ -204,58 +204,50 @@ export default function PrivacyOperationsPage() {
 
   if (!canRead) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="blocked"
-          title="Direct privacy-read membership required"
-          description="This centre rejects partner-derived and emergency access. A direct tenant membership with privacy:read is required."
-        />
-      </div>
+      <PageGatePanel
+        state="blocked"
+        title="Direct privacy-read membership required"
+        description="This centre rejects partner-derived and emergency access. A direct tenant membership with privacy:read is required."
+      />
     );
   }
 
   if (!online) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="offline"
-          title="Live privacy evidence is unavailable offline"
-          description="No cached dashboard or legal posture is inferred. Reconnect to load the tenant-RLS registers."
-        />
-      </div>
+      <PageGatePanel
+        state="offline"
+        title="Live privacy evidence is unavailable offline"
+        description="No cached dashboard or legal posture is inferred. Reconnect to load the tenant-RLS registers."
+      />
     );
   }
 
   if (dashboardQuery.isLoading) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="pending"
-          title="Loading minimised privacy evidence"
-          description="Checking tenant scope, due dates, evidence digests and audit receipts."
-        />
-      </div>
+      <PageGatePanel
+        state="pending"
+        title="Loading minimised privacy evidence"
+        description="Checking tenant scope, due dates, evidence digests and audit receipts."
+      />
     );
   }
 
   if (dashboardQuery.isError || !dashboardQuery.data) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="error"
-          title="Privacy evidence could not be verified"
-          description="The interface has failed closed and does not infer compliance or a legal conclusion."
+      <PageGatePanel
+        state="error"
+        title="Privacy evidence could not be verified"
+        description="The interface has failed closed and does not infer compliance or a legal conclusion."
+      >
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-11"
+          onClick={() => void dashboardQuery.refetch()}
         >
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11"
-            onClick={() => void dashboardQuery.refetch()}
-          >
-            Retry verification
-          </Button>
-        </StatusPanel>
-      </div>
+          Retry verification
+        </Button>
+      </PageGatePanel>
     );
   }
 

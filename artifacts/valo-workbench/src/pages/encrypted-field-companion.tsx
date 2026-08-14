@@ -8,6 +8,7 @@ import { ClipboardList, LockKeyhole, ShieldAlert, WifiOff } from "lucide-react";
 import { FieldDraftPromotionReview } from "@/components/encrypted-field/field-draft-promotion-review";
 import {
   LoadingPanel,
+  PageGatePanel,
   PageHeader,
   StatusPanel,
 } from "@/components/platform-states";
@@ -290,13 +291,11 @@ export default function EncryptedFieldCompanionPage() {
 
   if (!canUse)
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="blocked"
-          title="Direct pursuit membership required"
-          description="Device drafts are partitioned by the signed-in user and active direct organisation. Partner-derived and emergency access cannot open this local companion."
-        />
-      </div>
+      <PageGatePanel
+        state="blocked"
+        title="Direct pursuit membership required"
+        description="Device drafts are partitioned by the signed-in user and active direct organisation. Partner-derived and emergency access cannot open this local companion."
+      />
     );
 
   return (

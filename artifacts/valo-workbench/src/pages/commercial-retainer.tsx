@@ -6,7 +6,7 @@ import type {
   CommercialRetainerMutation,
   CommercialRetainerSnapshotView,
 } from "@/components/commercial-retainer/commercial-retainer-contract";
-import { PageHeader, StatusPanel } from "@/components/platform-states";
+import { PageGatePanel, PageHeader } from "@/components/platform-states";
 import { Button } from "@/components/ui/button";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
 import { useToast } from "@/hooks/use-toast";
@@ -156,25 +156,21 @@ export default function CommercialRetainerPage() {
 
   if (!canRead) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="blocked"
-          title="Direct commercial membership required"
-          description="This private ledger requires current direct organisation membership with billing-read and entitlement-read authority. Partner-derived and break-glass access are not accepted."
-        />
-      </div>
+      <PageGatePanel
+        state="blocked"
+        title="Direct commercial membership required"
+        description="This private ledger requires current direct organisation membership with billing-read and entitlement-read authority. Partner-derived and break-glass access are not accepted."
+      />
     );
   }
 
   if (snapshotQuery.isLoading || meQuery.isLoading) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="pending"
-          title="Loading the private commercial ledger"
-          description="Checking fixed offer versions, named actors, manual reconciliation evidence and active entitlements."
-        />
-      </div>
+      <PageGatePanel
+        state="pending"
+        title="Loading the private commercial ledger"
+        description="Checking fixed offer versions, named actors, manual reconciliation evidence and active entitlements."
+      />
     );
   }
 
@@ -185,24 +181,22 @@ export default function CommercialRetainerPage() {
     !meQuery.data?.id
   ) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="error"
-          title="Commercial records could not be verified"
-          description="The safe state is unavailable. No empty ledger, payment, entitlement or service capacity has been inferred."
+      <PageGatePanel
+        state="error"
+        title="Commercial records could not be verified"
+        description="The safe state is unavailable. No empty ledger, payment, entitlement or service capacity has been inferred."
+      >
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            void snapshotQuery.refetch();
+            void meQuery.refetch();
+          }}
         >
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              void snapshotQuery.refetch();
-              void meQuery.refetch();
-            }}
-          >
-            Retry verification
-          </Button>
-        </StatusPanel>
-      </div>
+          Retry verification
+        </Button>
+      </PageGatePanel>
     );
   }
 

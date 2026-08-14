@@ -16,6 +16,7 @@ import {
 import { CommunicationsHub } from "@/components/reconciled-communications/communications-hub";
 import {
   LoadingPanel,
+  PageGatePanel,
   PageHeader,
   StatusPanel,
 } from "@/components/platform-states";
@@ -180,13 +181,11 @@ export default function ReconciledCommunicationsRoute() {
 
   if (!canAccess) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="blocked"
-          title="Direct membership required"
-          description="The communications ledger is unavailable through partner-derived or emergency access."
-        />
-      </div>
+      <PageGatePanel
+        state="blocked"
+        title="Direct membership required"
+        description="The communications ledger is unavailable through partner-derived or emergency access."
+      />
     );
   }
   if (projectsQuery.isLoading) {
@@ -198,24 +197,20 @@ export default function ReconciledCommunicationsRoute() {
   }
   if (projectsQuery.isError) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="error"
-          title="Available pursuits could not be verified"
-          description="No communication scope or delivery state has been inferred."
-        />
-      </div>
+      <PageGatePanel
+        state="error"
+        title="Available pursuits could not be verified"
+        description="No communication scope or delivery state has been inferred."
+      />
     );
   }
   if (!canView) {
     return (
-      <div className="p-5 sm:p-8">
-        <StatusPanel
-          state="empty"
-          title="No pursuit is available"
-          description="Select an authorised pursuit before recording a communication intent."
-        />
-      </div>
+      <PageGatePanel
+        state="empty"
+        title="No pursuit is available"
+        description="Select an authorised pursuit before recording a communication intent."
+      />
     );
   }
 
