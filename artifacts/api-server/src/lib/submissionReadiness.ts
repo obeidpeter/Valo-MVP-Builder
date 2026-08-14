@@ -2,6 +2,7 @@ import {
   paymentGateSatisfied,
   type ConflictStatus,
   type PaymentStatus,
+  blockingSignOffDefects,
 } from "./deterministic";
 import { isQuoteGroundedInSourceMap } from "./sourceGrounding";
 
@@ -113,7 +114,6 @@ const EVIDENCE_STATES_REQUIRING_SOURCE = new Set([
   "expired",
   "not_applicable",
 ]);
-const BLOCKING_DEFECT_SEVERITIES = new Set(["fatal", "likely_fatal"]);
 const INCLUDED_REDACTION_STATES = new Set(["included", "redacted"]);
 
 interface StoredRequirementCitation {
@@ -373,11 +373,7 @@ export function evaluateSubmissionReadiness(
       objectIds: unreviewedDefects.map((defect) => defect.id),
     });
   }
-  const openFatalDefects = input.defects.filter(
-    (defect) =>
-      defect.status === "open" &&
-      BLOCKING_DEFECT_SEVERITIES.has(defect.severity),
-  );
+  const openFatalDefects = blockingSignOffDefects(input.defects);
   if (openFatalDefects.length > 0) {
     add({
       code: "fatal_defect_open",

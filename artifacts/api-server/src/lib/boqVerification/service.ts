@@ -20,8 +20,7 @@ export const BOQ_VERIFICATION_AUTHORITY_NOTE =
   "exchange rates or bid-security terms, and a passing run is not a pricing, " +
   "responsiveness or award opinion.";
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+import { UUID_PATTERN } from "../identifierPatterns";
 const DECIMAL_PATTERN = /^-?\d{1,24}(?:\.\d{1,12})?$/u;
 const CURRENCY_PATTERN = /^[A-Z]{3}$/u;
 

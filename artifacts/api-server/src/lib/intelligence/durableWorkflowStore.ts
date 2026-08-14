@@ -66,9 +66,10 @@ const DURABLE_WORKFLOW_ERROR_MESSAGES: Record<
   persistence_conflict: "The workflow transition could not be persisted.",
 };
 
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const SHA256 = /^[a-f0-9]{64}$/;
+import {
+  SHA256_HEX_PATTERN as SHA256,
+  UUID_V1_5_PATTERN as UUID,
+} from "../identifierPatterns";
 const CONTROL_IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const CAPABILITIES = new Set<string>(AI_CAPABILITY_IDS);
 const SAFE_ERROR_CODES = new Set<string>(AI_SAFE_ERROR_CODES);

@@ -18,8 +18,7 @@ import {
 
 const AUTHORITY_NOTE =
   "This console records and verifies evidence references only. It cannot run a migration, restore a backup, roll back a release or authorise deployment. A named human release authority must inspect the retained artefacts and make the final decision.";
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+import { UUID_PATTERN } from "../identifierPatterns";
 
 const CATEGORY_LABELS: Readonly<Record<ProductionAcceptanceCategory, string>> =
   Object.freeze({

@@ -124,7 +124,7 @@ export function soleCanonicalProjectExportPackageId(
   return rows[0]?.id ?? null;
 }
 
-const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
+import { SHA256_HEX_PATTERN as SHA256_PATTERN } from "./identifierPatterns";
 const SAFE_ARCHIVE_NAME = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[^\\\u0000]+$/u;
 
 function sha256(value: Buffer | string): string {

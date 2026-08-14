@@ -24,8 +24,7 @@ import {
   type OnboardingJourney,
 } from "./onboarding";
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+import { UUID_V1_5_PATTERN as UUID_PATTERN } from "../identifierPatterns";
 const ITEM_ID_PATTERN = /^[a-z][a-z0-9-]{0,127}$/u;
 // Partition receipts by the policy that defined the checklist. A future
 // policy version starts its own CAS stream instead of making historical

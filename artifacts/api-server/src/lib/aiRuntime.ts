@@ -48,36 +48,35 @@ export interface AiRuntimeReleaseGateStatus {
 
 const MAX_RELEASE_EVIDENCE_BYTES = 5 * 1024 * 1024;
 
-function expectedSchemaSetVersion(): string {
+function registrySetVersion(
+  project: (
+    definition: (typeof AI_PROMPT_REGISTRY)[keyof typeof AI_PROMPT_REGISTRY],
+  ) => Record<string, string>,
+): string {
   return sha256(
     canonicalJson(
       Object.fromEntries(
         Object.entries(AI_PROMPT_REGISTRY).map(([capability, definition]) => [
           capability,
-          {
-            schemaVersion: definition.schemaVersion,
-            schemaHash: definition.schemaHash,
-          },
+          project(definition),
         ]),
       ),
     ),
   );
 }
 
+function expectedSchemaSetVersion(): string {
+  return registrySetVersion((definition) => ({
+    schemaVersion: definition.schemaVersion,
+    schemaHash: definition.schemaHash,
+  }));
+}
+
 function expectedPromptSetVersion(): string {
-  return sha256(
-    canonicalJson(
-      Object.fromEntries(
-        Object.entries(AI_PROMPT_REGISTRY).map(([capability, definition]) => [
-          capability,
-          {
-            promptVersion: definition.promptVersion,
-            promptHash: definition.promptHash,
-          },
-        ]),
-      ),
-    ),
-  );
+  return registrySetVersion((definition) => ({
+    promptVersion: definition.promptVersion,
+    promptHash: definition.promptHash,
+  }));
 }
 
 export function configuredAiExpectedVersions(

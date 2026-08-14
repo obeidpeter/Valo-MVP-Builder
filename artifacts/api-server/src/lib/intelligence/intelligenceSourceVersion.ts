@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 const MAX_SOURCE_RECORDS = 32_768;
 const MAX_ID_LENGTH = 200;
 const MAX_FINGERPRINT_PAYLOAD_BYTES = 4_000_000;
-const SHA256 = /^[a-f0-9]{64}$/u;
+import { SHA256_HEX_PATTERN as SHA256 } from "../identifierPatterns";
 
 export const INTELLIGENCE_SOURCE_VERSION_BOUNDS = Object.freeze({
   maxSourceRecords: MAX_SOURCE_RECORDS,

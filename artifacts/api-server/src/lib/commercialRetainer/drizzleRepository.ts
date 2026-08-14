@@ -47,6 +47,7 @@ import {
   COMMERCIAL_RETAINER_PRICE_BOOK_NAME,
   COMMERCIAL_RETAINER_PRICE_BOOK_VERSION,
   CommercialRetainerError,
+  RETAINER_ENVELOPE_SCHEMA,
   RETAINER_TASK_PREFIX,
   type CommercialEntitlement,
   type CommercialInvoice,
@@ -85,10 +86,10 @@ const ENTITLEMENT_PROVISIONED_EVENT = "commercial.entitlement_provisioned.v1";
 const RETAINER_CREATED_EVENT = "retainer.request_created.v1";
 const RETAINER_MUTATED_EVENT = "retainer.request_mutated.v1";
 const PAYMENT_PROVIDER = "manual-evidence-v1";
-const RETAINER_ENVELOPE_SCHEMA = "valo.retainer-service-request@v1";
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const SHA256 = /^[a-f0-9]{64}$/;
+import {
+  SHA256_HEX_PATTERN as SHA256,
+  UUID_V1_5_PATTERN as UUID,
+} from "../identifierPatterns";
 const CONTROL_CHARACTER = /[\u0000-\u001f\u007f]/u;
 
 interface QuoteAuditDetails extends Omit<
@@ -136,15 +137,7 @@ function redactedDigest(value: string): string {
   return `sha256:${digest([value])}`;
 }
 
-function deterministicUuid(seed: string): string {
-  const bytes = Buffer.from(
-    createHash("sha256").update(seed).digest().subarray(0, 16),
-  );
-  bytes[6] = (bytes[6]! & 0x0f) | 0x40;
-  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
-  const value = bytes.toString("hex");
-  return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20)}`;
-}
+import { deterministicUuidFromBytes as deterministicUuid } from "../deterministicUuid";
 
 function safeMoney(value: bigint): number {
   const converted = Number(value);

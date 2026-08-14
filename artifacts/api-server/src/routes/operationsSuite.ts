@@ -129,9 +129,10 @@ async function assertExactCount(
   }
 }
 
-const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+import {
+  SHA256_HEX_PATTERN as SHA256_PATTERN,
+  UUID_PATTERN,
+} from "../lib/identifierPatterns";
 
 function assertUuid(value: string, message: string): void {
   if (!UUID_PATTERN.test(value)) denied(message);

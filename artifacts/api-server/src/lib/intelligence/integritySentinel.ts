@@ -86,7 +86,7 @@ export interface IntegritySentinelResult {
   readonly absenceIsClearance: false;
 }
 
-const SHA256 = /^[a-f0-9]{64}$/u;
+import { SHA256_HEX_PATTERN as SHA256 } from "../identifierPatterns";
 const ACTIONS = new Set<IntegrityAuditEvent["action"]>([
   "submit_for_approval",
   "approve",

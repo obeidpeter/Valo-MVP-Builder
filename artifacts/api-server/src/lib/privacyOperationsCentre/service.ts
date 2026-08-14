@@ -33,9 +33,10 @@ import {
 export const PRIVACY_OPERATIONS_AUTHORITY_NOTE =
   "This centre organises minimised operational evidence for named human reviewers. It does not contact providers, establish identity, decide legal rights, release a hold, delete data or make a legal conclusion.";
 
-const SHA256 = /^[0-9a-f]{64}$/u;
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+import {
+  SHA256_HEX_PATTERN as SHA256,
+  UUID_V1_5_PATTERN as UUID,
+} from "../identifierPatterns";
 const MAX_FUTURE_SKEW_MS = 5 * 60 * 1_000;
 const MAX_HOLD_REVIEW_WINDOW_MS = 366 * 24 * 60 * 60 * 1_000;
 const DUE_SOON_MS = 3 * 24 * 60 * 60 * 1_000;
@@ -147,9 +148,7 @@ export function createPrivacyWorkflowAuditDetails(
   };
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+import { isRecord } from "../typeGuards";
 
 function exactKeys(
   value: Record<string, unknown>,

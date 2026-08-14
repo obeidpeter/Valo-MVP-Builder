@@ -1,4 +1,11 @@
 import { createHash } from "node:crypto";
+import {
+  SHA256,
+  hasText,
+  validIdentifier,
+  validIsoTimestamp,
+  validUnitScore as validScore,
+} from "./aiFoundationValidation";
 
 /**
  * Pure contracts for a future retrieval data plane. Nothing in this module is
@@ -246,9 +253,6 @@ export interface AiClaimGroundingResult {
   abstainedClaimIds: string[];
 }
 
-const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
-const SHA256 = /^[a-f0-9]{64}$/;
-const RFC3339_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
 const CLASSIFICATIONS = new Set<AiDataClassification>([
   "public",
   "internal",
@@ -281,29 +285,14 @@ const VERIFIER_VERDICTS = new Set<AiClaimCitation["verifierVerdict"]>([
   "insufficient",
 ]);
 
-const hasText = (value: unknown): value is string =>
-  typeof value === "string" && value.trim().length > 0;
-
-const validIdentifier = (value: unknown): value is string =>
-  hasText(value) && IDENTIFIER.test(value);
-
-const validIsoTimestamp = (value: unknown): value is string =>
-  hasText(value) &&
-  RFC3339_UTC.test(value) &&
-  Number.isFinite(Date.parse(value));
-
-const validScore = (value: unknown): value is number =>
-  typeof value === "number" &&
-  Number.isFinite(value) &&
-  value >= 0 &&
-  value <= 1;
-
 const uniqueNonEmpty = (values: string[]): boolean =>
   values.length > 0 &&
   values.every((value) => validIdentifier(value)) &&
   new Set(values).size === values.length;
 
-const canonicalJson = (value: unknown): string => JSON.stringify(value);
+// Insertion-order JSON, deliberately NOT sorted-key canonical JSON: the
+// persisted manifestSha256 depends on this exact serialization.
+const insertionOrderJson = (value: unknown): string => JSON.stringify(value);
 
 export function aiRetrievalTextSha256(text: string): string {
   return createHash("sha256").update(text, "utf8").digest("hex");
@@ -669,51 +658,44 @@ const FATAL_CANDIDATE_BLOCKERS = new Set<AiRetrievalBlockerCode>([
  * Validates and deterministically ranks already-computed lexical/vector scores.
  * It does not implement an index or embedding model and cannot activate one.
  */
+function blockedResult(
+  blockers: AiRetrievalBlocker[],
+  rejected: AiRetrievalBlocker[] = [],
+): AiRetrievalResult {
+  return {
+    disposition: "blocked",
+    blockers,
+    rejected,
+    selected: [],
+    manifestSha256: null,
+    contextBytes: 0,
+  };
+}
+
 export function buildEvidenceGradeRetrievalContext(input: {
   request: AiRetrievalRequest;
   candidates: AiRetrievalCandidate[];
 }): AiRetrievalResult {
   const requestBlockers = validateRequest(input.request);
   if (requestBlockers.length > 0) {
-    return {
-      disposition: "blocked",
-      blockers: requestBlockers,
-      rejected: [],
-      selected: [],
-      manifestSha256: null,
-      contextBytes: 0,
-    };
+    return blockedResult(requestBlockers);
   }
   if (input.candidates.length > input.request.limits.maxCandidates) {
-    return {
-      disposition: "blocked",
-      blockers: [
-        {
-          code: "request_invalid",
-          message: "The candidate set exceeds the approved retrieval bound.",
-        },
-      ],
-      rejected: [],
-      selected: [],
-      manifestSha256: null,
-      contextBytes: 0,
-    };
+    return blockedResult([
+      {
+        code: "request_invalid",
+        message: "The candidate set exceeds the approved retrieval bound.",
+      },
+    ]);
   }
   const candidateIds = input.candidates.map((candidate) => candidate.chunkId);
   if (new Set(candidateIds).size !== candidateIds.length) {
-    return {
-      disposition: "blocked",
-      blockers: [
-        {
-          code: "request_invalid",
-          message: "Retrieved chunk identifiers must be unique.",
-        },
-      ],
-      rejected: [],
-      selected: [],
-      manifestSha256: null,
-      contextBytes: 0,
-    };
+    return blockedResult([
+      {
+        code: "request_invalid",
+        message: "Retrieved chunk identifiers must be unique.",
+      },
+    ]);
   }
 
   const rejected: AiRetrievalBlocker[] = [];
@@ -740,14 +722,7 @@ export function buildEvidenceGradeRetrievalContext(input: {
     FATAL_CANDIDATE_BLOCKERS.has(blocker.code),
   );
   if (fatal.length > 0) {
-    return {
-      disposition: "blocked",
-      blockers: fatal,
-      rejected,
-      selected: [],
-      manifestSha256: null,
-      contextBytes: 0,
-    };
+    return blockedResult(fatal, rejected);
   }
 
   accepted.sort(
@@ -806,7 +781,7 @@ export function buildEvidenceGradeRetrievalContext(input: {
 
   const manifestSha256 = createHash("sha256")
     .update(
-      canonicalJson({
+      insertionOrderJson({
         requestId: input.request.requestId,
         tenantId: input.request.tenantId,
         projectId: input.request.projectId,

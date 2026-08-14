@@ -196,10 +196,6 @@ for (const policy of Object.values(AI_CAPABILITY_POLICY)) {
 }
 Object.freeze(AI_CAPABILITY_POLICY);
 
-export function isAiCapabilityId(value: string): value is AiCapabilityId {
-  return (AI_CAPABILITY_IDS as readonly string[]).includes(value);
-}
-
 /** Missing production activation is disabled; the emergency switch always wins. */
 export function isGlobalAiKillSwitchEngaged(
   environment: AiRuntimeEnvironment,

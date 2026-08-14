@@ -26,8 +26,7 @@ const OBJECT_TYPE = "opportunity_source.candidate" as const;
 const CREATED_EVENT = "opportunity_source.candidate_recorded" as const;
 const DECIDED_EVENT = "opportunity_source.candidate_decided" as const;
 const EVENT_SCHEMA = "valo.opportunity-source-network/v1" as const;
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+import { UUID_V1_5_PATTERN as UUID } from "../identifierPatterns";
 const CONTROL = /[\u0000-\u001f\u007f]/u;
 const SOURCE_READ_ROLES = ORGANISATION_ROLES.filter((role) =>
   hasPermission([role], "organisation:read"),
@@ -79,11 +78,7 @@ interface StoredDecisionEvent {
   tenderId: string | null;
 }
 
-function isPlain(value: unknown): value is Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
+import { isPlainRecord as isPlain } from "../typeGuards";
 
 function exactKeys(
   value: Record<string, unknown>,

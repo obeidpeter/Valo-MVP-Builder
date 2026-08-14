@@ -151,9 +151,10 @@ async function appendAuditTx(
   await writeAuditTx(tx, params);
 }
 
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const SHA256 = /^[a-f0-9]{64}$/;
+import {
+  SHA256_HEX_PATTERN as SHA256,
+  UUID_V1_5_PATTERN as UUID,
+} from "./identifierPatterns";
 const CONTROL = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
 const REFERENCE = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$/;
 const RECONCILIATION_LEASE_MS = 30_000;
@@ -191,16 +192,7 @@ function projectPredicate(projectId: string | null | undefined) {
     : eq(notificationEvents.projectId, projectId);
 }
 
-function deterministicUuid(seed: string): string {
-  const bytes = Buffer.from(
-    createHash("sha256").update(seed).digest("hex").slice(0, 32),
-    "hex",
-  );
-  bytes[6] = (bytes[6]! & 0x0f) | 0x40;
-  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
-  const hex = bytes.toString("hex");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
+import { deterministicUuidFromBytes as deterministicUuid } from "./deterministicUuid";
 
 function outboxEventId(intent: TransactionalOutboxIntent): string {
   return deterministicUuid(

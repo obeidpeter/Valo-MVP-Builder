@@ -15,7 +15,7 @@ export interface HealthRouterDependencies {
   readinessTimeoutMillis?: number;
 }
 
-const RELEASE_SHA256 = /^[0-9a-f]{64}$/u;
+import { SHA256_HEX_PATTERN as RELEASE_SHA256 } from "../lib/identifierPatterns";
 
 function publishReleaseIdentity(
   res: { setHeader(name: string, value: string): unknown },

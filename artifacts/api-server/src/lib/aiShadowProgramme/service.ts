@@ -22,9 +22,10 @@ import {
   type AiShadowVersionManifest,
 } from "./contracts";
 
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const SHA256 = /^[a-f0-9]{64}$/u;
+import {
+  SHA256_HEX_PATTERN as SHA256,
+  UUID_PATTERN as UUID,
+} from "../identifierPatterns";
 const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
 const IDEMPOTENCY = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/u;
 const CAPABILITIES = new Set<string>(AI_CAPABILITY_IDS);
@@ -45,11 +46,7 @@ const VERSION_KEYS: Array<keyof AiShadowVersionManifest> = [
   "expectedCaseManifestSha256",
 ];
 
-const plain = (value: unknown): value is Record<string, unknown> => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-};
+import { isPlainRecord as plain } from "../typeGuards";
 
 const exactKeys = (value: Record<string, unknown>, keys: string[]): boolean => {
   const actual = Object.keys(value).sort();

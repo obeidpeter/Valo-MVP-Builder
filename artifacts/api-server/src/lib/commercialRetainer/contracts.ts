@@ -3,6 +3,7 @@ export const COMMERCIAL_RETAINER_PRICE_BOOK_NAME =
   "valo-fixed-commercial-catalogue";
 export const COMMERCIAL_RETAINER_PRICE_BOOK_VERSION = 1;
 export const RETAINER_TASK_PREFIX = "[RETAINER-DESK:v1:";
+export const RETAINER_ENVELOPE_SCHEMA = "valo.retainer-service-request@v1";
 
 export const COMMERCIAL_RETAINER_BOUNDS = Object.freeze({
   listRows: 50,

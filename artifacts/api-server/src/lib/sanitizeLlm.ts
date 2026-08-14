@@ -72,9 +72,7 @@ function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value.slice(0, MAX_ITEMS) : [];
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+import { isRecord } from "./typeGuards";
 
 export function sanitizeExtractedRequirements(
   raw: unknown,

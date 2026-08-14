@@ -194,27 +194,3 @@ export async function extractDocumentTextFromBuffer(
     };
   }
 }
-
-/**
- * Best-effort text extraction from an uploaded document by object path.
- * Downloads the object then delegates to `extractDocumentTextFromBuffer`.
- */
-export async function extractDocumentText(
-  objectPath: string,
-  contentType: string | null | undefined,
-  context?: ExtractionContext,
-): Promise<ExtractionResult> {
-  let buf: Buffer;
-  try {
-    buf = await readObjectBuffer(objectPath);
-  } catch (error) {
-    return {
-      text: null,
-      status: "failed",
-      method: "none",
-      confidence: null,
-      notes: `stored object unreadable: ${(error instanceof Error ? error.message : String(error)).slice(0, 200)}`,
-    };
-  }
-  return extractDocumentTextFromBuffer(buf, contentType, context);
-}

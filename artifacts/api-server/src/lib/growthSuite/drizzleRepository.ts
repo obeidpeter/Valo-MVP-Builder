@@ -27,9 +27,10 @@ import {
   type QuoteProposal,
 } from "./contracts";
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
+import {
+  SHA256_HEX_PATTERN as SHA256_PATTERN,
+  UUID_PATTERN,
+} from "../identifierPatterns";
 const CONTROL_CHARACTER = /[\u0000-\u001f\u007f]/u;
 const EVENT_SCHEMA = "valo.growth-suite.lead-event/v1" as const;
 const LEAD_OBJECT_TYPE = "growth_suite_lead" as const;
@@ -177,11 +178,7 @@ function exactKeys(value: Record<string, unknown>, keys: readonly string[]) {
   );
 }
 
-function plainRecord(value: unknown): value is Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
+import { isPlainRecord as plainRecord } from "../typeGuards";
 
 function eventDetails(value: Record<string, unknown>): string {
   const serialized = JSON.stringify(value);

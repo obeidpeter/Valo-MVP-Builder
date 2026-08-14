@@ -108,29 +108,3 @@ export async function attachUser(
     res.status(500).json({ error: "Authentication error" });
   }
 }
-
-/** Requires an approved member (any role other than "none"). */
-export function requireMember(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): void {
-  const user = getLocalUser(req);
-  if (!user || user.role === "none") {
-    res.status(403).json({ error: "Awaiting access approval" });
-    return;
-  }
-  next();
-}
-
-/** Requires the current user to hold one of the given roles. */
-export function requireRoles(...roles: string[]) {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    const user = getLocalUser(req);
-    if (!user || !roles.includes(user.role)) {
-      res.status(403).json({ error: "Insufficient role" });
-      return;
-    }
-    next();
-  };
-}

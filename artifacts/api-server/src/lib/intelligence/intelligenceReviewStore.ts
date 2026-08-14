@@ -9,7 +9,7 @@ import {
 } from "./snapshot";
 import type { IntelligenceSourceVersion } from "./intelligenceSourceVersion";
 
-const SHA256 = /^[a-f0-9]{64}$/u;
+import { SHA256_HEX_PATTERN as SHA256 } from "../identifierPatterns";
 const CAPABILITIES = new Set<string>(INTELLIGENCE_CAPABILITY_IDS);
 const MAX_POSTGRES_INTEGER = 2_147_483_647;
 const MAX_REVIEWER_NAME_CODE_UNITS = 512;

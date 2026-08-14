@@ -569,9 +569,7 @@ export function buildRegisteredResponsivenessPrompt(context: {
   });
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+import { isRecord } from "./typeGuards";
 
 function exactKeys(
   value: Record<string, unknown>,

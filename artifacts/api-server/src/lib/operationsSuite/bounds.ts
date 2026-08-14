@@ -19,5 +19,5 @@ export const OPERATIONS_SUITE_BOUNDS = Object.freeze({
   requestBodyBytes: 1_048_576,
 } as const);
 
-export const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
+export { SHA256_HEX_PATTERN as SHA256_PATTERN } from "../identifierPatterns";
 export const ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/u;

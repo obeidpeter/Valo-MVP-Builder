@@ -125,7 +125,7 @@ export function createAuthenticatedRateLimiter(options?: {
   const policy = options?.policy ?? authenticatedRateLimitPolicy();
   const runInTenant = options?.runInTenant ?? withIndependentTenantDatabase;
   return async (req: Request, res: Response, next: NextFunction) => {
-    if (!MUTATING_METHODS.has(req.method.toUpperCase())) {
+    if (!isMutating(req)) {
       next();
       return;
     }
@@ -153,22 +153,8 @@ export function createAuthenticatedRateLimiter(options?: {
           windowSeconds: policy.windowSeconds,
         }),
       );
-      res.setHeader("RateLimit-Limit", String(result.limit));
-      res.setHeader("RateLimit-Remaining", String(result.remaining));
-      res.setHeader(
-        "RateLimit-Reset",
-        String(Math.ceil(result.resetAt.getTime() / 1_000)),
-      );
-      if (!result.allowed) {
-        const retryAfter = Math.max(
-          1,
-          Math.ceil((result.resetAt.getTime() - Date.now()) / 1_000),
-        );
-        res.setHeader("Retry-After", String(retryAfter));
-        res.setHeader("Cache-Control", "private, no-store");
-        res.status(429).json({ error: "Too many authenticated requests" });
-        return;
-      }
+      setRateLimitHeaders(res, result);
+      if (rejectIfExhausted(res, result)) return;
       next();
     } catch (error) {
       next(error);
@@ -177,6 +163,39 @@ export function createAuthenticatedRateLimiter(options?: {
 }
 
 export const authenticatedRateLimiter = createAuthenticatedRateLimiter();
+
+interface RateLimitOutcome {
+  allowed: boolean;
+  limit: number;
+  remaining: number;
+  resetAt: Date;
+}
+
+function isMutating(req: Request): boolean {
+  return MUTATING_METHODS.has(req.method.toUpperCase());
+}
+
+function setRateLimitHeaders(res: Response, result: RateLimitOutcome): void {
+  res.setHeader("RateLimit-Limit", String(result.limit));
+  res.setHeader("RateLimit-Remaining", String(result.remaining));
+  res.setHeader(
+    "RateLimit-Reset",
+    String(Math.ceil(result.resetAt.getTime() / 1_000)),
+  );
+}
+
+/** Sends the 429 response and returns true when the bucket is exhausted. */
+function rejectIfExhausted(res: Response, result: RateLimitOutcome): boolean {
+  if (result.allowed) return false;
+  const retryAfter = Math.max(
+    1,
+    Math.ceil((result.resetAt.getTime() - Date.now()) / 1_000),
+  );
+  res.setHeader("Retry-After", String(retryAfter));
+  res.setHeader("Cache-Control", "private, no-store");
+  res.status(429).json({ error: "Too many authenticated requests" });
+  return true;
+}
 
 type ActorConsume = typeof consumeAuthenticatedActorRateLimit;
 
@@ -193,7 +212,7 @@ export function createAuthenticatedActorMutationRateLimiter(options?: {
   const consume = options?.consume ?? consumeAuthenticatedActorRateLimit;
   const policy = options?.policy ?? authenticatedActorRateLimitPolicy();
   return async (req: Request, res: Response, next: NextFunction) => {
-    if (!MUTATING_METHODS.has(req.method.toUpperCase())) {
+    if (!isMutating(req)) {
       next();
       return;
     }
@@ -210,26 +229,8 @@ export function createAuthenticatedActorMutationRateLimiter(options?: {
         max: policy.max,
         windowSeconds: policy.windowSeconds,
       });
-      res.setHeader("RateLimit-Limit", String(result.limit));
-      res.setHeader("RateLimit-Remaining", String(result.remaining));
-      res.setHeader(
-        "RateLimit-Reset",
-        String(Math.ceil(result.resetAt.valueOf() / 1_000)),
-      );
-      if (!result.allowed) {
-        res.setHeader(
-          "Retry-After",
-          String(
-            Math.max(
-              1,
-              Math.ceil((result.resetAt.valueOf() - Date.now()) / 1_000),
-            ),
-          ),
-        );
-        res.setHeader("Cache-Control", "private, no-store");
-        res.status(429).json({ error: "Too many authenticated requests" });
-        return;
-      }
+      setRateLimitHeaders(res, result);
+      if (rejectIfExhausted(res, result)) return;
       next();
     } catch (error) {
       next(error);

@@ -11,20 +11,19 @@ import {
   type OperationsRecordKind,
   type OperationsScope,
   type OpportunityIntakeRecord,
+  OPERATIONS_ENVELOPE_SCHEMA,
 } from "./contracts";
 import { OperationsSuiteError } from "./errors";
 import type { OperationsSuiteStore } from "./store";
 
-const ENVELOPE_SCHEMA = "valo.operations-suite/v1" as const;
 const TITLE_PREFIX = "[OPS:";
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+import { UUID_PATTERN } from "../identifierPatterns";
 const MAX_ENVELOPE_CODE_UNITS = 524_288;
 const MAX_ENVELOPE_BYTES = 2_097_152;
 const MAX_LIST_BYTES = 8_388_608;
 
 interface PersistedOperationsEnvelope {
-  schema: typeof ENVELOPE_SCHEMA;
+  schema: typeof OPERATIONS_ENVELOPE_SCHEMA;
   record: OperationsRecord;
 }
 
@@ -87,7 +86,7 @@ function storageStatus(record: OperationsRecord): string {
 }
 
 function serialize(record: OperationsRecord): string {
-  const value = JSON.stringify({ schema: ENVELOPE_SCHEMA, record });
+  const value = JSON.stringify({ schema: OPERATIONS_ENVELOPE_SCHEMA, record });
   if (
     value.length > MAX_ENVELOPE_CODE_UNITS ||
     Buffer.byteLength(value, "utf8") > MAX_ENVELOPE_BYTES
@@ -130,7 +129,7 @@ function parseEnvelope(
   const envelope = parsed as Partial<PersistedOperationsEnvelope>;
   const record = envelope.record as OperationsRecord | undefined;
   if (
-    envelope.schema !== ENVELOPE_SCHEMA ||
+    envelope.schema !== OPERATIONS_ENVELOPE_SCHEMA ||
     !record ||
     typeof record !== "object" ||
     !OPERATIONS_RECORD_KINDS.includes(record.kind) ||

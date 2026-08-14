@@ -6,7 +6,7 @@ Status: application integration complete. API, direct-membership Workbench acces
 
 - API route factory: `createClaimsDeskRouter` and default `claimsDeskRouter` from `artifacts/api-server/src/routes/claimsDesk.ts`.
 - Production repository: `PostgresClaimsDeskRepository` and `postgresClaimsDeskRepository` from `artifacts/api-server/src/lib/claimsDesk/repository.ts`.
-- Shared backend barrel: `artifacts/api-server/src/lib/claimsDesk/index.ts`.
+- Shared backend modules: `artifacts/api-server/src/lib/claimsDesk/{contracts,service,repository,activation}.ts`.
 - Workbench page default export: `artifacts/valo-workbench/src/pages/claims-desk.tsx`.
 - Workbench component barrel: `artifacts/valo-workbench/src/components/claims-desk/index.ts`.
 

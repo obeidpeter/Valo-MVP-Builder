@@ -16,9 +16,10 @@ import {
   type RetainerServiceRequest,
 } from "./contracts";
 
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const SHA256 = /^[a-f0-9]{64}$/;
+import {
+  SHA256_HEX_PATTERN as SHA256,
+  UUID_V1_5_PATTERN as UUID,
+} from "../identifierPatterns";
 const CURRENCY = /^[A-Z]{3}$/;
 const CONTROL_CHARACTER = /[\u0000-\u001f\u007f]/u;
 const OFFER_VERSIONS = new Set(

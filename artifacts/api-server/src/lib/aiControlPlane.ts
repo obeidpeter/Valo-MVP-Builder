@@ -7,6 +7,13 @@ import {
   type AiCapabilityId,
   type AiSafeErrorCode,
 } from "./aiPolicy";
+import {
+  SHA256,
+  validIdentifier,
+  validIsoTimestamp,
+  validNonNegativeInteger,
+  validUnitScore,
+} from "./aiFoundationValidation";
 
 /**
  * Pure control-plane contracts for later integration. They do not start a
@@ -50,9 +57,6 @@ export interface AiHumanReviewRiskDecision {
   reasons: string[];
 }
 
-const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
-const SHA256 = /^[a-f0-9]{64}$/;
-const RFC3339_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
 const AI_CAPABILITIES = new Set<string>(AI_CAPABILITY_IDS);
 const CAPABILITY_POLICY_SNAPSHOT = Object.freeze(
   Object.fromEntries(
@@ -88,22 +92,6 @@ const GROUNDING_STATES = new Set([
   "contradicted",
 ]);
 const RISK_BANDS = new Set(["low", "medium", "high", "critical"]);
-
-const hasText = (value: unknown): value is string =>
-  typeof value === "string" && value.trim().length > 0;
-const validIdentifier = (value: unknown): value is string =>
-  hasText(value) && IDENTIFIER.test(value);
-const validIsoTimestamp = (value: unknown): value is string =>
-  hasText(value) &&
-  RFC3339_UTC.test(value) &&
-  Number.isFinite(Date.parse(value));
-const validUnitScore = (value: unknown): value is number =>
-  typeof value === "number" &&
-  Number.isFinite(value) &&
-  value >= 0 &&
-  value <= 1;
-const validNonNegativeInteger = (value: unknown): value is number =>
-  typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 
 export function assessAiHumanReviewRisk(
   input: AiHumanReviewRiskInput,
