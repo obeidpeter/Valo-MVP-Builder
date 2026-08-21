@@ -99,7 +99,7 @@ export default function IntelligenceCentreRoute() {
     loadState = {
       status: "error",
       message:
-        "The tenant-scoped project or intelligence snapshot request failed.",
+        "The project list or intelligence summary could not be loaded for this organisation.",
       retry: () => {
         void projectsQuery.refetch();
         if (selectedProjectId) void intelligenceQuery.refetch();
@@ -108,7 +108,7 @@ export default function IntelligenceCentreRoute() {
   } else if (selectedProjectId.length > 0 && !intelligenceQuery.data) {
     loadState = {
       status: "error",
-      message: "The tenant-scoped intelligence snapshot was not verified.",
+      message: "The intelligence summary could not be verified.",
       retry: () => void intelligenceQuery.refetch(),
     };
   } else {
@@ -205,7 +205,7 @@ export default function IntelligenceCentreRoute() {
         <StatusPanel
           state="blocked"
           title="Intelligence source access required"
-          description="This combined view is available only when your active organisation assignment grants every source permission used by its project, document, requirement, evidence, defect, report, draft and package signals. No partial source content has been loaded."
+          description="Your current role needs access to every source used here: projects, documents, requirements, evidence, defects, reports, drafts and packages. No partial content was loaded."
         />
       </div>
     );
@@ -227,8 +227,8 @@ export default function IntelligenceCentreRoute() {
                 Active pursuit
               </h2>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                Every signal below is limited to the selected, server-authorised
-                organisation and pursuit.
+                All information below is limited to the selected organisation
+                and pursuit.
               </p>
             </div>
             <label

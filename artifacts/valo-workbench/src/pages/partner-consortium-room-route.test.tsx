@@ -99,7 +99,7 @@ describe("Partner Consortium room authority and pending states", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /exact relationship access required/i,
+        name: /relationship access required/i,
       }),
     ).toBeInTheDocument();
     expect(listProjects.mock.calls[0]?.[1]).toEqual(

@@ -45,6 +45,24 @@ describe("identity-bound query cache", () => {
     clerkState.sessionId = "session-a";
   });
 
+  it("explains that the workspace is opening while identity is still loading", () => {
+    clerkState.isLoaded = false;
+    clerkState.isSignedIn = false;
+    clerkState.userId = null;
+    clerkState.sessionId = null;
+
+    render(
+      <IdentityBoundQueryProvider>
+        <p>Private workspace</p>
+      </IdentityBoundQueryProvider>,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Opening your workspace",
+    );
+    expect(screen.queryByText("Private workspace")).not.toBeInTheDocument();
+  });
+
   it.each([
     ["a different account", "user-b", "session-b"],
     ["a replacement session", "user-a", "session-b"],

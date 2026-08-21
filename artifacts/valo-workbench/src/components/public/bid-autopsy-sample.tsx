@@ -9,23 +9,23 @@ import {
 const reviewTrail = [
   {
     label: "Tender source",
-    value: "Sample ITT / clause 4.2 / page 18",
-    note: "Source location retained",
+    value: "Sample invitation to tender (ITT) / clause 4.2 / page 18",
+    note: "Source page recorded",
   },
   {
-    label: "Extracted requirement",
+    label: "Draft requirement",
     value: "Provide a valid tax clearance certificate for the stated period.",
     note: "Confirmed by a reviewer",
   },
   {
     label: "Evidence match",
-    value: "Certificate found; one required year is not evidenced.",
+    value: "Certificate found, but it does not cover one required year.",
     note: "Partial match",
   },
   {
     label: "Finding and action",
     value:
-      "Compliance gap / obtain and verify the missing year before release.",
+      "Missing compliance evidence: obtain and verify the missing year before the final report.",
     note: "Owner: Compliance lead",
   },
 ] as const;
@@ -36,7 +36,7 @@ export function BidAutopsySample() {
       <div className="flex flex-col gap-3 border-b border-sidebar-border bg-sidebar/55 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-sidebar-primary">
-            Representative report extract
+            Example report
           </p>
           <p className="mt-1 text-sm text-sidebar-foreground/65">
             Sample content - not a client record
@@ -97,7 +97,7 @@ export function BidAutopsySample() {
                 Classification
               </dt>
               <dd className="mt-1 font-semibold text-amber-300">
-                Compliance gap
+                Missing compliance evidence
               </dd>
             </div>
             <div className="border-t border-sidebar-border pt-4">
@@ -106,25 +106,26 @@ export function BidAutopsySample() {
             </div>
             <div className="border-t border-sidebar-border pt-4">
               <dt className="text-xs text-sidebar-foreground/60">
-                Evidence state
+                Evidence status
               </dt>
               <dd className="mt-1 font-semibold">Partial</dd>
             </div>
             <div className="border-t border-sidebar-border pt-4">
               <dt className="flex items-center gap-2 text-xs text-sidebar-foreground/60">
                 <Calculator aria-hidden="true" className="size-4" />
-                BOQ check
+                Bill of quantities check
               </dt>
               <dd className="mt-1 text-sm leading-6 text-sidebar-foreground/75">
-                One line extension differs from quantity x client-supplied rate.
+                One line total differs from the quantity multiplied by the
+                client-supplied rate.
               </dd>
             </div>
           </dl>
         </div>
       </div>
       <figcaption className="border-t border-sidebar-border bg-sidebar-accent px-5 py-3 text-xs leading-5 text-sidebar-foreground/60">
-        This example demonstrates Valo's review method. Scope and available
-        checks are confirmed for each engagement.
+        This example shows how Valo reviews a bid. Valo confirms what it can
+        check for each piece of work.
       </figcaption>
     </figure>
   );

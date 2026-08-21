@@ -193,17 +193,17 @@ export function ClientCapability({ clientId }: { clientId: string }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-serif tracking-tight font-medium">
-            Capability Library
+            Capability claims
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Only evidence-linked, approved claims are usable in drafts —
-            unsupported claims are flagged, never filled in.
+            Only approved claims linked to evidence can be used in drafts.
+            Unsupported claims are flagged and never filled in.
           </p>
         </div>
         {canWriteEvidence && (
           <Button size="sm" variant="outline" onClick={openCreate}>
             <Plus className="w-4 h-4 mr-2" />
-            Add Claim
+            Add claim
           </Button>
         )}
       </div>
@@ -351,10 +351,10 @@ export function ClientCapability({ clientId }: { clientId: string }) {
         ) : (
           <div className="p-10 text-center text-muted-foreground">
             <Award className="w-12 h-12 mx-auto mb-3 text-muted" />
-            <p>No capability claims on record for this client.</p>
+            <p>No capability claims recorded for this client.</p>
             <p className="text-sm mt-1">
-              Record past projects, personnel, equipment, and certifications —
-              each backed by an evidence document.
+              Record past projects, people, equipment and certifications, with
+              an evidence document for each claim.
             </p>
           </div>
         )}
@@ -367,13 +367,13 @@ export function ClientCapability({ clientId }: { clientId: string }) {
         <DialogContent className="sm:max-w-[520px]">
           <DialogHeader>
             <DialogTitle className="font-serif">
-              {editingId ? "Edit Claim" : "Add Capability Claim"}
+              {editingId ? "Edit claim" : "Add capability claim"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground uppercase">
-                Claim Type
+                Claim type
               </label>
               <Select
                 value={form.claimType}
@@ -408,7 +408,7 @@ export function ClientCapability({ clientId }: { clientId: string }) {
             </div>
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground uppercase">
-                Evidence Document
+                Evidence document
               </label>
               <Select
                 value={form.evidenceDocId}
@@ -442,7 +442,7 @@ export function ClientCapability({ clientId }: { clientId: string }) {
             </Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {editingId ? "Save Changes" : "Add Claim"}
+              {editingId ? "Save changes" : "Add claim"}
             </Button>
           </DialogFooter>
         </DialogContent>

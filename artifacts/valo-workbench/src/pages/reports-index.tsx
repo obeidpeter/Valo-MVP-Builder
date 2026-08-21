@@ -63,7 +63,7 @@ export default function ReportsIndex() {
       <PageHeader
         eyebrow="Controlled outputs"
         title="Reports"
-        description="A portfolio directory of project report records. Generation, approval and export remain project-scoped and are rechecked by the server at action time."
+        description="See report records across pursuits. Report creation, approval and export stay inside each pursuit and permissions are checked again when you act."
         state={pageState}
       />
       {projectsQuery.isLoading ? (
@@ -71,7 +71,7 @@ export default function ReportsIndex() {
       ) : null}
       {projectsQuery.isError ? (
         <DataErrorPanel
-          description="The pursuit directory could not be loaded. This failure must not be interpreted as an empty report portfolio."
+          description="The pursuit list could not be loaded. This does not mean there are no reports."
           onRetry={() => {
             void projectsQuery.refetch();
           }}
@@ -79,8 +79,8 @@ export default function ReportsIndex() {
       ) : null}
       {!projectsQuery.isError && reportFailureCount > 0 ? (
         <DataErrorPanel
-          title="Some report registers could not be loaded"
-          description={`${reportFailureCount} pursuit report ${reportFailureCount === 1 ? "register is" : "registers are"} unavailable. Affected rows are labelled unavailable and are excluded from report counts.`}
+          title="Some pursuit reports could not be loaded"
+          description={`${reportFailureCount} pursuit report ${reportFailureCount === 1 ? "list is" : "lists are"} unavailable. Affected rows are marked unavailable and are not included in report counts.`}
           onRetry={() => {
             reportQueries.forEach((query) => {
               if (query.isError) void query.refetch();
@@ -91,15 +91,15 @@ export default function ReportsIndex() {
       {!projectsQuery.isError && reportPendingCount > 0 ? (
         <StatusPanel
           state="pending"
-          title="Report registers are loading"
-          description={`${reportPendingCount} pursuit report ${reportPendingCount === 1 ? "register is" : "registers are"} still loading. Pending rows are not included in report counts.`}
+          title="Pursuit reports are loading"
+          description={`${reportPendingCount} pursuit report ${reportPendingCount === 1 ? "list is" : "lists are"} still loading. Pending rows are not included in report counts.`}
         />
       ) : null}
       {projectsQuery.isSuccess && rows.length === 0 ? (
         <StatusPanel
           state="empty"
           title="No pursuits are available"
-          description="A report can only exist inside a server-authorised pursuit."
+          description="A report can only exist inside a pursuit you can access."
         />
       ) : null}
       {projectsQuery.isSuccess && rows.length > 0 ? (
@@ -206,9 +206,8 @@ export default function ReportsIndex() {
               aria-hidden="true"
               className="mt-0.5 size-5 shrink-0 text-primary"
             />
-            Report presence is not submission readiness. Open defects, evidence
-            gaps, assignment, provenance and approval state remain
-            authoritative.
+            A report does not mean a submission is ready. Open issues, evidence
+            gaps, assignments, source history and approval status still apply.
           </div>
         </section>
       ) : null}

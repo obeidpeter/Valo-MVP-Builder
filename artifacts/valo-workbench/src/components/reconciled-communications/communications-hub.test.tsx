@@ -109,7 +109,9 @@ describe("CommunicationsHub", () => {
       />,
     );
     expect(
-      screen.getByText(/no free-form message, address, uuid, or consent/i),
+      screen.getByText(
+        /free-text content and raw recipient addresses cannot enter the communication record/i,
+      ),
     ).toBeInTheDocument();
     expect(screen.queryByLabelText(/message body/i)).not.toBeInTheDocument();
     expect(
@@ -119,7 +121,7 @@ describe("CommunicationsHub", () => {
       screen.queryByLabelText(/consent evidence sha/i),
     ).not.toBeInTheDocument();
     fireEvent.click(
-      screen.getByRole("button", { name: /record human delivery attempt/i }),
+      screen.getByRole("button", { name: /record delivery attempt/i }),
     );
     expect(onMutate).toHaveBeenCalledWith({
       kind: "attempt",
@@ -143,14 +145,14 @@ describe("CommunicationsHub", () => {
     fireEvent.change(screen.getByLabelText(/consented recipient/i), {
       target: { value: REFERENCES.recipients[0]!.userId },
     });
-    fireEvent.change(screen.getByLabelText(/canonical template context/i), {
+    fireEvent.change(screen.getByLabelText(/approved template and project/i), {
       target: { value: REFERENCES.contexts[0]!.id },
     });
     fireEvent.change(screen.getByLabelText(/delivery attempt deadline/i), {
       target: { value: "2026-08-20T10:00" },
     });
     fireEvent.click(
-      screen.getByRole("button", { name: /queue approved intent/i }),
+      screen.getByRole("button", { name: /create message plan/i }),
     );
     expect(onMutate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -182,7 +184,7 @@ describe("CommunicationsHub", () => {
     expect(
       screen.getByText(/provider acceptance is not delivery/i),
     ).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText(/opaque receipt reference/i), {
+    fireEvent.change(screen.getByLabelText(/receipt reference/i), {
       target: { value: "receipt-ref-001" },
     });
     fireEvent.click(screen.getByRole("button", { name: /verify receipt/i }));

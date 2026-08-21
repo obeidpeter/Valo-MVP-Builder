@@ -72,7 +72,7 @@ export function PursuitOperationsBoard({
     state,
     error,
     count: items.length,
-    loadingLabel: "Loading tenant-scoped pursuit work",
+    loadingLabel: "Loading pursuit work for this organisation",
     errorTitle: "Pursuit work could not be loaded",
     emptyTitle: "No pursuit work is recorded",
     emptyDescription:
@@ -83,8 +83,8 @@ export function PursuitOperationsBoard({
   return (
     <OperationsSection
       id="pursuit-board"
-      title="My Work & pursuit operations board"
-      description="Coordinate owners, due dates and requirement/evidence links without turning projections into completed work."
+      title="My Work and pursuit tasks"
+      description="Coordinate owners, due dates and requirement or evidence links. Planned work is not shown as complete."
       icon={<ListChecks aria-hidden="true" className="size-5" />}
       busy={state === "loading"}
     >

@@ -181,7 +181,7 @@ export function CommercialVerificationSection({
     if (!documentId) {
       toast({
         variant: "destructive",
-        title: "Select the governed source document for this workbook",
+        title: "Select the approved source document for this workbook",
       });
       return;
     }
@@ -311,11 +311,10 @@ export function CommercialVerificationSection({
       <div>
         <h3 className="text-sm font-medium">Commercial verification</h3>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Lot-level VAT, discount and total reconciliation under the pinned
-          Nigeria rule pack
-          {snapshot ? ` (${snapshot.rulePackId})` : ""}. Verification checks
-          client-supplied figures only; a pass is not a pricing or award
-          opinion.
+          Check lot-level VAT, discounts and totals with the selected Nigeria
+          rule set{snapshot ? ` (${snapshot.rulePackId})` : ""}. These checks
+          use only the figures supplied by the client. A pass is not a pricing
+          or award opinion.
         </p>
       </div>
 
@@ -331,7 +330,7 @@ export function CommercialVerificationSection({
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="space-y-1 col-span-2">
                   <label className="text-xs font-medium text-muted-foreground uppercase">
-                    Source document (governed)
+                    Approved source document
                   </label>
                   <Select value={documentId} onValueChange={setDocumentId}>
                     <SelectTrigger className="h-8 text-xs">
@@ -443,7 +442,7 @@ export function CommercialVerificationSection({
                 ) : (
                   <Calculator className="w-4 h-4 mr-2" />
                 )}
-                Run Commercial Verification
+                Run commercial checks
               </Button>
             </>
           )}
@@ -637,8 +636,8 @@ export function CommercialVerificationSection({
         </>
       ) : (
         <p className="text-xs text-muted-foreground">
-          No commercial verification runs recorded for this pursuit. This only
-          means the register is empty — it does not verify any workbook.
+          No commercial checks are recorded for this pursuit. An empty list does
+          not mean any workbook has been verified.
         </p>
       )}
     </div>

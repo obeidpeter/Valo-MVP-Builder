@@ -251,7 +251,7 @@ export default function EvidenceRenewalPage() {
         { responseType: "json", cache: "no-store" },
       );
       assertCurrent(
-        "Evidence renewal authority changed while canonical options loaded",
+        "Evidence renewal permissions changed while current documents loaded",
       );
       return adaptCanonicalEvidenceOptions(payload, organisationId, projectId);
     },
@@ -318,7 +318,7 @@ export default function EvidenceRenewalPage() {
         variant: "destructive",
         title: "Evidence renewal action was not verified",
         description:
-          "The request key is retained for a safe retry. No external message delivery is inferred.",
+          "The request key is kept for a safe retry. No external message was confirmed as sent.",
       });
     },
   });
@@ -327,8 +327,8 @@ export default function EvidenceRenewalPage() {
     return (
       <PageGatePanel
         state="blocked"
-        title="Direct evidence authority required"
-        description="Evidence renewal plans are unavailable through partner-derived or emergency access."
+        title="Direct evidence access required"
+        description="Evidence renewal plans are unavailable through partner or emergency access."
       />
     );
   }
@@ -337,14 +337,14 @@ export default function EvidenceRenewalPage() {
       <PageGatePanel
         state="offline"
         title="Evidence renewal is unavailable offline"
-        description="Reconnect before reading or changing the governed renewal register."
+        description="Reconnect before reading or changing renewal plans."
       />
     );
   }
   if (projectsQuery.isLoading || !actorUserId) {
     return (
       <div className="p-5 sm:p-8">
-        <LoadingPanel label="Loading governed renewal scope" />
+        <LoadingPanel label="Loading evidence renewal access" />
       </div>
     );
   }
@@ -357,7 +357,7 @@ export default function EvidenceRenewalPage() {
             ? "Pursuit scope is unavailable"
             : "No active pursuit"
         }
-        description="A current tenant-scoped pursuit is required before a renewal plan can be read."
+        description="Select a current pursuit before viewing a renewal plan."
       />
     );
   }
@@ -404,8 +404,8 @@ export default function EvidenceRenewalPage() {
       {requiredError ? (
         <PageGatePanel
           state="error"
-          title="Evidence renewal records could not be verified"
-          description="No empty register, current assignment, canonical document, or successful message delivery has been inferred."
+          title="Evidence renewal records could not be checked"
+          description="No empty list, current assignment, approved document or successful reminder is shown while this check is unavailable."
         >
           <Button
             type="button"

@@ -144,7 +144,7 @@ function CreateRenewalPlan({
             required
           >
             <option value="" disabled>
-              Select a governed vault artefact
+              Select an approved evidence item
             </option>
             {vaultItems.map((item) => (
               <option key={item.id} value={item.id}>
@@ -222,7 +222,7 @@ function CreateRenewalPlan({
         <legend className="text-sm font-medium">Affected-pursuit impact</legend>
         <p className="text-xs text-muted-foreground">
           The current pursuit is required. Add other pursuits for the same
-          client only when their evidence posture is affected.
+          client only when their evidence status is affected.
         </p>
         <div className="grid gap-3 md:grid-cols-2">
           {pursuits.map((pursuit) => {
@@ -284,7 +284,7 @@ function CreateRenewalPlan({
 
       {vaultItems.length === 0 ? (
         <p role="status" className="text-sm text-muted-foreground">
-          No governed vault artefact is available for this client.
+          No approved evidence item is available for this client.
         </p>
       ) : null}
       <Button
@@ -341,7 +341,7 @@ function StageReplacement({
       className="mt-4 space-y-4 border-t border-border pt-4"
       onSubmit={submit}
     >
-      <h3 className="text-sm font-semibold">Stage canonical replacement</h3>
+      <h3 className="text-sm font-semibold">Prepare approved replacement</h3>
       <CanonicalEvidencePicker
         id={`renewal-document-${plan.id}`}
         label="Current clean replacement document"
@@ -432,8 +432,8 @@ function ReviewReplacement({
     <div className="mt-4 space-y-3 border-t border-border pt-4">
       <h3 className="text-sm font-semibold">Independent verifier decision</h3>
       <p className="text-xs leading-5 text-muted-foreground">
-        Approval revalidates the exact current clean document and promotes it
-        with vault CAS. It sends no external message.
+        Approval rechecks the current clean document and updates the evidence
+        record only if it has not changed. No external message is sent.
       </p>
       <div className="space-y-2">
         <Label htmlFor={`renewal-rejection-${plan.id}`}>Rejection reason</Label>
@@ -514,12 +514,12 @@ export function EvidenceRenewalConsole({
       <PageHeader
         eyebrow="Evidence governance"
         title="Evidence renewal plans"
-        description="Plan expiring evidence, stage a current canonical replacement, and require a different named verifier before the vault projection changes."
+        description="Plan evidence renewals, prepare an approved replacement and require a different named verifier before the evidence record changes."
         state="active"
       />
       <StatusPanel
         state="partial"
-        title="Internal register only"
+        title="Internal list only"
         description={snapshot.authorityNote}
       />
 
@@ -541,10 +541,10 @@ export function EvidenceRenewalConsole({
             id="renewal-register-heading"
             className="font-serif text-xl font-semibold"
           >
-            Governed renewal register
+            Renewal plans
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {snapshot.items.length} bounded plan
+            {snapshot.items.length} plan
             {snapshot.items.length === 1 ? "" : "s"} for this pursuit.
           </p>
         </div>
@@ -552,7 +552,7 @@ export function EvidenceRenewalConsole({
           <StatusPanel
             state="empty"
             title="No renewal plan recorded"
-            description="This is an empty internal register, not proof that every evidence item is current."
+            description="This list is empty, but that does not prove every evidence item is current."
           />
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
@@ -604,7 +604,7 @@ export function EvidenceRenewalConsole({
                     </div>
                   </dl>
                   <div className="mt-4 rounded-md border border-border bg-muted/30 p-3 text-sm">
-                    <h4 className="font-medium">Internal owner reminder</h4>
+                    <h4 className="font-medium">Reminder for the owner</h4>
                     <p className="mt-1 text-muted-foreground">
                       Due {plan.internalReminder.dueAt.slice(0, 10)} ·{" "}
                       {plan.internalReminder.status}. No external delivery
@@ -674,8 +674,8 @@ export function EvidenceRenewalConsole({
       </section>
       {canonicalOptionsTruncated ? (
         <p className="text-xs text-muted-foreground">
-          The canonical replacement picker is bounded to its latest governed
-          window; the server revalidates every selection.
+          The replacement list shows only the latest eligible documents. The
+          server checks every selection again before saving.
         </p>
       ) : null}
     </div>

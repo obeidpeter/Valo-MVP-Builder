@@ -105,7 +105,7 @@ describe("audit provenance visibility", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Legacy v1 audit discontinuity is recorded",
+        name: "Recorded gap in the legacy v1 audit chain",
       }),
     ).toBeInTheDocument();
     expect(
@@ -134,7 +134,7 @@ describe("audit provenance visibility", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/this is not evidence that a legacy chain is intact/i),
+      screen.getByText(/does not prove that the older audit chain is intact/i),
     ).toBeInTheDocument();
   });
 

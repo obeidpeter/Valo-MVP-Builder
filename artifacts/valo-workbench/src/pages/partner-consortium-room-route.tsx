@@ -338,8 +338,8 @@ export default function PartnerConsortiumRoomRoute() {
     return (
       <PageGatePanel
         state="blocked"
-        title="Exact relationship access required"
-        description="Use a direct client membership or the active partner-authorised client context for this relationship."
+        title="Relationship access required"
+        description="Use a direct client membership or the active partner client access for this relationship."
       />
     );
   }
@@ -354,8 +354,8 @@ export default function PartnerConsortiumRoomRoute() {
     return (
       <PageGatePanel
         state="error"
-        title="Consortium authority could not be verified"
-        description="No relationship, responsibility, acceptance, or QA state has been inferred."
+        title="Consortium access could not be verified"
+        description="No relationship, responsibility, acceptance or QA status is shown while this check is unavailable."
       />
     );
   }
@@ -380,8 +380,8 @@ export default function PartnerConsortiumRoomRoute() {
     return (
       <PageGatePanel
         state="error"
-        title="Consortium authority could not be verified"
-        description="No relationship, responsibility, acceptance, or QA state has been inferred."
+        title="Consortium access could not be verified"
+        description="No relationship, responsibility, acceptance or QA status is shown while this check is unavailable."
       />
     );
   }
@@ -390,7 +390,7 @@ export default function PartnerConsortiumRoomRoute() {
       <PageGatePanel
         state="empty"
         title="No active relationship project is available"
-        description="The room requires both an authorised project and an active exact partner relationship."
+        description="The room needs an accessible pursuit and an active partner relationship."
       />
     );
   }
@@ -399,7 +399,7 @@ export default function PartnerConsortiumRoomRoute() {
     <div className="mx-auto w-full max-w-7xl space-y-7 p-5 sm:p-8">
       <section className="grid gap-4 rounded-xl border bg-card p-4 md:grid-cols-2">
         <label className="grid gap-1.5 text-xs font-medium">
-          Project
+          Pursuit
           <select
             className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-sm"
             value={projectId}
@@ -418,7 +418,7 @@ export default function PartnerConsortiumRoomRoute() {
           </select>
         </label>
         <label className="grid gap-1.5 text-xs font-medium">
-          Exact partner relationship
+          Partner relationship
           <select
             className="min-h-11 rounded-md border border-input bg-background px-3 py-2 font-mono text-sm"
             value={relationshipId}
@@ -439,9 +439,9 @@ export default function PartnerConsortiumRoomRoute() {
       </section>
 
       <PageHeader
-        eyebrow="Partner and consortium room"
-        title="Assign, accept, and independently check shared work"
-        description="A bounded coordination ledger for one active relationship and one client-owned project, with bilateral ownership and immutable content-free receipts."
+        eyebrow="Consortium room"
+        title="Assign, accept and check shared work"
+        description="Coordinate one active relationship and one client-owned pursuit. Both parties confirm ownership, and every change creates a permanent audit receipt without storing content in that receipt."
         state={
           snapshotQuery.isError ||
           (!(snapshotQuery.isLoading || snapshotQuery.isPending) &&
@@ -472,7 +472,7 @@ export default function PartnerConsortiumRoomRoute() {
         <StatusPanel
           state="error"
           title="Consortium room is unavailable"
-          description="Do not interpret this as an empty matrix, completed acceptance, or passed QA."
+          description="This does not mean there are no responsibilities, all work is accepted or QA has passed."
         >
           <Button
             type="button"
@@ -487,7 +487,7 @@ export default function PartnerConsortiumRoomRoute() {
         <StatusPanel
           state="error"
           title="Named participant choices are unavailable"
-          description="No coordinator or owner identifiers are inferred. Existing acceptance actions remain available, but initialization and ownership changes require a current server-authorized directory."
+          description="No coordinator or owner is selected. Existing acceptance actions remain available, but setup and ownership changes need the current member list."
         >
           <Button
             type="button"
@@ -523,7 +523,7 @@ export default function PartnerConsortiumRoomRoute() {
           description={
             projectIsReleased
               ? "The released pursuit remains immutable; this page will not create a room retroactively."
-              : "Requirement write permission is required to name both coordinators and create the bounded room."
+              : "Permission to update requirements is needed to name both coordinators and create the room."
           }
         />
       ) : null}

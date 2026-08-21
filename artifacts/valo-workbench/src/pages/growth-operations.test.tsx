@@ -143,12 +143,10 @@ describe("GrowthOperationsView", () => {
       <GrowthOperationsView {...baseProps} leadRegisterState="pending" />,
     );
 
-    expect(
-      screen.getByText("Loading lead operations queue"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Loading lead queue")).toBeInTheDocument();
     expect(
       screen.queryByText(
-        "No lead summaries are available in this tenant-scoped queue.",
+        "No lead summaries are available for this organisation.",
       ),
     ).not.toBeInTheDocument();
     pending.unmount();
@@ -156,12 +154,10 @@ describe("GrowthOperationsView", () => {
     render(
       <GrowthOperationsView {...baseProps} leadRegisterState="unavailable" />,
     );
-    expect(
-      screen.getByText("Lead operations queue is unavailable"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Lead queue is unavailable")).toBeInTheDocument();
     expect(
       screen.queryByText(
-        "No lead summaries are available in this tenant-scoped queue.",
+        "No lead summaries are available for this organisation.",
       ),
     ).not.toBeInTheDocument();
   });
@@ -212,16 +208,18 @@ describe("GrowthOperationsView", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: /qualify before conversion/i }),
+      screen.getByRole("heading", { name: /qualify leads before conversion/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /learn in a synthetic workspace/i }),
+      screen.getByRole("heading", { name: /practise in a sample workspace/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /versioned scope before price/i }),
+      screen.getByRole("heading", { name: /agree scope before price/i }),
     ).toBeInTheDocument();
     expect(screen.getByText("SYN-PURSUIT-001/REQ-004")).toBeInTheDocument();
-    expect(screen.getByText(/human quote required/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/price entered and approved by people/i),
+    ).toBeInTheDocument();
     expect(container.querySelector('a[href^="mailto:"]')).toBeNull();
     expect(container.querySelector('a[href^="tel:"]')).toBeNull();
     expect(container.querySelector('input[type="email"]')).toBeNull();
@@ -272,7 +270,7 @@ describe("GrowthOperationsView", () => {
     });
 
     expect(
-      screen.getByText("Durable quote ledger unavailable"),
+      screen.getByText("Quote records are not available"),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /^draft quote$/i }),
@@ -324,11 +322,11 @@ describe("GrowthOperationsView", () => {
       "Conversion was completed by the named operator in the external system.",
     );
     await user.type(
-      screen.getByLabelText("Opaque external target reference"),
+      screen.getByLabelText("External system reference"),
       "CRM-CASE-042",
     );
     await user.type(
-      screen.getByLabelText("Human-recorded receipt SHA-256"),
+      screen.getByLabelText("Manual conversion receipt SHA-256"),
       "c".repeat(64),
     );
     await user.click(
@@ -554,9 +552,7 @@ describe("GrowthOperationsView", () => {
     expect(
       screen.getByRole("button", { name: /remove marker/i }),
     ).toHaveAttribute("aria-pressed", "true");
-    expect(
-      screen.getByText(/self-recorded practice marker saved/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/practice marker saved/i)).toBeInTheDocument();
     expect(screen.queryByText("Workspace confirmed.")).not.toBeInTheDocument();
     expect(
       screen.queryByText(/synthetic tour completed/i),
@@ -656,7 +652,7 @@ describe("GrowthOperationsView", () => {
     });
     expect(direct).toEqual([
       { href: "/projects", label: "Pursuits" },
-      { href: "/evidence-readiness", label: "Evidence Library" },
+      { href: "/evidence-readiness", label: "Evidence library" },
     ]);
     expect(
       growthOnboardingDestinations({
@@ -682,7 +678,7 @@ describe("GrowthOperationsView", () => {
         onboardingProgress={ONBOARDING_PROGRESS}
         onboardingDestinations={[
           { href: "/projects", label: "Pursuits" },
-          { href: "/evidence-readiness", label: "Evidence Library" },
+          { href: "/evidence-readiness", label: "Evidence library" },
         ]}
         catalogueVersion="2026-08-11.2"
         offers={[OFFER]}
@@ -690,9 +686,9 @@ describe("GrowthOperationsView", () => {
       />,
     );
 
-    expect(screen.getByText("Self-recorded practice")).toBeInTheDocument();
+    expect(screen.getByText("Practice only")).toBeInTheDocument();
     expect(
-      screen.getByText(/not evidence that a real task was completed/i),
+      screen.getByText(/not proof that you completed real work/i),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /continue in your live workspace/i }),

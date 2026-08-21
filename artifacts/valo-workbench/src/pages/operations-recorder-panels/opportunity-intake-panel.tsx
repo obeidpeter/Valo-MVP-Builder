@@ -25,7 +25,7 @@ export function OpportunityIntakePanel({
   return (
     <Panel
       title="1. Opportunity intake"
-      description="Record an authorised source and its provenance. For non-URL content, enter the content hash; licensed/OCDS sources also require the recorded authorisation basis."
+      description="Record an approved source and where it came from. For content without a URL, enter its fingerprint; licensed or OCDS sources also need the recorded basis for use."
       allowed={permissions.projectUpdate}
       unavailableReason="Project update permission is required."
       disabled={disabled}

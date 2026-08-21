@@ -26,8 +26,8 @@ export default function RoleHome() {
       <div className="p-6 sm:p-8">
         <StatusPanel
           state="error"
-          title="Workspace unavailable"
-          description="Your role could not be resolved for this session."
+          title="We couldn't open your workspace"
+          description="We could not confirm your role for this session. Refresh and try again."
         />
       </div>
     );
@@ -38,8 +38,8 @@ export default function RoleHome() {
       <div className="p-6 sm:p-8">
         <StatusPanel
           state="pending"
-          title="No organisation workspace selected"
-          description="Choose an active organisation, or wait for access to be assigned. Legacy account roles do not open tenant data."
+          title="No organisation selected"
+          description="Choose an active organisation. If none is available, ask an administrator for access. Older account roles do not give access to organisation data."
         />
       </div>
     );
@@ -58,8 +58,8 @@ export default function RoleHome() {
     <div className="p-6 sm:p-8">
       <StatusPanel
         state="blocked"
-        title="No workspace assigned"
-        description="Your account does not currently have an active platform role."
+        title="No workspace available"
+        description="Your account does not have an active role for this organisation."
       />
     </div>
   );

@@ -220,7 +220,7 @@ describe("runClientActionUpload", () => {
       phase: "leasing",
       retry: "none",
       serverLeaseMayExist: false,
-      message: expect.stringMatching(/not operationally activated/i),
+      message: expect.stringMatching(/uploads are not active/i),
     });
   });
 });

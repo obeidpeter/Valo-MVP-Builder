@@ -36,8 +36,8 @@ describe("EvidenceRenewalPage governance wiring", () => {
 
   it("never treats an error or offline state as an empty or delivered workflow", () => {
     expect(source).toMatch(/Evidence renewal is unavailable offline/u);
-    expect(source).toMatch(/could not be verified/u);
-    expect(source).toMatch(/successful message delivery has been inferred/u);
+    expect(source).toMatch(/could not be checked/u);
+    expect(source).toMatch(/successful reminder is shown/u);
     expect(source).toMatch(/no external message sent/u);
   });
 });

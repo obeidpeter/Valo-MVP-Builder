@@ -238,7 +238,7 @@ export default function ClaimsDeskPage() {
       record,
     }) => {
       toast({
-        title: "Claims Desk evidence recorded",
+        title: "Claims evidence recorded",
         description: `Version ${record.version} · receipt ${record.latestReceiptSha256.slice(0, 12)}…`,
       });
       void queryClient.invalidateQueries({
@@ -247,9 +247,9 @@ export default function ClaimsDeskPage() {
     },
     onError: () =>
       toast({
-        title: "Claims Desk evidence was not recorded",
+        title: "Claims evidence was not recorded",
         description:
-          "Reload the project ledger and verify CAS, maker-checker and canonical document evidence before retrying.",
+          "Reload the project record and confirm the latest version, independent approval and approved document evidence before trying again.",
         variant: "destructive",
       }),
   });
@@ -258,40 +258,40 @@ export default function ClaimsDeskPage() {
     return (
       <PageGatePanel
         state="blocked"
-        title="Direct project-read membership required"
-        description="This project desk rejects partner-derived and emergency access. A direct active tenant membership with project:read is required."
+        title="Direct project membership required"
+        description="You need an active direct organisation membership with permission to view projects. Partner access and emergency access are not accepted."
       />
     );
   if (!online)
     return (
       <PageGatePanel
         state="offline"
-        title="Live Claims Desk evidence is unavailable offline"
-        description="No cached commercial, deadline or claims posture is inferred. Reconnect to load the project ledger."
+        title="Live claims evidence is unavailable offline"
+        description="We cannot use cached data to decide any commercial, deadline or claims status. Reconnect to load the project record."
       />
     );
   if (identityPending)
     return (
       <PageGatePanel
         state="pending"
-        title="Resolving the current Claims Desk actor"
-        description="The desk remains unavailable until the current identity is verified in this organisation context."
+        title="Checking your identity"
+        description="Claims stays closed until we verify your identity for this organisation."
       />
     );
   if (identityUnavailable)
     return (
       <PageGatePanel
         state="error"
-        title="Current Claims Desk actor could not be verified"
-        description="No project, commercial or claims state has been inferred without an exact current actor."
+        title="Your identity could not be verified"
+        description="We cannot show any project, commercial or claims status."
       />
     );
   if (projectsPending)
     return (
       <PageGatePanel
         state="pending"
-        title="Loading available project scopes"
-        description="The desk remains unavailable until an exact non-archived project can be selected."
+        title="Loading available projects"
+        description="Choose an active project before using Claims."
       />
     );
   if (projectsUnavailable)
@@ -299,7 +299,7 @@ export default function ClaimsDeskPage() {
       <PageGatePanel
         state="error"
         title="Available projects could not be verified"
-        description="No commercial or claims posture has been inferred."
+        description="We have not assumed any commercial or claims status."
       />
     );
   if (!selectedProject)
@@ -307,23 +307,23 @@ export default function ClaimsDeskPage() {
       <PageGatePanel
         state="empty"
         title="No active project is available"
-        description="Create or receive direct access to a non-archived project before recording Claims Desk evidence."
+        description="Create an active project or get direct access to one before recording claims evidence."
       />
     );
   if (snapshotPending)
     return (
       <PageGatePanel
         state="pending"
-        title="Loading the append-only project ledger"
-        description="Verifying scope, receipt chain and controlled workflow state."
+        title="Loading the project record"
+        description="Checking project scope, receipt history and workflow status."
       />
     );
   if (snapshotUnavailable || !snapshotQuery.data)
     return (
       <PageGatePanel
         state="error"
-        title="Claims Desk evidence could not be verified"
-        description="The interface has failed closed and does not infer entitlement, valuation, notice delivery or payment state."
+        title="Claims evidence could not be verified"
+        description="We have not assumed any entitlement, value, notice delivery or payment status."
       >
         <Button
           type="button"
@@ -349,7 +349,7 @@ export default function ClaimsDeskPage() {
             Active project scope
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Every record, document digest and receipt is limited to this exact
+            All records, document digests and receipts are limited to this
             project.
           </p>
         </div>
@@ -381,14 +381,14 @@ export default function ClaimsDeskPage() {
       {evidenceOptionsPending ? (
         <StatusPanel
           state="pending"
-          title="Loading canonical evidence choices"
-          description="Claims Desk mutations remain disabled until current clean document versions are verified."
+          title="Loading approved document choices"
+          description="Claims actions stay disabled until current approved document versions are verified."
         />
       ) : evidenceOptionsUnavailable ? (
         <StatusPanel
           state="error"
-          title="Canonical evidence could not be verified"
-          description="Claims Desk mutations remain disabled until current clean document versions can be reloaded."
+          title="Approved documents could not be verified"
+          description="Claims actions stay disabled until current approved document versions can be reloaded."
         />
       ) : canManage && evidenceOptionsQuery.data ? (
         <div className="grid gap-6 xl:grid-cols-2">
@@ -419,8 +419,8 @@ export default function ClaimsDeskPage() {
       ) : !canManage ? (
         <StatusPanel
           state="blocked"
-          title="Read-only Claims Desk"
-          description="project:update is required to append workflow evidence. Reading the ledger does not authorize any external notice, invoice or payment action."
+          title="Claims is read-only"
+          description="You need permission to update projects to add workflow evidence. Viewing the record does not authorise a notice, invoice or payment."
         />
       ) : null}
     </main>

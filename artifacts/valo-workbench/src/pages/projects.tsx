@@ -400,7 +400,7 @@ export default function Projects() {
         onError: (err) =>
           toast({
             variant: "destructive",
-            title: "Project creation failed",
+            title: "Pursuit creation failed",
             description: errorMessage(
               err,
               "Check the client, reviewer, and tender details and try again.",
@@ -415,10 +415,10 @@ export default function Projects() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-serif tracking-tight font-semibold">
-            Tender Projects
+            Pursuits
           </h1>
           <p className="text-muted-foreground mt-1">
-            Manage active autopsy workflows and historic bids.
+            Manage active pursuits and review past bids.
           </p>
         </div>
         {canCreateProject ? (
@@ -426,14 +426,14 @@ export default function Projects() {
             <DialogTrigger asChild>
               <Button className="bg-primary text-primary-foreground">
                 <Plus className="w-4 h-4 mr-2" />
-                New Project
+                New pursuit
               </Button>
             </DialogTrigger>
             <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-[680px]">
               <DialogHeader>
-                <DialogTitle>Create New Project</DialogTitle>
+                <DialogTitle>Create pursuit</DialogTitle>
                 <DialogDescription>
-                  Start a new forensic review for a tender/bid pair.
+                  Create a pursuit for a tender or bid.
                 </DialogDescription>
               </DialogHeader>
               <form
@@ -475,9 +475,8 @@ export default function Projects() {
                       role="alert"
                     >
                       <p className="text-xs text-destructive">
-                        The client directory could not be loaded. No client can
-                        be selected until authority-scoped records are
-                        available.
+                        The client list could not be loaded. Select a client
+                        after your current access is confirmed.
                       </p>
                       <Button
                         type="button"
@@ -491,8 +490,8 @@ export default function Projects() {
                     </div>
                   ) : clientDirectoryPending ? (
                     <p className="text-xs text-muted-foreground" role="status">
-                      Loading the current client directory. No client can be
-                      selected until it is complete.
+                      Loading clients. You can select one when the list is
+                      ready.
                     </p>
                   ) : clientsLoaded && clients?.length === 0 ? (
                     <p className="text-xs text-muted-foreground">
@@ -592,8 +591,8 @@ export default function Projects() {
                         role="alert"
                       >
                         <p className="text-xs text-destructive">
-                          Reviewer authority could not be verified. No reviewer
-                          can be selected until the directory is available.
+                          The reviewer list could not be loaded. Select a
+                          reviewer after current permissions are confirmed.
                         </p>
                         {canReadMemberships ? (
                           <Button
@@ -612,13 +611,13 @@ export default function Projects() {
                         className="text-xs text-muted-foreground"
                         role="status"
                       >
-                        Loading current reviewer authority. No reviewer can be
-                        selected until the directory is complete.
+                        Loading reviewers. You can select one when the list is
+                        ready.
                       </p>
                     ) : usersLoaded && reviewerOptions.length === 0 ? (
                       <p className="text-xs text-muted-foreground">
-                        No active, current, directly authorised reviewer is
-                        available in this organisation.
+                        No active reviewer with direct access is available in
+                        this organisation.
                       </p>
                     ) : null}
                   </div>
@@ -650,7 +649,7 @@ export default function Projects() {
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="slaClass">SLA Class</Label>
+                    <Label htmlFor="slaClass">Review timing</Label>
                     <Select
                       onValueChange={(val) =>
                         form.setValue(
@@ -676,9 +675,9 @@ export default function Projects() {
                   >
                     <p className="font-medium">Commercial gate</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Every new project starts payment pending. An authorised
-                      commercial workflow manages that state after creation; it
-                      cannot be selected here.
+                      Every new pursuit starts with payment pending. The
+                      authorised commercial workflow manages that status after
+                      creation; it cannot be changed here.
                     </p>
                   </div>
                 </div>
@@ -735,7 +734,7 @@ export default function Projects() {
                     {createProject.isPending ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     ) : null}
-                    Create Project
+                    Create pursuit
                   </Button>
                 </div>
               </form>
@@ -746,7 +745,7 @@ export default function Projects() {
 
       {projectsLoaded && projects && projects.length > 0 ? (
         <section
-          aria-label="Project register filters"
+          aria-label="Pursuit register filters"
           className="space-y-4 rounded-lg border border-border bg-card p-4 shadow-xs"
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -886,8 +885,8 @@ export default function Projects() {
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3 text-sm text-muted-foreground">
             <p aria-live="polite">
               {refreshingProjects
-                ? "Refreshing the project register…"
-                : `Showing ${visibleProjects.length} of ${projects.length} loaded projects.`}
+                ? "Refreshing the pursuit register…"
+                : `Showing ${visibleProjects.length} of ${projects.length} pursuits.`}
             </p>
             {filtersActive ? (
               <Button type="button" variant="ghost" onClick={clearFilters}>
@@ -903,7 +902,7 @@ export default function Projects() {
           <div
             className="p-12 flex justify-center"
             role="status"
-            aria-label="Loading project register"
+            aria-label="Loading pursuit register"
           >
             <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
           </div>
@@ -914,17 +913,17 @@ export default function Projects() {
           >
             <AlertTriangle className="mx-auto h-10 w-10 text-destructive" />
             <p className="font-medium text-foreground">
-              The project register could not be loaded.
+              The pursuit register could not be loaded.
             </p>
             <p className="text-sm">
-              No portfolio count is shown because the register is unavailable.
+              No pursuit count is shown while the register is unavailable.
             </p>
             <Button
               type="button"
               variant="outline"
               disabled={refreshingProjects}
               onClick={() => void retryProjects()}
-              aria-label="Retry loading project register"
+              aria-label="Retry loading pursuit register"
             >
               {refreshingProjects ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -937,11 +936,11 @@ export default function Projects() {
         ) : projects.length === 0 ? (
           <div className="p-12 text-center text-muted-foreground bg-card">
             <Briefcase className="w-12 h-12 mx-auto mb-3 text-muted" />
-            <p>No projects found.</p>
+            <p>No pursuits found.</p>
             <p className="text-sm mt-1">
               {canCreateProject
-                ? "Create a new project to start a forensic review."
-                : "No projects are currently available to your organisation assignment."}
+                ? "Create a pursuit to begin."
+                : "No pursuits are available for your current organisation access."}
             </p>
           </div>
         ) : visibleProjects.length > 0 ? (
@@ -952,7 +951,7 @@ export default function Projects() {
                 <TableHead>Client</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Risk</TableHead>
-                <TableHead className="text-right">Metrics</TableHead>
+                <TableHead className="text-right">Counts</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1029,7 +1028,7 @@ export default function Projects() {
         ) : (
           <div className="p-12 text-center text-muted-foreground bg-card">
             <Briefcase className="w-12 h-12 mx-auto mb-3 text-muted" />
-            <p>No projects match the current filters.</p>
+            <p>No pursuits match the current filters.</p>
             <p className="text-sm mt-1">
               Clear or adjust the filters to review the loaded register.
             </p>

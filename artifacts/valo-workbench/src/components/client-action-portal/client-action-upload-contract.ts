@@ -70,7 +70,7 @@ const MIME =
 
 export class ClientActionUploadContractError extends Error {
   constructor() {
-    super("Invalid governed client-upload response");
+    super("Invalid client-upload response");
     this.name = "ClientActionUploadContractError";
   }
 }

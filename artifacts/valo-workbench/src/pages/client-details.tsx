@@ -226,7 +226,7 @@ export default function ClientDetails() {
                     }
                   />
                   <p className="text-xs text-muted-foreground">
-                    Owners / MDs — Gate 0 metric
+                    Owners / managing directors — initial readiness measure
                   </p>
                 </div>
                 <div className="space-y-2">

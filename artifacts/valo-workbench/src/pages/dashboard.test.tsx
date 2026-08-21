@@ -100,7 +100,7 @@ describe("Dashboard authority-aware sources", () => {
     );
     expect(
       screen.getByRole("heading", {
-        name: "Some signals are outside your current authority",
+        name: "Some data is outside your current access",
       }),
     ).toBeInTheDocument();
     expect(
@@ -114,7 +114,7 @@ describe("Dashboard authority-aware sources", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("heading", {
-        name: "Some Command Centre signals are unavailable",
+        name: "Some dashboard data is unavailable",
       }),
     ).not.toBeInTheDocument();
   });
@@ -150,7 +150,7 @@ describe("Dashboard authority-aware sources", () => {
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", {
-        name: "Some signals are outside your current authority",
+        name: "Some data is outside your current access",
       }),
     ).not.toBeInTheDocument();
   });
@@ -172,14 +172,12 @@ describe("Dashboard authority-aware sources", () => {
 
     renderDashboard();
 
+    expect(screen.getByText("Loading dashboard data")).toBeInTheDocument();
     expect(
-      screen.getByText("Loading Command Centre signals"),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText("Command Centre data could not be loaded"),
+      screen.queryByText("Dashboard data could not be loaded"),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByText("Some Command Centre signals are unavailable"),
+      screen.queryByText("Some dashboard data is unavailable"),
     ).not.toBeInTheDocument();
   });
 });

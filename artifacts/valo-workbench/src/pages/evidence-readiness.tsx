@@ -38,18 +38,18 @@ export default function EvidenceReadiness() {
     <div className="mx-auto w-full max-w-7xl space-y-7 p-5 sm:p-8">
       <PageHeader
         eyebrow="Evidence controls"
-        title="Evidence & readiness"
-        description="A cross-workspace view of recorded blockers and expiry signals. Final readiness remains a project-level, server-enforced decision."
+        title="Evidence library"
+        description="See recorded blockers and expiring evidence across pursuits. Final readiness is still decided inside each pursuit and enforced by the server."
         state={!online ? "offline" : hasError ? "partial" : "active"}
       />
 
       <StatusPanel
         state="partial"
-        title="Portfolio signals are not a release decision"
-        description="This page does not mark any package submission-ready. Open each project to review citations, evidence mapping, BOQ exceptions, named approvals and every deterministic gate."
+        title="This summary does not approve a release"
+        description="This page does not mark any package ready to submit. Open each pursuit to review citations, evidence links, BOQ exceptions, named approvals and every required check."
       >
         <Button asChild variant="outline">
-          <Link href="/evidence-renewals">Open governed renewal plans</Link>
+          <Link href="/evidence-renewals">Open renewal plans</Link>
         </Button>
       </StatusPanel>
 
@@ -58,7 +58,7 @@ export default function EvidenceReadiness() {
       ) : null}
       {hasError ? (
         <DataErrorPanel
-          description="At least one evidence or project source failed. Empty counts must not be treated as cleared controls."
+          description="At least one evidence or pursuit source failed. An empty count does not mean a check has passed."
           onRetry={() => {
             void vaultQuery.refetch();
             void projectsQuery.refetch();
@@ -79,8 +79,8 @@ export default function EvidenceReadiness() {
           </h2>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <QueueCapabilityCard
-              title="Fatal-defect projects"
-              description="Projects with at least one recorded fatal defect in their summary."
+              title="Pursuits with fatal defects"
+              description="Pursuits with at least one recorded fatal defect."
               state={
                 projectsQuery.isError
                   ? "error"
@@ -91,8 +91,8 @@ export default function EvidenceReadiness() {
               value={projectsQuery.isError ? "—" : fatalProjects.length}
             />
             <QueueCapabilityCard
-              title="Conflict-blocked projects"
-              description="Projects whose current conflict state blocks or declines work."
+              title="Pursuits blocked by conflicts"
+              description="Pursuits whose current conflict status blocks or declines work."
               state={
                 projectsQuery.isError
                   ? "error"
@@ -104,7 +104,7 @@ export default function EvidenceReadiness() {
             />
             <QueueCapabilityCard
               title="Pending payment gates"
-              description="Operational payment gates still awaiting the required confirmation."
+              description="Payment checks still waiting for the required confirmation."
               state={
                 projectsQuery.isError
                   ? "error"
@@ -204,7 +204,7 @@ export default function EvidenceReadiness() {
         <StatusPanel
           state="empty"
           title="No evidence in the expiry window"
-          description="This only means the expiry endpoint returned no records. It does not prove every requirement has approved, current evidence."
+          description="No evidence was returned in the expiry window. This does not prove that every requirement has approved, current evidence."
         />
       ) : null}
     </div>

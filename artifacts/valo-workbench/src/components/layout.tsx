@@ -33,8 +33,8 @@ import {
   navigationForRole,
   normalizePlatformRoles,
   platformFeatureFlags,
+  platformRoleLabel,
   type PlatformNavItem,
-  type PlatformRole,
 } from "@/lib/platform-access";
 import {
   LoadingPanel,
@@ -89,46 +89,6 @@ const NAV_GROUPS: PlatformNavItem["group"][] = [
   "Administration",
 ];
 
-const ROLE_LABELS: Record<string, string> = {
-  // Keys are checked against the PlatformRole union via the trailing
-  // `satisfies`; the wider Record<string, string> annotation keeps the
-  // roleLabel fallback path for unknown role strings.
-  admin: "Administrator",
-  reviewer: "Reviewer",
-  analyst: "Analyst",
-  client_owner: "Client owner",
-  client_admin: "Client administrator",
-  client_organisation_owner: "Client owner",
-  client_administrator: "Client administrator",
-  bid_manager: "Bid lead",
-  contributor: "Contributor",
-  client_reviewer: "Client reviewer",
-  client_reviewer_approver: "Reviewer and approver",
-  client_auditor: "Client auditor",
-  read_only_auditor: "Read-only auditor",
-  valo_analyst: "Valo analyst",
-  valo_quality_adviser: "Valo quality adviser",
-  valo_operations_admin: "Valo operations administrator",
-  valo_operations_administrator: "Valo operations administrator",
-  platform_admin_restricted: "Restricted platform administrator",
-  restricted_platform_administrator: "Restricted platform administrator",
-  partner_admin: "Partner administrator",
-  consultancy_partner_administrator: "Partner administrator",
-  partner_analyst: "Partner analyst",
-  partner_reviewer: "Partner reviewer",
-  consultancy_partner_analyst_reviewer: "Partner analyst and reviewer",
-} satisfies Partial<Record<PlatformRole, string>>;
-
-function roleLabel(role: string): string {
-  return (
-    ROLE_LABELS[role] ??
-    role
-      .split("_")
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(" ")
-  );
-}
-
 function AppNavigation({
   items,
   location,
@@ -178,7 +138,7 @@ function AppNavigation({
                       {item.state === "pending_activation" ? (
                         <span
                           className="rounded-full border border-amber-300/35 bg-amber-300/10 px-2 py-0.5 text-xs font-semibold text-amber-200"
-                          title="Commercial activation pending"
+                          title="Feature not active yet"
                         >
                           Pending
                         </span>
@@ -244,7 +204,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-5">
         <div className="w-full max-w-lg">
-          <LoadingPanel label="Authenticating and loading your assigned workspace" />
+          <LoadingPanel label="Signing you in and opening your workspace" />
         </div>
       </div>
     );
@@ -256,12 +216,12 @@ export default function Layout({ children }: { children: ReactNode }) {
         <div className="w-full max-w-lg">
           <StatusPanel
             state={online ? "error" : "offline"}
-            title={
+            title={online ? "We couldn't sign you in" : "You're offline"}
+            description={
               online
-                ? "Authentication failed"
-                : "Identity service unavailable while offline"
+                ? "Refresh to try again. Records and actions stay locked until we can verify your session."
+                : "Reconnect to the internet, then refresh. Records and actions stay locked until we can verify your session."
             }
-            description="The application could not verify the current session. Protected records and actions remain unavailable."
           />
         </div>
       </div>
@@ -275,7 +235,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           <StatusPanel
             state="blocked"
             title="Account disabled"
-            description="This account cannot access any organisation or pursuit workspace. An authorised administrator must review the account status."
+            description="This account cannot open any organisation or pursuit workspace. Contact Valo support to review the account."
           />
           <UserButton afterSignOutUrl="/" />
         </div>
@@ -289,8 +249,8 @@ export default function Layout({ children }: { children: ReactNode }) {
         <div className="w-full max-w-lg">
           <StatusPanel
             state="error"
-            title="Organisation access could not be verified"
-            description="The trusted organisation access context is unavailable. No tenant workspace or action has been opened."
+            title="We couldn't check organisation access"
+            description="No organisation workspace was opened. Refresh and try again."
           />
         </div>
       </div>
@@ -304,8 +264,8 @@ export default function Layout({ children }: { children: ReactNode }) {
         <div className="w-full max-w-lg space-y-6 text-center">
           <StatusPanel
             state="pending"
-            title="Pending organisation access"
-            description="No active organisation membership is available for this identity and session. Protected organisation and pursuit data remain unavailable."
+            title="You don't have organisation access yet"
+            description="Your sign-in worked, but this account is not linked to an active organisation membership. Ask an organisation administrator to add you."
           />
           <UserButton afterSignOutUrl="/" />
         </div>
@@ -324,8 +284,8 @@ export default function Layout({ children }: { children: ReactNode }) {
         <div className="w-full max-w-lg space-y-6 text-center">
           <StatusPanel
             state="pending"
-            title="Pending access"
-            description="Your identity is registered, but no organisation role has been assigned. Protected organisation and pursuit data remain unavailable."
+            title="No role assigned yet"
+            description="Your account belongs to this organisation, but it has no active role. Ask an organisation administrator to assign one."
           />
           <UserButton afterSignOutUrl="/" />
         </div>
@@ -340,8 +300,8 @@ export default function Layout({ children }: { children: ReactNode }) {
         <div className="w-full max-w-lg">
           <StatusPanel
             state="blocked"
-            title="Role configuration unsupported"
-            description="The server returned a role that this application version does not recognise. No workspace has been opened."
+            title="This role isn't supported"
+            description="This version of Valo does not recognise the role returned by the server. No workspace was opened. Contact an administrator or support."
           />
         </div>
       </div>
@@ -354,7 +314,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     organisationAccess.effectivePermissions,
     organisationAccess.activeOrganisation.accessSource,
   );
-  const assignedRoleLabel = normalizedRoles.map(roleLabel).join(" · ");
+  const assignedRoleLabel = normalizedRoles.map(platformRoleLabel).join(" · ");
   const navIncludes = (href: string) =>
     navItems.some((item) => item.href === href);
 
@@ -373,13 +333,13 @@ export default function Layout({ children }: { children: ReactNode }) {
           <div className="border-b border-sidebar-border p-5">
             <Link
               href="/app"
-              aria-label="Valo Command Centre"
+              aria-label="Valo dashboard"
               className="block w-fit rounded-md text-sidebar-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
             >
               <ValoMark />
             </Link>
             <p className="mt-3 text-xs leading-5 text-sidebar-foreground/55">
-              Evidence-led tender controls
+              Tender review and evidence tracking
             </p>
           </div>
           <div className="flex-1 overflow-y-auto p-4">

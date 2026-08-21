@@ -134,7 +134,7 @@ export default function AiShadowProgrammePage() {
       }
     },
     onSuccess: (recordedOrganisationId) => {
-      toast({ title: "AI shadow evidence register updated" });
+      toast({ title: "AI test evidence updated" });
       void queryClient.invalidateQueries({
         queryKey: ["ai-shadow-programme", recordedOrganisationId],
       });
@@ -145,16 +145,16 @@ export default function AiShadowProgrammePage() {
     return (
       <PageGatePanel
         state="blocked"
-        title="Internal evaluation authority required"
-        description="The AI Shadow Programme is restricted to direct named quality and operations memberships with evaluation-read authority. Partner-derived and emergency contexts are denied."
+        title="AI testing access required"
+        description="You need a direct named quality or operations membership with permission to view evaluations. Partner access and emergency access are denied."
       />
     );
   if (!online)
     return (
       <PageGatePanel
         state="offline"
-        title="Live shadow evidence is unavailable offline"
-        description="Reconnect before reading or recording the append-only evaluation register."
+        title="Live AI test evidence is unavailable offline"
+        description="Reconnect before reading or recording the evaluation history."
       />
     );
   const snapshotPending = snapshot.isLoading || snapshot.isPending;
@@ -165,16 +165,16 @@ export default function AiShadowProgrammePage() {
     return (
       <PageGatePanel
         state="pending"
-        title="Loading AI shadow evidence"
-        description="Verifying tenant scope, exact version bindings and cohort coverage."
+        title="Loading AI test evidence"
+        description="Checking organisation scope, exact versions and test-group coverage."
       />
     );
   if (snapshotUnavailable || !snapshot.data)
     return (
       <PageGatePanel
         state="error"
-        title="AI shadow evidence could not be verified"
-        description="No empty, passing or activation state has been inferred."
+        title="AI test evidence could not be verified"
+        description="We have not assumed that there are no records, that testing passed or that production activation is allowed."
       >
         <Button
           type="button"

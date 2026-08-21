@@ -54,10 +54,12 @@ describe("RequireArea tenant boundary", () => {
       </RequireArea>,
     );
 
-    expect(screen.getByText(/checking workspace access/i)).toBeInTheDocument();
+    expect(screen.getByText(/checking your access/i)).toBeInTheDocument();
     expect(screen.queryByText("Tenant secret")).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: /access could not be verified/i }),
+      screen.queryByRole("heading", {
+        name: /we couldn't verify your access/i,
+      }),
     ).not.toBeInTheDocument();
   });
 

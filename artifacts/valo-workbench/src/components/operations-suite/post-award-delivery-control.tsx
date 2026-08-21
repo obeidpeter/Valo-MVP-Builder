@@ -74,8 +74,8 @@ export function PostAwardDeliveryControl({
   return (
     <OperationsSection
       id="post-award-control"
-      title="Post-award delivery control"
-      description="Keep contract deliverables, variations, notices and payment milestones connected to owners and completion evidence."
+      title="Post-award delivery"
+      description="Link contract deliverables, changes, notices and payment milestones to owners and completion evidence."
       icon={<Truck aria-hidden="true" className="size-5" />}
       busy={state === "loading"}
     >

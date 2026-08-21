@@ -58,7 +58,7 @@ export default function SecurityAudit() {
       <PageHeader
         eyebrow="Restricted administration"
         title="Security & audit"
-        description="Attributed access-review evidence and the status of security queues that require independent, server-enforced controls."
+        description="Review who accessed organisation data and which security queues are available. Server rules remain the source of truth."
         state={
           !online
             ? "offline"
@@ -75,13 +75,13 @@ export default function SecurityAudit() {
       ) : assessmentUnavailable ? (
         <DataErrorPanel
           title="Legacy integrity assessment could not be loaded"
-          description="Do not infer an intact legacy chain while its stored assessment is unavailable. Check connectivity and role authorisation, then retry."
+          description="We could not load the stored legacy audit assessment. Do not assume the older audit chain is intact. Check your connection and access, then try again."
           onRetry={() => void assessmentQuery.refetch()}
         />
       ) : assessment ? (
         <StatusPanel
           state="pending"
-          title="Legacy v1 audit discontinuity is recorded"
+          title="Recorded gap in the legacy v1 audit chain"
           description={assessment.finding}
         >
           <dl className="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
@@ -122,7 +122,7 @@ export default function SecurityAudit() {
         <StatusPanel
           state="empty"
           title="No legacy integrity assessment is stored"
-          description="No preserved legacy stream assessment was returned for the selected organisation. This is not evidence that a legacy chain is intact."
+          description="No legacy assessment was returned for this organisation. This does not prove that the older audit chain is intact."
         />
       )}
 
@@ -134,27 +134,27 @@ export default function SecurityAudit() {
           id="security-controls-heading"
           className="font-serif text-xl font-semibold"
         >
-          Security queue coverage
+          Security controls available here
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <QueueCapabilityCard
             title="Access review"
-            description="Monthly attributed access rows are connected below."
+            description="Monthly access records are available below."
             state="active"
           />
           <QueueCapabilityCard
-            title="Break-glass access"
-            description="Time-limited emergency access, independent approval and closure evidence are not exposed."
+            title="Emergency access"
+            description="Emergency-access requests, independent approval and closure evidence are not available here."
             state="unavailable"
           />
           <QueueCapabilityCard
             title="Retention and deletion"
-            description="Retention configuration exists; legal hold, deletion certificate and DSAR queues are not connected here."
+            description="Retention settings are available. Legal holds, deletion certificates and data-rights request queues are not connected here."
             state="partial"
           />
           <QueueCapabilityCard
             title="Security events"
-            description="A dedicated incident and anomalous-access review queue is not available to this frontend."
+            description="Incident and unusual-access review is not available here."
             state="unavailable"
           />
         </div>
@@ -170,7 +170,7 @@ export default function SecurityAudit() {
               Monthly access review
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Rows are returned by the server for the selected reporting month.
+              The server returns access records for the selected month.
             </p>
           </div>
           <div className="w-full max-w-48 space-y-2">
@@ -194,14 +194,14 @@ export default function SecurityAudit() {
         {reviewUnavailable ? (
           <DataErrorPanel
             title="Access review could not be loaded"
-            description="Do not interpret missing rows as no access. Check connectivity and role authorisation, then retry."
+            description="Missing records do not prove that no access occurred. Check your connection and access, then try again."
             onRetry={() => void query.refetch()}
           />
         ) : null}
         {query.data && typeof query.data === "string" ? (
           <DataErrorPanel
-            title="Unexpected access-review format"
-            description="The server returned a text report when structured JSON was requested. No rows are displayed."
+            title="The access report has an unexpected format"
+            description="The server returned text instead of the requested structured report, so no records are shown."
           />
         ) : null}
 
@@ -217,7 +217,7 @@ export default function SecurityAudit() {
                     Time
                   </th>
                   <th scope="col" className="px-4 py-3 font-medium">
-                    Actor
+                    Person
                   </th>
                   <th scope="col" className="px-4 py-3 font-medium">
                     Client / project
@@ -232,7 +232,7 @@ export default function SecurityAudit() {
                     Details
                   </th>
                   <th scope="col" className="px-4 py-3 font-medium">
-                    Audit provenance
+                    Audit source
                   </th>
                 </tr>
               </thead>
@@ -243,7 +243,7 @@ export default function SecurityAudit() {
                       {auditTime(row.at)}
                     </td>
                     <td className="px-4 py-3">
-                      {row.actor || "Actor unavailable"}
+                      {row.actor || "Person unavailable"}
                     </td>
                     <td className="px-4 py-3">
                       <span className="block">
@@ -292,8 +292,8 @@ export default function SecurityAudit() {
         ) : review && review.rows.length === 0 ? (
           <StatusPanel
             state="empty"
-            title="No access rows returned"
-            description="The selected report is empty. Confirm audit ingestion and immutable retention before accepting this as evidence of no access."
+            title="No access records returned"
+            description="The report is empty. Before treating this as no access, confirm that audit collection and protected storage are working."
           />
         ) : null}
       </section>

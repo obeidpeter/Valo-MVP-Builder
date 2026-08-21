@@ -33,7 +33,7 @@ const AI_BLOCKER_LABELS: Record<string, string> = {
   AI_GLOBAL_DISABLED: "Global production switch is off",
   AI_RELEASE_GATE_DENIED: "Retained release evidence does not pass",
   AI_MODEL_CONFIGURATION_UNAVAILABLE:
-    "No evaluated, promoted model configuration is active",
+    "No evaluated, approved model setup is active",
   AI_BUDGET_UNAVAILABLE: "No approved runtime budget is configured",
   AI_BUDGET_CURRENCY_MISMATCH:
     "The runtime budget currency does not match capability policy",
@@ -41,7 +41,7 @@ const AI_BLOCKER_LABELS: Record<string, string> = {
   AI_PROVIDER_PRIVACY_UNVERIFIED:
     "Provider privacy, region or retention evidence is incomplete",
   AI_PROVIDER_UNAVAILABLE: "No compatible healthy provider is available",
-  AI_CAPABILITY_DISABLED: "No capability is enabled for this tenant",
+  AI_CAPABILITY_DISABLED: "No capability is enabled for this organisation",
 };
 
 function blockerLabel(value: string): string {
@@ -95,8 +95,8 @@ export default function OperationsConsole() {
     <div className="mx-auto w-full max-w-7xl space-y-7 p-5 sm:p-8">
       <PageHeader
         eyebrow="Reviewer and administration console"
-        title="Operations queues"
-        description="Live delivery queues and sanitised AI control-plane evidence are shown without exposing tender content, prompts, provider errors or secrets."
+        title="Operations"
+        description="Review live work queues and safe AI service status without exposing tender content, prompts, provider errors or secrets."
         state={
           !online
             ? "offline"
@@ -114,11 +114,11 @@ export default function OperationsConsole() {
         />
       ) : null}
 
-      {loading ? <LoadingPanel label="Loading operational queues" /> : null}
+      {loading ? <LoadingPanel label="Loading operations queues" /> : null}
       {queueHasError ? (
         <DataErrorPanel
-          title="Some operational queues could not be loaded"
-          description="Available sections may be incomplete. Refresh before treating an empty queue as clear."
+          title="Some operations queues could not be loaded"
+          description="Some sections may be incomplete. Refresh before treating an empty queue as clear."
           onRetry={retry}
         />
       ) : null}
@@ -142,8 +142,8 @@ export default function OperationsConsole() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <QueueCapabilityCard
-              title="Tracked engagements"
-              description="Projects visible to the current server-authorised role."
+              title="Visible pursuits"
+              description="Pursuits available to your current role."
               state={
                 projectsQuery.isError
                   ? "error"
@@ -154,8 +154,8 @@ export default function OperationsConsole() {
               value={projectsQuery.isError ? "—" : projects.length}
             />
             <QueueCapabilityCard
-              title="SLA breaches"
-              description="Review windows reported as breached by deterministic workflow alerts."
+              title="Review deadlines missed"
+              description="Review windows that are past their recorded deadline."
               state={
                 alertsQuery.isError
                   ? "error"
@@ -168,8 +168,8 @@ export default function OperationsConsole() {
               }
             />
             <QueueCapabilityCard
-              title="Red-team due"
-              description="Projects whose red-team review window is open."
+              title="Independent reviews due"
+              description="Pursuits whose independent-review window is open."
               state={
                 alertsQuery.isError
                   ? "error"
@@ -220,7 +220,10 @@ export default function OperationsConsole() {
                     <p className="truncate text-sm font-medium">
                       {alert.tenderTitle}
                     </p>
-                    <StateBadge state="blocked" label="SLA breached" />
+                    <StateBadge
+                      state="blocked"
+                      label="Review deadline missed"
+                    />
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Due {compactDate(alert.dueAt)} WAT
@@ -240,7 +243,10 @@ export default function OperationsConsole() {
                     <p className="truncate text-sm font-medium">
                       {alert.tenderTitle}
                     </p>
-                    <StateBadge state="pending" label="Red-team due" />
+                    <StateBadge
+                      state="pending"
+                      label="Independent review due"
+                    />
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Opened {compactDate(alert.dueAt)} WAT
@@ -259,21 +265,21 @@ export default function OperationsConsole() {
             id="ai-operations-heading"
             className="font-serif text-xl font-semibold"
           >
-            AI control plane
+            AI service controls
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Tenant-scoped readiness, bounded draft capabilities and sanitised
-            run history. This view is evidence only; it does not enable AI.
+            Readiness, limited draft features and safe run history for this
+            organisation. This view shows status only; it does not enable AI.
           </p>
         </div>
 
         {aiOperationsQuery.isLoading ? (
-          <LoadingPanel label="Loading AI control-plane evidence" />
+          <LoadingPanel label="Loading AI service status" />
         ) : null}
         {aiOperationsQuery.isError ? (
           <DataErrorPanel
-            title="AI control-plane status could not be loaded"
-            description="Do not infer that AI is enabled, disabled or release-ready from a missing response. Refresh before making an operational decision."
+            title="AI service status could not be loaded"
+            description="A missing response does not show whether AI is enabled, disabled or ready for release. Refresh before making an operations decision."
             onRetry={() => void aiOperationsQuery.refetch()}
           />
         ) : null}
@@ -295,14 +301,14 @@ export default function OperationsConsole() {
                   ? "AI is disabled by the global switch"
                   : aiOperations.environment === "production"
                     ? aiOperations.productionAiEnabled
-                      ? "Production AI gates pass for this tenant"
+                      ? "Production AI checks pass for this organisation"
                       : "Production AI is not enabled"
-                    : `AI control plane is in ${aiOperations.environment} mode`
+                    : `AI services are in ${aiOperations.environment} mode`
               }
               description={
                 aiOperations.environment === "production"
-                  ? "Production availability for eligible non-Restricted Mode projects requires the global switch, retained release evidence, model, budget, provider policy and at least one tenant capability gate to pass. Restricted Mode remains separately gated."
-                  : "Non-production execution is not production approval. Production remains subject to every release and tenant gate shown below."
+                  ? "Production use for eligible pursuits outside Restricted Mode requires the global switch, release evidence, model, budget, provider policy and at least one organisation feature check to pass. Restricted Mode has separate checks."
+                  : "Running outside production is not production approval. Production still requires every release and organisation check shown below."
               }
             />
 
@@ -343,7 +349,7 @@ export default function OperationsConsole() {
                 title="Model promotion"
                 description={
                   aiOperations.modelConfiguration.configurationVersion ??
-                  "No configuration version"
+                  "No approved model setup version"
                 }
                 state={
                   aiOperations.modelConfiguration.status === "promoted" &&
@@ -386,8 +392,8 @@ export default function OperationsConsole() {
                 title="Restricted Mode"
                 description={
                   aiOperations.providerPolicy.restrictedModeSupported
-                    ? "A policy-compatible configured model adapter is eligible for Restricted Mode."
-                    : "No configured model adapter is eligible; Restricted Mode projects remain blocked."
+                    ? "An approved model provider is eligible for Restricted Mode."
+                    : "No approved model provider is eligible; Restricted Mode projects remain blocked."
                 }
                 state={
                   aiOperations.providerPolicy.restrictedModeSupported
@@ -426,7 +432,7 @@ export default function OperationsConsole() {
                     <p className="mt-4 text-sm text-muted-foreground">
                       The runtime reports no platform blocker for eligible
                       non-Restricted Mode projects. Individual capability and
-                      project Restricted Mode gates remain authoritative.
+                      each pursuit's Restricted Mode checks still apply.
                     </p>
                   ) : (
                     <ul className="mt-4 space-y-2 text-sm">
@@ -447,7 +453,7 @@ export default function OperationsConsole() {
                 <CardContent className="p-5">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <h3 className="text-sm font-semibold">
-                      Release-gate evidence contract
+                      Release evidence checks
                     </h3>
                     <StateBadge
                       state={
@@ -498,17 +504,17 @@ export default function OperationsConsole() {
 
             <div className="space-y-3">
               <div>
-                <h3 className="text-sm font-semibold">Capability policy</h3>
+                <h3 className="text-sm font-semibold">AI feature policy</h3>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Every current capability is a reversible, non-authoritative
-                  draft requiring named human approval.
+                  Every current feature creates a reversible draft that needs
+                  approval from a named person.
                 </p>
               </div>
               {aiOperations.capabilities.length === 0 ? (
                 <StatusPanel
                   state="unavailable"
-                  title="No AI capability policy was returned"
-                  description="Treat the absence as unavailable; it is not evidence that unrestricted AI is allowed."
+                  title="No AI feature policy was returned"
+                  description="Treat this as unavailable. It does not mean unrestricted AI is allowed."
                 />
               ) : (
                 <div className="grid gap-4 lg:grid-cols-2">
@@ -557,7 +563,7 @@ export default function OperationsConsole() {
                           </div>
                           <div>
                             <dt className="text-muted-foreground">
-                              Tenant gate
+                              Organisation check
                             </dt>
                             <dd className="mt-1 font-medium">
                               {capability.tenantEnabled ? "Open" : "Off"}
@@ -589,7 +595,7 @@ export default function OperationsConsole() {
                 {aiOperations.recentRuns.length === 0 ? (
                   <StatusPanel
                     state="empty"
-                    title="No tenant AI runs are recorded"
+                    title="No AI runs are recorded for this organisation"
                     description="This is an empty telemetry result, not proof that a provider was never contacted outside this retained history."
                   />
                 ) : (
@@ -652,8 +658,8 @@ export default function OperationsConsole() {
                 {aiOperations.evaluations.length === 0 ? (
                   <StatusPanel
                     state="empty"
-                    title="No tenant evaluation runs are recorded"
-                    description="No promotion decision can be inferred from an empty tenant evaluation history."
+                    title="No evaluation runs are recorded for this organisation"
+                    description="An empty evaluation history does not show that a promotion decision was made."
                   />
                 ) : (
                   <Card className="shadow-none">
@@ -702,8 +708,8 @@ export default function OperationsConsole() {
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Snapshot generated {compactDate(aiOperations.generatedAt)} WAT.
-              Provider messages and source content are intentionally absent.
+              Updated {compactDate(aiOperations.generatedAt)} WAT. Provider
+              messages and source content are intentionally absent.
             </p>
           </div>
         ) : null}
@@ -721,29 +727,29 @@ export default function OperationsConsole() {
             Specialised queue coverage
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Project-level tools remain available, but these cross-project queues
-            must not be inferred from unrelated data.
+            Pursuit tools remain available, but unrelated data cannot confirm
+            these organisation-wide queues.
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <QueueCapabilityCard
-            title="Intake and extraction review"
-            description="Available inside each project; a dedicated reviewer queue is not connected."
+            title="Intake and document review"
+            description="Available inside each pursuit; there is no separate reviewer queue."
             state="partial"
           />
           <QueueCapabilityCard
             title="Conflict decisions"
-            description="Conflict state is project-scoped; cross-tender conflict assignment needs a server queue."
+            description="Conflict status is managed inside each pursuit; cross-tender assignments need a separate service queue."
             state="partial"
           />
           <QueueCapabilityCard
             title="Evidence approval"
-            description="Vault records exist; independent approval and renewal work queues are not available globally."
+            description="Evidence records exist, but there is no organisation-wide queue for independent approval and renewal."
             state="partial"
           />
           <QueueCapabilityCard
             title="BOQ exceptions and sign-off"
-            description="Checks and readiness gates are project-scoped."
+            description="Checks and readiness decisions stay inside each pursuit."
             state="partial"
           />
           <QueueCapabilityCard

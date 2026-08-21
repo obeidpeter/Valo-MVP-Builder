@@ -88,7 +88,7 @@ describe("PrivacyWorkflowPanel", () => {
     fireEvent.change(screen.getByLabelText("Data-subject request"), {
       target: { value: DSR_ID },
     });
-    fireEvent.change(screen.getByLabelText("Named privacy assignee"), {
+    fireEvent.change(screen.getByLabelText("Assigned privacy manager"), {
       target: { value: ASSIGNEE_ID },
     });
     fireEvent.change(screen.getByLabelText("Decision evidence"), {
@@ -96,7 +96,7 @@ describe("PrivacyWorkflowPanel", () => {
     });
     fireEvent.submit(
       screen
-        .getByRole("button", { name: "Record triage with CAS" })
+        .getByRole("button", { name: "Record review with version check" })
         .closest("form")!,
     );
 
@@ -133,15 +133,17 @@ describe("PrivacyWorkflowPanel", () => {
     expect(
       screen.getByText(/cannot release a hold, delete data/iu),
     ).toBeInTheDocument();
-    for (const tabName of ["Triage DSR", "Record withdrawal", "Review hold"]) {
+    for (const tabName of [
+      "Review request",
+      "Record withdrawal",
+      "Review hold",
+    ]) {
       await user.click(screen.getByRole("tab", { name: tabName }));
       expect(
-        screen.getByText(
-          /not a mutation-time scanner or canonical attestation/iu,
-        ),
+        screen.getByText(/server does not rescan or approve the document/iu),
       ).toBeInTheDocument();
       expect(
-        screen.queryByText(/revalidated on submit/iu),
+        screen.queryByText(/checked again on submit/iu),
       ).not.toBeInTheDocument();
     }
   });
@@ -159,7 +161,9 @@ describe("PrivacyWorkflowPanel", () => {
       />,
     );
     expect(
-      screen.getByRole("button", { name: "Record triage with CAS" }),
+      screen.getByRole("button", {
+        name: "Record review with version check",
+      }),
     ).toBeDisabled();
     await user.click(screen.getByRole("tab", { name: "Record withdrawal" }));
     expect(
@@ -169,15 +173,15 @@ describe("PrivacyWorkflowPanel", () => {
     expect(
       screen.getByRole("button", { name: "Record hold review" }),
     ).toBeDisabled();
-    await user.click(screen.getByRole("tab", { name: "Triage DSR" }));
+    await user.click(screen.getByRole("tab", { name: "Review request" }));
     fireEvent.change(
-      screen.getByLabelText(
-        /Decision external or legacy evidence digest — not a scanner attestation/u,
-      ),
+      screen.getByLabelText(/External or older decision evidence SHA-256/u),
       { target: { value: SHA_A } },
     );
     expect(
-      screen.getByRole("button", { name: "Record triage with CAS" }),
+      screen.getByRole("button", {
+        name: "Record review with version check",
+      }),
     ).toBeEnabled();
   });
 });

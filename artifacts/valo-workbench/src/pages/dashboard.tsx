@@ -73,10 +73,10 @@ function projectDecisionReasons(
   const reasons: Array<{ label: string; state: SurfaceState }> = [];
 
   if (slaProjectIds.has(project.id)) {
-    reasons.push({ label: "Review SLA breached", state: "blocked" });
+    reasons.push({ label: "Review deadline missed", state: "blocked" });
   }
   if (redTeamProjectIds.has(project.id)) {
-    reasons.push({ label: "Red-team review due", state: "pending" });
+    reasons.push({ label: "Independent review due", state: "pending" });
   }
   if (
     project.conflictStatus === "blocked" ||
@@ -300,7 +300,7 @@ export default function Dashboard() {
       : []),
   ];
   const restrictedSources = [
-    ...(!canReadProjects ? ["pursuit register and workflow exceptions"] : []),
+    ...(!canReadProjects ? ["pursuit data and workflow issues"] : []),
     ...(!canReadEvidence ? ["evidence validity"] : []),
   ];
   const queryPending = (query: (typeof sources)[number]["query"]) =>
@@ -353,8 +353,8 @@ export default function Dashboard() {
   return (
     <main className="mx-auto w-full max-w-7xl space-y-8 p-5 sm:p-8">
       <PageHeader
-        title="Command Centre"
-        description="Review deadline, decision and exception signals before opening a pursuit. Dates and times are shown in West Africa Time (WAT)."
+        title="Dashboard"
+        description="See deadlines, decisions and problems that need attention before you open a pursuit. Dates and times use West Africa Time (WAT)."
         state={pageState}
         actions={
           canReadProjects ? (
@@ -367,14 +367,12 @@ export default function Dashboard() {
 
       <MyWorkInbox />
 
-      {allLoading ? (
-        <LoadingPanel label="Loading Command Centre signals" />
-      ) : null}
+      {allLoading ? <LoadingPanel label="Loading dashboard data" /> : null}
 
       {allUnavailable && !allLoading ? (
         <DataErrorPanel
-          title="Command Centre data could not be loaded"
-          description="No decision, deadline or readiness conclusion can be drawn until the connected sources respond."
+          title="Dashboard data could not be loaded"
+          description="No decision, deadline or readiness conclusion can be drawn until the dashboard sources respond."
           onRetry={retryAll}
         />
       ) : null}
@@ -382,11 +380,11 @@ export default function Dashboard() {
       {!allUnavailable && unavailableSources.length > 0 ? (
         <StatusPanel
           state="partial"
-          title="Some Command Centre signals are unavailable"
-          description={`Available sections remain visible, but ${unavailableSources.map((source) => source.name).join(", ")} could not be verified. Do not interpret an unavailable count as zero.`}
+          title="Some dashboard data is unavailable"
+          description={`Available sections remain visible, but ${unavailableSources.map((source) => source.name).join(", ")} could not be checked. An unavailable count is not zero.`}
         >
           <Button type="button" variant="outline" onClick={retryAll}>
-            Retry unavailable signals
+            Retry unavailable data
           </Button>
         </StatusPanel>
       ) : null}
@@ -394,8 +392,8 @@ export default function Dashboard() {
       {!allLoading && restrictedSources.length > 0 ? (
         <StatusPanel
           state="unavailable"
-          title="Some signals are outside your current authority"
-          description={`${restrictedSources.join(" and ")} remain hidden because this organisation role does not include their read permissions. Restricted sources were not queried and are not reported as failures or zeroes.`}
+          title="Some data is outside your current access"
+          description={`Your current role cannot read ${restrictedSources.join(" and ")}. These records were not requested, and hidden counts are not shown as zero.`}
         />
       ) : null}
 
@@ -406,13 +404,13 @@ export default function Dashboard() {
         >
           <SectionHeading
             id="attention-snapshot-heading"
-            title="Attention snapshot"
-            description="Counts are exception signals, not automatic release or submission decisions. Open the relevant pursuit to verify its current control state."
+            title="Items needing attention"
+            description="These counts do not approve a release or submission. Open the relevant pursuit to check its current status."
           />
           {canReadProjects ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <SignalCard
-                title="Review SLA breaches"
+                title="Review deadlines missed"
                 value={
                   alertsPending
                     ? LOADING_VALUE
@@ -429,7 +427,7 @@ export default function Dashboard() {
                         ? "blocked"
                         : "empty"
                 }
-                description="Deterministic workflow alerts whose review due time has elapsed."
+                description="Workflow reviews that are past their recorded review deadline."
               />
               <SignalCard
                 title="Recorded deadlines passed"
@@ -472,7 +470,7 @@ export default function Dashboard() {
                 description="Active pursuits with a blocked or declined conflict decision."
               />
               <SignalCard
-                title="Material findings recorded"
+                title="Important findings recorded"
                 value={
                   projectsPending
                     ? LOADING_VALUE
@@ -495,8 +493,8 @@ export default function Dashboard() {
           ) : (
             <StatusPanel
               state="unavailable"
-              title="Pursuit attention signals are restricted"
-              description="Review SLA, deadline, conflict and material-finding counts require project read authority. No project source was queried and no restricted count is shown as zero."
+              title="Items needing attention are restricted"
+              description="Review deadlines, submission deadlines, conflicts and important findings need pursuit access. No pursuit data was requested and no hidden count is shown as zero."
             />
           )}
         </section>
@@ -563,8 +561,8 @@ export default function Dashboard() {
                           }
                           label={
                             reasons.length > 0
-                              ? `${reasons.length} attention signal${reasons.length === 1 ? "" : "s"}`
-                              : "No summary exception"
+                              ? `${reasons.length} item${reasons.length === 1 ? "" : "s"} needing attention`
+                              : "No summary issues"
                           }
                         />
                       </div>
@@ -662,23 +660,23 @@ export default function Dashboard() {
           >
             <SectionHeading
               id="workflow-exceptions-heading"
-              title="Workflow exceptions"
-              description="Server-reported SLA breaches and red-team review windows."
+              title="Workflow issues"
+              description="Missed review deadlines and independent reviews that are due."
             />
             {alertsPending ? (
-              <LoadingPanel label="Loading workflow exceptions" />
+              <LoadingPanel label="Loading workflow issues" />
             ) : alertsUnavailable || !workflowAlerts ? (
               <StatusPanel
                 state="error"
-                title="Workflow exceptions are unavailable"
+                title="Workflow issues are unavailable"
                 description="The workflow-alert endpoint did not return a verified queue."
               />
             ) : workflowAlerts.slaBreaches.length === 0 &&
               workflowAlerts.redTeamDue.length === 0 ? (
               <StatusPanel
                 state="empty"
-                title="No workflow exceptions reported"
-                description="The alert endpoint returned no SLA breach or red-team-due records. Project readiness controls still apply."
+                title="No workflow issues reported"
+                description="No missed review deadline or due independent review was returned. Pursuit readiness checks still apply."
               />
             ) : (
               <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
@@ -686,7 +684,7 @@ export default function Dashboard() {
                   <Link
                     key={`sla-${alert.projectId}`}
                     href={`/projects/${alert.projectId}?tab=overview`}
-                    aria-label={`Open SLA breach: ${alert.tenderTitle}`}
+                    aria-label={`Open missed review deadline: ${alert.tenderTitle}`}
                     className="flex min-h-20 items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                   >
                     <div className="min-w-0">
@@ -695,14 +693,17 @@ export default function Dashboard() {
                         Review due {formatWatDateTime(alert.dueAt)}
                       </p>
                     </div>
-                    <StateBadge state="blocked" label="SLA breached" />
+                    <StateBadge
+                      state="blocked"
+                      label="Review deadline missed"
+                    />
                   </Link>
                 ))}
                 {workflowAlerts.redTeamDue.slice(0, 4).map((alert) => (
                   <Link
                     key={`red-team-${alert.projectId}`}
                     href={`/projects/${alert.projectId}?tab=defects`}
-                    aria-label={`Open red-team review: ${alert.tenderTitle}`}
+                    aria-label={`Open independent review: ${alert.tenderTitle}`}
                     className="flex min-h-20 items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                   >
                     <div className="min-w-0">
@@ -711,7 +712,10 @@ export default function Dashboard() {
                         Review window opened {formatWatDateTime(alert.dueAt)}
                       </p>
                     </div>
-                    <StateBadge state="pending" label="Red-team due" />
+                    <StateBadge
+                      state="pending"
+                      label="Independent review due"
+                    />
                   </Link>
                 ))}
               </div>
@@ -727,8 +731,8 @@ export default function Dashboard() {
         >
           <SectionHeading
             id="evidence-validity-heading"
-            title="Evidence validity exceptions"
-            description="Expired and approaching-expiry client artefacts from the connected evidence Vault."
+            title="Expiring evidence"
+            description="Client evidence that is expired or nearing its recorded expiry date."
             action={
               <Link
                 href="/evidence-readiness"
@@ -786,22 +790,22 @@ export default function Dashboard() {
         <section aria-labelledby="gate-zero-heading" className="space-y-4">
           <SectionHeading
             id="gate-zero-heading"
-            title="Gate 0 readiness"
-            description="Business validation thresholds from the connected dashboard metrics. These measures do not replace pursuit-level quality or release gates."
+            title="Initial readiness check"
+            description="Business validation thresholds from dashboard data. These measures do not replace pursuit-level quality or release checks."
           />
           {metricsPending ? (
-            <LoadingPanel label="Loading Gate 0 measures" />
+            <LoadingPanel label="Loading initial readiness measures" />
           ) : metricsUnavailable || !metrics ? (
             <StatusPanel
               state="error"
-              title="Gate 0 measures are unavailable"
-              description="The metrics source did not return a verified Gate 0 position."
+              title="Initial readiness measures are unavailable"
+              description="The metrics source did not return a verified initial readiness result."
             />
           ) : !metrics.gate0 ? (
             <StatusPanel
               state="unavailable"
-              title="Gate 0 measures are not present"
-              description="Portfolio metrics loaded, but this response did not include the Gate 0 threshold set."
+              title="Initial readiness measures are not present"
+              description="Portfolio metrics loaded, but this response did not include the initial readiness thresholds."
             />
           ) : (
             <>
@@ -875,9 +879,9 @@ export default function Dashboard() {
       <aside className="flex gap-3 rounded-lg border border-border bg-muted/30 p-4 text-sm leading-6 text-muted-foreground">
         <FileCheck2 aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
         <p>
-          Command Centre signals support triage only. Named reviewers must still
-          confirm evidence, resolve blocking findings and complete the
-          pursuit-level readiness checks before sign-off or export.
+          Dashboard signals help teams decide what to review first. Named
+          reviewers must still confirm evidence, resolve blocking findings and
+          complete the pursuit-level readiness checks before sign-off or export.
         </p>
       </aside>
     </main>

@@ -58,17 +58,17 @@ export function CredentialVerificationHub({
   return (
     <OperationsSection
       id="credential-verification"
-      title="Official credential verification hub"
-      description="Guide human checks against official issuer sources and retain who checked, when they checked and the resulting receipt fingerprint."
+      title="Credential checks"
+      description="Guide checks against official issuer sources and record who checked, when they checked and the receipt fingerprint."
       icon={<Landmark aria-hidden="true" className="size-5" />}
       busy={state === "loading"}
     >
       <HumanAuthorityNotice title="Issuer authority">
         Valo records a check; it does not impersonate an issuer or declare a
         credential genuine. The named checker must use the issuer&apos;s
-        official service and retain an auditable receipt. The selected source
-        document must currently not be marked security-quarantined, but this
-        snapshot does not itself prove a malware-scanner receipt.
+        official service and keep the check receipt. The selected source
+        document must not be quarantined, but this current record does not prove
+        that a malware scan passed.
       </HumanAuthorityNotice>
 
       {boundary ?? (
@@ -107,7 +107,7 @@ export function CredentialVerificationHub({
                         facts={[
                           { label: "Reference", value: credential.reference },
                           {
-                            label: "Exact Vault item version",
+                            label: "Current evidence version",
                             value:
                               credential.vaultItemVersion?.toLocaleString(
                                 "en-NG",
@@ -127,7 +127,7 @@ export function CredentialVerificationHub({
                       />
                       <div>
                         <p className="text-xs font-medium text-muted-foreground">
-                          Source document digest (SHA-256)
+                          Document fingerprint (SHA-256)
                         </p>
                         <code className="mt-1 block break-all rounded-md border border-border bg-muted/40 p-3 text-xs">
                           {credential.documentHash ?? "Not recorded"}

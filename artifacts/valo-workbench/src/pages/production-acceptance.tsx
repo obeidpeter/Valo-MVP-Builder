@@ -142,8 +142,8 @@ export default function ProductionAcceptancePage() {
     return (
       <PageGatePanel
         state="blocked"
-        title="Internal audit membership required"
-        description="Production acceptance evidence is available only to named Valo operations, restricted-platform and quality roles with direct membership and audit-read authority. Partner-derived and emergency access are denied."
+        title="Release-check access required"
+        description="You need direct membership, audit-read permission and an approved Valo operations, restricted platform or quality role. Partner access and emergency access are denied."
       />
     );
   }
@@ -153,7 +153,7 @@ export default function ProductionAcceptancePage() {
       <PageGatePanel
         state="offline"
         title="Live acceptance evidence is unavailable offline"
-        description="Do not infer a go decision from cached or absent evidence. Reconnect and refresh the server-verified register."
+        description="Cached or missing evidence cannot support a go decision. Reconnect to load the server-verified record."
       />
     );
   }
@@ -175,7 +175,7 @@ export default function ProductionAcceptancePage() {
       <PageGatePanel
         state="pending"
         title="Loading production acceptance evidence"
-        description="Verifying tenant scope, immutable digests, release binding and expiry windows."
+        description="Checking organisation scope, evidence digests, release match and expiry dates."
       />
     );
   }
@@ -184,8 +184,8 @@ export default function ProductionAcceptancePage() {
     return (
       <PageGatePanel
         state="error"
-        title="Production acceptance evidence could not be verified"
-        description="The safe state is no-go. No empty or successful release state has been inferred."
+        title="Release evidence could not be verified"
+        description="The result remains no-go. We have not treated missing data as an empty or successful release."
       >
         <Button
           type="button"
@@ -207,21 +207,21 @@ export default function ProductionAcceptancePage() {
           authoritiesPending ? (
             <StatusPanel
               state="pending"
-              title="Loading acceptance authorities"
-              description="Evidence recording remains disabled until the current tenant authority directory is verified."
+              title="Loading acceptance owners"
+              description="Evidence recording stays disabled until the current organisation's authority list is verified."
             />
           ) : authoritiesUnavailable || !authoritiesQuery.data ? (
             <StatusPanel
               state="error"
-              title="Acceptance authorities could not be loaded"
-              description="The directory state is unknown; this is not evidence that no independent authority exists. Retry before recording evidence."
+              title="Acceptance owners could not be loaded"
+              description="We could not verify the list. This does not mean there is no independent authority. Try again before recording evidence."
             >
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => void authoritiesQuery.refetch()}
               >
-                Retry authority directory
+                Retry owner list
               </Button>
             </StatusPanel>
           ) : (

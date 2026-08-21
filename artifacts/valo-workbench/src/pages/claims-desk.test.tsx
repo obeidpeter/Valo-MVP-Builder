@@ -116,7 +116,7 @@ describe("ClaimsDeskPage", () => {
     mocks.accessSource = "partner";
     renderPage();
     expect(
-      screen.getByText("Direct project-read membership required"),
+      screen.getByText("Direct project membership required"),
     ).toBeInTheDocument();
     expect(mocks.customFetch).not.toHaveBeenCalled();
   });
@@ -132,9 +132,7 @@ describe("ClaimsDeskPage", () => {
 
     renderPage();
 
-    expect(
-      screen.getByText("Loading available project scopes"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Loading available projects")).toBeInTheDocument();
     expect(
       screen.queryByText("No active project is available"),
     ).not.toBeInTheDocument();
@@ -157,11 +155,11 @@ describe("ClaimsDeskPage", () => {
     );
 
     expect(
-      screen.getByText("Loading canonical evidence choices"),
+      screen.getByText("Loading approved document choices"),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", {
-        name: "Register human workflow evidence",
+        name: "Record workflow evidence",
       }),
     ).not.toBeInTheDocument();
   });
@@ -181,13 +179,13 @@ describe("ClaimsDeskPage", () => {
       ),
     );
     renderPage();
-    await screen.findByRole("heading", { name: "Commercial & Claims Desk" });
+    await screen.findByRole("heading", { name: "Claims" });
     expect(mocks.customFetch).toHaveBeenCalledWith(
       `/api/projects/${PROJECT}/claims-desk`,
       expect.objectContaining({ cache: "no-store" }),
     );
     expect(
-      screen.getByRole("heading", { name: "Register human workflow evidence" }),
+      screen.getByRole("heading", { name: "Record workflow evidence" }),
     ).toBeInTheDocument();
   });
 
@@ -196,11 +194,11 @@ describe("ClaimsDeskPage", () => {
     mocks.customFetch.mockResolvedValue(response());
     renderPage();
     await waitFor(() =>
-      expect(screen.getByText("Read-only Claims Desk")).toBeInTheDocument(),
+      expect(screen.getByText("Claims is read-only")).toBeInTheDocument(),
     );
     expect(
       screen.queryByRole("heading", {
-        name: "Register human workflow evidence",
+        name: "Record workflow evidence",
       }),
     ).not.toBeInTheDocument();
   });

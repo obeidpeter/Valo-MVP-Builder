@@ -146,11 +146,11 @@ describe("PursuitOperationsSuiteRecorder", () => {
       "1. Opportunity intake",
       "2. Pursuit work",
       "3. Client evidence request",
-      "4. Submission war room",
-      "5. Visual package QA",
+      "4. Submission tracking",
+      "5. Visual package checks",
       "6. Credential verification",
       "7. Pre-bid and site-visit mission",
-      "8. Post-award delivery control",
+      "8. Post-award delivery",
     ]) {
       openPanel(title);
     }
@@ -231,7 +231,7 @@ describe("PursuitOperationsSuiteRecorder", () => {
     const { openPanel } = renderRecorder({ projectUpdate: true }, onCommand);
     openPanel("2. Pursuit work");
     openPanel("7. Pre-bid and site-visit mission");
-    openPanel("8. Post-award delivery control");
+    openPanel("8. Post-award delivery");
 
     await user.type(screen.getByLabelText("Work title"), "Prepare response");
     await user.selectOptions(
@@ -322,7 +322,7 @@ describe("PursuitOperationsSuiteRecorder", () => {
     openPanel("6. Credential verification");
 
     await user.selectOptions(
-      screen.getByLabelText(/^Active Vault item and exact source snapshot/u),
+      screen.getByLabelText(/^Active evidence item and current document/u),
       "vault-1",
     );
     await user.type(
@@ -337,10 +337,7 @@ describe("PursuitOperationsSuiteRecorder", () => {
       screen.getByLabelText("Human checked time, ISO"),
       "2026-08-11T09:00:00.000Z",
     );
-    await user.type(
-      screen.getByLabelText("Verification receipt SHA-256"),
-      HASH_B,
-    );
+    await user.type(screen.getByLabelText("Check receipt SHA-256"), HASH_B);
     await user.click(
       screen.getByRole("button", { name: "Record human credential check" }),
     );
@@ -398,11 +395,11 @@ describe("PursuitOperationsSuiteRecorder", () => {
       packageExport: true,
       packageGenerate: true,
     });
-    openPanel("4. Submission war room");
-    openPanel("5. Visual package QA");
+    openPanel("4. Submission tracking");
+    openPanel("5. Visual package checks");
 
     await user.selectOptions(
-      screen.getByLabelText("Canonical package version", {
+      screen.getByLabelText("Approved package version", {
         selector: "#submissionPackageVersion",
       }),
       "package-version-1",
@@ -424,7 +421,7 @@ describe("PursuitOperationsSuiteRecorder", () => {
     });
 
     await user.selectOptions(
-      screen.getByLabelText("Canonical package version", {
+      screen.getByLabelText("Approved package version", {
         selector: "#qaPackageVersion",
       }),
       "package-version-1",
@@ -456,7 +453,7 @@ describe("PursuitOperationsSuiteRecorder", () => {
     );
     openPanel("3. Client evidence request");
     openPanel("7. Pre-bid and site-visit mission");
-    openPanel("8. Post-award delivery control");
+    openPanel("8. Post-award delivery");
 
     await user.selectOptions(
       screen.getByLabelText("Current request slot", {
@@ -465,11 +462,11 @@ describe("PursuitOperationsSuiteRecorder", () => {
       "request-1/slot-2",
     );
     await user.selectOptions(
-      screen.getByLabelText("Canonical uploaded document"),
+      screen.getByLabelText("Approved uploaded document"),
       "document-1",
     );
     await user.type(
-      screen.getByLabelText("Named operator attestation"),
+      screen.getByLabelText("Named operator confirmation"),
       "Selected from the current authorised project document list.",
     );
     await user.click(
@@ -494,7 +491,7 @@ describe("PursuitOperationsSuiteRecorder", () => {
       "mission-1",
     );
     await user.selectOptions(
-      screen.getByLabelText(/^Canonical mission proof document \(optional\)/u),
+      screen.getByLabelText(/^Approved visit proof document \(optional\)/u),
       "document-1",
     );
     await user.click(
@@ -517,7 +514,7 @@ describe("PursuitOperationsSuiteRecorder", () => {
     );
     await user.selectOptions(
       screen.getByLabelText(
-        /^Canonical completion evidence \/ receipt document \(optional\)/u,
+        /^Approved completion evidence or receipt \(optional\)/u,
       ),
       "document-1",
     );

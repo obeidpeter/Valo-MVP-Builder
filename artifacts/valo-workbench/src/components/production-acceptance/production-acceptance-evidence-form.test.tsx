@@ -49,7 +49,7 @@ describe("ProductionAcceptanceEvidenceForm", () => {
     fireEvent.change(screen.getByLabelText("Retained artefact SHA-256"), {
       target: { value: "b".repeat(64) },
     });
-    fireEvent.change(screen.getByLabelText("Content-free summary"), {
+    fireEvent.change(screen.getByLabelText("Summary (no sensitive content)"), {
       target: { value: "Synthetic migration rehearsal passed." },
     });
     fireEvent.submit(
@@ -88,7 +88,7 @@ describe("ProductionAcceptanceEvidenceForm", () => {
       screen.getByRole("button", { name: "Record evidence reference" }),
     ).toBeDisabled();
     expect(
-      screen.getByText(/No other active named authority is available/u),
+      screen.getByText(/No other active owner is available/u),
     ).toBeInTheDocument();
   });
 });

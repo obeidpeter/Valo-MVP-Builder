@@ -52,7 +52,7 @@ export function AddResponsibilityForm(props: {
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <label className="grid gap-1.5 text-sm font-medium xl:col-span-2">
-          Workstream label
+          Area of work
           <input
             required
             maxLength={160}
@@ -62,7 +62,7 @@ export function AddResponsibilityForm(props: {
           />
         </label>
         <label className="grid gap-1.5 text-sm font-medium">
-          Responsible party
+          Responsible party (does the work)
           <select
             className="min-h-11 rounded-md border border-input bg-background px-3 py-2"
             value={responsibleParty}
@@ -76,7 +76,7 @@ export function AddResponsibilityForm(props: {
           </select>
         </label>
         <label className="grid gap-1.5 text-sm font-medium">
-          Accountable party
+          Accountable party (approves the outcome)
           <select
             className="min-h-11 rounded-md border border-input bg-background px-3 py-2"
             value={accountableParty}

@@ -58,7 +58,7 @@ export function RetainerRequestForm({
       className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2"
       onSubmit={submit}
     >
-      <FormField id="retainer-entitlement" label="Active retainer entitlement">
+      <FormField id="retainer-entitlement" label="Active retainer access">
         <select
           id="retainer-entitlement"
           name="entitlementId"
@@ -66,7 +66,7 @@ export function RetainerRequestForm({
           disabled={busy || active.length === 0}
           className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
         >
-          <option value="">Select entitlement</option>
+          <option value="">Select service access</option>
           {active.map((item) => (
             <option key={item.id} value={item.id}>
               {item.id} ({item.usageConsumed}/{item.usageLimit} used)
@@ -89,7 +89,7 @@ export function RetainerRequestForm({
           <option value="bid_evidence_pack">Bid evidence pack</option>
         </select>
       </FormField>
-      <FormField id="retainer-sla" label="SLA">
+      <FormField id="retainer-sla" label="Service level">
         <select
           id="retainer-sla"
           name="sla"
@@ -100,7 +100,7 @@ export function RetainerRequestForm({
           <option value="priority">Priority — 48 hours</option>
         </select>
       </FormField>
-      <FormField id="retainer-owner" label="Owner membership ID">
+      <FormField id="retainer-owner" label="Request owner">
         <Input
           id="retainer-owner"
           name="ownerMembershipId"
@@ -109,7 +109,7 @@ export function RetainerRequestForm({
         />
       </FormField>
       <div className="space-y-1.5 sm:col-span-2">
-        <Label htmlFor="retainer-summary">Purpose-bound request summary</Label>
+        <Label htmlFor="retainer-summary">Request summary</Label>
         <Textarea
           id="retainer-summary"
           name="summary"
@@ -198,7 +198,7 @@ export function RetainerRequestCard({
             <dd>{new Date(request.dueAt).toLocaleString()}</dd>
           </div>
           <div>
-            <dt className="text-muted-foreground">Owner membership</dt>
+            <dt className="text-muted-foreground">Owner</dt>
             <dd className="break-all font-mono text-xs">
               {request.ownerMembershipId}
             </dd>
@@ -219,7 +219,7 @@ export function RetainerRequestCard({
                 name="comment"
                 required
                 maxLength={1000}
-                placeholder="Bounded internal comment"
+                placeholder="Internal comment"
               />
               <Button type="submit" variant="outline" disabled={busy}>
                 Add

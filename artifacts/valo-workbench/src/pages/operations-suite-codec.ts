@@ -1785,7 +1785,7 @@ export function adaptOperationsSuitePayload(
           id: `receipt:${record.id}`,
           title: `Record receipt for ${record.packageId}`,
           kind: "receipt",
-          statusLabel: "dispatch recorded; receipt missing",
+          statusLabel: "Dispatched; add receipt",
           dueLabel: "No due date",
           restrictedContent: true,
           href: projectHref,
@@ -1819,7 +1819,7 @@ export function adaptOperationsSuitePayload(
         sourceUrl:
           record.source.type === "manual_url" ? record.source.locator : null,
         deadline: record.deadline,
-        provenance: `Provenance SHA-256 ${record.provenanceSha256}`,
+        provenance: `Source record SHA-256 ${record.provenanceSha256}`,
         status:
           record.status === "qualified"
             ? "qualified"

@@ -234,7 +234,7 @@ describe("Intelligence Centre route", () => {
     renderAt("/intelligence");
 
     expect(
-      screen.getByText(/loading tenant-scoped intelligence evidence/i),
+      screen.getByText(/loading intelligence evidence for this organisation/i),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", {
@@ -256,7 +256,7 @@ describe("Intelligence Centre route", () => {
     renderAt("/intelligence?project=project-1");
 
     expect(
-      screen.getByText(/loading tenant-scoped intelligence evidence/i),
+      screen.getByText(/loading intelligence evidence for this organisation/i),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", {

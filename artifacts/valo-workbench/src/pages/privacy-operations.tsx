@@ -210,7 +210,7 @@ export default function PrivacyOperationsPage() {
       toast({
         title: "Privacy workflow was not recorded",
         description:
-          "Reload the tenant view and verify the named-human evidence before retrying.",
+          "Reload this organisation's privacy record and verify the named person's evidence before trying again.",
         variant: "destructive",
       });
     },
@@ -220,8 +220,8 @@ export default function PrivacyOperationsPage() {
     return (
       <PageGatePanel
         state="blocked"
-        title="Direct privacy-read membership required"
-        description="This centre rejects partner-derived and emergency access. A direct tenant membership with privacy:read is required."
+        title="Direct privacy membership required"
+        description="You need a direct organisation membership with permission to view privacy records. Partner access and emergency access are not accepted."
       />
     );
   }
@@ -231,7 +231,7 @@ export default function PrivacyOperationsPage() {
       <PageGatePanel
         state="offline"
         title="Live privacy evidence is unavailable offline"
-        description="No cached dashboard or legal posture is inferred. Reconnect to load the tenant-RLS registers."
+        description="Cached data cannot support a legal or compliance conclusion. Reconnect to load this organisation's privacy records."
       />
     );
   }
@@ -240,8 +240,8 @@ export default function PrivacyOperationsPage() {
     return (
       <PageGatePanel
         state="pending"
-        title="Loading minimised privacy evidence"
-        description="Checking tenant scope, due dates, evidence digests and audit receipts."
+        title="Loading privacy records"
+        description="Checking organisation scope, due dates, evidence digests and audit receipts."
       />
     );
   }
@@ -250,8 +250,8 @@ export default function PrivacyOperationsPage() {
     return (
       <PageGatePanel
         state="error"
-        title="Privacy evidence could not be verified"
-        description="The interface has failed closed and does not infer compliance or a legal conclusion."
+        title="Privacy records could not be verified"
+        description="We cannot show a compliance or legal conclusion without verified records."
       >
         <Button
           type="button"
@@ -277,13 +277,13 @@ export default function PrivacyOperationsPage() {
             <StatusPanel
               state="pending"
               title="Loading privacy managers"
-              description="Named-human workflows remain disabled until the current tenant assignee directory is verified."
+              description="Privacy actions stay disabled until the current organisation's manager list is verified."
             />
           ) : assigneesUnavailable || !assigneesQuery.data ? (
             <StatusPanel
               state="error"
               title="Privacy managers could not be loaded"
-              description="The directory state is unknown; this is not evidence that no active manager exists. Retry before triage or review."
+              description="We could not verify the list. This does not mean there is no active manager. Try again before reviewing a request or legal hold."
             >
               <Button
                 type="button"
@@ -298,14 +298,14 @@ export default function PrivacyOperationsPage() {
               {evidenceOptionsPending ? (
                 <StatusPanel
                   state="pending"
-                  title="Loading governed document choices"
-                  description="The optional canonical picker is pending. Existing external or legacy digest evidence remains available and is not a scanner attestation."
+                  title="Loading approved document choices"
+                  description="You can still enter an external or older evidence digest. A digest alone does not prove that a security scan passed."
                 />
               ) : canBrowseDocuments && evidenceOptionsQuery.isError ? (
                 <StatusPanel
                   state="error"
-                  title="Governed document choices are unavailable"
-                  description="The optional picker could not be loaded. Existing external or legacy digest evidence can still be recorded and is not a scanner attestation."
+                  title="Approved document choices are unavailable"
+                  description="You can still enter an external or older evidence digest. A digest alone does not prove that a security scan passed."
                 />
               ) : null}
               <PrivacyWorkflowPanel

@@ -58,7 +58,7 @@ export function OpportunityIntake({
     state,
     error,
     count: opportunities.length,
-    loadingLabel: "Loading provenance-preserving opportunity records",
+    loadingLabel: "Loading opportunity records and source details",
     errorTitle: "Opportunity intake could not be loaded",
     emptyTitle: "No opportunities have been recorded",
     emptyDescription:
@@ -69,8 +69,8 @@ export function OpportunityIntake({
   return (
     <OperationsSection
       id="opportunity-intake"
-      title="Authorised opportunity intake"
-      description="Record manual links, forwarded notices and licensed datasets with source provenance, duplicate warnings and a human-confirmed deadline."
+      title="Opportunity intake"
+      description="Record links, forwarded notices and licensed datasets with their source, duplicate warnings and a deadline confirmed by a person."
       icon={<Radar aria-hidden="true" className="size-5" />}
       busy={state === "loading"}
     >

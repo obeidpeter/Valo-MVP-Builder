@@ -26,68 +26,65 @@ const complianceDefects = [
 ] as const;
 
 const autopsyDeliverables = [
-  ["Requirement matrix", "Requirements linked back to their tender source."],
-  ["Defect register", "A controlled list of gaps, inconsistencies and risks."],
+  ["Requirements list", "Each requirement links back to its tender source."],
+  ["Issues list", "A clear list of gaps, inconsistencies and risks."],
   [
-    "Severity classification",
-    "Clear separation of compliance and scoring exposure.",
+    "Issue priority",
+    "Shows what could disqualify the bid and what could reduce its score.",
   ],
-  ["Evidence review", "Missing, expired or insufficient support made visible."],
-  ["BOQ findings", "Deterministic checks on client-supplied figures."],
-  ["Responsiveness review", "Whether answers address the published criteria."],
-  [
-    "Remediation plan",
-    "Priorities, recommended actions, ownership and status.",
-  ],
+  ["Evidence review", "Shows missing, expired or insufficient evidence."],
+  ["BOQ findings", "Rule-based checks of client-supplied figures."],
+  ["Answer review", "Shows whether answers address the published criteria."],
+  ["Action plan", "Priorities, recommended actions, owners and progress."],
   [
     "Human review record",
-    "A named reviewer and explicit scope and limitations.",
+    "Names the reviewer and explains what the review did and did not cover.",
   ],
 ] as const;
 
 const process = [
   {
     number: "01",
-    title: "Establish scope and controls",
-    body: "Use the public form only for business contact details. Tender material enters later through the approved process, after the relevant privacy, conflict and engagement gates.",
+    title: "Agree the review and safeguards",
+    body: "Use the public form only for business contact details. Share tender material later, after the client agreement and required privacy, conflict and secure-sharing approvals are in place.",
   },
   {
     number: "02",
-    title: "Extract and verify requirements",
-    body: "Valo structures obligations with page and clause references. Suggested items remain subject to named human confirmation.",
+    title: "List and verify the requirements",
+    body: "Valo turns tender instructions into a structured list with page and clause references. A named person must confirm every suggested item.",
   },
   {
     number: "03",
-    title: "Test evidence, figures and response",
-    body: "Deterministic checks and human-led review examine evidence, client-supplied BOQ arithmetic, responsiveness and package controls.",
+    title: "Check evidence, figures and answers",
+    body: "Rule-based calculations and human review check the evidence, client-supplied bill of quantities (BOQ), answers and submission package.",
   },
   {
     number: "04",
-    title: "Receive findings and priorities",
-    body: "The customer receives transparent findings, their sources, severity and recommended next actions within the agreed scope.",
+    title: "Receive clear findings and priorities",
+    body: "The customer receives each finding, its source, how serious it is and the recommended next action for the agreed review.",
   },
 ] as const;
 
 const services = [
   {
-    title: "Assisted Bid Production",
-    body: "Controlled support to resolve identified requirements, evidence and response gaps while client approval remains explicit.",
+    title: "Help producing a bid",
+    body: "Support to fix identified requirement, evidence and answer gaps. The client remains responsible for its bid decisions.",
   },
   {
-    title: "Prequalification Packs",
-    body: "Reusable, reviewed qualification material organised for the requirements it can genuinely support.",
+    title: "Reusable supplier-qualification packs",
+    body: "Reviewed material that shows a supplier is eligible to bid, organised by the requirements it can genuinely support.",
   },
   {
-    title: "Certificate Vault",
-    body: "Organisation-scoped evidence records with validity and renewal context for authorised teams.",
+    title: "Certificate records",
+    body: "Certificate and evidence records kept within one organisation, with expiry and renewal details for approved users.",
   },
   {
-    title: "Compliance Monitoring",
-    body: "Visibility of evidence readiness and renewal needs where the engagement and product controls support it.",
+    title: "Evidence expiry monitoring",
+    body: "Shows which evidence is ready and which items need renewal when the required services and safeguards are approved.",
   },
   {
-    title: "Consultancy-Partner Support",
-    body: "Independent quality review and controlled client workspaces for authorised bid consultancies.",
+    title: "Support for consultancy partners",
+    body: "Independent review and separate client workspaces for approved bid consultancies.",
   },
 ] as const;
 
@@ -99,7 +96,7 @@ const differentiators = [
   ],
   [
     FileSearch,
-    "Source-cited requirements",
+    "Requirements linked to sources",
     "A reviewer can trace a requirement back to the clause that created it.",
   ],
   [
@@ -109,29 +106,29 @@ const differentiators = [
   ],
   [
     Calculator,
-    "Deterministic checks",
-    "Arithmetic is checked as arithmetic—not delegated to a language model.",
+    "Rule-based calculations",
+    "Valo calculates figures with fixed rules instead of asking an AI model.",
   ],
   [
     UserRoundCheck,
     "Human accountability",
-    "Client-visible conclusions and release decisions remain attributable to people.",
+    "Every conclusion shown to a client and every final report names the person responsible.",
   ],
   [
     ListChecks,
     "Transparent findings",
-    "Severity, status, source, owner and remediation remain visible in the review trail.",
+    "Priority, status, source, owner and next action stay visible in the review record.",
   ],
 ] as const;
 
 const audiences = [
   [
     "Federal contractors",
-    "Check eligibility, mandatory forms, evidence and package controls before a public-sector submission.",
+    "Check eligibility, mandatory forms, evidence and submission requirements before a public-sector bid.",
   ],
   [
-    "NipeX and NCDMB suppliers",
-    "Trace energy-sector tender obligations and qualification evidence without treating platform registration as proof of responsiveness.",
+    "Nigerian oil-and-gas suppliers",
+    "Trace tender requirements and qualification evidence for the Nigerian Petroleum Exchange (NipeX) and Nigerian Content Development and Monitoring Board (NCDMB). Registration on either platform does not prove that a bid meets the tender rules.",
   ],
   [
     "Donor-funded bidders and NGOs",
@@ -150,58 +147,58 @@ const audiences = [
 const integrityPrinciples = [
   "No award promises or evaluator-influence claims",
   "No fabricated credentials, experience or supporting evidence",
-  "No facilitation, relationship brokering or portal submission",
+  "No facilitation, relationship brokering, evaluator intelligence, collusion or portal submission",
   "Commercial figures and pricing decisions remain client-supplied",
-  "Tender workspace access is organisation-scoped",
-  "Client data is not approved for shared-model training",
-  "Same-tender conflicts are subject to recorded conflict controls",
-  "Client-visible findings receive named human review",
+  "Each tender workspace is limited to one organisation",
+  "Client data is not approved for training shared AI models",
+  "Conflicts involving the same tender must be recorded and managed",
+  "A named person reviews every finding shown to a client",
 ] as const;
 
 const faqs = [
   [
     "What is a Bid Autopsy?",
-    "It is a structured review of a tender package against its published requirements. The agreed output can include a source-cited requirement matrix, defect register, evidence and BOQ findings, severity and a prioritised remediation plan.",
+    "It is a structured review of a tender package against the published requirements. The agreed report can include a requirements list linked to source clauses, an issues list, evidence and bill of quantities (BOQ) findings, issue priorities and an action plan.",
   ],
   [
     "Does Valo guarantee an award?",
-    "No. Valo helps a team identify and address controllable defects. It cannot guarantee an evaluator’s decision, acceptance of a package or contract award.",
+    "No. Valo helps a team find and fix problems within its control. It cannot guarantee an evaluator’s decision, acceptance of a package or contract award.",
   ],
   [
     "Can Valo review a live bid?",
-    "Yes, where scope, timing, conflicts and an approved document-sharing process can be agreed. The public request form does not accept tender documents.",
+    "Yes, if Valo can agree what the review will cover and how long it will take, clear any conflicts and approve a secure document-sharing process. The public request form does not accept tender documents.",
   ],
   [
     "Can Valo review a previously unsuccessful bid?",
-    "Yes. A retrospective review can compare the submitted package, available feedback and published criteria, while distinguishing evidence from inference.",
+    "Yes. An after-the-event review can compare the submitted package, available feedback and published criteria. It clearly separates documented facts from conclusions.",
   ],
   [
     "Must financial pages be shared?",
-    "Not for the first contact. If BOQ verification is in scope, the minimum relevant commercial pages can be handled later through the approved document-sharing process. Valo does not determine pricing.",
+    "Not for the first contact. If the review includes a bill of quantities (BOQ), share only the necessary commercial pages later through the approved secure process. Valo does not set prices.",
   ],
   [
     "What documents are required?",
-    "That depends on the agreed review. Typical later-stage inputs may include the tender, clarifications, the draft or submitted response and selected supporting evidence. Do not send them through the public form.",
+    "That depends on the agreed review. Valo may later need the tender, clarifications, the draft or submitted response and selected evidence. Do not send any of these through the public form.",
   ],
   [
     "Does Valo create commercial pricing?",
-    "No. Valo can check arithmetic and consistency in client-supplied figures, but rates, assumptions and commercial strategy remain the client’s responsibility.",
+    "No. Valo can check the calculations and consistency of client-supplied figures. The client remains responsible for rates, assumptions and pricing strategy.",
   ],
   [
     "How is information protected?",
-    "The first-contact form is deliberately limited to ordinary business details. Tender material is handled only after the appropriate engagement and approved document-sharing gates; access and provider readiness are checked rather than assumed.",
+    "The first request form accepts only ordinary business details. Tender material is handled only after the client agreement, secure sharing, user access and service approvals have been checked.",
   ],
   [
     "How long does the process take?",
-    "Timing is confirmed only after Valo understands the scope, volume, deadline and review depth. There is no unqualified public turnaround promise.",
+    "Valo confirms timing after it understands what the review will cover, the number of documents, the deadline and the level of review. It does not promise a fixed turnaround before that assessment.",
   ],
   [
     "What happens after the Autopsy?",
-    "Your team receives the agreed findings and priorities, then decides what to remediate. Any further Valo support is separately scoped and keeps client approval explicit.",
+    "Your team receives the agreed findings and priorities, then decides what to fix. Any further Valo support is agreed separately, and the client remains responsible for its bid decisions.",
   ],
   [
     "Can Valo help correct the identified problems?",
-    "Where capability, timing and scope allow, Valo can support remediation and assisted bid production. The diagnosis remains useful even when the client completes the corrections independently.",
+    "Yes, when Valo has the right capability and enough time, and the agreed work allows it. The review remains useful even if the client fixes the problems without further help.",
   ],
 ] as const;
 
@@ -268,15 +265,15 @@ export function LandingSections() {
         <div className="content-shell relative grid gap-12 lg:grid-cols-[0.82fr_1.18fr] lg:gap-24">
           <div className="lg:sticky lg:top-36 lg:self-start">
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">
-              Survive the compliance gate
+              Pass the compliance check
             </p>
             <h2 className="public-display mt-5 text-balance text-4xl font-medium leading-[1.02] tracking-[-0.05em] sm:text-5xl lg:text-6xl">
-              A capable bid can be excluded before merit is considered.
+              A good bid can be rejected before anyone considers its strengths.
             </h2>
             <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground">
-              Valo focuses on preventable, controllable defects: the missing
-              record, unanswered instruction or inconsistency an evaluator can
-              point to in the published rules.
+              Valo focuses on problems a team can prevent: a missing record, an
+              unanswered instruction or an inconsistency that breaks a published
+              rule.
             </p>
           </div>
           <ul className="border-t border-border">
@@ -310,12 +307,13 @@ export function LandingSections() {
                 The Bid Autopsy
               </p>
               <h2 className="public-display mt-6 text-balance text-4xl font-medium leading-[1.02] tracking-[-0.05em] sm:text-5xl lg:text-6xl">
-                A concrete review record—not a generic proposal critique.
+                A practical report, not a generic proposal review.
               </h2>
               <p className="mt-5 text-base leading-7 text-muted-foreground">
-                The agreed report shows what was checked, where each requirement
-                came from, what evidence was found, what remains exposed and
-                what to do next. Scope and limitations stay visible.
+                The agreed report shows what Valo checked, where each
+                requirement came from, what evidence was found, what remains at
+                risk and what to do next. It also states what the review did and
+                did not cover.
               </p>
               <BidAutopsyCta className="mt-8 rounded-full px-6 shadow-sm" />
             </div>
@@ -388,12 +386,12 @@ export function LandingSections() {
               Show the work
             </p>
             <h2 className="public-display mt-5 text-balance text-4xl font-medium leading-[1.02] tracking-[-0.05em] sm:text-5xl lg:text-6xl">
-              Follow the line from tender clause to remediation.
+              Follow each tender rule through to the next action.
             </h2>
             <p className="mt-6 max-w-3xl text-base leading-7 text-sidebar-foreground/70">
-              Valo separates source, requirement, evidence, finding and action
-              so a reviewer can challenge the conclusion without losing its
-              basis.
+              Valo separates the source, requirement, evidence, finding and
+              action. A reviewer can question a conclusion and still see what
+              supports it.
             </p>
           </div>
           <BidAutopsySample />
@@ -407,15 +405,14 @@ export function LandingSections() {
         <div className="grid gap-12 lg:grid-cols-[0.72fr_1.28fr] lg:gap-20">
           <div className="lg:sticky lg:top-36 lg:self-start">
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">
-              From diagnosis to submission
+              From review to submission
             </p>
             <h2 className="public-display mt-5 text-balance text-4xl font-medium leading-[1.02] tracking-[-0.05em] sm:text-5xl lg:text-6xl">
-              Start with the diagnosis. Continue where Valo can add measurable
-              value.
+              Start with the review. Continue only where Valo can help.
             </h2>
             <p className="mt-5 text-sm leading-6 text-muted-foreground">
-              Service availability, scope and commercial terms are confirmed for
-              each engagement. The Bid Autopsy remains the first conversation.
+              Valo confirms the available service, work and price for each
+              client agreement. A Bid Autopsy is the starting point.
             </p>
           </div>
           <div className="border-t border-border">
@@ -446,7 +443,7 @@ export function LandingSections() {
               Why Valo
             </p>
             <h2 className="public-display mt-5 text-balance text-4xl font-medium leading-[1.02] tracking-[-0.05em] sm:text-5xl lg:text-6xl">
-              Built around the evidence a decision should withstand.
+              Built around evidence that can stand up to review.
             </h2>
           </div>
           <div className="mt-14 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -476,7 +473,7 @@ export function LandingSections() {
             <UsersRound aria-hidden="true" className="size-6" />
           </span>
           <h2 className="public-display mt-6 text-balance text-4xl font-medium leading-[1.02] tracking-[-0.05em] sm:text-5xl lg:text-6xl">
-            For teams that cannot treat compliance as a final-day check.
+            For teams that cannot leave compliance until the final day.
           </h2>
         </div>
         <div className="mt-14 border-t border-border">
@@ -517,14 +514,14 @@ export function LandingSections() {
               <ShieldCheck aria-hidden="true" className="size-7" />
             </span>
             <p className="mt-6 text-sm font-semibold uppercase tracking-[0.14em] text-sidebar-primary">
-              Integrity and data trust
+              Clear limits and data protection
             </p>
             <h2 className="public-display mt-5 text-balance text-4xl font-medium leading-[1.02] tracking-[-0.05em] sm:text-5xl lg:text-6xl">
-              Commercial trust begins with clear boundaries.
+              Trust begins with clear limits.
             </h2>
             <p className="mt-5 text-base leading-7 text-sidebar-foreground/70">
-              AI-assisted features operate only where the relevant provider and
-              environment are approved. They do not replace human approval or
+              AI-assisted features run only after the service and production
+              environment are approved. They cannot replace human approval or
               turn an unsupported claim into evidence.
             </p>
             <BidAutopsyCta className="mt-8 rounded-full border-sidebar-primary bg-sidebar-primary px-6 text-sidebar-primary-foreground shadow-md" />
@@ -555,7 +552,7 @@ export function LandingSections() {
               FAQ
             </p>
             <h2 className="public-display mt-5 text-balance text-4xl font-medium leading-[1.02] tracking-[-0.05em] sm:text-5xl lg:text-6xl">
-              Questions before the first review.
+              Common questions before a review.
             </h2>
           </div>
           <div className="border-t border-border">
@@ -592,7 +589,7 @@ export function LandingSections() {
                 <ClipboardCheck aria-hidden="true" className="size-6" />
               </span>
               <h2 className="public-display mt-8 text-balance text-4xl font-medium leading-[1.02] tracking-[-0.05em] sm:text-6xl lg:text-7xl">
-                Give the package a review trail before it faces an evaluator.
+                Review the package before it reaches an evaluator.
               </h2>
               <p className="mt-3 text-sm leading-6 text-sidebar-foreground/70">
                 Start with ordinary business contact details. No tender

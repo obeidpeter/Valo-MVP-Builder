@@ -111,11 +111,11 @@ export function ClaimsDeskCreatePanel({
     <Card>
       <CardHeader>
         <CardTitle role="heading" aria-level={2}>
-          Register human workflow evidence
+          Record workflow evidence
         </CardTitle>
         <CardDescription>
-          References and amounts are records, not legal entitlement, certified
-          valuation or pricing.
+          The reference and amount are records only. They do not establish legal
+          entitlement, certified value or price.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -142,7 +142,7 @@ export function ClaimsDeskCreatePanel({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="claims-reference">Controlled reference</Label>
+            <Label htmlFor="claims-reference">Reference</Label>
             <Input
               id="claims-reference"
               required
@@ -178,7 +178,7 @@ export function ClaimsDeskCreatePanel({
             <>
               <div className="space-y-2">
                 <Label htmlFor="claims-amount">
-                  Amount (integer minor units)
+                  Amount (minor units, whole number)
                 </Label>
                 <Input
                   id="claims-amount"
@@ -190,7 +190,7 @@ export function ClaimsDeskCreatePanel({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="claims-currency">ISO currency</Label>
+                <Label htmlFor="claims-currency">Currency code (ISO)</Label>
                 <Input
                   id="claims-currency"
                   minLength={3}
@@ -206,7 +206,7 @@ export function ClaimsDeskCreatePanel({
           <div className="sm:col-span-2">
             <CanonicalEvidencePicker
               id="claims-bindings"
-              label="Canonical document evidence"
+              label="Approved document evidence"
               options={evidenceOptions}
               value={bindings}
               onChange={setBindings}
@@ -219,8 +219,8 @@ export function ClaimsDeskCreatePanel({
               id="claims-bindings-help"
               className="text-xs text-muted-foreground"
             >
-              Choose 1–10 current, governed documents. The server revalidates
-              every version and its security status when you submit.
+              Choose 1–10 current approved documents. When you submit, the
+              server checks each version and security status again.
             </p>
           </div>
           {error ? (
@@ -235,7 +235,7 @@ export function ClaimsDeskCreatePanel({
                 pending || evidenceOptions.length === 0 || bindings.length === 0
               }
             >
-              {pending ? "Recording…" : "Record immutable evidence"}
+              {pending ? "Recording…" : "Record evidence"}
             </Button>
           </div>
         </form>
@@ -321,11 +321,11 @@ export function ClaimsDeskTransitionPanel({
     <Card>
       <CardHeader>
         <CardTitle role="heading" aria-level={2}>
-          Controlled transition
+          Change status
         </CardTitle>
         <CardDescription>
-          CAS protects each version. Assessment and closure approvals require a
-          different named human from the proposer.
+          A version check prevents stale updates. A different named person must
+          approve an assessment or closure.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -368,7 +368,7 @@ export function ClaimsDeskTransitionPanel({
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="claims-reason">Controlled reason</Label>
+              <Label htmlFor="claims-reason">Reason</Label>
               <Select
                 value={reasonCode}
                 onValueChange={(value) =>
@@ -389,9 +389,7 @@ export function ClaimsDeskTransitionPanel({
             </div>
             {action === "propose_assessment" ? (
               <div className="space-y-2">
-                <Label htmlFor="claims-assessment">
-                  Human assessment marker
-                </Label>
+                <Label htmlFor="claims-assessment">Assessment</Label>
                 <Select
                   value={assessmentCode}
                   onValueChange={(value) =>
@@ -414,7 +412,7 @@ export function ClaimsDeskTransitionPanel({
               <div className="flex items-end">
                 <Badge variant={makerChecker ? "default" : "outline"}>
                   {makerChecker
-                    ? "Independent checker required"
+                    ? "A different reviewer must approve this"
                     : `Current state: ${label(selected.status)}`}
                 </Badge>
               </div>
@@ -422,7 +420,7 @@ export function ClaimsDeskTransitionPanel({
             <div className="sm:col-span-2">
               <CanonicalEvidencePicker
                 id="claims-transition-bindings"
-                label="Revalidated canonical document evidence"
+                label="Rechecked document evidence"
                 options={evidenceOptions}
                 value={bindings}
                 onChange={setBindings}

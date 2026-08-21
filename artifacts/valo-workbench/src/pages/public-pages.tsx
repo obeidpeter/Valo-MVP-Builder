@@ -56,8 +56,9 @@ function BidAutopsySectionCta() {
             Start with a review of the tender package.
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Public enquiry does not accept tender files. Sensitive material
-            enters only after an authorised engagement and NDA are in place.
+            The public form does not accept tender files. Share sensitive
+            material only after an authorised client agreement and
+            non-disclosure agreement (NDA) are in place.
           </p>
         </div>
         <BidAutopsyCta className="shrink-0" />
@@ -69,36 +70,36 @@ function BidAutopsySectionCta() {
 export function ProductPage() {
   const modules = [
     [
-      "Pursuit control",
-      "Engagement status, reviewer responsibility, deadlines, governance gates and recorded next actions.",
+      "Bid overview",
+      "See the client-agreement status, responsible reviewer, deadlines, required approvals and next actions.",
     ],
     [
       "Tender documents",
-      "Manifest-led intake, verification status, extraction controls and honest failure states.",
+      "See every recorded document, whether it was verified, how text extraction is controlled and any failures.",
     ],
     [
-      "Requirement register",
-      "Candidate, confirmed and rejected requirements with exact source references and reviewer attribution.",
+      "Requirements list",
+      "Keep suggested, confirmed and rejected requirements separate, with exact source references and the reviewer's name.",
     ],
     [
       "Evidence and compliance",
-      "Evidence mapping, validity status, renewal signals and claimability boundaries.",
+      "Link evidence to requirements, see expiry and renewal needs, and show which claims the evidence can support.",
     ],
     [
-      "BOQ checks",
-      "Exact arithmetic on client-supplied figures, words-versus-figures checks and cited exceptions.",
+      "Bill of quantities (BOQ) checks",
+      "Check client-supplied calculations, compare words with figures and cite every difference.",
     ],
     [
-      "Issues and red team",
-      "Severity-led findings, remediation status and non-overridable fatal release blockers.",
+      "Issues and challenge review",
+      "List issues by priority, track fixes and block the final report while a must-fix issue remains open.",
     ],
     [
-      "Reports and export",
-      "Controlled report generation, named sign-off, provenance and immutable release expectations.",
+      "Reports and downloads",
+      "Create approved reports, record who signed them off, show their source history and prevent silent changes after approval and download.",
     ],
     [
       "Activity and audit",
-      "Tenant-scoped event history with explicit legacy-integrity status where historical evidence is discontinuous.",
+      "Show activity for the selected organisation and clearly mark older records if their audit history has a known gap.",
     ],
   ] as const;
 
@@ -106,13 +107,13 @@ export function ProductPage() {
     <PublicShell>
       <PublicMeta
         title="Product"
-        description="Explore Valo's evidence-led tender workspaces for intake, cited requirements, evidence, BOQ checks, issues, reports and audit."
+        description="Explore Valo's tender workspace for documents, requirements linked to sources, evidence, bill of quantities checks, issues, reports and audit history."
         path="/product"
       />
       <PageIntro
         eyebrow="Product"
-        title="A controlled workspace for evidence-heavy pursuits."
-        description="Valo brings the operational record into one place while keeping AI suggestions, deterministic checks and human decisions visibly separate."
+        title="One organised workspace for complex bids."
+        description="Valo keeps the bid record in one place and clearly separates AI suggestions, rule-based checks and human decisions."
       >
         <Button asChild variant="outline" className="min-h-11">
           <Link href="/how-it-works">See the workflow</Link>
@@ -143,21 +144,21 @@ export function ProductPage() {
           <div>
             <BadgeCheck aria-hidden="true" className="size-6 text-primary" />
             <h2 className="mt-4 text-xl font-semibold">
-              Authority stays explicit
+              People make the final decisions
             </h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              AI can suggest and explain. Only authorised people can confirm
-              requirements, approve evidence, sign off or release a package.
+              AI can suggest and explain. Only approved people can confirm
+              requirements, approve evidence, sign off or download a package.
             </p>
           </div>
           <div>
             <Scale aria-hidden="true" className="size-6 text-primary" />
             <h2 className="mt-4 text-xl font-semibold">
-              Math is not model output
+              Calculations use fixed rules
             </h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Money paths use deterministic checks. Valo does not invent rates,
-              pricing strategy or commercial assumptions.
+              Valo checks money with fixed calculation rules, not AI guesses. It
+              does not invent rates, pricing strategy or business assumptions.
             </p>
           </div>
           <div>
@@ -166,8 +167,9 @@ export function ProductPage() {
               Unavailable means unavailable
             </h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Provider, entitlement and readiness gaps are shown honestly;
-              sensitive actions remain disabled rather than simulated.
+              If a service, permission or required safeguard is missing, Valo
+              says so. Sensitive actions stay disabled instead of appearing to
+              work.
             </p>
           </div>
         </div>
@@ -182,34 +184,34 @@ export function SolutionsPage() {
     {
       icon: Landmark,
       title: "Bid and proposal teams",
-      body: "Turn tender instructions into owned, cited actions and keep the response connected to current evidence.",
+      body: "Turn tender instructions into assigned actions linked to their sources, and keep each answer connected to current evidence.",
       items: [
-        "Pursuit command centre",
+        "Bid dashboard",
         "Requirements and evidence",
-        "BOQ checks",
-        "Controlled reports",
+        "Bill of quantities checks",
+        "Approved reports",
       ],
     },
     {
       icon: ShieldCheck,
       title: "Compliance and quality teams",
-      body: "Review validity, fatal blockers, remediation and named approvals without losing the source behind a decision.",
+      body: "Review validity, must-fix issues, corrective actions and named approvals without losing the source behind a decision.",
       items: [
-        "Evidence readiness",
-        "Defect review",
-        "Red-team controls",
-        "Audit exports",
+        "Evidence status",
+        "Issues to fix",
+        "Independent challenge review",
+        "Audit-ready downloads",
       ],
     },
     {
       icon: Building2,
       title: "Advisory and partner teams",
-      body: "Work across assigned client organisations without weakening client ownership, tenant boundaries or Valo quality controls.",
+      body: "Work with assigned client organisations while keeping each client's data, ownership and Valo's quality checks separate.",
       items: [
-        "Delegated workspaces",
-        "Role boundaries",
-        "Partner attribution",
-        "Commercial feature gates",
+        "Assigned client workspaces",
+        "Clear role limits",
+        "Named partner work",
+        "Approved commercial features",
       ],
     },
   ] as const;
@@ -218,13 +220,13 @@ export function SolutionsPage() {
     <PublicShell>
       <PublicMeta
         title="Solutions"
-        description="Valo supports bid, compliance and advisory teams with source-backed tender workflows and controlled human review."
+        description="Valo supports bid, compliance and advisory teams with tender work linked to sources and named human review."
         path="/solutions"
       />
       <PageIntro
         eyebrow="Solutions"
-        title="The same evidence record, shaped for each responsibility."
-        description="Valo changes what each role can see and do without creating separate versions of the truth."
+        title="One trusted record, with clear access for each role."
+        description="Each role sees only what it needs and can do only what it is allowed to do. Everyone works from the same record."
       />
       <section className="content-shell grid gap-5 py-16 sm:py-20 lg:grid-cols-3">
         {solutions.map((solution) => (
@@ -256,36 +258,36 @@ export function SolutionsPage() {
 export function HowItWorksPage() {
   const stages = [
     [
-      "Engagement first",
-      "An authorised team records the client context, NDA, conflict position, SLA class and named reviewer. Public lead capture never accepts tender files.",
+      "Agree the work first",
+      "An approved team records the client, non-disclosure agreement (NDA), conflict check, service level and named reviewer. The public request form never accepts tender files.",
     ],
     [
-      "Manifest and bound intake",
-      "Valo records the document manifest and enforces configured byte limits. Authoritative MIME detection, malware scanning, archive inspection and quarantine are not yet wired, so production document intake remains gated on approved controls.",
+      "Record documents safely",
+      "Valo records the document list and enforces file-size limits. Approved checks for a file's real type and contents, malware scanning, archive inspection and quarantine are not yet connected. Production document uploads stay off until those checks are approved and working.",
     ],
     [
-      "Extract into review",
-      "Candidate obligations carry source locations and uncertainty. Embedded document instructions cannot invoke tools or change workflow state.",
+      "Create draft requirements",
+      "Valo links every suggested requirement to its source and shows uncertainty. Instructions hidden inside a document cannot run tools or change the review.",
     ],
     [
-      "Confirm and assign",
-      "A named reviewer confirms, edits or rejects each candidate before it becomes an authoritative requirement.",
+      "Review and assign",
+      "A named reviewer confirms, edits or rejects each suggestion before the team can treat it as a real requirement.",
     ],
     [
       "Map evidence",
-      "Current evidence is linked to requirements. Unsupported or expired evidence stays visible and cannot silently support a claim.",
+      "Link current evidence to each requirement. Missing, weak or expired evidence stays visible and cannot silently support a claim.",
     ],
     [
-      "Check and challenge",
-      "Deterministic BOQ checks and reviewer-led defect/red-team work surface controllable risks without predicting award.",
+      "Check calculations and challenge the bid",
+      "Rule-based bill of quantities (BOQ) checks and an independent challenge review find problems the team can fix. They do not predict an award.",
     ],
     [
-      "Approve and release",
-      "Readiness gates, reviewer assignment and sign-off state are rechecked at export. Fatal blockers remain non-overridable.",
+      "Approve before download",
+      "Before a report is downloaded, Valo rechecks the required safeguards, reviewer assignment and approval. A must-fix issue cannot be overridden.",
     ],
     [
-      "Preserve the record",
-      "The released artefact, decisions and audit provenance remain attributable after delivery.",
+      "Keep the record",
+      "After delivery, the released file, decisions and audit history still show who was responsible.",
     ],
   ] as const;
 
@@ -293,13 +295,13 @@ export function HowItWorksPage() {
     <PublicShell>
       <PublicMeta
         title="How it works"
-        description="Follow Valo's controlled path from NDA-gated intake to cited requirements, evidence, review, approval and audit-ready release."
+        description="See how Valo moves from an approved client agreement to requirements linked to sources, evidence checks, human approval and an audit-ready report."
         path="/how-it-works"
       />
       <PageIntro
         eyebrow="How it works"
-        title="A review process with explicit gates."
-        description="Each stage produces a record the next stage can rely on. Missing authority, evidence or infrastructure stops the action instead of being papered over."
+        title="A clear path from first contact to final review."
+        description="Each step leaves a record for the next one. If approval, evidence or a required service is missing, Valo stops the action and explains why."
       />
       <section className="content-shell py-16 sm:py-20">
         <ol className="mx-auto max-w-4xl space-y-4">
@@ -329,28 +331,28 @@ export function HowItWorksPage() {
 export function SecurityPage() {
   const controls = [
     [
-      "Tenant boundary",
-      "Requests carry an explicitly selected organisation and the data layer applies tenant context. Missing context fails closed.",
+      "Organisation data stays separate",
+      "Every request names the selected organisation, and the database limits access to that organisation. If this context is missing, access is denied.",
     ],
     [
-      "Human authority",
-      "Role permissions distinguish contribution, review, quality, administration and audit. Partner access does not grant Valo quality authority.",
+      "People approve important actions",
+      "Roles control who can contribute, review, approve quality, administer or audit. Partner access does not grant permission to approve Valo quality decisions.",
     ],
     [
-      "Hostile-input boundary",
-      "Tender content is treated as data, never system instruction, and configured byte limits reduce exposure. Authoritative MIME detection, malware scanning, archive inspection and quarantine are not yet wired into intake.",
+      "Documents cannot control Valo",
+      "Valo treats tender content as data, never as an instruction to the system, and enforces file-size limits. Approved checks for a file's real type and contents, malware scanning, archive inspection and quarantine are not yet connected to document uploads.",
     ],
     [
-      "Audit integrity",
-      "Active audit events are hash-chained. Preserved legacy history is labelled honestly where its historical chain contains a known discontinuity.",
+      "Audit records show known gaps",
+      "Each new audit entry links cryptographically to the one before it. Older records are clearly marked if their historical chain has a known gap.",
     ],
     [
-      "Provider readiness boundary",
-      "Model-assisted actions remain unavailable unless the relevant provider is explicitly approved. Malware inspection is not yet an authoritative intake gate and must not be inferred from provider configuration.",
+      "AI services need approval",
+      "AI-assisted actions stay unavailable unless the relevant service is explicitly approved. An approved AI service does not mean malware scanning is active; malware inspection is not yet an approved check for uploaded documents.",
     ],
     [
-      "Release gates",
-      "Readiness, evidence, reviewer and defect controls are re-evaluated when a report or export is requested.",
+      "Checks run again before download",
+      "When someone requests a report or data export, Valo rechecks that required services are ready, the evidence is current, a reviewer is assigned and no blocking issue is open.",
     ],
   ] as const;
 
@@ -358,13 +360,13 @@ export function SecurityPage() {
     <PublicShell>
       <PublicMeta
         title="Security"
-        description="Understand Valo's tenant, input-security, provider-readiness, audit and human-authority controls."
+        description="Learn how Valo separates organisation data, treats documents safely, approves AI services, records actions and keeps important decisions with people."
         path="/security"
       />
       <PageIntro
         eyebrow="Security and trust"
-        title="Controls that are visible when they matter."
-        description="Valo is designed to make security and integrity state part of the workflow. This page describes product controls, not a certification or blanket assurance."
+        title="See the safeguards that protect each step."
+        description="Valo shows its security and record-protection checks as part of the work. This page describes product safeguards; it is not a certification or a promise that every deployment is approved."
       />
       <section className="content-shell py-16 sm:py-20">
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -383,13 +385,13 @@ export function SecurityPage() {
         </div>
         <div className="mt-8 rounded-lg border border-warning/40 bg-warning/10 p-5">
           <h2 className="font-semibold text-warning-foreground">
-            Deployment matters
+            Production setup matters
           </h2>
           <p className="mt-2 max-w-4xl text-sm leading-6 text-muted-foreground">
-            Source controls do not prove that every production provider, region,
-            key, recovery process or endpoint policy is approved. Sensitive
-            actions remain subject to environment-specific readiness and
-            operational review.
+            Source code alone does not prove that every live service, region,
+            encryption key, recovery process or device policy is approved.
+            Sensitive actions still depend on checks for the specific production
+            environment and a review by the operations team.
           </p>
         </div>
       </section>
@@ -403,13 +405,13 @@ export function AboutPage() {
     <PublicShell>
       <PublicMeta
         title="About"
-        description="Valo is building an evidence-led tender operating system for Nigerian and regulated-market bid teams."
+        description="Valo is building a tender review workspace for Nigerian bid teams and other teams in regulated markets."
         path="/about"
       />
       <PageIntro
         eyebrow="About Valo"
-        title="Better tender operations begin with a better record."
-        description="Valo is being built from Abuja for teams working across Nigerian public procurement, energy-sector and donor-funded tender environments."
+        title="Better tender work starts with a clear record."
+        description="Valo is being built in Abuja for teams working on Nigerian public-sector, energy and donor-funded tenders."
       />
       <section className="content-shell grid gap-10 py-16 sm:py-20 lg:grid-cols-2 lg:gap-16">
         <div>
@@ -417,28 +419,26 @@ export function AboutPage() {
             Why Valo exists
           </h2>
           <p className="mt-4 text-base leading-7 text-muted-foreground">
-            Bid teams often have capable people and strong experience, yet lose
-            control of requirements, evidence and approvals across documents,
-            messages and spreadsheets. Valo focuses on those controllable
-            process failures.
+            Capable bid teams can still lose track of requirements, evidence and
+            approvals across documents, messages and spreadsheets. Valo focuses
+            on these preventable problems.
           </p>
           <p className="mt-4 text-base leading-7 text-muted-foreground">
-            Valo is designed to combine model-assisted extraction and
-            explanation with deterministic software and named human review.
-            Model-assisted steps remain unavailable unless provider, privacy and
-            evaluation gates are approved; human review remains the final
-            authority.
+            Valo combines AI-assisted extraction and explanation with rule-based
+            software and named human review. AI-assisted steps stay unavailable
+            until the AI service, privacy and model-evaluation approvals are in
+            place. A human reviewer makes the final decision.
           </p>
         </div>
         <div className="rounded-lg border border-border bg-card p-6">
           <h2 className="font-semibold">Operating commitments</h2>
           <ul className="mt-5 space-y-4">
             {[
-              "No guarantee of contract award or evaluator behaviour.",
-              "No invention of evidence, experience, pricing or approvals.",
-              "No administrative override of open fatal blockers.",
-              "No government-portal submission automation.",
-              "Client data is not approved for shared-model training.",
+              "No guarantee of a contract award or an evaluator's decision.",
+              "No invented evidence, experience, prices or approvals.",
+              "No administrator can override an open must-fix issue.",
+              "No automated submission to government portals.",
+              "Client data is not approved for training shared AI models.",
             ].map((item) => (
               <li
                 key={item}
@@ -464,22 +464,22 @@ export function ContactPage() {
     <PublicShell>
       <PublicMeta
         title="Contact"
-        description="Start a Valo Bid Autopsy enquiry without sending tender documents or sensitive commercial information through a public form."
+        description="Ask Valo about a Bid Autopsy without sending tender documents or sensitive commercial information through the public form."
         path="/contact"
       />
       <PageIntro
         eyebrow="Contact"
         title="Start with a Bid Autopsy request."
-        description="The canonical request journey collects only the ordinary business details Valo needs for first contact. Tender files are handled later, after the appropriate engagement and approved document-sharing gates."
+        description="The request form asks only for the business details Valo needs to contact you. Share tender files later, after the client agreement and secure document-sharing process are approved."
       />
       <section className="content-shell grid gap-6 py-16 sm:py-20 lg:grid-cols-[1fr_0.75fr]">
         <div className="rounded-lg border border-border bg-card p-6 sm:p-8">
           <UsersRound aria-hidden="true" className="size-6 text-primary" />
           <h2 className="mt-5 text-2xl font-semibold">New bid enquiry</h2>
           <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-            Use one protected request route for live, draft or previously
-            submitted bids. Do not send confidential bid content, credentials or
-            financial schedules at this stage.
+            Use this form for a live, planned or previously submitted bid. Do
+            not send confidential bid content, sign-in details or other
+            credentials, or financial schedules at this stage.
           </p>
           <BidAutopsyCta className="mt-7" />
         </div>
@@ -487,11 +487,12 @@ export function ContactPage() {
           <CircleHelp aria-hidden="true" className="size-6 text-primary" />
           <h2 className="mt-5 font-semibold">Already invited?</h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Use the same email or identity provider tied to your invitation.
-            Organisation and role selection happen after authentication.
+            Sign in with the email address or account that received the
+            invitation. Valo checks your organisation and role after it verifies
+            your identity.
           </p>
           <Button asChild variant="outline" className="mt-6 min-h-11 w-full">
-            <Link href="/sign-in">Sign In to Valo</Link>
+            <Link href="/sign-in">Sign in to Valo</Link>
           </Button>
         </aside>
       </section>
@@ -532,62 +533,62 @@ export function PrivacyPage() {
     <LegalPage
       kind="Privacy"
       title="Privacy notice"
-      description="How this Valo web experience handles public enquiries, account identity and tender-workspace information."
+      description="How Valo handles public requests, account identity and information in a tender workspace."
     >
       <p>
-        <strong>Effective 10 August 2026.</strong> This notice describes the
-        current product design and is not a claim that every optional
-        integration is active in every environment.
+        <strong>Effective 10 August 2026.</strong> This notice describes how the
+        product is currently designed. It does not mean that every optional
+        service is active in every environment.
       </p>
       <h2>Public website</h2>
       <p>
         The Bid Autopsy request form records ordinary business contact details,
-        a broad tender category and stage, an optional deadline, preferred
-        contact method and privacy acknowledgement. Valo uses this information
-        to assess and respond to the enquiry. The form does not accept tender
-        documents, sensitive commercial information or free-text bid details.
+        a broad tender category and stage, an optional deadline, your preferred
+        contact method and confirmation that you read this notice. Valo uses
+        this information to assess and answer the request. The form does not
+        accept tender documents, sensitive commercial information or free-text
+        bid details.
       </p>
       <p>
-        Form contents are stored in Valo's isolated public-intake database and
-        are not sent to analytics. Request metadata is used for shared
-        same-origin, abuse-prevention, rate-limit and idempotency controls. The
-        ordinary application log does not record form contents.
+        Form answers are stored in a separate Valo database for public requests
+        and are not sent to analytics. Technical request details help Valo
+        confirm that the form came from the official site, prevent abuse, limit
+        repeated attempts and avoid duplicate requests. Normal application logs
+        do not record the form answers.
       </p>
-      <h2>Public-enquiry retention</h2>
+      <h2>How long we keep public requests</h2>
       <p>
-        Retention and deletion of public enquiries follow the approved
-        public-lead policy. This notice does not publish a fixed period where no
-        duration has been operationally approved. Use a verified Valo contact
-        for access, correction or deletion requests relating to a public
-        enquiry.
+        Valo keeps and deletes public requests under its approved public-request
+        policy. This notice does not state a fixed period because one has not
+        yet been approved for operations. Use a verified Valo contact to ask to
+        access, correct or delete a public request.
       </p>
       <h2>Accounts and access</h2>
       <p>
-        Valo uses an external identity provider for sign-in, verification,
-        multi-factor authentication and recovery. The application stores the
-        minimum identity and role references needed to enforce organisation
-        access and produce audit records.
+        Valo uses an external sign-in service to verify identity, provide
+        multi-factor authentication and recover accounts. Valo stores only the
+        identity and role details it needs to decide who can access each
+        organisation and to create audit records.
       </p>
       <h2>Tender workspace data</h2>
       <p>
-        Tender and evidence data is organisation-scoped. Access, storage and
-        model-processing actions are subject to engagement, tenant, role and
-        provider-readiness controls. Do not use public enquiry channels for this
-        material.
+        Tender and evidence data is kept separate for each organisation. Access,
+        storage and AI processing depend on the client agreement and the
+        organisation, role and service approvals. Do not send this material
+        through a public request form.
       </p>
       <h2>Audit, security and retention</h2>
       <p>
-        Authorised actions may be recorded in an audit trail. Retention,
-        deletion and legal-hold decisions depend on the engagement and
-        applicable policy; a request is not completed until the system records
-        its authorised outcome.
+        Valo may record approved actions in an audit trail. Decisions to keep,
+        delete or place information on legal hold depend on the client agreement
+        and applicable policy. A request is not complete until the system
+        records the approved outcome.
       </p>
       <h2>Your choices</h2>
       <p>
-        Use the verified relationship contact or your organisation administrator
-        for access, correction, retention or deletion requests.
-        Security-sensitive requests may require reauthentication and additional
-        approval.
+        Use your verified Valo contact or organisation administrator to ask for
+        access, correction, retention or deletion. A security-sensitive request
+        may require you to sign in again and may need further approval.
       </p>
     </LegalPage>
   );
@@ -598,44 +599,46 @@ export function TermsPage() {
     <LegalPage
       kind="Terms"
       title="Service terms notice"
-      description="Plain-language boundaries for using the Valo public site and controlled tender workspace."
+      description="Rules for using the Valo public site and its controlled tender workspace."
     >
       <p>
-        <strong>Effective 9 August 2026.</strong> Contract-specific terms,
-        data-processing terms and service levels are governed by the agreement
-        issued to the relevant organisation.
+        <strong>Effective 9 August 2026.</strong> The agreement issued to each
+        organisation sets its contract terms, data-processing terms and service
+        levels.
       </p>
       <h2>Authorised use</h2>
       <p>
         The tender workspace is invitation-only. Users must act for the selected
-        organisation, protect their credentials and use only the roles and
-        client workspaces they are authorised to access.
+        organisation, protect their sign-in details and use only the roles and
+        client workspaces they are allowed to access.
       </p>
       <h2>Human responsibility</h2>
       <p>
-        Valo assists a reviewed process. It does not guarantee contract award,
-        evaluator behaviour or acceptance of a submission. Authorised users
-        remain responsible for conclusions, evidence, figures, approvals and
-        submission.
+        Valo supports a human-reviewed process. It cannot guarantee a contract
+        award, an evaluator's decision or acceptance of a submission. Approved
+        users remain responsible for conclusions, evidence, figures, approvals
+        and submission.
       </p>
       <h2>Prohibited use</h2>
       <p>
-        Users must not attempt cross-tenant access, bypass readiness controls,
-        introduce malicious files, treat model output as unreviewed authority,
-        fabricate evidence, or use Valo to automate government-portal
-        submission.
+        Users must not try to access another organisation's data, bypass
+        required readiness, security or service checks, upload malicious files,
+        treat unreviewed AI output as authoritative, use AI output to change
+        records or actions before a named person reviews it, fabricate evidence,
+        or use Valo to automate submission to a government portal.
       </p>
       <h2>Commercial and financial boundaries</h2>
       <p>
-        BOQ tools check client-supplied figures and formats. They do not create
-        pricing strategy, invent rates or provide financial advice.
+        Bill of quantities (BOQ) tools check client-supplied figures and
+        formats. They do not create pricing strategy, invent rates or provide
+        financial advice.
       </p>
       <h2>Availability and change</h2>
       <p>
-        Features may be unavailable where entitlement, infrastructure, provider
-        or security controls are not approved. Valo may change the service to
-        preserve security, integrity or legal obligations, with material
-        contractual changes handled under the applicable agreement.
+        A feature may be unavailable when a required permission, system, service
+        or security safeguard is not approved. Valo may change the service to
+        protect security, record integrity or legal obligations. The applicable
+        agreement governs any material contract change.
       </p>
     </LegalPage>
   );
@@ -657,8 +660,8 @@ export function PublicNotFoundPage() {
             This page is not available.
           </h1>
           <p className="mt-4 text-base leading-7 text-muted-foreground">
-            The address may have changed, or the resource may belong to an
-            authenticated organisation workspace.
+            The address may be wrong or may have changed. The page may also
+            require you to sign in to an organisation workspace.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Button asChild>

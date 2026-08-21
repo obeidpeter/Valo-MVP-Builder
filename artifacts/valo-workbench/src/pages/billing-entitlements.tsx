@@ -13,25 +13,25 @@ export default function BillingEntitlements() {
     <div className="mx-auto w-full max-w-7xl space-y-7 p-5 sm:p-8">
       <PageHeader
         eyebrow="Commercial controls"
-        title="Billing & entitlements"
-        description="A transparent control surface for versioned products, service access, usage limits, invoices, payments and exceptions."
+        title="Billing & access"
+        description="Review which billing and service-access controls are available."
         state={enabled ? "partial" : "pending"}
       />
 
       <FeatureActivationNotice
         enabled={enabled}
-        feature="Billing and entitlements"
+        feature="Billing and access"
         detail={
           enabled
-            ? "The commercial surface is enabled, but no complete price-book, order, subscription, invoice, reconciliation or entitlement decision contract is connected."
-            : "Commercial activation is pending. Prices are not hard-coded and this screen does not create orders, invoices, payments or access grants."
+            ? "Billing is enabled, but prices, orders, subscriptions, invoices, payment matching and access decisions are not connected yet."
+            : "Billing is not active. This page does not set prices, create orders or invoices, record payments or grant access."
         }
       />
 
       <StatusPanel
         state="partial"
-        title="Project payment gates are not a billing ledger"
-        description="Existing project-level payment confirmation can block operational progress, but it must not be interpreted as an invoice, reconciled payment, subscription or entitlement record."
+        title="Project payment checks are not billing records"
+        description="A project payment check can pause work. It is not an invoice, verified payment, subscription or proof of service access."
       />
 
       <section
@@ -42,37 +42,37 @@ export default function BillingEntitlements() {
           id="commercial-capabilities-heading"
           className="font-serif text-xl font-semibold"
         >
-          Commercial capability status
+          Billing and access status
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <QueueCapabilityCard
-            title="Versioned price book"
-            description="One-off Autopsy, Assisted Bid, prequalification, subscription, retainer and partner products need effective-dated configuration."
+            title="Price list versions"
+            description="Each product needs an approved version with start and end dates."
             state="unavailable"
           />
           <QueueCapabilityCard
-            title="Entitlement decisions"
-            description="Server-side product, organisation, usage and expiry rules must return an explainable allow or deny decision."
+            title="Access decisions"
+            description="The server must explain why access is allowed or denied, using product, organisation, usage and expiry rules."
             state="blocked"
           />
           <QueueCapabilityCard
             title="Orders and subscriptions"
-            description="Creation, cancellation, renewal and state-transition APIs are not connected."
+            description="Creating, cancelling and renewing orders or subscriptions is not connected."
             state="unavailable"
           />
           <QueueCapabilityCard
             title="Invoices and payments"
-            description="Payment-provider reconciliation and billing exceptions require idempotent provider adapters."
+            description="Matching provider payments to invoices and handling billing exceptions are not connected."
             state="unavailable"
           />
           <QueueCapabilityCard
             title="Usage and fair-use limits"
-            description="Model cost telemetry exists separately; customer metering and auditable limit decisions are not available."
+            description="Model costs are tracked separately. Customer usage and limit decisions are not available."
             state="partial"
           />
           <QueueCapabilityCard
             title="Partner arrangements"
-            description="Revenue share and partner-specific entitlements require an active, versioned agreement."
+            description="Partner revenue share and access rules need an active, versioned agreement."
             state="pending"
           />
         </div>

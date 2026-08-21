@@ -65,7 +65,7 @@ describe("ReportsTab query states", () => {
     renderReportsTab();
 
     expect(
-      screen.getByRole("heading", { name: /report register unavailable/i }),
+      screen.getByRole("heading", { name: /report list unavailable/i }),
     ).toBeInTheDocument();
     expect(
       screen.queryByText(/no reports generated yet/i),

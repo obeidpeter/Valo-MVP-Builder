@@ -235,12 +235,12 @@ describe("signed-in routing", () => {
     vi.unstubAllEnvs();
   });
 
-  it("renders the Command Centre at the protected app path", async () => {
+  it("renders the Dashboard at the protected app path", async () => {
     renderAt("/app");
     expect(
       await screen.findByRole(
         "heading",
-        { name: /^command centre$/i },
+        { name: /^dashboard$/i },
         ROUTE_LOAD_WAIT,
       ),
     ).toBeInTheDocument();
@@ -251,12 +251,12 @@ describe("signed-in routing", () => {
     expect(
       await screen.findByRole(
         "heading",
-        { name: /404 page not found/i },
+        { name: /we couldn't find this page/i },
         ROUTE_LOAD_WAIT,
       ),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: /^command centre$/i }),
+      screen.queryByRole("heading", { name: /^dashboard$/i }),
     ).not.toBeInTheDocument();
   });
 
@@ -275,7 +275,7 @@ describe("signed-in routing", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /client portal requires activation/i,
+        name: /client portal is not active yet/i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -294,12 +294,12 @@ describe("signed-in routing", () => {
     expect(
       await screen.findByRole(
         "heading",
-        { name: /connected tenant signals/i },
+        { name: /organisation summary/i },
         ROUTE_LOAD_WAIT,
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/no pursuit records returned/i),
+      screen.getByRole("heading", { name: /no pursuits are available/i }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/no workflow alerts returned/i),
@@ -318,13 +318,13 @@ describe("signed-in routing", () => {
         "heading",
         {
           level: 1,
-          name: /tender projects/i,
+          name: /^pursuits$/i,
         },
         ROUTE_LOAD_WAIT,
       ),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: /^command centre$/i }),
+      screen.queryByRole("heading", { name: /^dashboard$/i }),
     ).not.toBeInTheDocument();
   });
 
@@ -370,7 +370,7 @@ describe("signed-in routing", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /partner workspace requires activation/i,
+        name: /partner workspace is not active yet/i,
       }),
     ).toBeInTheDocument();
     expect(screen.queryByText(/add managed client/i)).not.toBeInTheDocument();
@@ -384,7 +384,7 @@ describe("signed-in routing", () => {
       await screen.findByRole(
         "heading",
         {
-          name: /connected partner signals/i,
+          name: /partner summary/i,
         },
         ROUTE_LOAD_WAIT,
       ),
@@ -393,10 +393,10 @@ describe("signed-in routing", () => {
       screen.getByText(/no partner relationships returned/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/no partner-tenant pursuits returned/i),
+      screen.getByText(/no partner pursuits are available/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/no partner-tenant evidence in the expiry window/i),
+      screen.getByText(/no partner evidence in the expiry window/i),
     ).toBeInTheDocument();
     expect(screen.queryByText(/add managed client/i)).not.toBeInTheDocument();
   });
@@ -407,7 +407,7 @@ describe("signed-in routing", () => {
     expect(
       await screen.findByRole(
         "heading",
-        { name: /partner workspace requires activation/i },
+        { name: /partner workspace is not active yet/i },
         ROUTE_LOAD_WAIT,
       ),
     ).toBeInTheDocument();
@@ -445,7 +445,7 @@ describe("signed-in routing", () => {
     expect(
       await screen.findByRole(
         "heading",
-        { name: /tender projects/i },
+        { name: /^pursuits$/i },
         ROUTE_LOAD_WAIT,
       ),
     ).toBeInTheDocument();
@@ -461,7 +461,7 @@ describe("signed-in routing", () => {
     expect(
       await screen.findByRole(
         "heading",
-        { name: "Intelligence Centre" },
+        { name: "Bid insights" },
         ROUTE_LOAD_WAIT,
       ),
     ).toBeInTheDocument();
@@ -477,7 +477,7 @@ describe("signed-in routing", () => {
     expect(
       await screen.findByRole(
         "heading",
-        { name: /no authorised pursuits are available/i },
+        { name: /no accessible pursuits are available/i },
         ROUTE_LOAD_WAIT,
       ),
     ).toBeInTheDocument();
@@ -492,7 +492,7 @@ describe("signed-in routing", () => {
     expect(
       await screen.findByRole(
         "heading",
-        { name: /turn interest into governed work/i },
+        { name: /leads & offers/i },
         ROUTE_LOAD_WAIT,
       ),
     ).toBeInTheDocument();
@@ -504,7 +504,7 @@ describe("signed-in routing", () => {
     expect(
       await screen.findByRole(
         "heading",
-        { name: /turn interest into governed work/i },
+        { name: /leads & offers/i },
         ROUTE_LOAD_WAIT,
       ),
     ).toBeInTheDocument();
@@ -528,12 +528,12 @@ describe("signed-in routing", () => {
     expect(
       await screen.findByRole(
         "heading",
-        { name: /quote-to-cash and service desk/i },
+        { name: /quotes, invoices & retainers/i },
         ROUTE_LOAD_WAIT,
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/approved, effective fixed price-book seed is missing/i),
+      screen.getByText(/approved price-book version is missing/i),
     ).toBeInTheDocument();
   });
 
@@ -580,6 +580,6 @@ describe("signed-in routing", () => {
         ROUTE_LOAD_WAIT,
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText(/no access rows returned/i)).toBeInTheDocument();
+    expect(screen.getByText(/no access records returned/i)).toBeInTheDocument();
   });
 });

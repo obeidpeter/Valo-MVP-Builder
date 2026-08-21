@@ -73,8 +73,8 @@ export function ClientEvidenceRequestRoom({
   return (
     <OperationsSection
       id="evidence-request-room"
-      title="Client evidence request room"
-      description="Replace email chasing with named requests, controlled upload slots, attestations, due dates and reviewer receipts."
+      title="Client evidence requests"
+      description="Track named requests, controlled upload slots, acknowledgements, due dates and reviewer receipts in one place."
       icon={<FileUp aria-hidden="true" className="size-5" />}
       busy={state === "loading"}
     >
@@ -106,8 +106,8 @@ export function ClientEvidenceRequestRoom({
                         />
                         <Badge variant="outline">
                           {request.attestationRequired
-                            ? "Attestation required"
-                            : "No attestation recorded"}
+                            ? "Signed confirmation required"
+                            : "No signed confirmation recorded"}
                         </Badge>
                       </div>
                       <div>

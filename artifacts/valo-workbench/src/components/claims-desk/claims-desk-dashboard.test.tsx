@@ -73,14 +73,10 @@ function snapshot(): ClaimsDeskSnapshot {
 describe("ClaimsDeskDashboard", () => {
   it("shows bounded posture, minor units and immutable evidence", () => {
     render(<ClaimsDeskDashboard snapshot={snapshot()} />);
-    expect(
-      screen.getByRole("heading", { name: "Commercial & Claims Desk" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Awaiting checker")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Claims" })).toBeInTheDocument();
+    expect(screen.getByText("Awaiting second review")).toBeInTheDocument();
     expect(screen.getByText("NGN 125,000 minor units")).toBeInTheDocument();
-    expect(
-      screen.getByText("Controlled reason history (1)"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Reason history (1)")).toBeInTheDocument();
   });
 
   it("accepts a server-shaped snapshot with bindings and reason history", () => {
@@ -170,7 +166,7 @@ describe("ClaimsDeskDashboard", () => {
     );
   });
 
-  it("parses only unique canonical UUID/SHA pairs", () => {
+  it("parses only unique approved document ID and SHA-256 pairs", () => {
     expect(parseBindingLines(`${DOC} ${SHA}`)).toHaveLength(1);
     expect(() => parseBindingLines(`${DOC} ${SHA}\n${DOC} ${SHA}`)).toThrow(
       /once/u,

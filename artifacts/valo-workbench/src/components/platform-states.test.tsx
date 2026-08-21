@@ -39,12 +39,10 @@ describe("platform state semantics", () => {
       />,
     );
     const button = screen.getByRole("button", {
-      name: "Activation unavailable",
+      name: "Not available yet",
     });
     expect(button).toBeDisabled();
-    expect(button).toHaveAccessibleDescription(
-      /authorised platform administrator/i,
-    );
+    expect(button).toHaveAccessibleDescription(/platform administrator/i);
     expect(screen.getByLabelText("Status: Pending")).toBeInTheDocument();
   });
 

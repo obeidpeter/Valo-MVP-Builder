@@ -76,8 +76,8 @@ export function EventMissionControl({
   return (
     <OperationsSection
       id="event-mission-control"
-      title="Pre-bid & site-visit mission control"
-      description="Coordinate attendance, delegate authority, field checklists and reviewed proof for mandatory tender events."
+      title="Pre-bid meetings and site visits"
+      description="Coordinate attendance, delegated authority, field checklists and reviewed proof for required tender events."
       icon={<CalendarCheck2 aria-hidden="true" className="size-5" />}
       busy={state === "loading"}
     >

@@ -59,8 +59,10 @@ describe("Claims Desk workflow panels", () => {
         onCreate={vi.fn()}
       />,
     );
-    expect(screen.getByText(/not legal entitlement/u)).toBeInTheDocument();
-    expect(screen.getByLabelText("Canonical document evidence")).toBeRequired();
+    expect(
+      screen.getByText(/do not establish legal entitlement/u),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Approved document evidence")).toBeRequired();
   });
 
   it("does not enable evidence-dependent actions without a current selection", () => {
@@ -76,7 +78,7 @@ describe("Claims Desk workflow panels", () => {
       />,
     );
     expect(
-      screen.getByRole("button", { name: "Record immutable evidence" }),
+      screen.getByRole("button", { name: "Record evidence" }),
     ).toBeDisabled();
     rerender(
       <ClaimsDeskTransitionPanel
@@ -102,7 +104,7 @@ describe("Claims Desk workflow panels", () => {
       />,
     );
     expect(
-      screen.getByText("Independent checker required"),
+      screen.getByText("A different reviewer must approve this"),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("combobox", { name: "Action" }));
     expect(
@@ -135,7 +137,7 @@ describe("Claims Desk workflow panels", () => {
     );
     expect(
       screen.getByRole("option", {
-        name: "Previously bound document 1 — revalidated on submit",
+        name: "Previously attached document 1 — checked again on submit",
       }),
     ).toBeInTheDocument();
     expect(

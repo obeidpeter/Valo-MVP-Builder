@@ -61,7 +61,7 @@ export function ResponsibilityCard(props: {
         <div>
           <h3 className="font-semibold">{props.item.workstreamLabel}</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Iteration {props.item.iteration} · owner{" "}
+            Version {props.item.iteration} · owner{" "}
             {participantName(
               props.participants,
               props.item.ownerUserId,
@@ -75,11 +75,15 @@ export function ResponsibilityCard(props: {
       </div>
       <dl className="mt-4 grid gap-3 rounded-lg bg-muted/35 p-4 text-sm sm:grid-cols-4">
         <div>
-          <dt className="text-xs text-muted-foreground">Responsible</dt>
+          <dt className="text-xs text-muted-foreground">
+            Responsible (does the work)
+          </dt>
           <dd className="mt-1 capitalize">{props.item.responsibleParty}</dd>
         </div>
         <div>
-          <dt className="text-xs text-muted-foreground">Accountable</dt>
+          <dt className="text-xs text-muted-foreground">
+            Accountable (approves the outcome)
+          </dt>
           <dd className="mt-1 capitalize">{props.item.accountableParty}</dd>
         </div>
         <div>
@@ -119,7 +123,7 @@ export function ResponsibilityCard(props: {
           }}
         >
           <label className="grid gap-1 text-sm font-medium">
-            Workstream label
+            Area of work
             <input
               required
               maxLength={160}
@@ -150,7 +154,7 @@ export function ResponsibilityCard(props: {
             </select>
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            Responsible party
+            Responsible party (does the work)
             <select
               className="min-h-10 rounded-md border border-input bg-background px-3"
               value={responsible}
@@ -164,7 +168,7 @@ export function ResponsibilityCard(props: {
             </select>
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            Accountable party
+            Accountable party (approves the outcome)
             <select
               className="min-h-10 rounded-md border border-input bg-background px-3"
               value={accountable}
@@ -197,7 +201,7 @@ export function ResponsibilityCard(props: {
               type="submit"
               disabled={props.pending || !ownerIsSelectable}
             >
-              Submit revision
+              Submit changes
             </Button>
           </div>
         </form>
@@ -212,7 +216,7 @@ export function ResponsibilityCard(props: {
               onClick={() => setEditing(true)}
             >
               <RefreshCw className="mr-2 size-4" aria-hidden="true" />
-              Revise
+              Edit responsibility
             </Button>
           ) : null}
           {mayDecide ? (

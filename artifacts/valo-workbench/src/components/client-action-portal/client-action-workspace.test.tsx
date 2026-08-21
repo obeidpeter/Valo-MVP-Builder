@@ -110,7 +110,7 @@ describe("ClientActionWorkspace", () => {
       />,
     );
     expect(
-      screen.getByText(/Valo API never accepts raw file bytes/i),
+      screen.getByText(/Valo does not receive the file itself/i),
     ).toBeInTheDocument();
     fireEvent.click(
       screen.getByRole("button", { name: /acknowledge request/i }),
@@ -196,7 +196,7 @@ describe("ClientActionWorkspace", () => {
     );
     const { rerender } = render(view(USER));
     expect(
-      screen.getByLabelText(/Exact file for certificate\.pdf/u),
+      screen.getByLabelText(/File for certificate\.pdf/u),
     ).toBeInTheDocument();
     expect(
       screen.queryByLabelText(/Canonical document ID/u),
@@ -204,7 +204,7 @@ describe("ClientActionWorkspace", () => {
 
     rerender(view(RECIPIENT));
     expect(
-      screen.queryByLabelText(/Exact file for certificate\.pdf/u),
+      screen.queryByLabelText(/File for certificate\.pdf/u),
     ).not.toBeInTheDocument();
   });
 });

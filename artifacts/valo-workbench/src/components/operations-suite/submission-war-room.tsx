@@ -96,8 +96,8 @@ export function SubmissionWarRoom({
   return (
     <OperationsSection
       id="submission-war-room"
-      title="Submission war room & visual package QA"
-      description="Render and inspect the final package, freeze its fingerprint, coordinate physical copies and preserve delivery receipts."
+      title="Submission and visual package checks"
+      description="Render and inspect the final package, lock its fingerprint, coordinate physical copies and keep delivery receipts."
       icon={<FileCheck2 aria-hidden="true" className="size-5" />}
       busy={state === "loading"}
     >

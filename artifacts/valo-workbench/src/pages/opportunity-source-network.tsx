@@ -130,7 +130,7 @@ export default function OpportunitySourceNetworkPage() {
       <PageGatePanel
         state="pending"
         title="Loading source receipts"
-        description="Checking tenant scope, receipt digests and review state."
+        description="Checking your organisation access, source records and review status."
       />
     );
   if (snapshotUnavailable || !snapshot.data)
@@ -138,7 +138,7 @@ export default function OpportunitySourceNetworkPage() {
       <PageGatePanel
         state="error"
         title="Source receipts could not be verified"
-        description="No empty inbox or accepted opportunity has been inferred."
+        description="Nothing is shown as empty or accepted while this check is unavailable."
       >
         <Button
           type="button"

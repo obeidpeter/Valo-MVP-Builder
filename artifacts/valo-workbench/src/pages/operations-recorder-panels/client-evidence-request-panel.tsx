@@ -38,7 +38,7 @@ export function ClientEvidenceRequestPanel({
   return (
     <Panel
       title="3. Client evidence request"
-      description="Valo records the request and later records the named person's manual sharing, uploaded document hash/attestation and reasoned review decision. It sends nothing."
+      description="Valo records the request and later records the named person's manual sharing, uploaded document hash, signed confirmation and reasoned review decision. It sends nothing."
       allowed={permissions.evidenceWrite || permissions.evidenceApprove}
       unavailableReason="Evidence write or approval permission is required."
       disabled={disabled}
@@ -150,7 +150,7 @@ export function ClientEvidenceRequestPanel({
               true,
             );
             if (!document) {
-              throw new Error("A canonical response document is required.");
+              throw new Error("An approved response document is required.");
             }
             const acceptedContentTypes = slot.acceptedContentTypes.map(
               (contentType) => contentType.trim().toLowerCase(),
@@ -177,7 +177,7 @@ export function ClientEvidenceRequestPanel({
                 attestation: requiredText(
                   data,
                   "responseAttestation",
-                  "Attestation",
+                  "Signed confirmation",
                 ),
               },
             };
@@ -191,14 +191,14 @@ export function ClientEvidenceRequestPanel({
               mode="response"
             />
           </Field>
-          <Field label="Canonical uploaded document" name="responseDocumentId">
+          <Field label="Approved uploaded document" name="responseDocumentId">
             <DocumentSelect
               id="responseDocumentId"
               records={records.documents}
               required
             />
           </Field>
-          <Field label="Named operator attestation" name="responseAttestation">
+          <Field label="Named operator confirmation" name="responseAttestation">
             <TextArea id="responseAttestation" required />
           </Field>
           <Submit

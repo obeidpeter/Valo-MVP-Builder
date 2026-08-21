@@ -55,9 +55,9 @@ describe("AiShadowProgrammePage query states", () => {
   it("keeps a cold paused shadow register pending instead of reporting an error", () => {
     render(<AiShadowProgrammePage />);
 
-    expect(screen.getByText("Loading AI shadow evidence")).toBeInTheDocument();
+    expect(screen.getByText("Loading AI test evidence")).toBeInTheDocument();
     expect(
-      screen.queryByText("AI shadow evidence could not be verified"),
+      screen.queryByText("AI test evidence could not be verified"),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("AI shadow console")).not.toBeInTheDocument();
   });

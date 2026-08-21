@@ -111,18 +111,18 @@ export default function PartnerWorkspace() {
         <PageHeader
           eyebrow="Consultancy channel"
           title="Partner workspace"
-          description="Delegated consultancy operations with client-retained ownership and server-attributed access."
+          description="Manage consultancy work while the client keeps ownership and each action remains linked to the signed-in user."
           state="pending"
         />
         <StatusPanel
           state="pending"
-          title="Partner workspace requires activation"
-          description="The partner edition is commercially gated for this deployment. No partner relationship, client assignment, branding change or revenue event is being simulated while activation is pending."
+          title="Partner workspace is not active yet"
+          description="This deployment has not activated the partner workspace. Relationships, client assignments, branding changes and revenue events remain unavailable."
         />
         <StatusPanel
           state="active"
-          title="Quality controls remain invariant"
-          description="Activation and partner branding never change evidence validity, conflict controls, fatal blockers or named sign-off requirements."
+          title="Quality controls do not change"
+          description="Activation and partner branding never change evidence validity, conflict checks, fatal blockers or named sign-off requirements."
         />
       </div>
     );
@@ -166,7 +166,7 @@ export default function PartnerWorkspace() {
       <PageHeader
         eyebrow="Consultancy channel"
         title="Partner workspace"
-        description="Read-only relationship, selected-tenant pursuit and evidence-expiry summaries returned for the current server-authorised partner membership."
+        description="Read-only summaries of relationships, pursuits and expiring evidence for your current partner membership."
         state={!online ? "offline" : loading ? "pending" : "partial"}
         actions={
           <Button asChild variant="outline">
@@ -180,13 +180,13 @@ export default function PartnerWorkspace() {
 
       <StatusPanel
         state="partial"
-        title="Client ownership remains explicit"
-        description="This relationship register intentionally returns identifiers, lifecycle, QA responsibility and co-signing policy. The separate organisation selector exposes a named client context only after the server validates the active relationship and partner-edition activation; this page never infers client project data from an identifier."
+        title="The client keeps ownership"
+        description="This register shows relationship IDs, status, QA responsibility and co-signing rules. A client appears in the organisation selector only after the active relationship is checked. This page never uses an ID to guess client pursuit data."
       />
       <StatusPanel
         state="active"
-        title="Quality controls remain invariant"
-        description="Partner membership never changes evidence validity, requirement status, conflict controls, fatal blockers or named sign-off requirements."
+        title="Quality controls do not change"
+        description="Partner membership never changes evidence validity, requirement status, conflict checks, fatal blockers or named sign-off requirements."
       />
 
       {!online ? (
@@ -215,17 +215,17 @@ export default function PartnerWorkspace() {
         >
           <div>
             <h2 id="partner-signals-heading" className="text-xl font-semibold">
-              Connected partner signals
+              Partner summary
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Each count remains scoped to the selected organisation and the
-              current server-authorised relationship context.
+              Each count is limited to the selected organisation and your
+              current partner relationship.
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <QueueCapabilityCard
               title="Relationship records"
-              description="Partner/client relationships visible to this tenant."
+              description="Partner and client relationships visible to this organisation."
               state={
                 relationshipsQuery.isError
                   ? "error"
@@ -256,8 +256,8 @@ export default function PartnerWorkspace() {
               }
             />
             <QueueCapabilityCard
-              title="Selected-tenant blockers"
-              description="Partner-tenant pursuits with fatal or conflict blockers."
+              title="Pursuits with blockers"
+              description="Pursuits with fatal defects or conflict blocks."
               state={
                 projectsQuery.isError
                   ? "error"
@@ -271,7 +271,7 @@ export default function PartnerWorkspace() {
             />
             <QueueCapabilityCard
               title="Evidence in expiry window"
-              description="Partner-tenant Vault artefacts expired or approaching expiry."
+              description="Evidence for this organisation that is expired or nearing expiry."
               state={
                 vaultQuery.isError
                   ? "error"
@@ -305,7 +305,7 @@ export default function PartnerWorkspace() {
             <StatusPanel
               state="empty"
               title="No partner relationships returned"
-              description="The selected partner tenant has no visible relationship records. This does not create or imply client access."
+              description="No relationships are visible for this partner organisation. This does not grant or imply client access."
             />
           ) : (
             <div className="grid gap-4 lg:grid-cols-2">
@@ -393,24 +393,24 @@ export default function PartnerWorkspace() {
         >
           <div>
             <h2 id="partner-pursuits-heading" className="text-xl font-semibold">
-              Selected partner-tenant pursuits
+              Partner pursuits
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              These rows come from the selected partner tenant. They are not
-              presented as projects belonging to relationship client tenants.
+              These pursuits belong to the selected partner organisation, not to
+              clients named in its relationships.
             </p>
           </div>
           {projects.length === 0 ? (
             <StatusPanel
               state="empty"
-              title="No partner-tenant pursuits returned"
-              description="The current project endpoint returned no rows for this partner tenant. Relationship client projects are not inferred."
+              title="No partner pursuits are available"
+              description="No pursuits were returned for this partner organisation. Client pursuits are not guessed from relationship records."
             />
           ) : (
             <div className="overflow-x-auto rounded-lg border border-border bg-card">
               <table className="w-full min-w-[760px] text-left text-sm">
                 <caption className="sr-only">
-                  Pursuits stored in the selected partner tenant
+                  Pursuits stored in the selected partner organisation
                 </caption>
                 <thead className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
                   <tr>
@@ -469,13 +469,13 @@ export default function PartnerWorkspace() {
           className="space-y-3"
         >
           <h2 id="partner-evidence-heading" className="text-xl font-semibold">
-            Partner-tenant evidence expiry
+            Partner evidence expiry
           </h2>
           {vaultQuery.data.items.length === 0 ? (
             <StatusPanel
               state="empty"
-              title="No partner-tenant evidence in the expiry window"
-              description="The selected tenant returned no at-risk Vault records. This is not a statement about relationship client evidence."
+              title="No partner evidence in the expiry window"
+              description="No at-risk evidence was returned for this partner organisation. This says nothing about client evidence."
             />
           ) : (
             <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
@@ -511,8 +511,8 @@ export default function PartnerWorkspace() {
 
       <StatusPanel
         state="unavailable"
-        title="Unsupported channel operations are omitted"
-        description="Relationship writes, configurable branding, co-sign workflow and revenue settlement are not exposed here because the current frontend lacks complete authorised contracts for those operations. Verified client contexts, when available, are selected through the global organisation switcher."
+        title="Unavailable partner actions are not shown"
+        description="This page does not support relationship changes, custom branding, co-signing or revenue settlement. When a client relationship is verified, select that client from the organisation switcher."
       />
     </div>
   );

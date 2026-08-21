@@ -21,7 +21,7 @@ export default function RequireArea({
   if (isLoading || isPending || organisationAccess?.isLoading) {
     return (
       <div className="p-6 sm:p-8">
-        <LoadingPanel label="Checking workspace access" />
+        <LoadingPanel label="Checking your access" />
       </div>
     );
   }
@@ -31,8 +31,8 @@ export default function RequireArea({
       <div className="p-6 sm:p-8">
         <StatusPanel
           state="error"
-          title="Access could not be verified"
-          description="The current session could not be matched to a platform role. Refresh after connectivity and identity services recover."
+          title="We couldn't verify your access"
+          description="Check your connection, then refresh. We could not match this session to a platform role."
         />
       </div>
     );
@@ -44,7 +44,7 @@ export default function RequireArea({
         <StatusPanel
           state="pending"
           title="Organisation access required"
-          description="Select an active organisation workspace, or wait for an administrator to assign one. Tenant routes and actions remain unavailable."
+          description="Choose an active organisation. If none is available, ask an administrator to add you. Workspace pages and actions stay locked until then."
         />
       </div>
     );
@@ -66,7 +66,7 @@ export default function RequireArea({
           title="Access denied"
           description={
             decision.reason +
-            " This decision is enforced by the server; contact an organisation administrator if the assignment is incorrect."
+            " If you think this is wrong, contact an organisation administrator."
           }
         />
       </div>

@@ -91,19 +91,19 @@ export function LeadOperationsInbox({
           id="lead-inbox-heading"
           className="mt-1 font-serif text-2xl font-semibold"
         >
-          Qualify before conversion
+          Qualify leads before conversion
         </h2>
         <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-          The queue omits contact data. A currently assigned operator may open
-          one purpose-bound contact transiently; no control sends a message or
-          creates a CRM record.
+          The queue hides contact details. Only the assigned operator can open
+          one contact for a stated purpose. This page cannot send messages or
+          create CRM records.
         </p>
       </div>
 
       {items.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-sm text-muted-foreground">
-            No lead summaries are available in this tenant-scoped queue.
+            No lead summaries are available for this organisation.
           </CardContent>
         </Card>
       ) : (
@@ -167,7 +167,9 @@ export function LeadOperationsInbox({
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-xs text-muted-foreground">SLA due</dt>
+                      <dt className="text-xs text-muted-foreground">
+                        Review due
+                      </dt>
                       <dd className="mt-1 font-medium">
                         {compactDate(item.slaDueAt)}
                       </dd>
@@ -195,9 +197,8 @@ export function LeadOperationsInbox({
                           : "Assign to me"}
                       </Button>
                       <p className="text-xs leading-5 text-muted-foreground">
-                        Reassignment to another operator remains an
-                        administrator-led workflow; this page does not require
-                        or expose their user ID.
+                        An administrator must reassign a lead to someone else.
+                        This page does not ask for or show their user ID.
                       </p>
                     </div>
                     <form
@@ -205,7 +206,7 @@ export function LeadOperationsInbox({
                       onSubmit={(event) => setSla(event, item)}
                     >
                       <Label htmlFor={`lead-sla-${item.id}`}>
-                        Set SLA deadline
+                        Set review deadline
                       </Label>
                       <div className="flex gap-2">
                         <Input
@@ -225,7 +226,7 @@ export function LeadOperationsInbox({
                           disabled={mutationPending}
                         >
                           <Clock3 size={16} aria-hidden="true" />
-                          Set SLA
+                          Set deadline
                         </Button>
                       </div>
                     </form>
@@ -367,9 +368,9 @@ export function LeadOperationsInbox({
                           Record {readable(statusDecision.status)} decision
                         </p>
                         <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                          Record an operational rationale only. Do not put
-                          contact names, email addresses or telephone numbers in
-                          this durable reason.
+                          Record the business reason only. Do not include names,
+                          email addresses or phone numbers because this reason
+                          is kept in the record.
                         </p>
                       </div>
                       <Label htmlFor={`lead-status-reason-${item.id}`}>
@@ -390,7 +391,7 @@ export function LeadOperationsInbox({
                       {statusDecision.status === "converted" ? (
                         <>
                           <Label htmlFor={`lead-target-reference-${item.id}`}>
-                            Opaque external target reference
+                            External system reference
                           </Label>
                           <Input
                             id={`lead-target-reference-${item.id}`}
@@ -408,7 +409,7 @@ export function LeadOperationsInbox({
                             }}
                           />
                           <Label htmlFor={`lead-conversion-receipt-${item.id}`}>
-                            Human-recorded receipt SHA-256
+                            Manual conversion receipt SHA-256
                           </Label>
                           <Input
                             id={`lead-conversion-receipt-${item.id}`}
@@ -465,7 +466,7 @@ export function LeadOperationsInbox({
                     >
                       <div>
                         <p className="text-sm font-semibold">
-                          Purpose-bound contact handoff
+                          Open contact for a stated purpose
                         </p>
                         <p className="mt-1 text-xs leading-5 text-muted-foreground">
                           Available only to the currently assigned operator.
@@ -525,13 +526,13 @@ export function LeadOperationsInbox({
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-sm font-semibold">
-                            Transient assigned contact
+                            Temporary contact details
                           </p>
                           <p className="mt-1 text-xs leading-5 text-muted-foreground">
                             Shown only in this view for{" "}
                             {readable(visibleHandoff.purpose)}. Do not copy it
-                            into logs, immutable reasons or bulk exports. No
-                            message was sent.
+                            into logs, saved reasons or bulk exports. No message
+                            was sent.
                           </p>
                         </div>
                         <Button

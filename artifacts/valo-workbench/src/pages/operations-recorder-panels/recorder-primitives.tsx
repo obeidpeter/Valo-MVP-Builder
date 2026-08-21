@@ -272,13 +272,13 @@ export function selectedPackageVersion(
   data: FormData,
   name: string,
 ): PackageVersionOption {
-  const packageVersionId = requiredId(data, name, "Canonical package version");
+  const packageVersionId = requiredId(data, name, "Approved package version");
   const record = records.find(
     (candidate) => candidate.packageVersionId === packageVersionId,
   );
   if (!record) {
     throw new Error(
-      "The selected package version is no longer in the current canonical list.",
+      "The selected package version is no longer in the current approved list.",
     );
   }
   return record;
@@ -293,7 +293,7 @@ export function selectedDocument(
   const documentId = value(data, name);
   if (!documentId && !required) return undefined;
   if (!ID_PATTERN.test(documentId)) {
-    throw new Error("The selected canonical document ID is invalid.");
+    throw new Error("The selected approved document ID is invalid.");
   }
   const record = records.find((candidate) => candidate.id === documentId);
   if (!record) {
@@ -511,7 +511,7 @@ export function PackageVersionSelect({
       className={CONTROL}
       data-control-size="44"
     >
-      <option value="">Choose a canonical project-export version</option>
+      <option value="">Choose an approved pursuit export version</option>
       {records.map((record) => (
         <option key={record.packageVersionId} value={record.packageVersionId}>
           {shortId(record.packageId)} · v{record.versionNumber} · QA{" "}
@@ -542,7 +542,7 @@ export function DocumentSelect({
     >
       <option value="">
         {required
-          ? "Choose a canonical project document"
+          ? "Choose an approved pursuit document"
           : "No document selected"}
       </option>
       {records.map((record) => (
@@ -609,7 +609,7 @@ export function Panel({
         {!allowed ? (
           <StatusPanel
             state="unavailable"
-            title="Mutation permission required"
+            title="Edit permission required"
             description={unavailableReason}
           />
         ) : null}

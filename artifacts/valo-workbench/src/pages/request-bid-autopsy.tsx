@@ -319,7 +319,7 @@ export default function RequestBidAutopsyPage() {
       return {
         title: "We could not confirm your request.",
         message:
-          "Check your connection and try again. Retrying these unchanged details will reuse the same secure request reference.",
+          "Check your connection and try again. If the details are unchanged, Valo will retry the same request instead of creating a duplicate.",
         retryable: true,
       };
     }
@@ -331,33 +331,33 @@ export default function RequestBidAutopsyPage() {
           : " Wait before trying again.";
       return {
         title: "Please wait before trying again.",
-        message: `The request service is limiting repeated attempts.${wait} Your form details remain on this page.`,
+        message: `Valo is temporarily limiting repeated requests.${wait} Your form details remain on this page.`,
         retryable: true,
       };
     }
     if (error.status === 409) {
       replaceOperationState({ resetStart: false });
       return {
-        title: "A new secure request reference was prepared.",
+        title: "This request is ready to retry.",
         message:
-          "The previous reference did not match these details. Review the form, then submit it again with the new reference.",
+          "The previous retry did not match these details. Review the form, then submit it again.",
         retryable: true,
       };
     }
     if (error.status === 400) {
       replaceOperationState({ resetStart: true });
       return {
-        title: "The secure request window was refreshed.",
+        title: "This request page was refreshed.",
         message:
-          "Review the form, wait a moment, then submit it again. If the same message returns, stop retrying and reload the official Valo page.",
+          "Review the form, wait a moment, then submit it again. If this message returns, stop retrying and reload the official Valo page.",
         retryable: true,
       };
     }
     if (error.status === 403) {
       return {
-        title: "This page is not authorised to accept the request.",
+        title: "This page cannot accept your request.",
         message:
-          "Do not keep retrying. Return to the official Valo site and reopen the Bid Autopsy request page.",
+          "Do not keep retrying. Return to the official Valo site, then reopen the Bid Autopsy request page.",
         retryable: false,
       };
     }
@@ -365,14 +365,14 @@ export default function RequestBidAutopsyPage() {
       return {
         title: "Bid Autopsy requests are temporarily unavailable.",
         message:
-          "We could not confirm your request. Keep these details on the page and retry later with the same secure reference.",
+          "We could not confirm your request. Keep the details on this page and try again later. Valo will safely reuse the same request.",
         retryable: true,
       };
     }
     return {
       title: "We could not confirm your request.",
       message:
-        "Try again with the same details. The unchanged retry will reuse the same secure request reference.",
+        "Try again with the same details. Valo will reuse the request instead of creating a duplicate.",
       retryable: true,
     };
   }
@@ -410,9 +410,9 @@ export default function RequestBidAutopsyPage() {
     if (!isBidAutopsyOperationStateCurrent(operationStateRef.current)) {
       replaceOperationState({ resetStart: true });
       setSubmissionError({
-        title: "The secure request window was refreshed.",
+        title: "This request page was refreshed.",
         message:
-          "This page had been open for too long. Review the form, wait a moment, then submit it again.",
+          "This page was open for too long. Review the form, wait a moment, then submit it again.",
         retryable: true,
       });
       setSubmissionState("error");
@@ -466,7 +466,7 @@ export default function RequestBidAutopsyPage() {
     <PublicShell>
       <PublicMeta
         title="Request a Bid Autopsy"
-        description="Start a Bid Autopsy enquiry using ordinary business contact details. Tender documents are handled only after the appropriate engagement and approved document-sharing gate."
+        description="Ask Valo for a Bid Autopsy using ordinary business contact details. Share tender documents only after the client agreement and secure document-sharing process are approved."
         path="/request-bid-autopsy"
       />
 
@@ -479,9 +479,9 @@ export default function RequestBidAutopsyPage() {
             Request a Bid Autopsy
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">
-            Tell us who to contact and the broad tender context. Do not include
-            tender documents, credentials, financial schedules or sensitive bid
-            details at this stage.
+            Tell us who to contact and the type and stage of the tender. Do not
+            include tender documents, sign-in details or other credentials,
+            financial schedules or sensitive bid details here.
           </p>
         </div>
       </section>
@@ -498,14 +498,14 @@ export default function RequestBidAutopsyPage() {
                 tabIndex={-1}
                 className="mt-6 scroll-mt-24 rounded-sm text-2xl font-semibold tracking-[-0.025em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                Your request has been recorded.
+                Your request has been received.
               </h2>
               <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
-                {receipt.nextStep} No tender documents are needed through this
+                {receipt.nextStep} Do not send tender documents through this
                 public form.
               </p>
               <p className="mt-5 text-xs text-muted-foreground">
-                Request reference:{" "}
+                Request ID:{" "}
                 <span className="font-mono">{receipt.requestId}</span>
               </p>
               <Button asChild variant="outline" className="mt-8 min-h-11">
@@ -524,7 +524,7 @@ export default function RequestBidAutopsyPage() {
                   </p>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  No document upload
+                  Documents cannot be uploaded here
                 </p>
               </div>
 
@@ -807,8 +807,9 @@ export default function RequestBidAutopsyPage() {
                     >
                       privacy notice (opens in a new tab)
                     </Link>{" "}
-                    and understand that this form is for first-contact business
-                    information only. *
+                    and understand that this public form is only for business
+                    contact information. I will not send tender documents or
+                    sensitive information here. *
                   </label>
                 </div>
                 {errors.privacyNoticeAcknowledged ? (
@@ -860,7 +861,7 @@ export default function RequestBidAutopsyPage() {
                         aria-hidden="true"
                         className="animate-spin"
                       />
-                      Recording request...
+                      Sending request...
                     </>
                   ) : retryBlocked ? (
                     "Request unavailable"
@@ -875,7 +876,7 @@ export default function RequestBidAutopsyPage() {
                   aria-live="polite"
                 >
                   {disabled
-                    ? "Recording your request. Please do not close this page."
+                    ? "Sending your request. Please keep this page open."
                     : "Your form details are not sent to analytics."}
                 </p>
               </div>
@@ -892,14 +893,14 @@ export default function RequestBidAutopsyPage() {
             id="request-boundaries-title"
             className="mt-5 text-xl font-semibold"
           >
-            What happens at this stage
+            What happens next
           </h2>
           <ul className="mt-5 space-y-5">
             {[
-              "Valo records the business contact details required to assess the enquiry.",
-              "No tender file or sensitive commercial schedule is requested.",
-              "Scope, conflicts and the approved document-sharing process are addressed before documents are shared.",
-              "Timing is confirmed only after the review scope is understood.",
+              "Valo records the business contact details it needs to assess your request.",
+              "This form does not ask for tender files or sensitive financial schedules.",
+              "Valo agrees the work, checks for conflicts and approves a secure sharing process before any documents are shared.",
+              "Valo confirms timing only after it understands the review.",
             ].map((item) => (
               <li
                 key={item}

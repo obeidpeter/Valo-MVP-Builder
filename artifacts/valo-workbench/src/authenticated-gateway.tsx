@@ -36,7 +36,7 @@ function WorkspaceLoading() {
           className="mx-auto block size-7 animate-spin rounded-full border-2 border-primary border-r-transparent"
         />
         <p className="mt-4 text-sm text-muted-foreground">
-          Opening the authorised workspace…
+          Opening your workspace…
         </p>
       </div>
     </div>
@@ -87,15 +87,12 @@ function MissingIdentityConfiguration() {
     <main className="flex min-h-screen items-center justify-center bg-background p-5">
       <section className="w-full max-w-lg rounded-lg border border-destructive/35 bg-card p-6">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-destructive">
-          Configuration required
+          Sign-in setup needed
         </p>
-        <h1 className="mt-3 text-xl font-semibold">
-          Secure identity is unavailable
-        </h1>
+        <h1 className="mt-3 text-xl font-semibold">Sign-in is not available</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          The approved identity provider is not configured. Valo will not open
-          account access or a protected workspace without server-validated
-          identity.
+          Valo's sign-in service has not been set up. To protect your data, the
+          app will remain locked until it can verify your identity.
         </p>
       </section>
     </main>

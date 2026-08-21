@@ -50,12 +50,10 @@ export function ConsortiumRoomInitializer(props: {
       }}
     >
       <div>
-        <h2 className="text-lg font-semibold">
-          Initialize the relationship room
-        </h2>
+        <h2 className="text-lg font-semibold">Set up the relationship room</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Name one active direct member from each party. The server verifies the
-          exact relationship and both memberships before creating anything.
+          Choose one active member from each party. The relationship and both
+          memberships are checked before the room is created.
         </p>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
@@ -100,8 +98,8 @@ export function ConsortiumRoomInitializer(props: {
       </div>
       {!canInitialize ? (
         <p className="text-sm text-amber-800" role="status">
-          Initialization is unavailable until the server returns at least one
-          current named direct member for each party.
+          Setup is unavailable until at least one current named member is
+          available for each party.
         </p>
       ) : null}
       <div className="flex justify-end">
@@ -115,7 +113,7 @@ export function ConsortiumRoomInitializer(props: {
           }
         >
           <Handshake className="mr-2 size-4" aria-hidden="true" />
-          Initialize bounded room
+          Set up room
         </Button>
       </div>
     </form>
@@ -137,20 +135,17 @@ export function PartnerConsortiumWorkspace(props: {
       <section className="grid gap-3 lg:grid-cols-3">
         <div className="rounded-xl border bg-card p-4">
           <ShieldCheck className="size-5 text-emerald-700" aria-hidden="true" />
-          <h2 className="mt-3 text-sm font-semibold">
-            Exact relationship bound
-          </h2>
+          <h2 className="mt-3 text-sm font-semibold">Relationship checked</h2>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Every read and write rechecks this active relationship and project.
+            Every read and change rechecks this active relationship and pursuit.
           </p>
         </div>
         <div className="rounded-xl border bg-card p-4">
           <UserRoundCheck className="size-5 text-sky-700" aria-hidden="true" />
-          <h2 className="mt-3 text-sm font-semibold">
-            Bilateral maker-checker
-          </h2>
+          <h2 className="mt-3 text-sm font-semibold">Two-party review</h2>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            A maker cannot approve their row; both parties must accept it.
+            The person who creates a row cannot approve it. Both parties must
+            accept it.
           </p>
         </div>
         <div className="rounded-xl border bg-card p-4">
@@ -211,7 +206,7 @@ export function PartnerConsortiumWorkspace(props: {
             Responsibility matrix
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {room.responsibilities.length} bounded workstream
+            {room.responsibilities.length} workstream
             {room.responsibilities.length === 1 ? "" : "s"}
           </p>
         </div>
@@ -223,7 +218,7 @@ export function PartnerConsortiumWorkspace(props: {
             />
             <h3 className="mt-3 font-semibold">No responsibilities recorded</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              No ownership or acceptance has been inferred.
+              No ownership or acceptance is recorded.
             </p>
           </div>
         ) : (
@@ -251,8 +246,8 @@ export function PartnerConsortiumWorkspace(props: {
             QA and co-sign checklist
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Fixed checks with named preparers, opposite-party checkers, and hash
-            evidence.
+            Fixed checks with named preparers, reviewers from the other party
+            and evidence fingerprints.
           </p>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
@@ -276,8 +271,9 @@ export function PartnerConsortiumWorkspace(props: {
         <div className="flex items-start gap-2">
           <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <p>
-            Retention follows the owning client project. Independent deletion is
-            disabled, and every mutation appends a content-free chained receipt.
+            Retention follows the client-owned pursuit. This room cannot be
+            deleted on its own, and every change adds a linked audit receipt
+            without storing the changed content in that receipt.
           </p>
         </div>
       </section>

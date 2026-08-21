@@ -113,10 +113,8 @@ describe("access gating in Layout", () => {
       isLoading: false,
     };
     renderLayout();
-    expect(screen.getByText(/pending access/i)).toBeInTheDocument();
-    expect(
-      screen.queryByLabelText(/valo command centre/i),
-    ).not.toBeInTheDocument();
+    expect(screen.getByText(/no role assigned yet/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/valo dashboard/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId("protected-child")).not.toBeInTheDocument();
   });
 
@@ -134,23 +132,21 @@ describe("access gating in Layout", () => {
     renderLayout();
     expect(screen.getByText(/account disabled/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/status: blocked/i)).toBeInTheDocument();
-    expect(
-      screen.queryByLabelText(/valo command centre/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/valo dashboard/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId("protected-child")).not.toBeInTheDocument();
   });
 
   it("shows the Authentication Failed screen when useGetMe errors", () => {
     meResult = { data: undefined, isLoading: false, error: new Error("boom") };
     renderLayout();
-    expect(screen.getByText(/authentication failed/i)).toBeInTheDocument();
+    expect(screen.getByText(/we couldn't sign you in/i)).toBeInTheDocument();
     expect(screen.queryByTestId("protected-child")).not.toBeInTheDocument();
   });
 
   it("shows the Authentication Failed screen when there is no user", () => {
     meResult = { data: undefined, isLoading: false };
     renderLayout();
-    expect(screen.getByText(/authentication failed/i)).toBeInTheDocument();
+    expect(screen.getByText(/we couldn't sign you in/i)).toBeInTheDocument();
     expect(screen.queryByTestId("protected-child")).not.toBeInTheDocument();
   });
 
@@ -163,10 +159,10 @@ describe("access gating in Layout", () => {
     };
     renderLayout();
     expect(
-      screen.getByText(/authenticating and loading your assigned workspace/i),
+      screen.getByText(/signing you in and opening your workspace/i),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(/authentication failed/i),
+      screen.queryByText(/we couldn't sign you in/i),
     ).not.toBeInTheDocument();
     expect(screen.queryByTestId("protected-child")).not.toBeInTheDocument();
   });
@@ -183,9 +179,7 @@ describe("access gating in Layout", () => {
       isLoading: false,
     };
     renderLayout();
-    expect(
-      screen.getByText(/role configuration unsupported/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/this role isn't supported/i)).toBeInTheDocument();
     expect(screen.queryByTestId("protected-child")).not.toBeInTheDocument();
   });
 
@@ -201,15 +195,15 @@ describe("access gating in Layout", () => {
       isLoading: false,
     };
     renderLayout();
-    expect(screen.getByLabelText(/valo command centre/i)).toBeInTheDocument();
-    expect(screen.getByText(/^command centre$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^pursuit operations$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^commercial & claims desk$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^getting started & offers$/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/valo dashboard/i)).toBeInTheDocument();
+    expect(screen.getByText(/^dashboard$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^pursuit workflows$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^claims$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^leads & offers$/i)).toBeInTheDocument();
     expect(screen.getByTestId("protected-child")).toBeInTheDocument();
-    expect(screen.queryByText(/pending access/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/no role assigned yet/i)).not.toBeInTheDocument();
     expect(
-      screen.queryByText(/authentication failed/i),
+      screen.queryByText(/we couldn't sign you in/i),
     ).not.toBeInTheDocument();
   });
 
@@ -225,8 +219,8 @@ describe("access gating in Layout", () => {
       isLoading: false,
     };
     renderLayout();
-    expect(screen.getByText(/^platform operations$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^getting started & offers$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^platform settings$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^leads & offers$/i)).toBeInTheDocument();
   });
 
   it("hides the Settings nav item from an approved reviewer", () => {
@@ -241,10 +235,8 @@ describe("access gating in Layout", () => {
       isLoading: false,
     };
     renderLayout();
-    expect(screen.getByText(/^command centre$/i)).toBeInTheDocument();
-    expect(
-      screen.queryByText(/^platform operations$/i),
-    ).not.toBeInTheDocument();
+    expect(screen.getByText(/^dashboard$/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^platform settings$/i)).not.toBeInTheDocument();
   });
 
   it("shows pursuit and client-facing surfaces to a client owner", () => {
@@ -263,13 +255,11 @@ describe("access gating in Layout", () => {
     expect(screen.getByText(/^pursuits$/i)).toBeInTheDocument();
     expect(screen.getByText(/^clients$/i)).toBeInTheDocument();
     expect(screen.getByText(/evidence library/i)).toBeInTheDocument();
-    expect(screen.getByText(/^pursuit operations$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^getting started & offers$/i)).toBeInTheDocument();
-    expect(screen.getByText(/billing & entitlements/i)).toBeInTheDocument();
-    expect(screen.queryByText(/^reviews$/i)).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(/^platform operations$/i),
-    ).not.toBeInTheDocument();
+    expect(screen.getByText(/^pursuit workflows$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^leads & offers$/i)).toBeInTheDocument();
+    expect(screen.getByText(/billing & access/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^operations$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^platform settings$/i)).not.toBeInTheDocument();
   });
 
   it("shows the channel review surfaces to a partner reviewer", () => {
@@ -285,12 +275,10 @@ describe("access gating in Layout", () => {
     };
     renderLayout();
     expect(screen.getByText(/partner workspace/i)).toBeInTheDocument();
-    expect(screen.getByText(/^consortium room$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^consortium workspace$/i)).toBeInTheDocument();
     expect(screen.getByText(/evidence library/i)).toBeInTheDocument();
     expect(screen.getByText(/notifications/i)).toBeInTheDocument();
-    expect(
-      screen.queryByText(/billing & entitlements/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/billing & access/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/security & audit/i)).not.toBeInTheDocument();
   });
 
@@ -306,11 +294,9 @@ describe("access gating in Layout", () => {
       isLoading: false,
     };
     renderLayout();
-    expect(screen.getByText(/^reviews$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^operations$/i)).toBeInTheDocument();
     expect(screen.getByText(/evidence library/i)).toBeInTheDocument();
-    expect(
-      screen.queryByText(/^platform operations$/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/^platform settings$/i)).not.toBeInTheDocument();
   });
 });
 
@@ -331,9 +317,7 @@ describe("RequireAdmin route guard for the settings page", () => {
         <div data-testid="settings-admin-controls">Personnel Management</div>
       </RequireAdmin>,
     );
-    expect(
-      screen.getByText(/checking administrative access/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/checking admin access/i)).toBeInTheDocument();
     expect(
       screen.queryByTestId("settings-admin-controls"),
     ).not.toBeInTheDocument();

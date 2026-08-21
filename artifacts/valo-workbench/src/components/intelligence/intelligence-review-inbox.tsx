@@ -158,7 +158,7 @@ function RuntimeBoundary({
       <StatusPanel
         state="unavailable"
         title={`${formatEnvironment(environment)} review data`}
-        description="This non-production inbox does not report production model execution as active. Every item still requires a named-human decision."
+        description="This test inbox does not report production AI as active. Every item still needs a decision from a named person."
       />
     );
   }
@@ -168,7 +168,7 @@ function RuntimeBoundary({
       <StatusPanel
         state="partial"
         title="Production model execution is disabled"
-        description="Recorded and deterministic review items may still be shown. Their presence does not imply that model-backed analysis ran."
+        description="Recorded and rules-based review items may still appear. Their presence does not mean AI analysis ran."
       />
     );
   }
@@ -177,7 +177,7 @@ function RuntimeBoundary({
     <StatusPanel
       state="partial"
       title="Production runtime reported available"
-      description="Runtime availability does not establish that an item was model-generated, correct or approved. A named reviewer remains authoritative."
+      description="An available AI service does not prove that an item was AI-generated, correct or approved. A named reviewer makes the decision."
     />
   );
 }
@@ -502,12 +502,12 @@ export function IntelligenceReviewInbox({
           ) : null}
         </StatusPanel>
       ) : loading ? (
-        <LoadingPanel label="Loading tenant-scoped review items" />
+        <LoadingPanel label="Loading review items for this organisation" />
       ) : items.length === 0 ? (
         <StatusPanel
           state="empty"
           title="No review items are available"
-          description="No tenant-scoped records were supplied. This is not an approval, readiness result or confirmation that no risks exist."
+          description="No records were supplied for this organisation. This is not an approval, readiness result or confirmation that no risks exist."
         />
       ) : (
         <>

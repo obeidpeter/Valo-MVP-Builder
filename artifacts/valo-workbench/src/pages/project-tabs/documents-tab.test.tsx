@@ -93,7 +93,7 @@ describe("DocumentsTab governed document intake", () => {
       screen.getByRole("button", { name: /upload unavailable/i }),
     ).toBeDisabled();
     expect(screen.getByRole("status")).toHaveTextContent(
-      /durable lease and verified create-only provider semantics/i,
+      /durable lease and the storage provider is confirmed to create new files only/i,
     );
     expect(
       screen.queryByLabelText(/choose a document to upload/i),

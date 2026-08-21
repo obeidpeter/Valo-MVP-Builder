@@ -1,7 +1,7 @@
 {
   "name": "Valo",
   "short_name": "Valo",
-  "description": "Evidence-led tender readiness and controlled bid-production workflows.",
+  "description": "Tender review and bid preparation with linked evidence, clear approvals and recorded actions.",
   "id": "/app",
   "start_url": "/app",
   "scope": "/",
@@ -11,15 +11,15 @@
   "categories": ["business", "productivity"],
   "shortcuts": [
     {
-      "name": "My pursuits",
+      "name": "Pursuits",
       "short_name": "Pursuits",
-      "description": "Open the authenticated pursuit workspace.",
+      "description": "Open your secure pursuit workspace.",
       "url": "/projects"
     },
     {
-      "name": "Review work",
-      "short_name": "Reviews",
-      "description": "Open the online reviewer workspace.",
+      "name": "Operations",
+      "short_name": "Operations",
+      "description": "Open reviews and AI service status.",
       "url": "/operations"
     }
   ],

@@ -437,7 +437,7 @@ export default function PursuitOperationsSuiteRoute() {
       <PageGatePanel
         state="blocked"
         title="Pursuit read access required"
-        description="The selected organisation context does not grant access to tenant-scoped pursuit records. No operations data was requested."
+        description="Your current organisation access does not include pursuit records. No operations data was requested."
       />
     );
   }
@@ -465,8 +465,8 @@ export default function PursuitOperationsSuiteRoute() {
     return (
       <PageGatePanel
         state="empty"
-        title="No authorised pursuits are available"
-        description="No server-authorised project was returned for this organisation. This does not establish that the organisation has no pursuits."
+        title="No accessible pursuits are available"
+        description="No pursuit was returned for your current access. This does not mean the organisation has no pursuits."
       />
     );
   }
@@ -482,8 +482,7 @@ export default function PursuitOperationsSuiteRoute() {
             Active pursuit
           </h2>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Records and requests remain limited to this selected,
-            server-authorised pursuit.
+            Records and requests are limited to this selected pursuit.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -556,7 +555,7 @@ export default function PursuitOperationsSuiteRoute() {
             }
             error={
               mobileQueueQuery.isError
-                ? "The compact authorised queue was unavailable or invalid. No empty queue should be inferred."
+                ? "The compact task list was unavailable or invalid. This does not mean the list is empty."
                 : undefined
             }
             onRetry={() => void mobileQueueQuery.refetch()}
@@ -614,7 +613,7 @@ export default function PursuitOperationsSuiteRoute() {
       ? ({
           status: "error" as const,
           message:
-            "The tenant-scoped operations snapshot was unavailable or invalid.",
+            "The operations summary for this organisation was unavailable or invalid.",
           retry: () => void suiteQuery.refetch(),
         } as const)
       : ({ status: "ready" as const, snapshot: adapter.snapshot } as const);

@@ -294,21 +294,21 @@ export function GrowthOperationsView({
     <div className="mx-auto w-full max-w-7xl space-y-10 p-5 sm:p-8">
       <PageHeader
         eyebrow="Growth operations"
-        title="Turn interest into governed work"
-        description="A bounded operating surface for lead qualification, first-pursuit onboarding and a versioned offer catalogue. It contains no CRM, automatic messaging, pricing, payment or pursuit-creation authority, and its durable quote ledger is unavailable."
+        title="Leads & offers"
+        description="Qualify leads, practise first-pursuit tasks and review approved offer versions. This page cannot send messages, set prices, take payment, create CRM records or create pursuits. Quote records are not available."
         state="active"
       />
       {resolvedLeadRegisterState === "pending" ? (
         <StatusPanel
           state="pending"
-          title="Loading lead operations queue"
-          description="Lead summaries remain unavailable until the tenant-scoped queue responds."
+          title="Loading lead queue"
+          description="Lead summaries stay hidden until this organisation's queue loads."
         />
       ) : resolvedLeadRegisterState === "unavailable" ? (
         <StatusPanel
           state="error"
-          title="Lead operations queue is unavailable"
-          description="Onboarding and the versioned catalogue remain available. Do not interpret unavailable lead data as an empty queue."
+          title="Lead queue is unavailable"
+          description="Onboarding and the offer catalogue are still available. This does not mean the queue is empty."
         />
       ) : resolvedLeadRegisterState === "ready" && leads ? (
         <LeadOperationsInbox
@@ -447,7 +447,7 @@ export default function GrowthOperationsPage() {
       variant: "destructive",
       title,
       description:
-        "Refresh this tenant-scoped queue before trying again. No external action was taken.",
+        "Reload this organisation's queue before trying again. No external action was taken.",
     });
   const onboardingMutation = useMutation({
     mutationFn: ({
@@ -479,8 +479,8 @@ export default function GrowthOperationsPage() {
       void queryClient.invalidateQueries({ queryKey: variables.queryKey });
       toast({
         title: variables.markerSaved
-          ? "Self-recorded practice marker saved"
-          : "Self-recorded practice marker removed",
+          ? "Practice marker saved"
+          : "Practice marker removed",
       });
     },
     onError: (_error, variables) => {
@@ -584,7 +584,7 @@ export default function GrowthOperationsPage() {
       <PageGatePanel
         state="pending"
         title="Resolving your identity"
-        description="Growth operations remain unavailable until the current actor and organisation authority are bound."
+        description="Leads and offers stay closed until we verify your identity and organisation access."
       />
     );
   }
@@ -597,7 +597,7 @@ export default function GrowthOperationsPage() {
       <PageGatePanel
         state="error"
         title="Current identity could not be resolved"
-        description="No onboarding progress or role-derived destination is shown without an exact current actor."
+        description="We cannot show onboarding progress or links until we verify your current identity."
       />
     );
   }
@@ -606,7 +606,7 @@ export default function GrowthOperationsPage() {
       <PageGatePanel
         state="blocked"
         title="Direct organisation membership required"
-        description="Growth onboarding and catalogue access are not available through partner-derived or emergency access."
+        description="You need a direct organisation membership. Partner access and emergency access are not accepted."
       />
     );
   }
@@ -619,8 +619,8 @@ export default function GrowthOperationsPage() {
     return (
       <PageGatePanel
         state="pending"
-        title="Loading growth operations"
-        description="Resolving your role-derived onboarding and the active offer catalogue."
+        title="Loading leads and offers"
+        description="Loading your onboarding checklist and approved offer catalogue."
       />
     );
   }
@@ -635,8 +635,8 @@ export default function GrowthOperationsPage() {
     return (
       <PageGatePanel
         state="error"
-        title="Growth operations could not be loaded"
-        description="No empty onboarding state or catalogue should be inferred. Refresh after the route and durable onboarding repository are available."
+        title="Leads and offers could not be loaded"
+        description="We have not treated onboarding or the catalogue as empty. Try again when the service is available."
       >
         <Button
           type="button"

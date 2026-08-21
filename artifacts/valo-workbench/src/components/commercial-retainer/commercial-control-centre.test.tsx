@@ -129,14 +129,16 @@ describe("CommercialControlCentre", () => {
   it("makes disconnected authority and missing catalogue seed explicit", () => {
     renderCentre(snapshot({ seeded: false }));
     expect(
-      screen.getByText("Fixed catalogue is not orderable"),
+      screen.getByText("Approved offers cannot be ordered"),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Payment providers, external messaging/iu),
+      screen.getByText(
+        /Payment providers, external messages and automatic delivery are not connected/iu,
+      ),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
-        name: "Create proposal for checker review",
+        name: "Create proposal for review",
       }),
     ).toBeDisabled();
     expect(screen.queryByText(/collect payment now/iu)).not.toBeInTheDocument();
@@ -145,14 +147,16 @@ describe("CommercialControlCentre", () => {
   it("prevents self-approval and exposes a checker action to another actor", async () => {
     const self = renderCentre(snapshot({ quoteMaker: ACTOR }));
     expect(
-      screen.getByRole("button", { name: "Approve as checker" }),
+      screen.getByRole("button", { name: "Approve as second reviewer" }),
     ).toBeDisabled();
-    expect(screen.getByText(/maker cannot approve/iu)).toBeInTheDocument();
+    expect(
+      screen.getByText(/person who created the proposal cannot approve/iu),
+    ).toBeInTheDocument();
     self.view.unmount();
 
     const other = renderCentre(snapshot({ quoteMaker: MAKER }));
     await userEvent.click(
-      screen.getByRole("button", { name: "Approve as checker" }),
+      screen.getByRole("button", { name: "Approve as second reviewer" }),
     );
     expect(other.onMutate).toHaveBeenCalledWith({
       path: "/api/commercial-retainer/quotes/44444444-4444-4444-8444-444444444444/approve",
@@ -165,7 +169,7 @@ describe("CommercialControlCentre", () => {
     renderCentre(snapshot({ quoteMaker: MAKER }), onMutate);
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Approve as checker" }),
+      screen.getByRole("button", { name: "Approve as second reviewer" }),
     );
 
     await waitFor(() => expect(onMutate).toHaveBeenCalledTimes(1));
@@ -177,7 +181,7 @@ describe("CommercialControlCentre", () => {
     const customerReference = screen.getByLabelText("Customer reference");
     await userEvent.type(customerReference, "Retry customer");
     const submit = screen.getByRole("button", {
-      name: "Create proposal for checker review",
+      name: "Create proposal for review",
     });
 
     fireEvent.submit(submit.closest("form") as HTMLFormElement);
@@ -191,7 +195,7 @@ describe("CommercialControlCentre", () => {
     const customerReference = screen.getByLabelText("Customer reference");
     await userEvent.type(customerReference, "Recorded customer");
     const submit = screen.getByRole("button", {
-      name: "Create proposal for checker review",
+      name: "Create proposal for review",
     });
 
     fireEvent.submit(submit.closest("form") as HTMLFormElement);

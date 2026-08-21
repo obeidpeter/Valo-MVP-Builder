@@ -106,7 +106,7 @@ export default function Settings() {
     if (!numericConfigValid(draft)) {
       toast({
         variant: "destructive",
-        title: "Invalid numeric configuration",
+        title: "Invalid number settings",
         description:
           "Weights and cutoffs must be whole numbers in range; retention must be a whole number from 1 to 3650 days.",
       });
@@ -144,14 +144,14 @@ export default function Settings() {
             queryKey: getGetAppConfigQueryKey(),
           });
           toast({
-            title: "Configuration saved",
+            title: "Settings saved",
             description:
               "New scores use the updated settings. Historic reports are unchanged.",
           });
         },
         onError: mutationErrorToast(
           toast,
-          "Could not save configuration",
+          "Could not save settings",
           "The update was refused.",
         ),
       },
@@ -165,10 +165,10 @@ export default function Settings() {
     <div className="p-8 max-w-5xl mx-auto w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
         <h1 className="text-3xl font-serif tracking-tight font-semibold">
-          System Settings
+          Platform settings
         </h1>
         <p className="text-muted-foreground mt-1">
-          Review personnel access and manage supported system configuration.
+          Review personnel access and manage supported system settings.
         </p>
       </div>
 
@@ -176,21 +176,20 @@ export default function Settings() {
         <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
         <div className="space-y-1">
           <h3 className="font-medium text-blue-900 dark:text-blue-300">
-            Data Retention & Security
+            Data retention & security
           </h3>
           <p className="text-sm text-blue-800 dark:text-blue-400/80 leading-relaxed">
-            All tender documents and extracted evidence are stored in encrypted
-            GCS buckets. API keys for OpenAI and other services are managed
-            securely via environment secrets. Do not share the publishable key
-            or environment endpoints publicly.
+            Tender documents and extracted evidence are encrypted in storage.
+            Service keys are kept in environment secrets. Do not publish keys or
+            service endpoints.
           </p>
         </div>
       </div>
 
       {configUnavailable ? (
         <DataErrorPanel
-          title="Configuration could not be loaded"
-          description="Scoring, report and retention defaults remain unavailable. Retry before reviewing or changing configuration."
+          title="Settings could not be loaded"
+          description="Scoring, report and retention defaults remain unavailable. Retry before reviewing or changing settings."
           onRetry={() => void refetchConfig()}
         />
       ) : null}
@@ -199,14 +198,14 @@ export default function Settings() {
         <div className="flex items-center gap-2">
           <SlidersHorizontal className="w-5 h-5 text-foreground" />
           <h2 className="text-xl font-serif tracking-tight font-medium">
-            Scoring &amp; Risk Bands
+            Scoring &amp; risk bands
           </h2>
         </div>
 
         <div className="bg-card border border-border rounded-lg shadow-xs p-6 space-y-6">
           {configUnavailable ? (
             <p className="p-6 text-sm text-muted-foreground">
-              Configuration fields are unavailable until the active settings are
+              These fields are unavailable until the active settings are
               reloaded.
             </p>
           ) : configLoading || !draft ? (
@@ -216,10 +215,9 @@ export default function Settings() {
           ) : (
             <>
               <div>
-                <h3 className="text-sm font-medium mb-1">Severity Weights</h3>
+                <h3 className="text-sm font-medium mb-1">Severity weights</h3>
                 <p className="text-xs text-muted-foreground mb-3">
-                  Points contributed to the raw risk score by each finding
-                  severity (0–100).
+                  Points each finding severity adds to the risk score (0–100).
                 </p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="space-y-1.5">
@@ -291,11 +289,10 @@ export default function Settings() {
 
               <div>
                 <h3 className="text-sm font-medium mb-1">
-                  Missing Evidence Weight
+                  Missing evidence weight
                 </h3>
                 <p className="text-xs text-muted-foreground mb-3">
-                  Penalty applied per mandatory requirement lacking evidence
-                  (0–100).
+                  Points added for each required item without evidence (0–100).
                 </p>
                 <div className="w-40 space-y-1.5">
                   <Label htmlFor="w-missing" className="text-xs">
@@ -323,10 +320,10 @@ export default function Settings() {
               </div>
 
               <div>
-                <h3 className="text-sm font-medium mb-1">Risk Band Cutoffs</h3>
+                <h3 className="text-sm font-medium mb-1">Risk band cutoffs</h3>
                 <p className="text-xs text-muted-foreground mb-3">
-                  Score thresholds where each band begins. Must satisfy 0 &lt;
-                  medium &lt; high &lt; critical ≤ 100.
+                  The score where each risk band begins. Values must increase
+                  from medium to high to critical and stay within 1–100.
                 </p>
                 <div className="grid grid-cols-3 gap-4 max-w-md">
                   <div className="space-y-1.5">
@@ -393,14 +390,14 @@ export default function Settings() {
         <div className="flex items-center gap-2">
           <FileText className="w-5 h-5 text-foreground" />
           <h2 className="text-xl font-serif tracking-tight font-medium">
-            Report Template &amp; Retention
+            Report template &amp; retention
           </h2>
         </div>
 
         <div className="bg-card border border-border rounded-lg shadow-xs p-6 space-y-4">
           {configUnavailable ? (
             <p className="p-6 text-sm text-muted-foreground">
-              Configuration fields are unavailable until the active settings are
+              These fields are unavailable until the active settings are
               reloaded.
             </p>
           ) : configLoading || !draft ? (
@@ -474,14 +471,14 @@ export default function Settings() {
               {config?.updatedAt
                 ? `Last updated ${new Date(config.updatedAt).toLocaleString()}`
                 : "Using system defaults."}{" "}
-              Saving affects new scores only; historic reports keep their
-              snapshot.
+              Saving affects new scores only. Past reports keep the settings
+              used when they were created.
             </p>
             <Button onClick={saveConfig} disabled={updateConfig.isPending}>
               {updateConfig.isPending && (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               )}
-              Save Configuration
+              Save settings
             </Button>
           </div>
         )}
@@ -491,7 +488,7 @@ export default function Settings() {
         <div className="flex items-center gap-2">
           <Shield className="w-5 h-5 text-foreground" />
           <h2 className="text-xl font-serif tracking-tight font-medium">
-            Personnel Management
+            Personnel records
           </h2>
         </div>
         <div className="flex flex-wrap items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/20">
@@ -502,9 +499,9 @@ export default function Settings() {
             Read only
           </Badge>
           <p className="min-w-0 flex-1 text-sm text-amber-950 dark:text-amber-200">
-            Legacy identity records are shown for reference. Role, status,
-            delegated access and expiry changes must use the organisation
-            membership service; those controls are not available on this screen.
+            Legacy identity records are shown for reference only. Use
+            Organisation settings to change roles, status, delegated access or
+            expiry dates.
           </p>
         </div>
 
@@ -513,7 +510,7 @@ export default function Settings() {
             <div className="p-6">
               <DataErrorPanel
                 title="Personnel access could not be loaded"
-                description="No conclusion has been drawn about organisation membership. Retry the tenant-scoped directory request."
+                description="We could not confirm organisation membership. Try loading this organisation's personnel list again."
                 onRetry={() => void refetchUsers()}
               />
             </div>
@@ -581,7 +578,7 @@ export default function Settings() {
             </Table>
           ) : (
             <div className="p-8 text-center text-muted-foreground">
-              No users are assigned to this organisation.
+              No personnel records are available for this organisation.
             </div>
           )}
         </div>
@@ -591,7 +588,7 @@ export default function Settings() {
         <div className="flex items-center gap-2">
           <Archive className="w-5 h-5 text-foreground" />
           <h2 className="text-xl font-serif tracking-tight font-medium">
-            Retention Workflows
+            Retention requests
           </h2>
         </div>
 
@@ -603,11 +600,11 @@ export default function Settings() {
           <div className="space-y-1 text-sm">
             <p className="font-medium">Retention completion is unavailable</p>
             <p>
-              You can open and review requests, but no data is deleted and no
-              deletion certificate is issued. Reactivation requires a durable
-              two-phase detach, reconcile and certify workflow covering project
-              content, object storage, upload sessions and storage-lifecycle
-              control rows.
+              You can open and review requests here, but this page cannot delete
+              data or issue a deletion certificate. Re-enabling completion
+              requires an approved two-step process that removes, checks and
+              certifies project content, stored objects, uploads and storage
+              lifecycle records.
             </p>
           </div>
         </div>

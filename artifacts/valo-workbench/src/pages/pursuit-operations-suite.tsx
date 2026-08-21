@@ -130,8 +130,8 @@ export function PursuitOperationsSuite({
     >
       <PageHeader
         eyebrow="Pursuit operations"
-        title="Pursuit operations suite"
-        description="A governed path from authorised opportunity intake through delivery evidence. External submissions, issuer checks and contractual acts remain explicitly human-only."
+        title="Pursuit workflows"
+        description="Move from approved opportunity intake to delivery evidence. A person must still handle external submissions, issuer checks and contract actions."
         state={
           !online
             ? "offline"
@@ -147,7 +147,7 @@ export function PursuitOperationsSuite({
         <StatusPanel
           state="unavailable"
           title="Read-only operations view"
-          description="Mutation controls are disabled. Source and record navigation remains available where an authorised link was supplied."
+          description="Changes are disabled. You can still open available source and record links."
         />
       ) : null}
 
@@ -157,7 +157,7 @@ export function PursuitOperationsSuite({
         <StatusPanel
           state="error"
           title="Pursuit operations could not be loaded"
-          description={`${loadState.message} Do not infer that missing records are complete, approved or not required.`}
+          description={`${loadState.message} Missing records are not complete, approved or optional.`}
         >
           {loadState.retry ? (
             <Button
@@ -197,7 +197,7 @@ export function PursuitOperationsSuite({
 
           {loadState.snapshot.generatedAt ? (
             <p className="text-xs text-muted-foreground">
-              Operational snapshot generated{" "}
+              Updated{" "}
               <time dateTime={loadState.snapshot.generatedAt}>
                 {loadState.snapshot.generatedAt}
               </time>

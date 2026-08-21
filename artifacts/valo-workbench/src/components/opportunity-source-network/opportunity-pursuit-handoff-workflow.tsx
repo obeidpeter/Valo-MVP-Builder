@@ -149,7 +149,7 @@ export function OpportunityPursuitHandoffWorkflow({
       <StatusPanel
         state="pending"
         title="Preparing the handoff"
-        description="Revalidating source acceptance, direct authority, reviewer choices and the current conflict boundary."
+        description="Checking the accepted source, your current permissions, reviewer options and any conflicts."
       />
     );
   }
@@ -158,7 +158,7 @@ export function OpportunityPursuitHandoffWorkflow({
       <StatusPanel
         state="error"
         title="Pursuit handoff could not be prepared"
-        description="No pursuit was created. Reload current source, authority and conflict evidence before trying again."
+        description="No pursuit was created. Reload the source, permissions and conflict check before trying again."
       >
         <Button
           type="button"
@@ -177,7 +177,7 @@ export function OpportunityPursuitHandoffWorkflow({
         <StatusPanel
           state="error"
           title="Pursuit handoff was not recorded"
-          description="No pursuit was created. Reload the accepted source, current authority and conflict boundary, then review the confirmation before retrying."
+          description="No pursuit was created. Reload the accepted source, permissions and conflict check, then review the confirmation before retrying."
         />
       ) : null}
       <OpportunityPursuitHandoffPanel
