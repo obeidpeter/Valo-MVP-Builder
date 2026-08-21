@@ -207,7 +207,7 @@ test("Intelligence Centre OpenAPI, generated clients and protected UI stay conne
     /path="\/intelligence"[\s\S]*RequireArea area="pursuit_workbench"/,
   );
   assert.match(platformAccess, /href: "\/intelligence"/);
-  assert.match(platformAccess, /label: "Intelligence Centre"/);
+  assert.match(platformAccess, /label: "Bid insights"/);
 });
 
 test("evidence search preserves the no-instruction-authority marker across every contract layer", () => {

@@ -63,9 +63,12 @@ test("AI operations preserves the production release gate and default-off contro
 
 test("the operations console uses the generated hook and distinguishes unavailable from empty telemetry", () => {
   assert.match(consoleSource, /useGetAiOperations\(\)/);
-  assert.match(consoleSource, /AI control-plane status could not be loaded/);
-  assert.match(consoleSource, /No tenant AI runs are recorded/);
-  assert.match(consoleSource, /No tenant evaluation runs are recorded/);
+  assert.match(consoleSource, /AI service status could not be loaded/);
+  assert.match(consoleSource, /No AI runs are recorded for this organisation/);
+  assert.match(
+    consoleSource,
+    /No evaluation runs are recorded for this organisation/,
+  );
   assert.match(consoleSource, /releaseGate\.expectedVersions/);
   assert.doesNotMatch(consoleSource, /capability\.promptHash/);
   assert.doesNotMatch(consoleSource, /capability\.schemaHash/);
