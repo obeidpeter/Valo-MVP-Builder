@@ -261,7 +261,7 @@ export function DocumentsTab({
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-serif font-medium">Project Documents</h2>
+        <h2 className="text-lg font-serif font-medium">Pursuit documents</h2>
         {canUploadDocument && (
           <Button disabled aria-describedby="document-upload-unavailable">
             <Lock className="w-4 h-4 mr-2" />
@@ -278,11 +278,11 @@ export function DocumentsTab({
         >
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <p>
-            New project-document uploads are temporarily unavailable. Generic
-            signed uploads remain disabled until every upload has a durable
-            lease and verified create-only provider semantics. Existing
-            documents remain readable and governable; no upload request will be
-            sent from this control.
+            New pursuit document uploads are temporarily unavailable. Signed
+            uploads stay off until every upload has a durable lease and the
+            storage provider is confirmed to create new files only. Existing
+            documents remain available to read and manage. This control will not
+            send an upload request.
           </p>
         </div>
       )}
@@ -291,9 +291,8 @@ export function DocumentsTab({
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
           <Lock className="w-4 h-4 mt-0.5 shrink-0" />
           <p>
-            This client's NDA position must be recorded before any future
-            governed intake can proceed. Resolving the NDA gate does not
-            activate the currently disabled upload capability.
+            Record this client's NDA status before any future document intake.
+            Resolving the NDA status does not turn on uploads.
           </p>
         </div>
       )}
@@ -302,10 +301,9 @@ export function DocumentsTab({
         <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0" />
           <p>
-            This engagement has a {conflictStatus} conflict decision. It must be
-            resolved to clear or consented before any future governed intake,
-            but resolution does not activate the currently disabled upload
-            capability.
+            This pursuit has a {conflictStatus} conflict decision. It must be
+            cleared or consented before any future document intake. Resolving it
+            does not turn on uploads.
           </p>
         </div>
       )}
@@ -314,7 +312,7 @@ export function DocumentsTab({
         <div className="flex items-start gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm text-blue-700 dark:text-blue-300">
           <ShieldCheck className="w-4 h-4 mt-0.5 shrink-0" />
           <p>
-            Restricted mode is active for this project. Keep only approved
+            Restricted Mode is active for this pursuit. Keep only approved
             redacted material available to AI steps.
           </p>
         </div>
@@ -324,13 +322,12 @@ export function DocumentsTab({
         <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-4 py-2.5 text-xs text-muted-foreground">
           <FileText className="w-4 h-4 mt-0.5 shrink-0" />
           <p>
-            Documents are uploaded <strong>excluded</strong> by default
-            (financial pages stay out of AI analysis). Set a tender/bid
-            document's redaction to <strong>included</strong> or{" "}
-            <strong>redacted</strong>, then choose its deliberate{" "}
-            <strong>Start extraction</strong> action before AI Extraction or
-            Evidence mapping can read it. Excluded documents are skipped by both
-            and never sent to model OCR.
+            Documents are <strong>excluded</strong> by default, so financial
+            pages stay out of AI analysis. Set a tender or bid document to
+            <strong>included</strong> or <strong>redacted</strong>, then choose
+            <strong>Start extraction</strong> before AI extraction or evidence
+            mapping can read it. Excluded documents are skipped and never sent
+            to AI text recognition.
           </p>
         </div>
       )}
@@ -485,9 +482,9 @@ export function DocumentsTab({
                     ) : (
                       <span
                         className="text-xs text-muted-foreground"
-                        title="Uploaded before integrity manifests — no intake hash on record."
+                        title="Uploaded before integrity records were added — no intake fingerprint is recorded."
                       >
-                        No hash
+                        No fingerprint
                       </span>
                     )}
                   </TableCell>

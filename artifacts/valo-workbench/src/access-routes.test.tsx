@@ -31,6 +31,9 @@ describe("provider-backed access routes", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Provider sign in")).toBeInTheDocument();
     expect(screen.getByText(/valo is invitation-only/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/signing in does not give access by itself/i),
+    ).toBeInTheDocument();
   });
 
   it("renders invitation activation without opening an unrestricted registration route", () => {
@@ -39,12 +42,18 @@ describe("provider-backed access routes", () => {
       screen.getByText("Provider invitation activation"),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/organisation membership and assigned role/i),
+      screen.getByRole("heading", { name: /accept your valo invitation/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/organisation membership and role/i),
     ).toBeInTheDocument();
   });
 
   it("renders the identity-provider callback", () => {
     renderAt("/sso-callback");
+    expect(
+      screen.getByRole("heading", { name: /finishing sign-in/i }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Identity callback")).toBeInTheDocument();
   });
 });

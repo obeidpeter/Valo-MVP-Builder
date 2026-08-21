@@ -51,8 +51,8 @@ function persistRecovery(
   if (!storage) {
     throw new ClientActionUploadFlowError(
       leaseMayExist
-        ? "This browser cannot retain the issued lease recovery binding. No file bytes were transferred; reload the authoritative request state."
-        : "This browser cannot safely retain an upload recovery key. No governed lease was requested.",
+        ? "This browser cannot save the upload recovery record. No file bytes were transferred; reload the current request."
+        : "This browser cannot safely save the upload recovery record. No upload slot was requested.",
       leaseMayExist ? "leasing" : "checking",
       "none",
       leaseMayExist,
@@ -63,8 +63,8 @@ function persistRecovery(
   } catch (cause) {
     throw new ClientActionUploadFlowError(
       leaseMayExist
-        ? "The issued lease recovery binding could not be stored safely. No file bytes were transferred; reload the authoritative request state."
-        : "The upload recovery key could not be stored safely. No governed lease was requested.",
+        ? "The upload recovery record could not be saved safely. No file bytes were transferred; reload the current request."
+        : "The upload recovery record could not be saved safely. No upload slot was requested.",
       leaseMayExist ? "leasing" : "checking",
       "none",
       leaseMayExist,
@@ -122,17 +122,17 @@ function asFlowError(error: unknown): ClientActionUploadFlowError {
 function phaseMessage(progress: ClientActionUploadProgress): string {
   switch (progress.phase) {
     case "checking":
-      return "Verifying the exact local bytes against the acknowledged intent.";
+      return "Checking the selected file against the acknowledged upload details.";
     case "leasing":
-      return "Requesting a short-lived, purpose-bound upload lease. No file bytes are sent to the Valo API.";
+      return "Requesting short-lived permission to upload this file. No file bytes are sent to the Valo API.";
     case "lease_ready":
-      return `Upload lease ${progress.replayed ? "replayed" : "issued"}; it expires ${new Date(progress.expiresAt).toLocaleString("en-NG")}.`;
+      return `Temporary upload slot ${progress.replayed ? "reused" : "issued"}; it expires ${new Date(progress.expiresAt).toLocaleString("en-NG")}.`;
     case "transferring":
-      return "Sending the exact file bytes directly to the signed storage URL.";
+      return "Sending the selected file directly to the signed storage URL.";
     case "finalizing":
-      return "Finalizing secure intake and the exact request-slot attachment.";
+      return "Finishing the security checks and attaching the file to this request slot.";
     case "completed":
-      return "The exact file passed secure intake and was attached to this request slot.";
+      return "The file passed the security checks and was attached to this request slot.";
   }
 }
 
@@ -170,9 +170,9 @@ export function ClientActionUploadControl({
     state: "idle",
     message: initialRecovery
       ? initialRecovery.leaseId
-        ? "A pending governed lease was recovered for this exact tenant, membership, actor, request slot, intent, and record version. Reselect the exact file to replay transfer and finalization with the same operation key."
-        : "A pending lease request was recovered for this exact scope. Reselect the exact file to replay it with the same operation key."
-      : "Select the exact file recorded by the current upload intent.",
+        ? "A pending upload was recovered for this organisation, user, request slot and record version. Select the same file to continue the same upload."
+        : "A pending upload request was recovered. Select the same file to continue it."
+      : "Select the file named in the current upload details.",
   });
   const retryKey = useRef<string | null>(
     initialRecovery?.idempotencyKey ?? null,
@@ -222,7 +222,7 @@ export function ClientActionUploadControl({
               recoveryMarker.current.leaseId !== progress.leaseId
             ) {
               throw new ClientActionUploadFlowError(
-                "The replayed lease identity changed. No file bytes were transferred; reload the authoritative request state.",
+                "The recovered upload permission changed. No file bytes were transferred; reload the current request.",
                 "leasing",
                 "none",
                 true,
@@ -290,13 +290,13 @@ export function ClientActionUploadControl({
       setView({
         state: file ? "selected" : "idle",
         message:
-          "The request was reloaded. Review this exact intent before requesting a new lease.",
+          "The request was reloaded. Review the upload details before requesting new upload permission.",
       });
     } catch {
       setView({
         state: "error",
         error: new ClientActionUploadFlowError(
-          "The current request could not be reloaded. Do not request another lease.",
+          "The current request could not be reloaded. Do not request another upload slot.",
           "checking",
           "none",
           false,
@@ -325,17 +325,17 @@ export function ClientActionUploadControl({
     setView({
       state: "idle",
       message: leaseMayExist
-        ? "Local selection discarded. This does not cancel a server lease or claim deletion; expiry and durable reconciliation remain authoritative for staged bytes."
-        : "Local selection discarded before a server lease was confirmed.",
+        ? "The local selection was discarded. This does not cancel the upload slot or prove that a temporary upload was deleted. Server cleanup still applies."
+        : "The local selection was discarded before an upload slot was confirmed.",
     });
   };
 
   const statusMessage = !intentWithinPolicy
-    ? "This recorded intent is outside governed size, filename, digest, or MIME policy. Record a new valid intent before selecting file bytes."
+    ? "These upload details do not meet the allowed size, filename, fingerprint or file-type rules. Record valid details before selecting a file."
     : view.state === "error"
       ? view.error.message
       : view.state === "completed"
-        ? "The exact file passed secure intake and was attached to this request slot."
+        ? "The file passed the security checks and was attached to this request slot."
         : view.message;
   const visibleLeaseExpiry =
     ("expiresAt" in view ? view.expiresAt : null) ??
@@ -359,7 +359,7 @@ export function ClientActionUploadControl({
           metadata and finalization only.
         </p>
         <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
-          Exact intent: {binding.filename} /{" "}
+          Upload details: {binding.filename} /{" "}
           {binding.sizeBytes.toLocaleString("en-NG")} bytes /{" "}
           {binding.contentType} / SHA-256 {binding.declaredSha256}
         </p>
@@ -367,7 +367,7 @@ export function ClientActionUploadControl({
 
       {view.state !== "completed" ? (
         <div className="space-y-2">
-          <Label htmlFor={inputId}>Exact file for {binding.filename}</Label>
+          <Label htmlFor={inputId}>File for {binding.filename}</Label>
           <Input
             key={inputGeneration}
             id={inputId}
@@ -386,11 +386,11 @@ export function ClientActionUploadControl({
                 state: selected ? "selected" : "idle",
                 message: selected
                   ? recoveryMarker.current?.leaseId
-                    ? `${selected.name} selected for same-operation replay of the recovered governed lease.`
+                    ? `${selected.name} selected to continue the recovered upload.`
                     : recoveryMarker.current
-                      ? `${selected.name} selected for replay of the pending governed lease request.`
-                      : `${selected.name} selected. Verification has not requested a server lease yet.`
-                  : "Select the exact file recorded by the current upload intent.",
+                      ? `${selected.name} selected to continue the pending upload request.`
+                      : `${selected.name} selected. No upload slot has been requested yet.`
+                  : "Select the file named in the current upload details.",
               });
             }}
           />
@@ -414,16 +414,16 @@ export function ClientActionUploadControl({
         <p>{statusMessage}</p>
         {visibleLeaseExpiry ? (
           <p className="mt-1 text-xs">
-            Lease expiry recorded as{" "}
+            Upload slot expires{" "}
             {new Date(visibleLeaseExpiry).toLocaleString("en-NG")}; the signed
-            write window closes earlier by its bounded safety cushion.
+            write window closes earlier to leave a safety margin.
           </p>
         ) : null}
         {view.state === "error" &&
         (view.error.serverLeaseMayExist || recoveryMarker.current) ? (
           <p className="mt-1 text-xs">
-            Staged bytes or a lease may exist. The server-side lease and durable
-            reconciler, not this browser, determine cleanup.
+            A temporary upload may exist. The server, not this browser, confirms
+            cleanup.
           </p>
         ) : null}
         {view.state === "completed" ? (
@@ -442,7 +442,7 @@ export function ClientActionUploadControl({
               onClick={() => void startUpload()}
             >
               <RotateCcw className="mr-2 h-4 w-4" />
-              Retry same operation
+              Retry same upload
             </Button>
           ) : view.state === "error" &&
             ["new_lease", "reload_scope"].includes(view.error.retry) ? (
@@ -453,7 +453,7 @@ export function ClientActionUploadControl({
               onClick={() => void reload()}
             >
               <RotateCcw className="mr-2 h-4 w-4" />
-              Reload exact request
+              Reload current request
             </Button>
           ) : view.state === "error" && view.error.retry === "none" ? (
             <Button
@@ -463,7 +463,7 @@ export function ClientActionUploadControl({
               onClick={() => void reload()}
             >
               <RotateCcw className="mr-2 h-4 w-4" />
-              Reload authoritative state
+              Reload current status
             </Button>
           ) : (
             <Button
@@ -472,7 +472,7 @@ export function ClientActionUploadControl({
               onClick={() => void startUpload()}
             >
               <UploadCloud className="mr-2 h-4 w-4" />
-              Verify, upload and finalize
+              Check and upload
             </Button>
           )}
           {file ? (
@@ -490,16 +490,14 @@ export function ClientActionUploadControl({
       ) : (
         <p className="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-300">
           <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-          Governed document attached
+          Document attached
         </p>
       )}
       <p className="text-xs text-muted-foreground">
-        A lease lasts at most 15 minutes. Closing this page, discarding a local
-        selection, or seeing an error is not proof that staged server bytes were
-        deleted. The signed write window closes with a bounded cushion before
-        lease expiry; post-expiry reconciliation is the bounded cleanup control
-        for potential late rewrites and remains subject to authoritative worker
-        evidence.
+        Your upload slot lasts up to 15 minutes. Closing this page, discarding
+        your selection or seeing an error does not confirm that the temporary
+        upload was deleted. Valo stops accepting data before time runs out, then
+        checks for late uploads and records cleanup.
       </p>
     </section>
   );

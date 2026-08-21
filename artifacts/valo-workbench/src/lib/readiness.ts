@@ -61,7 +61,11 @@ export interface ReadinessInput {
     sha256?: string | null;
     extractionStatus?: string | null;
   }>;
-  requirements: Array<{ id: string; reviewStatus: string; isMandatory: boolean }>;
+  requirements: Array<{
+    id: string;
+    reviewStatus: string;
+    isMandatory: boolean;
+  }>;
   evidence: Array<{ requirementId: string; evidenceStatus: string }>;
   defects: Array<{ severity: string; status: string }>;
   boqChecks: Array<{ status: string }>;
@@ -97,7 +101,8 @@ function makeCheck(
  * must not read as satisfied here either.
  */
 export function paymentGatePasses(project: ReadinessProject): boolean {
-  if (!project.paymentStatus || project.paymentStatus === "not_required") return true;
+  if (!project.paymentStatus || project.paymentStatus === "not_required")
+    return true;
   return (
     project.paymentStatus === "confirmed" &&
     project.paymentConfirmedByFounder === true &&
@@ -110,44 +115,76 @@ export function paymentGatePasses(project: ReadinessProject): boolean {
 /** A leg is a legacy confirmation when it is flagged but carries no identity stamp. */
 export function hasLegacyPaymentLeg(project: ReadinessProject): boolean {
   return (
-    (project.paymentConfirmedByFounder === true && !project.paymentFounderConfirmedByName) ||
-    (project.paymentConfirmedByAdvisor === true && !project.paymentAdvisorConfirmedByName)
+    (project.paymentConfirmedByFounder === true &&
+      !project.paymentFounderConfirmedByName) ||
+    (project.paymentConfirmedByAdvisor === true &&
+      !project.paymentAdvisorConfirmedByName)
   );
 }
 
 export function computeReadinessChecks(input: ReadinessInput): GateCheck[] {
-  const { project, documents, requirements, evidence, defects, boqChecks, reports } = input;
+  const {
+    project,
+    documents,
+    requirements,
+    evidence,
+    defects,
+    boqChecks,
+    reports,
+  } = input;
 
   const tenderDocs = documents.filter((doc) => doc.type === "tender");
   const bidDocs = documents.filter((doc) => doc.type === "bid");
   const boqDocs = documents.filter((doc) => doc.type === "boq");
-  const includedDocs = documents.filter((doc) => doc.redactionStatus !== "excluded");
+  const includedDocs = documents.filter(
+    (doc) => doc.redactionStatus !== "excluded",
+  );
   const hashlessDocs = documents.filter((doc) => !doc.sha256);
   const extractingDocs = includedDocs.filter(
-    (doc) => doc.extractionStatus === "pending" || doc.extractionStatus === "extracting",
+    (doc) =>
+      doc.extractionStatus === "pending" ||
+      doc.extractionStatus === "extracting",
   );
-  const extractedDocs = includedDocs.filter((doc) => doc.extractionStatus === "extracted");
-  const failedExtractionDocs = includedDocs.filter((doc) => doc.extractionStatus === "failed");
+  const extractedDocs = includedDocs.filter(
+    (doc) => doc.extractionStatus === "extracted",
+  );
+  const failedExtractionDocs = includedDocs.filter(
+    (doc) => doc.extractionStatus === "failed",
+  );
 
-  const unreviewedRequirements = requirements.filter((req) => req.reviewStatus === "suggested");
+  const unreviewedRequirements = requirements.filter(
+    (req) => req.reviewStatus === "suggested",
+  );
   const reviewedRequirements = requirements.filter((req) =>
     REVIEWED_REQUIREMENTS.has(req.reviewStatus),
   );
-  const mandatoryRequirements = reviewedRequirements.filter((req) => req.isMandatory);
+  const mandatoryRequirements = reviewedRequirements.filter(
+    (req) => req.isMandatory,
+  );
   const unresolvedMandatory = mandatoryRequirements.filter((req) => {
     const matches = evidence.filter((item) => item.requirementId === req.id);
-    return matches.length === 0 || matches.some((item) => !RESOLVED_EVIDENCE.has(item.evidenceStatus));
+    return (
+      matches.length === 0 ||
+      matches.some((item) => !RESOLVED_EVIDENCE.has(item.evidenceStatus))
+    );
   });
 
   // Aligned with blockingSignOffDefects: only OPEN material defects block
   // sign-off. Suggested (unconfirmed AI) defects never block — they are a
   // review queue, surfaced as an advisory instead.
   const openMaterialDefects = defects.filter(
-    (defect) => defect.status === "open" && MATERIAL_DEFECTS.has(defect.severity),
+    (defect) =>
+      defect.status === "open" && MATERIAL_DEFECTS.has(defect.severity),
   );
-  const suggestedDefects = defects.filter((defect) => defect.status === "suggested");
-  const flaggedBoqChecks = boqChecks.filter((check) => check.status === "flagged");
-  const signedReports = reports.filter((report) => report.status === "signed_off");
+  const suggestedDefects = defects.filter(
+    (defect) => defect.status === "suggested",
+  );
+  const flaggedBoqChecks = boqChecks.filter(
+    (check) => check.status === "flagged",
+  );
+  const signedReports = reports.filter(
+    (report) => report.status === "signed_off",
+  );
   const draftReports = reports.filter((report) => report.status === "draft");
 
   const paymentPasses = paymentGatePasses(project);
@@ -178,12 +215,14 @@ export function computeReadinessChecks(input: ReadinessInput): GateCheck[] {
     makeCheck(
       "conflict",
       "Conflict and restriction controls",
-      project.conflictStatus === "blocked" || project.conflictStatus === "declined"
+      project.conflictStatus === "blocked" ||
+        project.conflictStatus === "declined"
         ? "blocked"
         : project.restrictedMode && !project.redactionScope
           ? "warning"
           : "pass",
-      project.conflictStatus === "blocked" || project.conflictStatus === "declined"
+      project.conflictStatus === "blocked" ||
+        project.conflictStatus === "declined"
         ? "Conflict status blocks document intake and downstream review."
         : project.restrictedMode && !project.redactionScope
           ? "Restricted mode is enabled without a recorded redaction scope."
@@ -196,7 +235,9 @@ export function computeReadinessChecks(input: ReadinessInput): GateCheck[] {
     makeCheck(
       "documents",
       "Tender and bid documents",
-      tenderDocs.length === 0 || bidDocs.length === 0 || hashlessDocs.length > 0 ? "blocked" : "pass",
+      tenderDocs.length === 0 || bidDocs.length === 0 || hashlessDocs.length > 0
+        ? "blocked"
+        : "pass",
       tenderDocs.length === 0 || bidDocs.length === 0
         ? `Missing ${formatList(
             [
@@ -233,7 +274,9 @@ export function computeReadinessChecks(input: ReadinessInput): GateCheck[] {
     makeCheck(
       "requirements",
       "Requirement review",
-      requirements.length === 0 || unreviewedRequirements.length > 0 ? "blocked" : "pass",
+      requirements.length === 0 || unreviewedRequirements.length > 0
+        ? "blocked"
+        : "pass",
       requirements.length === 0
         ? "No requirement matrix exists yet."
         : unreviewedRequirements.length > 0
@@ -244,19 +287,25 @@ export function computeReadinessChecks(input: ReadinessInput): GateCheck[] {
     ),
     makeCheck(
       "gate0",
-      "Gate 0 scorecard",
-      input.mandatoryRecall == null ? "warning" : input.mandatoryRecall >= 0.85 ? "pass" : "warning",
+      "Initial readiness",
       input.mandatoryRecall == null
-        ? "Mandatory recall is not available until reviewer rulings exist."
-        : `Mandatory recall is ${(input.mandatoryRecall * 100).toFixed(1)}% against the 85% target.`,
+        ? "warning"
+        : input.mandatoryRecall >= 0.85
+          ? "pass"
+          : "warning",
+      input.mandatoryRecall == null
+        ? "The percentage of mandatory requirements found is not available until reviewers record their decisions."
+        : `The system found ${(input.mandatoryRecall * 100).toFixed(1)}% of mandatory requirements after reviewer decisions, against the 85% target.`,
       "requirements",
-      "Open Scorecard",
+      "Open readiness results",
       false,
     ),
     makeCheck(
       "evidence",
       "Mandatory evidence",
-      mandatoryRequirements.length === 0 || unresolvedMandatory.length > 0 ? "blocked" : "pass",
+      mandatoryRequirements.length === 0 || unresolvedMandatory.length > 0
+        ? "blocked"
+        : "pass",
       mandatoryRequirements.length === 0
         ? "No reviewed mandatory requirements are available for evidence mapping."
         : unresolvedMandatory.length > 0
@@ -286,7 +335,11 @@ export function computeReadinessChecks(input: ReadinessInput): GateCheck[] {
     makeCheck(
       "defects",
       "Material defects",
-      openMaterialDefects.length > 0 ? "blocked" : suggestedDefects.length > 0 ? "warning" : "pass",
+      openMaterialDefects.length > 0
+        ? "blocked"
+        : suggestedDefects.length > 0
+          ? "warning"
+          : "pass",
       openMaterialDefects.length > 0
         ? `${openMaterialDefects.length} open fatal or likely-fatal defect${openMaterialDefects.length === 1 ? "" : "s"} must be resolved.`
         : suggestedDefects.length > 0
@@ -319,7 +372,11 @@ export function computeReadinessChecks(input: ReadinessInput): GateCheck[] {
           ? "A draft report exists and needs named-reviewer sign-off."
           : "No report has been generated yet.",
       "reports",
-      signedReports.length > 0 ? "Open Reports" : draftReports.length > 0 ? "Sign Off Report" : "Generate Report",
+      signedReports.length > 0
+        ? "Open Reports"
+        : draftReports.length > 0
+          ? "Sign Off Report"
+          : "Generate Report",
     ),
     makeCheck(
       "export",
@@ -357,9 +414,15 @@ export interface ReadinessSummary {
 
 export function summarizeReadiness(checks: GateCheck[]): ReadinessSummary {
   const requiredChecks = checks.filter((check) => check.required !== false);
-  const passedRequired = requiredChecks.filter((check) => check.status === "pass").length;
-  const blockedRequired = requiredChecks.filter((check) => check.status === "blocked").length;
-  const warningCount = checks.filter((check) => check.status === "warning").length;
+  const passedRequired = requiredChecks.filter(
+    (check) => check.status === "pass",
+  ).length;
+  const blockedRequired = requiredChecks.filter(
+    (check) => check.status === "blocked",
+  ).length;
+  const warningCount = checks.filter(
+    (check) => check.status === "warning",
+  ).length;
   return {
     requiredTotal: requiredChecks.length,
     passedRequired,

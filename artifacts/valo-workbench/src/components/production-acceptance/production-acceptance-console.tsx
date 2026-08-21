@@ -50,9 +50,9 @@ export function ProductionAcceptanceConsole({
   return (
     <div className="mx-auto w-full max-w-7xl space-y-7 p-5 sm:p-8">
       <PageHeader
-        eyebrow="Release evidence control plane"
-        title="Production acceptance & recovery"
-        description="Review immutable evidence references for migration, tenant security, browser quality and recovery rehearsals. This surface cannot execute any recovery or deployment action."
+        eyebrow="Release evidence"
+        title="Release checks"
+        description="Review evidence references for migrations, organisation security, browser checks and recovery rehearsals. This page cannot deploy or run recovery."
         state={go ? "partial" : "blocked"}
       />
 
@@ -60,7 +60,7 @@ export function ProductionAcceptanceConsole({
         state={go ? "partial" : "blocked"}
         title={
           go
-            ? "Evidence is complete for a named human go decision"
+            ? "Evidence is complete; a named person must make the go decision"
             : "No-go: required evidence is incomplete or invalid"
         }
         description={snapshot.authorityNote}
@@ -75,7 +75,7 @@ export function ProductionAcceptanceConsole({
             {snapshot.blockers.length}
           </p>
           <p>
-            <span className="font-medium">Automatic authority:</span> none
+            <span className="font-medium">Automatic approval:</span> none
           </p>
         </div>
       </StatusPanel>
@@ -84,15 +84,15 @@ export function ProductionAcceptanceConsole({
         <CardContent className="p-5">
           <h2 className="text-sm font-semibold">Release candidate binding</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Every passing record must be bound to this exact SHA-256. A source
-            branch, tag or deployment name is not equivalent evidence.
+            Every passing record must use this exact SHA-256. A branch, tag or
+            deployment name is not equivalent.
           </p>
           <code className="mt-3 block break-all rounded-md bg-muted px-3 py-2 text-xs">
             {snapshot.expectedReleaseSha256 ??
               "Exact release is not configured"}
           </code>
           <p className="mt-3 text-xs text-muted-foreground">
-            Snapshot generated {formattedDate(snapshot.generatedAt)}
+            Checked at {formattedDate(snapshot.generatedAt)}
           </p>
         </CardContent>
       </Card>
@@ -136,8 +136,8 @@ export function ProductionAcceptanceConsole({
             Required evidence
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            The latest observation in each category is authoritative for this
-            advisory snapshot; historical rows remain append-only.
+            The newest record in each category determines this advisory view.
+            Older records remain append-only.
           </p>
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
@@ -220,7 +220,7 @@ export function ProductionAcceptanceConsole({
                       </div>
                       <div className="sm:col-span-2">
                         <dt className="text-xs text-muted-foreground">
-                          Immutable evidence digest
+                          Evidence digest
                         </dt>
                         <dd className="mt-1 break-all font-mono text-xs">
                           {evidence.evidenceDigest}

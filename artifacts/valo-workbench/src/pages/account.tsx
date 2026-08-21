@@ -1,15 +1,7 @@
 import { UserProfile } from "@clerk/clerk-react";
 import { PageHeader } from "@/components/platform-states";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
-
-function roleLabel(role: string): string {
-  return role
-    .replace(/^client_/, "")
-    .replace(/^consultancy_/, "")
-    .replace(/^valo_/, "Valo ")
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
+import { platformRoleLabel } from "@/lib/platform-access";
 
 export default function AccountPage() {
   const access = useOrganisationAccess();
@@ -18,11 +10,13 @@ export default function AccountPage() {
       <PageHeader
         eyebrow="Account and identity"
         title="Profile and security"
-        description="Manage the provider-backed identity for this session. Organisation roles and access are granted separately by authorised administrators."
+        description="Manage your sign-in profile and security. Organisation administrators manage roles and access separately."
         state="active"
       />
       <section className="rounded-lg border border-border bg-card p-5">
-        <h2 className="text-sm font-semibold">Current organisation context</h2>
+        <h2 className="text-sm font-semibold">
+          Current organisation and roles
+        </h2>
         <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2">
           <div>
             <dt className="text-muted-foreground">Organisation</dt>
@@ -31,10 +25,12 @@ export default function AccountPage() {
             </dd>
           </div>
           <div>
-            <dt className="text-muted-foreground">Effective roles</dt>
+            <dt className="text-muted-foreground">
+              Roles for this organisation
+            </dt>
             <dd className="mt-1 font-medium">
               {access?.effectiveRoles.length
-                ? access.effectiveRoles.map(roleLabel).join(", ")
+                ? access.effectiveRoles.map(platformRoleLabel).join(", ")
                 : "No active role"}
             </dd>
           </div>
@@ -46,11 +42,11 @@ export default function AccountPage() {
       >
         <div>
           <h2 id="identity-provider-heading" className="text-lg font-semibold">
-            Identity-provider settings
+            Sign-in and security settings
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Password, verification, multi-factor authentication, active sessions
-            and recovery are handled by Clerk.
+            Clerk manages your password, verification, multi-factor
+            authentication, active sessions and account recovery.
           </p>
         </div>
         <div className="overflow-hidden rounded-lg border border-border bg-card p-2 sm:p-4">

@@ -120,7 +120,7 @@ describe("ProductionAcceptancePage", () => {
     mocks.accessSource = "partner";
     renderPage();
     expect(
-      screen.getByText("Internal audit membership required"),
+      screen.getByText("Release-check access required"),
     ).toBeInTheDocument();
     expect(mocks.customFetch).not.toHaveBeenCalled();
   });
@@ -137,7 +137,7 @@ describe("ProductionAcceptancePage", () => {
     await waitFor(() =>
       expect(
         screen.getByRole("heading", {
-          name: "Production acceptance & recovery",
+          name: "Release checks",
         }),
       ).toBeInTheDocument(),
     );
@@ -168,15 +168,13 @@ describe("ProductionAcceptancePage", () => {
     renderPage();
 
     expect(
-      await screen.findByText("Acceptance authorities could not be loaded"),
+      await screen.findByText("Acceptance owners could not be loaded"),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(/No other active named authority is available/u),
+      screen.queryByText(/No other active owner is available/u),
     ).not.toBeInTheDocument();
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Retry authority directory" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Retry owner list" }));
 
     expect(
       await screen.findByRole("option", { name: /^Migration Owner/u }),
@@ -196,10 +194,10 @@ describe("ProductionAcceptancePage", () => {
     renderPage();
 
     expect(
-      await screen.findByText(/No other active named authority is available/u),
+      await screen.findByText(/No other active owner is available/u),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText("Acceptance authorities could not be loaded"),
+      screen.queryByText("Acceptance owners could not be loaded"),
     ).not.toBeInTheDocument();
   });
 
@@ -209,7 +207,7 @@ describe("ProductionAcceptancePage", () => {
     mocks.customFetch.mockResolvedValue(snapshotResponse());
     renderPage();
     await screen.findByRole("heading", {
-      name: "Production acceptance & recovery",
+      name: "Release checks",
     });
     expect(
       screen.queryByRole("heading", { name: "Record retained evidence" }),
@@ -242,11 +240,9 @@ describe("ProductionAcceptancePage", () => {
       );
     });
 
+    expect(screen.getByText("Loading acceptance owners")).toBeInTheDocument();
     expect(
-      screen.getByText("Loading acceptance authorities"),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText("Acceptance authorities could not be loaded"),
+      screen.queryByText("Acceptance owners could not be loaded"),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("heading", { name: "Record retained evidence" }),

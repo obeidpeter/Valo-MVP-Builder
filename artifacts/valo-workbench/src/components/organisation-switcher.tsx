@@ -6,19 +6,13 @@ import { useLocation } from "wouter";
 import {
   platformFeatureFlags,
   platformHomeForRole,
+  platformRoleLabel,
 } from "@/lib/platform-access";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 
 function typeLabel(type: "client" | "valo" | "consultancy_partner"): string {
   if (type === "consultancy_partner") return "Consultancy partner";
   return type === "valo" ? "Valo operations" : "Client organisation";
-}
-
-function roleLabel(role: string): string {
-  return role
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
 }
 
 export function OrganisationSelectionGate() {
@@ -48,23 +42,22 @@ export function OrganisationSelectionGate() {
       <div className="w-full max-w-3xl space-y-5">
         <div>
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
-            Tenant boundary
+            Choose where to work
           </p>
           <h1 className="mt-2 font-serif text-3xl font-semibold tracking-tight">
             Select an organisation
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Your account has access to more than one workspace. The selection
-            scopes subsequent API requests; the server independently validates
-            active membership and permissions.
+            You can access more than one organisation. Choose one to continue.
+            The server checks your membership and permissions for every request.
           </p>
         </div>
 
         {switchBlocked ? (
           <StatusPanel
             state="blocked"
-            title="Workspace switching is temporarily blocked"
-            description="Finish or cancel the in-progress write before changing organisation context."
+            title="Organisation switching is temporarily unavailable"
+            description="Finish or cancel the current change before switching organisations."
           />
         ) : null}
 
@@ -95,15 +88,15 @@ export function OrganisationSelectionGate() {
                   state="active"
                   label={
                     organisation.accessSource === "partner"
-                      ? "Partner relationship active"
-                      : "Membership active"
+                      ? "Partner access"
+                      : "Direct member"
                   }
                 />
               </span>
               <span className="mt-4 block text-xs leading-5 text-muted-foreground">
                 {organisation.roles.length > 0
-                  ? organisation.roles.map(roleLabel).join(", ")
-                  : "No active role grant"}
+                  ? organisation.roles.map(platformRoleLabel).join(", ")
+                  : "No active role"}
               </span>
               {organisation.accessExpiresAt ? (
                 <span className="mt-2 flex items-center gap-1.5 text-xs text-amber-800">
@@ -169,8 +162,8 @@ export function OrganisationSwitcher() {
       </select>
       {switchBlocked ? (
         <span id="organisation-switch-blocked" className="sr-only">
-          Organisation switching is unavailable while a write or protected
-          workflow is in progress.
+          Organisation switching is unavailable while a change or sensitive task
+          is in progress.
         </span>
       ) : null}
     </div>
@@ -188,10 +181,10 @@ export function OrganisationLoadError() {
           state={online ? "error" : "offline"}
           title={
             online
-              ? "Organisation access could not be loaded"
-              : "Organisation access is unavailable offline"
+              ? "We couldn't load your organisations"
+              : "Organisation access is unavailable while offline"
           }
-          description="Tenant membership could not be verified. No organisation data or actions are available until the access service recovers."
+          description="We could not verify your membership. Organisation data and actions stay locked until access is restored."
         >
           <Button type="button" variant="outline" onClick={access.refetch}>
             Try again

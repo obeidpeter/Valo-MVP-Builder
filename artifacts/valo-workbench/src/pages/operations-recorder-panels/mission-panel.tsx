@@ -45,7 +45,7 @@ export function MissionPanel({
   return (
     <Panel
       title="7. Pre-bid and site-visit mission"
-      description="Record the plan and named delegate authority. Later updates use the current mission checklist, canonical project proof documents, discoverable follow-up work and operator-entered status reasons."
+      description="Record the plan and named delegate's authority. Later updates use the current checklist, approved pursuit documents, linked follow-up work and reasons entered by the operator."
       allowed={permissions.projectUpdate}
       unavailableReason="Project update permission is required."
       disabled={disabled}
@@ -263,7 +263,7 @@ export function MissionPanel({
           </select>
         </Field>
         <Field
-          label="Canonical mission proof document (optional)"
+          label="Approved visit proof document (optional)"
           name="missionProofDocumentId"
           hint="The selected project document supplies both the exact document ID and current SHA-256."
         >

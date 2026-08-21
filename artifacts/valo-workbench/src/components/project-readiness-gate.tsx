@@ -111,7 +111,7 @@ export function ProjectReadinessGate({
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-primary" />
               <h3 className="font-serif text-xl font-medium">
-                Project Readiness Gate
+                Pursuit readiness
               </h3>
               {!isLoading && !isError && (
                 <Badge
@@ -123,15 +123,14 @@ export function ProjectReadinessGate({
                   }
                 >
                   {summary.ready
-                    ? "Ready for sign-off path"
+                    ? "Ready for sign-off review"
                     : `${summary.blockedRequired} blocker${summary.blockedRequired === 1 ? "" : "s"}`}
                 </Badge>
               )}
             </div>
             <p className="text-sm text-muted-foreground max-w-3xl">
-              A reviewer-facing control gate for sign-off, export, and archive
-              readiness across governance, intake, evidence, defects, BOQ, risk,
-              and report state.
+              Check the required status, intake, evidence, defects, BOQ, risk
+              and report records before sign-off, export or archive.
             </p>
           </div>
           {!isLoading && !isError && (
@@ -183,13 +182,13 @@ export function ProjectReadinessGate({
       {isLoading ? (
         <div className="p-8 flex items-center justify-center text-sm text-muted-foreground">
           <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-          Checking readiness gates
+          Checking readiness
         </div>
       ) : isError ? (
         <div className="p-8 flex items-center justify-center gap-2 text-sm text-destructive">
           <XCircle className="w-5 h-5" />
-          Some project registers could not be loaded, so readiness cannot be
-          assessed. Retry once the connection recovers.
+          Some pursuit records could not be loaded, so readiness cannot be
+          assessed. Retry when the connection recovers.
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
@@ -234,7 +233,7 @@ export function ProjectReadinessGate({
       {!isLoading && !isError && summary.ready && (
         <div className="flex items-center gap-2 border-t border-border bg-emerald-50 px-6 py-3 text-sm text-emerald-800">
           <Circle className="w-3 h-3 fill-emerald-600 text-emerald-600" />
-          Required gates are clear. Advisory warnings should still be reviewed
+          Required checks are clear. Advisory warnings should still be reviewed
           before external delivery.
         </div>
       )}

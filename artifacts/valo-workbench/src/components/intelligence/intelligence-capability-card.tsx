@@ -70,7 +70,7 @@ export function IntelligenceCapabilityCard({
             ) : (
               <CheckCheck aria-hidden="true" className="size-3" />
             )}
-            Current Level 0 · Target ceiling Level {definition.level}
+            Current level 0 · Maximum planned level {definition.level}
           </Badge>
           <StateBadge state={presentation.surface} label={presentation.label} />
         </div>
@@ -184,7 +184,7 @@ export function IntelligenceCapabilityCard({
           )}
           <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
             <Clock3 aria-hidden="true" className="size-3.5" />
-            Last evidenced {formatTimestamp(snapshot.lastUpdatedAt)} WAT
+            Evidence last updated {formatTimestamp(snapshot.lastUpdatedAt)} WAT
           </div>
         </div>
       </CardContent>

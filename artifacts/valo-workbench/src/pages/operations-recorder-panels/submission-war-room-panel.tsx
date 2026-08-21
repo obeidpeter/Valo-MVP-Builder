@@ -35,8 +35,8 @@ export function SubmissionWarRoomPanel({
 }) {
   return (
     <Panel
-      title="4. Submission war room"
-      description="Create custody against an existing package version, then record each human-completed stage in order. Dispatch method, receipt hash and cancellation reason must come from the operator."
+      title="4. Submission tracking"
+      description="Start tracking an existing package version, then record each completed stage in order. The operator must enter the delivery method, receipt fingerprint and any cancellation reason."
       allowed={permissions.packageExport}
       unavailableReason="Package export permission is required."
       disabled={disabled || packageVersionsState !== "ready"}
@@ -75,10 +75,7 @@ export function SubmissionWarRoomPanel({
         })}
       >
         <h3 className="text-sm font-semibold">Create custody room</h3>
-        <Field
-          label="Canonical package version"
-          name="submissionPackageVersion"
-        >
+        <Field label="Approved package version" name="submissionPackageVersion">
           <PackageVersionSelect
             id="submissionPackageVersion"
             records={records.packageVersions}

@@ -61,7 +61,7 @@ describe("reports directory data states", () => {
     renderPage();
 
     expect(
-      screen.getByText(/pursuit directory could not be loaded/i),
+      screen.getByText(/pursuit list could not be loaded/i),
     ).toBeInTheDocument();
     expect(
       screen.queryByText(/no pursuits are available/i),
@@ -101,7 +101,7 @@ describe("reports directory data states", () => {
     renderPage();
 
     expect(
-      await screen.findByText(/some report registers could not be loaded/i),
+      await screen.findByText(/some pursuit reports could not be loaded/i),
     ).toBeInTheDocument();
     const airportRow = screen.getByText("Airport Upgrade").closest("tr");
     const bridgeRow = screen.getByText("Bridge Works").closest("tr");

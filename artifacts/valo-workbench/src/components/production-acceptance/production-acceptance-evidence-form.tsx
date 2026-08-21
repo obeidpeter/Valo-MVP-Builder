@@ -90,7 +90,9 @@ export function ProductionAcceptanceEvidenceForm({
       !/^[a-f0-9]{64}$/u.test(artifactSha256) ||
       !summary
     ) {
-      setError("Complete every field with a valid retained artefact digest.");
+      setError(
+        "Complete every field and provide a valid retained artefact SHA-256.",
+      );
       return;
     }
     retryKey.current ??= idempotencyKey();
@@ -113,7 +115,7 @@ export function ProductionAcceptanceEvidenceForm({
       form.reset();
     } catch {
       setError(
-        "Evidence was not confirmed. Correct the reported issue or retry with the unchanged form; the same idempotency key will be reused.",
+        "Evidence was not confirmed. Correct the issue or try again without changing the form; the same duplicate-prevention key will be reused.",
       );
     }
   };
@@ -129,10 +131,9 @@ export function ProductionAcceptanceEvidenceForm({
             Record retained evidence
           </h2>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Record a reference and SHA-256 for an artefact retained outside this
-            form. The signed-in recorder becomes the verifier and must be
-            different from the accountable owner. No rehearsal or recovery
-            action is executed here.
+            Enter the reference and SHA-256 of evidence stored outside this
+            form. The signed-in person is the verifier and must differ from the
+            owner. This form does not run a rehearsal or recovery.
           </p>
 
           <form className="mt-5 space-y-5" onSubmit={submit}>
@@ -199,7 +200,7 @@ export function ProductionAcceptanceEvidenceForm({
                     required
                   >
                     <option value="" disabled>
-                      Select a different named authority
+                      Select a different owner
                     </option>
                     {ownerOptions.map((owner) => (
                       <option key={owner.id} value={owner.id}>
@@ -209,8 +210,8 @@ export function ProductionAcceptanceEvidenceForm({
                   </select>
                   {ownerOptions.length === 0 ? (
                     <p className="text-xs text-destructive">
-                      No other active named authority is available. Evidence
-                      recording remains disabled.
+                      No other active owner is available, so evidence recording
+                      is disabled.
                     </p>
                   ) : null}
                 </div>
@@ -275,7 +276,9 @@ export function ProductionAcceptanceEvidenceForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="acceptance-summary">Content-free summary</Label>
+                <Label htmlFor="acceptance-summary">
+                  Summary (no sensitive content)
+                </Label>
                 <Textarea
                   id="acceptance-summary"
                   name="summary"

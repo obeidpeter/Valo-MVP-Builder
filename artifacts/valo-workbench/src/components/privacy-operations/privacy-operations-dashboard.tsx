@@ -59,7 +59,7 @@ function ReviewBadge({
 function EmptyList({ label }: { label: string }) {
   return (
     <p className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">
-      No {label} are visible in this bounded tenant view.
+      No {label} are available for this organisation.
     </p>
   );
 }
@@ -82,9 +82,9 @@ export function PrivacyOperationsDashboardView({
   return (
     <div className="mx-auto w-full max-w-7xl space-y-7 p-5 sm:p-8">
       <PageHeader
-        eyebrow="Privacy evidence control plane"
-        title="Privacy Operations Centre"
-        description="Triage bounded, tenant-scoped privacy evidence without listing subject references or automating legal decisions."
+        eyebrow="Privacy records"
+        title="Privacy requests"
+        description="Review privacy requests and evidence for this organisation. Personal references are hidden, and legal decisions are never automatic."
         state={dashboard.blockers.length > 0 ? "partial" : "active"}
       />
 
@@ -92,8 +92,8 @@ export function PrivacyOperationsDashboardView({
         state={dashboard.blockers.length > 0 ? "partial" : "active"}
         title={
           dashboard.blockers.length > 0
-            ? "Named-human attention is required"
-            : "No blocker is visible in the bounded view"
+            ? "A named person must review these issues"
+            : "No blocker is visible in the current view"
         }
         description={dashboard.authorityNote}
       >
@@ -106,7 +106,7 @@ export function PrivacyOperationsDashboardView({
             {dashboard.blockers.length}
           </p>
           <p>
-            <span className="font-medium">Raw subject PII:</span> excluded
+            <span className="font-medium">Personal details:</span> hidden
           </p>
         </div>
       </StatusPanel>
@@ -114,11 +114,11 @@ export function PrivacyOperationsDashboardView({
       <section aria-labelledby="privacy-counts-heading" className="space-y-3">
         <div>
           <h2 id="privacy-counts-heading" className="text-lg font-semibold">
-            Tenant register counts
+            Privacy record counts
           </h2>
           <p className="text-sm text-muted-foreground">
-            Lists show at most {dashboard.boundedTo} records per register;
-            totals remain database aggregates.
+            Each list shows at most {dashboard.boundedTo} records. The totals
+            cover all records in the database.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -165,7 +165,7 @@ export function PrivacyOperationsDashboardView({
 
       <Tabs defaultValue="requests" className="space-y-4">
         <TabsList className="h-auto flex-wrap justify-start">
-          <TabsTrigger value="requests">DSR inbox</TabsTrigger>
+          <TabsTrigger value="requests">Data rights</TabsTrigger>
           <TabsTrigger value="consents">Consent</TabsTrigger>
           <TabsTrigger value="holds">Holds</TabsTrigger>
           <TabsTrigger value="processors">Processors</TabsTrigger>
@@ -213,7 +213,9 @@ export function PrivacyOperationsDashboardView({
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Named owner</p>
+                    <p className="text-xs text-muted-foreground">
+                      Assigned manager
+                    </p>
                     <p className="mt-1 break-all font-mono text-xs">
                       {item.assignedToUserId ?? "Unassigned"}
                     </p>
@@ -280,13 +282,13 @@ export function PrivacyOperationsDashboardView({
                   </div>
                   <div>
                     <p className="mb-1 text-xs text-muted-foreground">
-                      Review posture
+                      Review status
                     </p>
                     <ReviewBadge posture={item.reviewPosture} />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">
-                      Last human outcome
+                      Last review decision
                     </p>
                     <p className="mt-1 capitalize">
                       {item.lastReviewOutcome
@@ -323,7 +325,7 @@ export function PrivacyOperationsDashboardView({
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">
-                      DPA / security
+                      Data agreement / security review
                     </p>
                     <p className="mt-1 capitalize">
                       {readable(item.dpaStatus)} /{" "}
@@ -390,11 +392,11 @@ export function PrivacyOperationsDashboardView({
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Execution</p>
+                    <p className="text-xs text-muted-foreground">Status</p>
                     <p className="mt-1 capitalize">{readable(item.status)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Hold gate</p>
+                    <p className="text-xs text-muted-foreground">Legal hold</p>
                     <p className="mt-1">{item.held ? "Held" : "Not held"}</p>
                   </div>
                   <div>
@@ -416,8 +418,8 @@ export function PrivacyOperationsDashboardView({
       </Tabs>
 
       <p className="text-xs text-muted-foreground">
-        Snapshot generated {formattedDate(dashboard.generatedAt)}. Lists exclude
-        requester and subject references by contract.
+        Last updated {formattedDate(dashboard.generatedAt)}. Requester and data
+        subject references are not included.
       </p>
     </div>
   );

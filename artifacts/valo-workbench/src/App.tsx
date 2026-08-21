@@ -13,7 +13,7 @@ function LoadingAccess() {
       className="flex min-h-screen items-center justify-center bg-background p-6"
       role="status"
     >
-      <p className="text-sm text-muted-foreground">Preparing secure access…</p>
+      <p className="text-sm text-muted-foreground">Loading secure sign-in…</p>
     </main>
   );
 }

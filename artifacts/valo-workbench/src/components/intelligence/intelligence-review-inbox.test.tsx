@@ -80,7 +80,7 @@ describe("IntelligenceReviewInbox", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/does not imply that model-backed analysis ran/i),
+      screen.getByText(/presence does not mean AI analysis ran/i),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "All: 3 review items" }),
@@ -245,7 +245,7 @@ describe("IntelligenceReviewInbox", () => {
     const view = renderInbox({ loading: true, items: [] });
 
     expect(
-      screen.getByText("Loading tenant-scoped review items"),
+      screen.getByText("Loading review items for this organisation"),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", { name: "No review items are available" }),
@@ -289,7 +289,7 @@ describe("IntelligenceReviewInbox", () => {
       screen.getByRole("heading", { name: "Development review data" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/does not report production model execution as active/i),
+      screen.getByText(/does not report production AI as active/i),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", {

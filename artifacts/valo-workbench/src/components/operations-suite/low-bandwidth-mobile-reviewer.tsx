@@ -54,16 +54,16 @@ export function LowBandwidthMobileReviewer({
   return (
     <OperationsSection
       id="mobile-reviewer"
-      title="Low-bandwidth mobile summary"
-      description="A 360px-ready summary queue loaded without the full operations snapshot. Record bodies remain excluded and restricted content stays online-only."
+      title="Mobile summary for slow connections"
+      description="A compact task list that loads without the full operations view. Record contents are excluded, and restricted content is available only online."
       icon={<Smartphone aria-hidden="true" className="size-5" />}
       busy={state === "loading"}
     >
       <HumanAuthorityNotice title="Online-first storage policy">
         Restricted tender content is not cached for offline use. Losing
         connectivity pauses review actions; it never converts stale local data
-        into an authoritative decision. This compact route does not fetch the
-        full operations snapshot.
+        into a current decision. This compact page does not fetch the full
+        operations record.
       </HumanAuthorityNotice>
 
       <div className="min-w-0 space-y-4" data-mobile-ready="360">

@@ -99,13 +99,11 @@ describe("AiShadowProgrammeConsole mutation failures", () => {
     });
 
     fireEvent.submit(
-      screen
-        .getByRole("button", { name: "Register shadow plan" })
-        .closest("form")!,
+      screen.getByRole("button", { name: "Create test plan" }).closest("form")!,
     );
 
     expect(
-      await screen.findByText(/Shadow plan registration was not confirmed/u),
+      await screen.findByText(/test plan was not recorded/u),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Title")).toHaveValue("Rejected plan");
     expect(onCreatePlan).toHaveBeenCalledTimes(1);
@@ -134,7 +132,7 @@ describe("AiShadowProgrammeConsole mutation failures", () => {
     );
 
     expect(
-      await screen.findByText(/Shadow observation was not confirmed/u),
+      await screen.findByText(/test observation was not recorded/u),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Case ID")).toHaveValue("case-retry-1");
     expect(onRecordObservation).toHaveBeenCalledTimes(1);

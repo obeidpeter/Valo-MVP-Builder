@@ -82,7 +82,7 @@ export function RiskTab({ projectId }: { projectId: string }) {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-serif font-medium">
-          Disqualification Risk
+          Disqualification risk
         </h2>
       </div>
 
@@ -102,7 +102,7 @@ export function RiskTab({ projectId }: { projectId: string }) {
             />
             <div>
               <h3 className="font-serif text-lg">
-                Computed Risk:{" "}
+                Calculated risk:{" "}
                 <span className="capitalize">{risk.computedBand}</span>
               </h3>
               <p className="text-3xl font-bold font-mono tracking-tighter">
@@ -121,7 +121,7 @@ export function RiskTab({ projectId }: { projectId: string }) {
                   variant="outline"
                   className="border-primary/50 text-primary"
                 >
-                  Override Active
+                  Override active
                 </Badge>
                 <span className="text-xs text-muted-foreground capitalize font-mono">
                   Set to: {risk.overrideBand}
@@ -159,11 +159,11 @@ export function RiskTab({ projectId }: { projectId: string }) {
           <div className="bg-card border border-border p-6 rounded-xl shadow-xs space-y-4">
             <h3 className="font-medium flex items-center gap-2">
               <Target className="w-4 h-4 text-muted-foreground" />
-              Override Computed Risk
+              Override calculated risk
             </h3>
             <p className="text-xs text-muted-foreground">
-              Reviewers can override the deterministically computed risk score
-              based on professional judgment.
+              Reviewers can override the rules-based risk score using
+              professional judgement.
             </p>
 
             <div className="space-y-3">
@@ -172,7 +172,7 @@ export function RiskTab({ projectId }: { projectId: string }) {
                   <SelectValue placeholder="Select override band..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No Override</SelectItem>
+                  <SelectItem value="none">No override</SelectItem>
                   <SelectItem value="low">Low</SelectItem>
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="high">High</SelectItem>
@@ -194,7 +194,7 @@ export function RiskTab({ projectId }: { projectId: string }) {
                 {overrideRisk.isPending && (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 )}
-                Apply Override
+                Apply override
               </Button>
             </div>
           </div>

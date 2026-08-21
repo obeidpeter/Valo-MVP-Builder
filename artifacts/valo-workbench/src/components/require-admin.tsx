@@ -17,7 +17,7 @@ export default function RequireAdmin({
   if (isLoading || isPending || organisationAccess?.isLoading) {
     return (
       <div className="p-6 sm:p-8">
-        <LoadingPanel label="Checking administrative access" />
+        <LoadingPanel label="Checking admin access" />
       </div>
     );
   }
@@ -27,8 +27,8 @@ export default function RequireAdmin({
       <div className="p-6 sm:p-8">
         <StatusPanel
           state="error"
-          title="Administrative access could not be verified"
-          description="The current identity and organisation authority must both be verified before settings can be opened."
+          title="We couldn't verify admin access"
+          description="We must verify both your account and your organisation role before opening settings."
         />
       </div>
     );
@@ -51,7 +51,7 @@ export default function RequireAdmin({
         <StatusPanel
           state="blocked"
           title="Access denied"
-          description="Settings are restricted to authorised operations administrators. Server authorisation remains authoritative."
+          description="Only Valo operations administrators can open these settings. If you think this is wrong, contact Valo support."
         />
       </div>
     );

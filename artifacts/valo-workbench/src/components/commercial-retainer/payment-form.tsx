@@ -71,7 +71,7 @@ export function PaymentForm({
           />
         </FormField>
         <Button type="submit" disabled={busy}>
-          Record evidence for independent verification
+          Record payment evidence for review
         </Button>
       </form>
     </details>

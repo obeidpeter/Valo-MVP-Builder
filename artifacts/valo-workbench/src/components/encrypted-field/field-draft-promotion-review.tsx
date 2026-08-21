@@ -68,11 +68,11 @@ function message(error: unknown): string {
       case "incompatible_target":
         return "The selected work item is no longer compatible with promotion.";
       case "invalid_selection":
-        return "Select at least one field that changes the governed work item.";
+        return "Select at least one field that changes the approved work item.";
       case "receipt_invalid":
         return "The server receipt could not be verified. The local draft has been retained.";
       case "invalid_target":
-        return "The governed target response failed closed validation.";
+        return "The selected work item could not be safely checked.";
     }
   }
   return "The promotion could not be completed. The encrypted local draft has been retained.";
@@ -132,7 +132,7 @@ export function FieldDraftPromotionReview({
           organisationId,
           projectId: pending.command.draft.projectId,
           version: pending.command.expectedTargetVersion,
-          title: "Reload governed target to recover",
+          title: "Reload the work item to recover",
           description: "",
           status: "in_progress",
           approvalStatus: "not_required",
@@ -304,7 +304,7 @@ export function FieldDraftPromotionReview({
           idempotencyKey: crypto.randomUUID(),
         });
         setError(
-          "The governed target changed. The diff and version were refreshed; review them before confirming again.",
+          "The work item changed. The comparison and version were refreshed; review them before confirming again.",
         );
         return;
       }
@@ -376,18 +376,18 @@ export function FieldDraftPromotionReview({
     >
       <div className="space-y-1">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="font-semibold">Review and promote selected fields</h3>
+          <h3 className="font-semibold">Review and add selected fields</h3>
           <Badge variant="outline">No automatic sync</Badge>
         </div>
         <p className="text-sm text-muted-foreground">
-          {actorLabel} is reviewing a copy into one existing governed work item
+          {actorLabel} is reviewing a copy into one existing approved work item
           for {projectTitle}. The device draft is not evidence and remains on
           this device after a verified receipt.
         </p>
         {prepared ? (
           <p className="text-sm font-medium">
             Recovering the previously prepared submission with its original
-            idempotency key. Valo will verify a receipt before marking it.
+            submission reference. Valo will verify a receipt before marking it.
           </p>
         ) : null}
       </div>
@@ -409,7 +409,7 @@ export function FieldDraftPromotionReview({
         <div className="grid gap-3">
           <div className="grid gap-2">
             <Label htmlFor={`promotion-target-${draft.id}`}>
-              Existing governed work item
+              Existing approved work item
             </Label>
             <select
               id={`promotion-target-${draft.id}`}

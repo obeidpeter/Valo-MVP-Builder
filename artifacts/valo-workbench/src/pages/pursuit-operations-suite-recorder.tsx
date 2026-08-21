@@ -145,7 +145,7 @@ export default function PursuitOperationsSuiteRecorder({
           className="flex items-center gap-2 font-serif text-xl font-semibold"
         >
           <ClipboardPenLine aria-hidden="true" className="size-5" />
-          Record bounded operations
+          Record operations
         </h2>
         <p className="max-w-4xl text-sm leading-6 text-muted-foreground">
           These forms record named human inputs in Valo. They never fetch an
@@ -157,14 +157,14 @@ export default function PursuitOperationsSuiteRecorder({
       {!online ? (
         <StatusPanel
           state="offline"
-          title="Reconnect before recording operations"
-          description="No form data is stored for offline submission. Reconnect, refresh the current versions and enter the command again."
+          title="Reconnect before saving an operations update"
+          description="Form data is not saved offline. Reconnect, refresh the current records and enter the update again."
         />
       ) : null}
       {formError ? (
         <StatusPanel
           state="error"
-          title="Command needs attention"
+          title="Update needs attention"
           description={formError}
         />
       ) : null}
@@ -174,10 +174,10 @@ export default function PursuitOperationsSuiteRecorder({
           state={packageVersionsState === "loading" ? "pending" : "error"}
           title={
             packageVersionsState === "loading"
-              ? "Loading canonical package versions"
-              : "Canonical package versions could not be loaded"
+              ? "Loading approved package versions"
+              : "Approved package versions could not be loaded"
           }
-          description="War-room and visual-QA recording stays disabled until the bounded project-export list supplies exact package IDs and manifest hashes."
+          description="Submission and visual-check updates stay disabled until the pursuit export list provides the exact package ID and manifest hash."
         />
       ) : null}
       {(permissions.packageExport || permissions.packageGenerate) &&
@@ -185,15 +185,15 @@ export default function PursuitOperationsSuiteRecorder({
       records.packageVersions.length === 0 ? (
         <StatusPanel
           state="empty"
-          title="No canonical project-export package is available"
-          description="Create a canonical project export before recording custody or visual QA. Raw package IDs and manifest hashes are not accepted here."
+          title="No approved pursuit export is available"
+          description="Create an approved pursuit export before recording custody or visual checks. Package IDs and manifest hashes must come from the export list."
         />
       ) : null}
       {packageVersionsTruncated ? (
         <StatusPanel
           state="partial"
-          title="Canonical package list is bounded"
-          description="Only the first 100 canonical project-export versions are shown. Refresh or narrow the project lifecycle before selecting an older version."
+          title="The approved package list has a limit"
+          description="Only the first 100 approved pursuit export versions are shown. Refresh or narrow the pursuit lifecycle before selecting an older version."
         />
       ) : null}
       {(permissions.projectUpdate || permissions.evidenceWrite) &&
@@ -202,12 +202,12 @@ export default function PursuitOperationsSuiteRecorder({
           state={documentsState === "loading" ? "pending" : "error"}
           title={
             documentsState === "loading"
-              ? "Loading canonical project documents"
+              ? "Loading approved pursuit documents"
               : documentsState === "unavailable"
-                ? "Project document reference access unavailable"
-                : "Canonical project documents could not be loaded"
+                ? "Pursuit document access unavailable"
+                : "Approved pursuit documents could not be loaded"
           }
-          description="Document-backed evidence responses, mission proofs and post-award evidence stay unavailable until the current project document list supplies exact IDs and source digests. Other record-only updates remain available."
+          description="Evidence responses, visit proof and post-award evidence stay unavailable until the current pursuit document list provides exact IDs and source fingerprints. Other record-only updates remain available."
         />
       ) : null}
       {permissions.evidenceApprove && vaultItemsState !== "ready" ? (
@@ -215,12 +215,12 @@ export default function PursuitOperationsSuiteRecorder({
           state={vaultItemsState === "loading" ? "pending" : "error"}
           title={
             vaultItemsState === "loading"
-              ? "Loading active client Vault items"
+              ? "Loading active client evidence"
               : vaultItemsState === "unavailable"
-                ? "Client Vault reference access unavailable"
-                : "Active client Vault items could not be loaded"
+                ? "Client evidence access unavailable"
+                : "Active client evidence could not be loaded"
           }
-          description="Credential recording stays unavailable until an active Vault item can supply its exact current version and matching source digest."
+          description="Credential recording stays unavailable until an active evidence item provides its exact current version and matching source fingerprint."
         />
       ) : null}
 

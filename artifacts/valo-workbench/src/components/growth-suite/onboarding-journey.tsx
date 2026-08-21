@@ -40,13 +40,12 @@ export function GrowthOnboardingJourney({
             id="growth-onboarding-heading"
             className="mt-1 font-serif text-2xl font-semibold"
           >
-            Learn in a synthetic workspace
+            Practise in a sample workspace
           </h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-            This checklist is derived from your server-authorised roles.
-            Checkpoints persist as versioned tenant audit receipts and change no
-            client or pursuit record. They are self-recorded practice markers,
-            not evidence that a real task was completed.
+            Your checklist reflects your current roles. Saving a practice marker
+            creates an organisation audit receipt but does not change client or
+            pursuit data. A marker is not proof that you completed real work.
           </p>
         </div>
         <Badge variant="outline">
@@ -58,11 +57,11 @@ export function GrowthOnboardingJourney({
       <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Role-specific checklist</CardTitle>
+            <CardTitle className="text-base">Checklist for your role</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="mb-3">
-              <Badge variant="secondary">Self-recorded practice</Badge>
+              <Badge variant="secondary">Practice only</Badge>
             </div>
             <ol className="space-y-3">
               {journey.checklist.map((item) => {
@@ -82,8 +81,8 @@ export function GrowthOnboardingJourney({
                       </p>
                       {markerSaved ? (
                         <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-400">
-                          Self-recorded practice marker saved. This is not
-                          evidence that the described task was completed.
+                          Practice marker saved. This is not proof that the task
+                          was completed.
                         </p>
                       ) : null}
                     </div>
@@ -120,7 +119,7 @@ export function GrowthOnboardingJourney({
                 size={16}
                 aria-hidden="true"
               />
-              Synthetic, non-customer data. No authoritative state is written.
+              Sample data only. No customer data or official record is changed.
             </div>
             <ol className="space-y-4">
               {journey.syntheticTour.steps.map((step, index) => (
@@ -153,9 +152,9 @@ export function GrowthOnboardingJourney({
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-              These links are selected from your current server-authorised role
-              and permissions. Opening one does not complete a checkpoint; the
-              destination workflow remains the authoritative record of work.
+              These links match your current permissions. Opening a link does
+              not complete a checklist item; record real work in the
+              destination.
             </p>
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {liveDestinations.map((destination) => (

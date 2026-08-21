@@ -283,7 +283,7 @@ export default function ClientActionPortalRoute() {
   ) => {
     if (uploadInFlightRef.current) {
       throw new ClientActionUploadFlowError(
-        "Another governed upload is still active. Wait for its authoritative result before starting a different slot.",
+        "Another upload is still active. Wait for its confirmed result before starting a different slot.",
         "checking",
         "reload_scope",
         false,
@@ -295,7 +295,7 @@ export default function ClientActionPortalRoute() {
       assertAuthorityScopeCurrent(
         activeUploadScope.current,
         requestedScope,
-        "Client action upload authority or tenant changed",
+        "Client request upload permissions or organisation changed",
       );
       assertClientActionUploadTargetCurrent(
         activeSnapshot.current,
@@ -340,7 +340,7 @@ export default function ClientActionPortalRoute() {
           ),
       });
       toast({
-        title: "Governed evidence uploaded",
+        title: "Evidence uploaded",
         description:
           "Secure intake attached the exact file to this request slot. No external message or package transfer was performed.",
       });
@@ -349,7 +349,7 @@ export default function ClientActionPortalRoute() {
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "Governed upload did not complete",
+        title: "Upload did not complete",
         description:
           error instanceof Error
             ? error.message
@@ -385,7 +385,7 @@ export default function ClientActionPortalRoute() {
       <PageGatePanel
         state="error"
         title="Available pursuits could not be verified"
-        description="No project or client action has been inferred."
+        description="No pursuit or action is shown while this check is unavailable."
       />
     );
   }
@@ -401,7 +401,7 @@ export default function ClientActionPortalRoute() {
       <PageGatePanel
         state="error"
         title="Available pursuits could not be verified"
-        description="No project or client action has been inferred."
+        description="No pursuit or action is shown while this check is unavailable."
       />
     );
   }
@@ -457,9 +457,9 @@ export default function ClientActionPortalRoute() {
         </label>
       </section>
       <PageHeader
-        eyebrow="Client action workspace"
-        title="Provide evidence and acknowledge delivery"
-        description="A purpose-bound, named-human workspace for controlled evidence responses, corrections and exact released-package acknowledgements."
+        eyebrow="Client requests"
+        title="Provide evidence and confirm delivery"
+        description="Respond to evidence requests, correct uploads and acknowledge the exact package released to you. Every action is linked to the named user and pursuit."
         state={
           snapshotQuery.isError
             ? "error"
@@ -487,7 +487,7 @@ export default function ClientActionPortalRoute() {
         <StatusPanel
           state="error"
           title="Client actions are unavailable"
-          description="Do not interpret this as an empty request list or a completed delivery."
+          description="No request list or completed delivery is shown while this data is unavailable."
         >
           <Button
             type="button"

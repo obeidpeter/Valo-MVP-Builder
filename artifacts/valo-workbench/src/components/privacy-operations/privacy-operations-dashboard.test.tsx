@@ -47,16 +47,16 @@ describe("PrivacyOperationsDashboardView", () => {
   it("shows bounded totals, blockers and explicit privacy minimisation", () => {
     render(<PrivacyOperationsDashboardView dashboard={dashboard()} />);
     expect(
-      screen.getByRole("heading", { name: "Privacy Operations Centre" }),
+      screen.getByRole("heading", { name: "Privacy requests" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Raw subject PII:")).toBeInTheDocument();
+    expect(screen.getByText("Personal details:")).toBeInTheDocument();
     expect(
       screen.getByText("1 loaded request is overdue for named-human handling."),
     ).toBeInTheDocument();
     expect(screen.getByText("Data-subject requests")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "No data-subject requests are visible in this bounded tenant view.",
+        "No data-subject requests are available for this organisation.",
       ),
     ).toBeInTheDocument();
   });

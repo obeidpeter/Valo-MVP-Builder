@@ -83,7 +83,7 @@ export function QaCard(props: {
       {mayPrepare ? (
         <div className="mt-4 grid gap-2">
           <label className="grid gap-1 text-xs font-medium">
-            QA evidence SHA-256
+            Evidence document fingerprint (SHA-256)
             <input
               required
               minLength={64}
@@ -94,6 +94,10 @@ export function QaCard(props: {
               value={evidenceSha256}
               onChange={(event) => setEvidenceSha256(event.currentTarget.value)}
             />
+            <span className="font-normal text-muted-foreground">
+              This fingerprint identifies the exact document bytes; it does not
+              prove the content is correct.
+            </span>
           </label>
           <Button
             type="button"

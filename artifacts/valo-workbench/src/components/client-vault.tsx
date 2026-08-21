@@ -236,12 +236,12 @@ export function ClientVault({ clientId }: { clientId: string }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-serif tracking-tight font-medium">
-          Certificate Vault
+          Certificates and evidence
         </h2>
         {canWriteEvidence && (
           <Button size="sm" variant="outline" onClick={openCreate}>
             <ShieldPlus className="w-4 h-4 mr-2" />
-            Add Artefact
+            Add evidence item
           </Button>
         )}
       </div>
@@ -332,9 +332,9 @@ export function ClientVault({ clientId }: { clientId: string }) {
         ) : (
           <div className="p-10 text-center text-muted-foreground">
             <Vault className="w-12 h-12 mx-auto mb-3 text-muted" />
-            <p>No compliance artefacts on record for this client.</p>
+            <p>No compliance evidence recorded for this client.</p>
             <p className="text-sm mt-1">
-              Vault seeding is a standard step of every new engagement.
+              Add the client's certificates and other compliance evidence.
             </p>
           </div>
         )}
@@ -347,13 +347,13 @@ export function ClientVault({ clientId }: { clientId: string }) {
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle className="font-serif">
-              {editingId ? "Edit Artefact" : "Add Vault Artefact"}
+              {editingId ? "Edit evidence item" : "Add evidence item"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground uppercase">
-                Artefact Type
+                Evidence type
               </label>
               <Select
                 value={form.artefactTypeChoice}
@@ -375,7 +375,7 @@ export function ClientVault({ clientId }: { clientId: string }) {
               </Select>
               {form.artefactTypeChoice === OTHER && (
                 <Input
-                  placeholder="Artefact type"
+                  placeholder="Evidence type"
                   value={form.artefactTypeOther}
                   onChange={(e) =>
                     setForm({ ...form, artefactTypeOther: e.target.value })
@@ -396,7 +396,7 @@ export function ClientVault({ clientId }: { clientId: string }) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-xs font-medium text-muted-foreground uppercase">
-                  Issue Date
+                  Issue date
                 </label>
                 <Input
                   type="date"
@@ -408,7 +408,7 @@ export function ClientVault({ clientId }: { clientId: string }) {
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium text-muted-foreground uppercase">
-                  Expiry Date
+                  Expiry date
                 </label>
                 <Input
                   type="date"
@@ -421,7 +421,7 @@ export function ClientVault({ clientId }: { clientId: string }) {
             </div>
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground uppercase">
-                Renewal Lead Time (days)
+                Renewal lead time (days)
               </label>
               <Input
                 type="number"
@@ -435,7 +435,7 @@ export function ClientVault({ clientId }: { clientId: string }) {
             </div>
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground uppercase">
-                Source Document
+                Source document
               </label>
               <Select
                 value={form.sourceDocumentId}
@@ -458,8 +458,8 @@ export function ClientVault({ clientId }: { clientId: string }) {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Linking a document records its storage path and SHA-256 hash on
-                the vault item.
+                Linking a document records its storage path and SHA-256
+                fingerprint on this evidence item.
               </p>
             </div>
           </div>
@@ -469,7 +469,7 @@ export function ClientVault({ clientId }: { clientId: string }) {
             </Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {editingId ? "Save Changes" : "Add Artefact"}
+              {editingId ? "Save changes" : "Add evidence item"}
             </Button>
           </DialogFooter>
         </DialogContent>

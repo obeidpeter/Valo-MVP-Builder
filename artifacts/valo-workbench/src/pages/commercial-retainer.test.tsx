@@ -124,7 +124,7 @@ describe("adaptCommercialRetainerSnapshot", () => {
     const oversized = envelope();
     oversized.snapshot.quotes = Array.from({ length: 51 }, () => ({}));
     expect(() => adaptCommercialRetainerSnapshot(oversized, "org-a")).toThrow(
-      /bounded contract/u,
+      /contains too many items/u,
     );
   });
 
@@ -148,9 +148,7 @@ describe("adaptCommercialRetainerSnapshot", () => {
 
     render(<CommercialRetainerPage />);
 
-    expect(
-      screen.getByText("Loading the private commercial ledger"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Loading commercial records")).toBeInTheDocument();
     expect(
       screen.queryByText("Commercial records could not be verified"),
     ).not.toBeInTheDocument();

@@ -29,6 +29,45 @@ export const PLATFORM_ROLES = [
 export type PlatformRole = (typeof PLATFORM_ROLES)[number];
 export type PlatformRoleInput = string | readonly string[] | null | undefined;
 
+const PLATFORM_ROLE_LABELS: Readonly<Record<PlatformRole, string>> = {
+  admin: "Administrator",
+  reviewer: "Reviewer",
+  analyst: "Analyst",
+  none: "No role",
+  client_owner: "Client organisation owner",
+  client_admin: "Client administrator",
+  bid_manager: "Bid manager",
+  contributor: "Contributor",
+  client_reviewer: "Client reviewer",
+  client_auditor: "Client auditor",
+  valo_analyst: "Valo analyst",
+  valo_quality_adviser: "Valo quality adviser",
+  valo_operations_admin: "Valo operations administrator",
+  platform_admin_restricted: "Restricted platform administrator",
+  partner_admin: "Consultancy partner administrator",
+  partner_analyst: "Consultancy partner analyst",
+  partner_reviewer: "Consultancy partner reviewer",
+  client_organisation_owner: "Client organisation owner",
+  client_administrator: "Client administrator",
+  client_reviewer_approver: "Client reviewer / approver",
+  valo_operations_administrator: "Valo operations administrator",
+  restricted_platform_administrator: "Restricted platform administrator",
+  consultancy_partner_administrator: "Consultancy partner administrator",
+  consultancy_partner_analyst_reviewer:
+    "Consultancy partner analyst / reviewer",
+  read_only_auditor: "Read-only auditor",
+};
+
+export function platformRoleLabel(role: string): string {
+  return (
+    PLATFORM_ROLE_LABELS[role as PlatformRole] ??
+    role
+      .split("_")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ")
+  );
+}
+
 export type PlatformArea =
   | "workbench"
   | "pursuit_workbench"
@@ -292,7 +331,7 @@ const AREA_REQUIRED_PERMISSIONS: Partial<
 const NAV_ITEMS: PlatformNavItem[] = [
   {
     href: "/app",
-    label: "Command Centre",
+    label: "Dashboard",
     area: "workbench",
     group: "Workspace",
     requiredPermission: "analytics:read",
@@ -306,14 +345,14 @@ const NAV_ITEMS: PlatformNavItem[] = [
   },
   {
     href: "/opportunity-sources",
-    label: "Opportunity Sources",
+    label: "Opportunity sources",
     area: "opportunity_sources",
     group: "Workspace",
     requiredPermission: "organisation:read",
   },
   {
     href: "/intelligence",
-    label: "Intelligence Centre",
+    label: "Bid insights",
     area: "pursuit_workbench",
     group: "Workspace",
     requiredPermissions: INTELLIGENCE_READ_PERMISSIONS,
@@ -328,7 +367,7 @@ const NAV_ITEMS: PlatformNavItem[] = [
   },
   {
     href: "/client-actions",
-    label: "Client Action Room",
+    label: "Client requests",
     area: "client_actions",
     group: "Workspace",
     requiredPermission: "project:read",
@@ -343,7 +382,7 @@ const NAV_ITEMS: PlatformNavItem[] = [
   },
   {
     href: "/consortium-room",
-    label: "Consortium Room",
+    label: "Consortium workspace",
     area: "partner_workspace",
     group: "Workspace",
     feature: "partnerWorkspace",
@@ -351,35 +390,35 @@ const NAV_ITEMS: PlatformNavItem[] = [
   },
   {
     href: "/sbd",
-    label: "Compliance",
+    label: "Requirements & compliance",
     area: "pursuit_workbench",
     group: "Delivery",
     requiredPermission: "requirement:read",
   },
   {
     href: "/evidence-readiness",
-    label: "Evidence Library",
+    label: "Evidence library",
     area: "evidence_readiness",
     group: "Delivery",
     requiredPermission: "evidence:read",
   },
   {
     href: "/pursuit-operations",
-    label: "Pursuit Operations",
+    label: "Pursuit workflows",
     area: "pursuit_operations",
     group: "Delivery",
     requiredPermission: "project:read",
   },
   {
     href: "/field-companion",
-    label: "Field Companion",
+    label: "Field notes",
     area: "field_companion",
     group: "Delivery",
     requiredPermission: "project:read",
   },
   {
     href: "/operations",
-    label: "Reviews",
+    label: "Operations",
     area: "operations",
     group: "Delivery",
     requiredPermission: "project:read",
@@ -400,14 +439,14 @@ const NAV_ITEMS: PlatformNavItem[] = [
   },
   {
     href: "/growth-operations",
-    label: "Getting Started & Offers",
+    label: "Leads & offers",
     area: "growth_operations",
     group: "Oversight",
     requiredPermission: "organisation:read",
   },
   {
     href: "/billing",
-    label: "Billing & entitlements",
+    label: "Billing & access",
     area: "billing_entitlements",
     group: "Oversight",
     feature: "billingEntitlements",
@@ -415,14 +454,14 @@ const NAV_ITEMS: PlatformNavItem[] = [
   },
   {
     href: "/commercial-retainer",
-    label: "Commercial & Retainer",
+    label: "Quotes, invoices & retainers",
     area: "commercial_retainer",
     group: "Oversight",
     requiredPermissions: ["billing:read", "entitlement:read"],
   },
   {
     href: "/claims-desk",
-    label: "Commercial & Claims Desk",
+    label: "Claims",
     area: "claims_desk",
     group: "Oversight",
     requiredPermission: "project:read",
@@ -437,7 +476,7 @@ const NAV_ITEMS: PlatformNavItem[] = [
   },
   {
     href: "/communications",
-    label: "Communication Receipts",
+    label: "Communication log",
     area: "communications",
     group: "Oversight",
     requiredPermission: "project:read",
@@ -451,35 +490,35 @@ const NAV_ITEMS: PlatformNavItem[] = [
   },
   {
     href: "/privacy-operations",
-    label: "Privacy Operations",
+    label: "Privacy requests",
     area: "privacy_operations",
     group: "Administration",
     requiredPermission: "privacy:read",
   },
   {
     href: "/production-acceptance",
-    label: "Production Acceptance",
+    label: "Release checks",
     area: "production_acceptance",
     group: "Administration",
     requiredPermission: "audit:read",
   },
   {
     href: "/ai-shadow",
-    label: "AI Shadow Programme",
+    label: "AI testing programme",
     area: "ai_shadow",
     group: "Administration",
     requiredPermission: "evaluation:read",
   },
   {
     href: "/organisation-settings",
-    label: "Organisation Settings",
+    label: "Organisation settings",
     area: "organisation_settings",
     group: "Administration",
     requiredPermission: "membership:manage",
   },
   {
     href: "/settings",
-    label: "Platform Operations",
+    label: "Platform settings",
     area: "settings",
     group: "Administration",
     requiredPermission: "configuration:manage",
@@ -586,7 +625,7 @@ export function getPlatformAccessDecision(
       allowed: false,
       enabled: false,
       state: "denied",
-      reason: "Your assigned role does not include this workspace.",
+      reason: "Your role does not include access to this page.",
     };
   }
 
@@ -602,7 +641,7 @@ export function getPlatformAccessDecision(
       enabled: false,
       state: "denied",
       reason:
-        "The selected organisation context does not grant this permission.",
+        "Your role in the selected organisation does not include the required permission.",
     };
   }
 
@@ -620,7 +659,7 @@ export function getPlatformAccessDecision(
       enabled: false,
       state: "denied",
       reason:
-        "The selected organisation context does not grant every required permission.",
+        "Your role in the selected organisation is missing one or more required permissions.",
     };
   }
 
@@ -645,7 +684,7 @@ export function getPlatformAccessDecision(
       enabled: false,
       state: "denied",
       reason:
-        "This workspace requires a direct membership in the selected organisation.",
+        "You need a direct membership in the selected organisation to use this page.",
     };
   }
 
@@ -657,8 +696,7 @@ export function getPlatformAccessDecision(
       allowed: true,
       enabled: false,
       state: "pending_activation",
-      reason:
-        "This capability is technically present but has not been commercially activated.",
+      reason: "This feature is not active yet.",
     };
   }
 
@@ -667,7 +705,7 @@ export function getPlatformAccessDecision(
     allowed: true,
     enabled: true,
     state: "active",
-    reason: "This workspace is enabled for your assigned role.",
+    reason: "You have access to this page.",
   };
 }
 

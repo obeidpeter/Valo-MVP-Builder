@@ -103,7 +103,7 @@ describe("operations suite guardrails", () => {
       <OpportunityIntake opportunities={[]} state="loading" />,
     );
     expect(
-      screen.getByText("Loading provenance-preserving opportunity records"),
+      screen.getByText("Loading opportunity records and source details"),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", {

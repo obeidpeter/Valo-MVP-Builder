@@ -265,11 +265,13 @@ export function DefectsTab({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-serif font-medium">Defect Register</h2>
+        <h2 className="text-lg font-serif font-medium">
+          Issues and independent review
+        </h2>
         <div className="flex gap-2">
           {canWriteDefects && (
             <Button onClick={openAdd} variant="outline">
-              <Plus className="w-4 h-4 mr-2" /> Add Defect
+              <Plus className="w-4 h-4 mr-2" /> Add issue
             </Button>
           )}
           {canWriteDefects && (
@@ -283,7 +285,7 @@ export function DefectsTab({ projectId }: { projectId: string }) {
               ) : (
                 <Zap className="w-4 h-4 mr-2" />
               )}
-              Suggest Defects
+              Suggest issues
             </Button>
           )}
         </div>
@@ -293,9 +295,9 @@ export function DefectsTab({ projectId }: { projectId: string }) {
         <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
           <ShieldCheck className="w-4 h-4 shrink-0" />
           <p>
-            {openFatalCount} open fatal / likely-fatal defect(s) — report
-            sign-off is blocked until each has a persisted governed remediation,
-            waiver, or reclassification decision.
+            {openFatalCount} open fatal or likely-fatal issue(s). Report
+            sign-off stays blocked until each has a saved fix, waiver or
+            reclassification decision.
           </p>
         </div>
       )}
@@ -364,7 +366,7 @@ export function DefectsTab({ projectId }: { projectId: string }) {
                           <Button
                             variant="ghost"
                             size="icon"
-                            title="Confirm (promote to open)"
+                            title="Confirm and mark open"
                             disabled={actingId === defect.id}
                             onClick={() => confirm(defect)}
                           >
@@ -390,7 +392,7 @@ export function DefectsTab({ projectId }: { projectId: string }) {
         ) : (
           <div className="p-12 text-center text-muted-foreground">
             <AlertOctagon className="w-12 h-12 mx-auto mb-3 text-muted" />
-            <p>No defects identified.</p>
+            <p>No issues identified.</p>
           </div>
         )}
       </div>
@@ -402,7 +404,7 @@ export function DefectsTab({ projectId }: { projectId: string }) {
         <DialogContent className="sm:max-w-[560px]">
           <DialogHeader>
             <DialogTitle className="font-serif">
-              {editingId ? "Edit Defect" : "Add Defect"}
+              {editingId ? "Edit issue" : "Add issue"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -526,7 +528,7 @@ export function DefectsTab({ projectId }: { projectId: string }) {
             </Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {editingId ? "Save Changes" : "Add Defect"}
+              {editingId ? "Save changes" : "Add issue"}
             </Button>
           </DialogFooter>
         </DialogContent>

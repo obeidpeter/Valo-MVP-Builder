@@ -143,16 +143,14 @@ describe("PrivacyOperationsPage", () => {
     renderPage(client);
 
     expect(
-      screen.getByText("Loading governed document choices"),
+      screen.getByText("Loading approved document choices"),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Decision evidence")).toBeDisabled();
     expect(
-      screen.getByLabelText(
-        /Decision external or legacy evidence digest — not a scanner attestation/u,
-      ),
+      screen.getByLabelText(/External or older decision evidence SHA-256/u),
     ).toBeEnabled();
     expect(
-      screen.getByText(/Governed document choices are loading/u),
+      screen.getByText(/Approved document choices are loading/u),
     ).toBeInTheDocument();
   });
 
@@ -163,7 +161,7 @@ describe("PrivacyOperationsPage", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Loading minimised privacy evidence",
+        name: "Loading privacy records",
       }),
     ).toBeInTheDocument();
     expect(
@@ -193,7 +191,7 @@ describe("PrivacyOperationsPage", () => {
     mocks.accessSource = "partner";
     renderPage();
     expect(
-      screen.getByText("Direct privacy-read membership required"),
+      screen.getByText("Direct privacy membership required"),
     ).toBeInTheDocument();
     expect(mocks.customFetch).not.toHaveBeenCalled();
   });
@@ -217,7 +215,7 @@ describe("PrivacyOperationsPage", () => {
     renderPage();
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { name: "Privacy Operations Centre" }),
+        screen.getByRole("heading", { name: "Privacy requests" }),
       ).toBeInTheDocument(),
     );
     expect(mocks.customFetch).toHaveBeenCalledWith(
@@ -225,7 +223,7 @@ describe("PrivacyOperationsPage", () => {
       expect.objectContaining({ cache: "no-store" }),
     );
     expect(
-      screen.getByRole("heading", { name: "Record a named-human workflow" }),
+      screen.getByRole("heading", { name: "Record a privacy action" }),
     ).toBeInTheDocument();
     expect(
       await screen.findByRole("option", { name: "Privacy Assignee" }),
@@ -303,9 +301,9 @@ describe("PrivacyOperationsPage", () => {
     mocks.permissions = ["privacy:read"];
     mocks.customFetch.mockResolvedValue(dashboardResponse());
     renderPage();
-    await screen.findByRole("heading", { name: "Privacy Operations Centre" });
+    await screen.findByRole("heading", { name: "Privacy requests" });
     expect(
-      screen.queryByRole("heading", { name: "Record a named-human workflow" }),
+      screen.queryByRole("heading", { name: "Record a privacy action" }),
     ).not.toBeInTheDocument();
   });
 
@@ -318,7 +316,7 @@ describe("PrivacyOperationsPage", () => {
     );
     renderPage();
     await screen.findByRole("heading", {
-      name: "Record a named-human workflow",
+      name: "Record a privacy action",
     });
     expect(
       await screen.findByRole("option", { name: "Privacy Assignee" }),
@@ -329,9 +327,7 @@ describe("PrivacyOperationsPage", () => {
       ),
     ).toBe(false);
     expect(
-      screen.getByLabelText(
-        /Decision external or legacy evidence digest — not a scanner attestation/u,
-      ),
+      screen.getByLabelText(/External or older decision evidence SHA-256/u),
     ).toBeInTheDocument();
   });
 });

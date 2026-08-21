@@ -13,6 +13,16 @@ import {
   RetainerRequestForm,
 } from "./retainer-request-forms";
 
+function commercialStatusLabel(value: string): string {
+  const labels: Readonly<Record<string, string>> = {
+    pending_checker: "Awaiting second review",
+    issued_manual: "Invoice recorded",
+    paid_manual: "Payment verified",
+    verified_manual: "Payment verified",
+  };
+  return labels[value] ?? value.replaceAll("_", " ");
+}
+
 export function dispatchCommercialMutation(
   onMutate: (mutation: CommercialRetainerMutation) => Promise<void>,
   mutation: CommercialRetainerMutation,
@@ -48,14 +58,14 @@ export function CommercialControlCentre({
       {!snapshot.activation.fixedPriceBookReady ? (
         <StatusPanel
           state="blocked"
-          title="Fixed catalogue is not orderable"
-          description="An approved, effective fixed price-book seed is missing. No quote control can invent a product or price."
+          title="Approved offers cannot be ordered"
+          description="An approved price-book version is missing. This page cannot create a product or price."
         />
       ) : null}
       <StatusPanel
         state="partial"
-        title="Manual commercial boundary"
-        description="Prices are entered by a named human. Approval and payment verification require a different named human. Payment providers, external messaging and autonomous delivery remain disconnected."
+        title="People control each commercial step"
+        description="A named person enters each price. A different named person must approve it and verify payment. Payment providers, external messages and automatic delivery are not connected."
       />
 
       <section
@@ -66,7 +76,7 @@ export function CommercialControlCentre({
           id="commercial-offers-heading"
           className="font-serif text-xl font-semibold"
         >
-          Fixed offer catalogue
+          Approved offers
         </h2>
         <div className="grid gap-4 lg:grid-cols-3">
           {snapshot.offers.map((offer) => (
@@ -78,7 +88,9 @@ export function CommercialControlCentre({
                 <p className="text-muted-foreground">{offer.summary}</p>
                 <StateBadge
                   state={offer.orderable ? "active" : "blocked"}
-                  label={offer.orderable ? "Approved version" : "Seed missing"}
+                  label={
+                    offer.orderable ? "Approved version" : "Price list missing"
+                  }
                 />
                 <p className="font-mono text-xs">{offer.versionId}</p>
               </CardContent>
@@ -95,11 +107,11 @@ export function CommercialControlCentre({
           id="quote-ledger-heading"
           className="font-serif text-xl font-semibold"
         >
-          Quote-to-cash ledger
+          Quotes, invoices &amp; payments
         </h2>
         {snapshot.quotes.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No scoped quote proposals.
+            No quote proposals for this organisation.
           </p>
         ) : null}
         {snapshot.quotes.map((quote) => {
@@ -117,7 +129,7 @@ export function CommercialControlCentre({
                   </div>
                   <StateBadge
                     state={quote.status === "paid" ? "active" : "pending"}
-                    label={quote.status.replaceAll("_", " ")}
+                    label={commercialStatusLabel(quote.status)}
                   />
                 </div>
                 <p className="text-sm">{quote.scopeSummary}</p>
@@ -136,14 +148,14 @@ export function CommercialControlCentre({
                         })
                       }
                     >
-                      Approve as checker
+                      Approve as second reviewer
                     </Button>
                     {selfApproval ? (
                       <p
                         id={`self-approval-${quote.id}`}
                         className="mt-2 text-xs text-muted-foreground"
                       >
-                        The proposal maker cannot approve their own terms.
+                        The person who created the proposal cannot approve it.
                       </p>
                     ) : null}
                   </div>
@@ -166,7 +178,7 @@ export function CommercialControlCentre({
                   state={
                     invoice.status === "paid_manual" ? "active" : "pending"
                   }
-                  label={invoice.status.replaceAll("_", " ")}
+                  label={commercialStatusLabel(invoice.status)}
                 />
               </div>
               <p>
@@ -200,7 +212,7 @@ export function CommercialControlCentre({
                         ? "active"
                         : "pending"
                     }
-                    label={payment.reconciliationStatus.replaceAll("_", " ")}
+                    label={commercialStatusLabel(payment.reconciliationStatus)}
                   />
                 </div>
                 <p className="break-all font-mono text-xs">
@@ -222,7 +234,7 @@ export function CommercialControlCentre({
                       })
                     }
                   >
-                    Verify evidence and provision entitlement
+                    Verify payment evidence and grant access
                   </Button>
                 ) : null}
               </CardContent>
@@ -239,8 +251,8 @@ export function CommercialControlCentre({
           Retainer service desk
         </h2>
         <p className="text-sm text-muted-foreground">
-          Requests consume one verified entitlement unit. They create internal
-          work only; no external message or autonomous action is sent.
+          Each request uses one included service unit and creates internal work
+          only. It does not send a message or start work automatically.
         </p>
         {canUseRetainer ? (
           <RetainerRequestForm

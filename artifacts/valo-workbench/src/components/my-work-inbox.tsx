@@ -110,31 +110,32 @@ export function MyWorkInbox() {
           My Work
         </h2>
         <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-          Your owned work and work you are currently authorised to assign,
-          grouped by West Africa Time. This private view never changes a task.
+          Tasks assigned to you, plus unassigned tasks you can assign or update.
+          Due dates use West Africa Time (WAT). This view does not change any
+          task.
         </p>
       </div>
       {!online ? (
         <StatusPanel
           state="offline"
           title="My Work is unavailable offline"
-          description="No cached assignment state is shown. Reconnect to revalidate current tenant authority."
+          description="Reconnect to check your latest assignments and permissions. No saved task list is shown offline."
         />
       ) : inboxPending || identityPending ? (
         <LoadingPanel label="Loading current work assignments" />
       ) : meQuery.isError || !meQuery.isSuccess || inboxUnavailable ? (
         <StatusPanel
           state="error"
-          title="My Work could not be verified"
-          description="The inbox failed closed. Reload after current membership and task authority can be checked."
+          title="My Work could not be loaded"
+          description="Reload to check your current membership and task permissions. No tasks are shown until that check succeeds."
         />
       ) : Object.values(query.data.groups).every(
           (items) => items.length === 0,
         ) ? (
         <StatusPanel
           state="empty"
-          title="No authorised active work returned"
-          description="There are no owned or assignable unassigned tasks in the bounded authoritative inbox."
+          title="No active work to show"
+          description="There are no tasks assigned to you and no unassigned tasks you can currently manage."
         />
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">
@@ -185,8 +186,8 @@ export function MyWorkInbox() {
       )}
       {query.data?.truncated ? (
         <p className="text-xs text-muted-foreground">
-          The bounded inbox shows the first {query.data.limit} authorised tasks
-          across all groups. Open the linked workspaces for the remainder.
+          Showing the first {query.data.limit} tasks. Open the linked workspaces
+          to see the rest.
         </p>
       ) : null}
     </section>

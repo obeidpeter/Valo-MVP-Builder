@@ -59,14 +59,16 @@ describe("ProductionAcceptanceConsole", () => {
   it("shows a complete register as human-decision eligible, never authorised", () => {
     render(<ProductionAcceptanceConsole snapshot={snapshot()} />);
     expect(
-      screen.getByRole("heading", { name: "Production acceptance & recovery" }),
+      screen.getByRole("heading", { name: "Release checks" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Evidence is complete for a named human go decision"),
+      screen.getByText(
+        "Evidence is complete; a named person must make the go decision",
+      ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Automatic authority:/u).closest("p"),
-    ).toHaveTextContent("Automatic authority: none");
+      screen.getByText(/Automatic approval:/u).closest("p"),
+    ).toHaveTextContent("Automatic approval: none");
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     expect(screen.getAllByText("Passed")).toHaveLength(7);
   });

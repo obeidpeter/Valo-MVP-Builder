@@ -37,13 +37,13 @@ export function CanonicalEvidencePicker({
     ? verificationNote
     : options.length === 0
       ? retained.length > 0
-        ? "The previously bound document is preserved and will be revalidated by the server on submit. No new governed choice is available."
-        : "No current malware-clean, quarantine-cleared canonical document is available in this scope."
+        ? "Your earlier document remains attached and will be checked again when you submit. No other eligible document is available."
+        : "No current document is available. Documents must pass malware scanning and quarantine checks before you can select them."
       : truncated
-        ? "Showing the latest bounded window of governed documents. Previously bound documents remain selected and are revalidated on submit."
+        ? "Showing the most recent eligible documents. Any document already attached stays selected and will be checked again when you submit."
         : multiple
-          ? `Select 1–${maxSelections} current canonical documents. Hold Ctrl or Command to select more than one.`
-          : "The server revalidates the selected current document version before recording the evidence digest.";
+          ? `Select 1–${maxSelections} current documents. Hold Ctrl or Command to select more than one.`
+          : "We check the selected document version again when you submit, before saving its verification record.";
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
@@ -83,15 +83,15 @@ export function CanonicalEvidencePicker({
       >
         {!multiple ? (
           <option value="" disabled>
-            Select current governed evidence
+            Select current evidence
           </option>
         ) : null}
         {retained.map((binding, index) => (
           <option key={binding.documentId} value={binding.documentId}>
-            Previously bound document {index + 1}
+            Previously attached document {index + 1}
             {verificationNote
-              ? " — digest snapshot"
-              : " — revalidated on submit"}
+              ? " — saved verification record"
+              : " — checked again on submit"}
           </option>
         ))}
         {options.map((option) => (

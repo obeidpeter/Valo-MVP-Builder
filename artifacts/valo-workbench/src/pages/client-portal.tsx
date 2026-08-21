@@ -97,13 +97,13 @@ export default function ClientPortal() {
         <PageHeader
           eyebrow="Client workspace"
           title="Client portal"
-          description="A role-scoped view for pursuit status, recorded blockers and evidence validity."
+          description="See pursuit status, recorded blockers and evidence validity for your current role."
           state="pending"
         />
         <StatusPanel
           state="pending"
-          title="Client portal requires activation"
-          description="The client workspace is commercially gated for this deployment. No project, upload, order, payment or package action is being simulated while activation is pending."
+          title="Client portal is not active yet"
+          description="This deployment has not activated the client workspace. Pursuits, uploads, orders, payments and packages remain unavailable."
         />
         <DeadlineCaution>
           Readiness is evidence-led. Deadline pressure never overrides a fatal
@@ -150,14 +150,14 @@ export default function ClientPortal() {
       <PageHeader
         eyebrow="Client workspace"
         title="Client portal"
-        description="Read-only, organisation-scoped pursuit, workflow-alert and evidence-expiry summaries returned for your current server-authorised membership."
+        description="Read-only summaries of pursuits, workflow alerts and expiring evidence for your current organisation."
         state={!online ? "offline" : loading ? "pending" : "partial"}
       />
 
       <StatusPanel
         state="partial"
-        title="Connected summaries, controlled actions"
-        description="The project, workflow-alert and evidence-expiry reads below are connected. Client intake, uploads, commercial orders and released-package delivery are not exposed by this portal, so no controls for those actions are shown."
+        title="Live summaries, limited actions"
+        description="The summaries below are live. This portal does not support intake, uploads, orders or package delivery, so those actions are not shown."
       />
 
       {!online ? (
@@ -170,8 +170,8 @@ export default function ClientPortal() {
 
       <DeadlineCaution>
         These summaries are not a submission-readiness decision. Fatal defects,
-        conflicts, evidence gaps and named approvals remain authoritative at the
-        pursuit level.
+        conflicts, evidence gaps and named approvals still decide readiness
+        inside each pursuit.
       </DeadlineCaution>
 
       {loading ? (
@@ -180,7 +180,7 @@ export default function ClientPortal() {
       {hasError ? (
         <DataErrorPanel
           title="Some client workspace records could not be loaded"
-          description="Available sections may be incomplete. Do not interpret an unavailable count or missing row as a cleared control."
+          description="Some sections may be incomplete. Missing rows or counts do not mean an issue is cleared."
           onRetry={retry}
         />
       ) : null}
@@ -189,11 +189,11 @@ export default function ClientPortal() {
         <section aria-labelledby="client-signals-heading" className="space-y-4">
           <div>
             <h2 id="client-signals-heading" className="text-xl font-semibold">
-              Connected tenant signals
+              Organisation summary
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Counts come from tenant-filtered project, workflow and Vault
-              endpoints for the selected organisation.
+              Counts cover pursuits, workflow alerts and evidence for the
+              selected organisation.
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -227,7 +227,7 @@ export default function ClientPortal() {
             />
             <QueueCapabilityCard
               title="Workflow alerts"
-              description="Recorded SLA breaches and open red-team windows."
+              description="Missed review deadlines and open independent-review windows."
               state={
                 alertsQuery.isError
                   ? "error"
@@ -272,8 +272,8 @@ export default function ClientPortal() {
           {projects.length === 0 ? (
             <StatusPanel
               state="empty"
-              title="No pursuit records returned"
-              description="The selected organisation returned no projects. This does not establish onboarding, entitlement or readiness."
+              title="No pursuits are available"
+              description="No pursuits are available for this organisation. This does not confirm onboarding, access or readiness."
             />
           ) : (
             <div className="overflow-x-auto rounded-lg border border-border bg-card">
@@ -355,7 +355,7 @@ export default function ClientPortal() {
             <StatusPanel
               state="empty"
               title="No workflow alerts returned"
-              description="This means the alert endpoint returned no SLA breach or open red-team window. It is not a readiness confirmation."
+              description="No missed review deadline or open independent-review window was returned. This is not a readiness confirmation."
             />
           ) : (
             <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
@@ -363,7 +363,10 @@ export default function ClientPortal() {
                 <div key={`sla-${alert.projectId}`} className="p-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-medium">{alert.tenderTitle}</p>
-                    <StateBadge state="blocked" label="SLA breached" />
+                    <StateBadge
+                      state="blocked"
+                      label="Review deadline missed"
+                    />
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Due {formatDateTime(alert.dueAt)}
@@ -374,7 +377,10 @@ export default function ClientPortal() {
                 <div key={`red-${alert.projectId}`} className="p-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-medium">{alert.tenderTitle}</p>
-                    <StateBadge state="pending" label="Red-team window open" />
+                    <StateBadge
+                      state="pending"
+                      label="Independent review open"
+                    />
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Window opened {formatDateTime(alert.dueAt)}
@@ -398,7 +404,7 @@ export default function ClientPortal() {
             <StatusPanel
               state="empty"
               title="No evidence in the expiry window"
-              description="The expiry endpoint returned no at-risk records. It does not prove that every requirement has approved, current evidence."
+              description="No expiring evidence was returned. This does not prove that every requirement has approved, current evidence."
             />
           ) : (
             <div className="overflow-x-auto rounded-lg border border-border bg-card">

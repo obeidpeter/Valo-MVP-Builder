@@ -15,13 +15,13 @@ export default function NotificationsConsole() {
       <PageHeader
         eyebrow="Delivery operations"
         title="Notifications"
-        description="Channel configuration, delivery state, retry visibility and failure handling without implying that a queued event reached its recipient."
+        description="Review notification channels, delivery status, retries and failures. A queued item is not proof of delivery."
         state={enabled ? "partial" : "pending"}
         actions={
           <Button
             type="button"
             disabled
-            title="Global notification dispatcher is not connected"
+            title="Sending notifications is not connected"
           >
             Send notification
           </Button>
@@ -30,18 +30,18 @@ export default function NotificationsConsole() {
 
       <FeatureActivationNotice
         enabled={enabled}
-        feature="Notification adapters"
+        feature="Notification delivery services"
         detail={
           enabled
-            ? "Notification feature flags are enabled. Production channel credentials, provider health, reconciliation and the global failure queue must still be confirmed by server status."
-            : "Only project-scoped notification records currently exist. No email, WhatsApp or in-app delivery is claimed from this console."
+            ? "Notification delivery services are enabled, but channel credentials, provider health, receipt checks and the shared failure queue still need server confirmation."
+            : "Only project notification records are available. This page does not claim that email, WhatsApp or in-app messages were delivered."
         }
       />
 
       <StatusPanel
         state="partial"
         title="Queued is not delivered"
-        description="A notification remains pending until the provider response and any required reconciliation update the server-side delivery state. Failed and uncertain deliveries need explicit operator handling."
+        description="A notification stays pending until the provider response and any required receipt check update its status. An operator must resolve failed or uncertain deliveries."
       />
 
       <section
@@ -57,32 +57,32 @@ export default function NotificationsConsole() {
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <QueueCapabilityCard
             title="Manual record"
-            description="Project-level manual notification events can be attributed, but do not prove an external message was delivered."
+            description="Project notification records show who recorded an event. They do not prove that an external message was delivered."
             state="active"
           />
           <QueueCapabilityCard
-            title="Email adapter"
-            description="Provider health, idempotency keys, retry policy and delivery reconciliation are not exposed to this console."
+            title="Email delivery"
+            description="Provider health, duplicate protection, retry rules and receipt checks are not available here."
             state="unavailable"
           />
           <QueueCapabilityCard
             title="WhatsApp Business"
-            description="An approved Business integration and message-template status are required before activation."
+            description="Activation requires an approved WhatsApp Business integration and approved templates."
             state="unavailable"
           />
           <QueueCapabilityCard
             title="In-app notifications"
-            description="Recipient inbox, read state and tenant-scoped preference APIs are not connected."
+            description="Inboxes, read status and organisation-specific preferences are not connected."
             state="pending"
           />
           <QueueCapabilityCard
             title="Failure queue"
-            description="There is no global failed-delivery endpoint available to this frontend."
+            description="A shared failed-delivery queue is not available."
             state="blocked"
           />
           <QueueCapabilityCard
             title="Digest and escalation rules"
-            description="SLA and expiry alert sources exist; scheduling, suppression and recipient policy remain unconfigured."
+            description="Response-time and expiry alerts exist, but schedules, suppression rules and recipients are not configured."
             state="partial"
           />
         </div>

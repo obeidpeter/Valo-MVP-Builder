@@ -49,7 +49,9 @@ describe("CanonicalEvidencePicker", () => {
       />,
     );
     expect(screen.getByLabelText("Governed evidence")).toBeDisabled();
-    expect(screen.getByText(/No current malware-clean/iu)).toBeInTheDocument();
+    expect(
+      screen.getByText(/No current document is available/iu),
+    ).toBeInTheDocument();
   });
 
   it("preserves an out-of-window binding without exposing its identifier", () => {
@@ -68,11 +70,13 @@ describe("CanonicalEvidencePicker", () => {
     expect(picker).toHaveValue(retainedDocument);
     expect(
       screen.getByRole("option", {
-        name: "Previously bound document 1 — revalidated on submit",
+        name: "Previously attached document 1 — checked again on submit",
       }),
     ).toBeInTheDocument();
     expect(screen.queryByText(retainedDocument)).not.toBeInTheDocument();
-    expect(screen.getByText(/latest bounded window/u)).toBeInTheDocument();
+    expect(
+      screen.getByText(/most recent eligible documents/u),
+    ).toBeInTheDocument();
   });
 
   it("uses convenience-only copy for retained and truncated privacy evidence", () => {
@@ -97,11 +101,11 @@ describe("CanonicalEvidencePicker", () => {
     expect(screen.getByText(note)).toBeInTheDocument();
     expect(
       screen.getByRole("option", {
-        name: "Previously bound document 1 — digest snapshot",
+        name: "Previously attached document 1 — saved verification record",
       }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(/revalidated on submit/iu),
+      screen.queryByText(/checked again on submit/iu),
     ).not.toBeInTheDocument();
   });
 });

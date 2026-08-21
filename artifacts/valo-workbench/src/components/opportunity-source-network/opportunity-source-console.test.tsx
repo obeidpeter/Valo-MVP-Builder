@@ -110,11 +110,11 @@ describe("Opportunity Source console mutation failures", () => {
     );
 
     await user.type(
-      screen.getByLabelText(/human decision reason/i),
+      screen.getByLabelText(/reason for decision/i),
       "Verified against the official notice",
     );
     await user.click(
-      screen.getByRole("button", { name: /accept into tender register/i }),
+      screen.getByRole("button", { name: /accept source record/i }),
     );
 
     await waitFor(() =>

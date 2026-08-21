@@ -160,17 +160,17 @@ describe("PursuitOperationsSuite", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "Pursuit operations suite" }),
+      screen.getByRole("heading", { name: "Pursuit workflows" }),
     ).toBeInTheDocument();
     for (const heading of [
-      "Authorised opportunity intake",
-      "My Work & pursuit operations board",
-      "Client evidence request room",
-      "Submission war room & visual package QA",
-      "Official credential verification hub",
-      "Pre-bid & site-visit mission control",
-      "Post-award delivery control",
-      "Low-bandwidth mobile summary",
+      "Opportunity intake",
+      "My Work and pursuit tasks",
+      "Client evidence requests",
+      "Submission and visual package checks",
+      "Credential checks",
+      "Pre-bid meetings and site visits",
+      "Post-award delivery",
+      "Mobile summary for slow connections",
     ]) {
       expect(
         screen.getByRole("heading", { name: heading }),
@@ -265,7 +265,7 @@ describe("PursuitOperationsSuite", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Do not infer that missing records/i),
+      screen.getByText(/Missing records are not complete/i),
     ).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(retry).toHaveBeenCalledTimes(1);

@@ -47,7 +47,7 @@ export function PursuitWorkPanel({
   return (
     <Panel
       title="2. Pursuit work"
-      description="Create tenant-scoped work, then record comments or a reasoned approval decision against the current server version."
+      description="Create work for this organisation, then add comments or a reasoned approval decision against the current record version."
       allowed={permissions.projectUpdate || permissions.projectAssign}
       unavailableReason="Project update or assignment permission is required."
       disabled={disabled}

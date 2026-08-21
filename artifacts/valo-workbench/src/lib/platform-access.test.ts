@@ -4,6 +4,7 @@ import {
   navigationForRole,
   platformFeatureFlags,
   platformHomeForRole,
+  platformRoleLabel,
 } from "./platform-access";
 
 const disabledFlags = platformFeatureFlags({});
@@ -15,6 +16,17 @@ const enabledFlags = platformFeatureFlags({
 });
 
 describe("v2.5 platform access", () => {
+  it("uses one clear label for canonical organisation roles", () => {
+    expect(platformRoleLabel("client_organisation_owner")).toBe(
+      "Client organisation owner",
+    );
+    expect(platformRoleLabel("bid_manager")).toBe("Bid manager");
+    expect(platformRoleLabel("client_reviewer_approver")).toBe(
+      "Client reviewer / approver",
+    );
+    expect(platformRoleLabel("future_role")).toBe("Future Role");
+  });
+
   it("keeps commercial capabilities disabled unless explicitly activated", () => {
     expect(disabledFlags).toEqual({
       clientPortal: false,
@@ -46,7 +58,54 @@ describe("v2.5 platform access", () => {
     );
   });
 
-  it("keeps Command Centre as home when an internal assignment is combined with an external role", () => {
+  it("uses clear labels for the main work areas", () => {
+    const internalLabels = Object.fromEntries(
+      navigationForRole("valo_operations_administrator", enabledFlags).map(
+        (item) => [item.href, item.label],
+      ),
+    );
+    const clientLabels = Object.fromEntries(
+      navigationForRole("client_organisation_owner", enabledFlags).map(
+        (item) => [item.href, item.label],
+      ),
+    );
+    const growthLabels = Object.fromEntries(
+      navigationForRole(
+        "valo_operations_administrator",
+        enabledFlags,
+        ["organisation:read"],
+        "membership",
+      ).map((item) => [item.href, item.label]),
+    );
+    const commercialLabels = Object.fromEntries(
+      navigationForRole(
+        "client_organisation_owner",
+        enabledFlags,
+        ["billing:read", "entitlement:read"],
+        "membership",
+      ).map((item) => [item.href, item.label]),
+    );
+
+    expect(internalLabels).toMatchObject({
+      "/app": "Dashboard",
+      "/operations": "Operations",
+      "/settings": "Platform settings",
+    });
+    expect(clientLabels).toMatchObject({
+      "/intelligence": "Bid insights",
+      "/portal": "Client workspace",
+      "/sbd": "Requirements & compliance",
+      "/billing": "Billing & access",
+    });
+    expect(growthLabels).toMatchObject({
+      "/growth-operations": "Leads & offers",
+    });
+    expect(commercialLabels).toMatchObject({
+      "/commercial-retainer": "Quotes, invoices & retainers",
+    });
+  });
+
+  it("keeps Dashboard as home when an internal assignment is combined with an external role", () => {
     const roles = [
       "valo_operations_administrator",
       "client_reviewer_approver",
@@ -339,7 +398,7 @@ describe("v2.5 platform access", () => {
     ).toMatchObject({ allowed: false, state: "denied" });
   });
 
-  it("requires direct membership and both ledger-read grants for Commercial & Retainer", () => {
+  it("requires direct membership and both record-read grants for quotes, invoices and retainers", () => {
     const permissions = ["billing:read", "entitlement:read"];
     expect(
       getPlatformAccessDecision(

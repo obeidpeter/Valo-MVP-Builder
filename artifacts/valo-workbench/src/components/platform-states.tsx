@@ -30,7 +30,7 @@ const STATE_LABELS: Record<SurfaceState, string> = {
   blocked: "Blocked",
   expired: "Expired",
   pending: "Pending",
-  partial: "Partial",
+  partial: "Limited",
   error: "Error",
   offline: "Offline",
   unavailable: "Unavailable",
@@ -197,7 +197,7 @@ export function FeatureActivationNotice({
         state={partialWhenEnabled ? "partial" : "active"}
         title={
           partialWhenEnabled
-            ? feature + " is partially connected"
+            ? feature + " has limited availability"
             : feature + " is active"
         }
         description={detail}
@@ -210,7 +210,7 @@ export function FeatureActivationNotice({
   return (
     <StatusPanel
       state="pending"
-      title={feature + " requires activation"}
+      title={feature + " is not active yet"}
       description={detail}
     >
       <div className="flex flex-wrap items-center gap-3">
@@ -220,11 +220,11 @@ export function FeatureActivationNotice({
           disabled
           aria-describedby={descriptionId}
         >
-          Activation unavailable
+          Not available yet
         </Button>
         <p id={descriptionId} className="text-xs text-muted-foreground">
-          An authorised platform administrator must enable the matching server
-          capability and feature flag.
+          A platform administrator must enable this feature and confirm that its
+          required service is ready.
         </p>
       </div>
     </StatusPanel>
@@ -252,7 +252,7 @@ export function LoadingPanel({
 }
 
 export function DataErrorPanel({
-  title = "Records could not be loaded",
+  title = "We couldn't load the records",
   description,
   onRetry,
 }: {
@@ -314,8 +314,8 @@ export function OfflineBanner() {
       role="alert"
     >
       <CloudOff aria-hidden="true" className="size-4" />
-      You are offline. Existing content may be stale and write actions should
-      wait until connectivity returns.
+      You are offline. Some information may be out of date. Wait until you are
+      back online before making changes.
     </div>
   );
 }

@@ -148,107 +148,107 @@ export const INTELLIGENCE_CAPABILITY_CATALOG: readonly IntelligenceCapabilityDef
   [
     {
       id: "evidence_graph",
-      title: "Evidence Graph",
-      shortLabel: "Evidence graph",
+      title: "Evidence links",
+      shortLabel: "Evidence links",
       level: 2,
       description:
-        "Connects reviewed requirements, exact source citations, approved evidence and reusable capability claims.",
+        "Links reviewed requirements to source quotes, approved evidence and reusable capability claims.",
       humanControl:
-        "A named reviewer verifies every citation and decides whether a proposed evidence link is applicable.",
+        "A named reviewer checks every source quote and decides whether each proposed link applies.",
       evidenceBasis:
-        "Versioned tender sources, requirement citations, confirmed evidence and approved capability records.",
+        "Versioned tender documents, requirement references, confirmed evidence and approved capability records.",
     },
     {
       id: "addendum_radar",
-      title: "Addendum & Deadline Radar",
-      shortLabel: "Addendum radar",
+      title: "Addendum and deadline changes",
+      shortLabel: "Addendum changes",
       level: 2,
       description:
-        "Drafts a source-version diff and shows which requirements, deadlines, BOQ checks and approvals may be stale.",
+        "Compares source versions and flags requirements, deadlines, BOQ checks and approvals that may be out of date.",
       humanControl:
-        "A reviewer compares both authoritative versions and confirms each impact before work is reopened.",
+        "A reviewer compares both current versions and confirms each impact before work is reopened.",
       evidenceBasis:
-        "Immutable tender and addendum versions with captured timestamps, hashes and exact changed passages.",
+        "Versioned tender and addendum documents with timestamps, fingerprints and changed passages.",
     },
     {
       id: "eligibility_passport",
-      title: "Tender Eligibility Passport",
-      shortLabel: "Eligibility",
+      title: "Tender eligibility check",
+      shortLabel: "Eligibility check",
       level: 1,
       description:
-        "Previews tender-specific eligibility coverage and expiring company evidence without inventing a universal checklist.",
+        "Shows tender-specific eligibility coverage and expiring company evidence without inventing a universal checklist.",
       humanControl:
         "Client owners verify applicability, dates, issuing authority and remediation ownership for every item.",
       evidenceBasis:
-        "Reviewed solicitation clauses, approved Vault versions and verified capability evidence.",
+        "Reviewed tender clauses, approved evidence versions and verified capability evidence.",
     },
     {
       id: "grounded_copilot",
-      title: "Grounded Tender Copilot",
-      shortLabel: "Copilot",
+      title: "Tender evidence assistant",
+      shortLabel: "Evidence assistant",
       level: 1,
       description:
-        "Plans extractive answers from accepted facts and abstains when an exact, authorised citation cannot support the question.",
+        "Drafts answers from accepted facts and stops when an approved source quote cannot support the question.",
       humanControl:
         "Users inspect the cited source before relying on an answer or copying it into work product.",
       evidenceBasis:
-        "Selected tender, addendum, approved evidence and active SBD source versions only.",
+        "Selected tender, addendum, approved evidence and current SBD versions only.",
     },
     {
       id: "opportunity_radar",
-      title: "Opportunity Radar",
-      shortLabel: "Opportunities",
+      title: "Opportunity review",
+      shortLabel: "Opportunity review",
       level: 1,
       description:
-        "Prioritises recorded opportunities against explicit capability, geography, lot, deadline and capacity criteria.",
+        "Ranks recorded opportunities against stated capability, location, lot, deadline and capacity criteria.",
       humanControl:
         "Business-development leaders decide bid or no-bid; the system never predicts an award or implies evaluator influence.",
       evidenceBasis:
-        "Authoritative opportunity records, approved capability facts and current workload signals.",
+        "Recorded opportunities, approved capability facts and current workload data.",
     },
     {
       id: "response_studio",
-      title: "Citation-first Response Studio",
-      shortLabel: "Response studio",
+      title: "Evidence-linked response drafts",
+      shortLabel: "Response drafts",
       level: 2,
       description:
-        "Validates reversible response drafts so every factual claim is linked to approved, current evidence.",
+        "Checks editable response drafts so every factual claim links to approved, current evidence.",
       humanControl:
         "Named authors and reviewers edit, accept or reject every draft claim before report or package sign-off.",
       evidenceBasis:
-        "Reviewed requirements, approved capability versions, exact citations and versioned draft claims.",
+        "Reviewed requirements, approved capability versions, source quotes and versioned draft claims.",
     },
     {
       id: "submission_preflight",
-      title: "Submission Pack Preflight",
-      shortLabel: "Preflight",
+      title: "Submission package checks",
+      shortLabel: "Package checks",
       level: 1,
       description:
-        "Runs deterministic release checks for citations, signatures, dates, BOQ exceptions, readiness and package provenance.",
+        "Runs rules-based release checks for source links, signatures, dates, BOQ issues, readiness and package history.",
       humanControl:
         "The named signatory makes the release decision; the system cannot mark a package submitted.",
       evidenceBasis:
-        "Frozen package manifest, deterministic readiness rules, reviewer decisions and sign-off evidence.",
+        "Locked package contents, readiness rules, reviewer decisions and sign-off evidence.",
     },
     {
       id: "clarification_assistant",
-      title: "Clarification Question Assistant",
-      shortLabel: "Clarifications",
+      title: "Clarification question drafts",
+      shortLabel: "Clarification drafts",
       level: 2,
       description:
-        "Drafts source-linked questions for ambiguous, contradictory or unpriceable tender terms.",
+        "Drafts questions linked to unclear, conflicting or unpriceable tender terms.",
       humanControl:
         "An authorised tender lead decides whether and how to send a question; Valo never sends it.",
       evidenceBasis:
-        "Exact tender clauses, addenda, recorded conflicts and the authoritative clarification deadline.",
+        "Tender clauses, addenda, recorded conflicts and the confirmed clarification deadline.",
     },
     {
       id: "boq_sanity",
-      title: "BOQ & Commercial Sanity Checker",
-      shortLabel: "BOQ sanity",
+      title: "BOQ and commercial checks",
+      shortLabel: "BOQ checks",
       level: 1,
       description:
-        "Explains deterministic arithmetic, formula, unit, tax and anomaly checks without selecting or changing a price.",
+        "Explains rules-based arithmetic, formula, unit, tax and unusual-value checks without selecting or changing a price.",
       humanControl:
         "Commercial reviewers resolve every exception and remain responsible for rates, assumptions and approvals.",
       evidenceBasis:
@@ -256,11 +256,11 @@ export const INTELLIGENCE_CAPABILITY_CATALOG: readonly IntelligenceCapabilityDef
     },
     {
       id: "award_handoff",
-      title: "Award-to-Delivery Handoff",
+      title: "Award-to-delivery handoff",
       shortLabel: "Delivery handoff",
       level: 2,
       description:
-        "Drafts obligations, milestones, notices and evidence tasks from an explicitly recorded award or contract.",
+        "Drafts obligations, milestones, notices and evidence tasks from a recorded award or contract.",
       humanControl:
         "A contract or project manager accepts owners and dates; Valo never issues a notice or changes an external system.",
       evidenceBasis:
@@ -268,47 +268,47 @@ export const INTELLIGENCE_CAPABILITY_CATALOG: readonly IntelligenceCapabilityDef
     },
     {
       id: "evaluation_score_planner",
-      title: "Published-Evaluation Score Planner",
-      shortLabel: "Score planner",
+      title: "Published evaluation plan",
+      shortLabel: "Evaluation plan",
       level: 1,
       description:
         "Maps only published evaluation criteria, weights and supporting evidence without predicting evaluator behaviour or award probability.",
       humanControl:
         "A named bid reviewer confirms every criterion, score allocation and evidence mapping before it can guide the response plan.",
       evidenceBasis:
-        "Authoritative solicitation criteria, exact citations, accepted requirements and reviewed evidence links.",
+        "Published tender criteria, source quotes, accepted requirements and reviewed evidence links.",
     },
     {
       id: "bid_security_integrity",
-      title: "Bid Security & Guarantee Integrity Desk",
-      shortLabel: "Security desk",
+      title: "Bid security and guarantee checks",
+      shortLabel: "Security checks",
       level: 1,
       description:
-        "Compares cited security terms with a verified instrument for amount, currency, beneficiary, wording, issuer and validity gaps.",
+        "Compares bid security terms with a verified instrument for amount, currency, beneficiary, wording, issuer and validity gaps.",
       humanControl:
         "Authorised legal, commercial and treasury reviewers decide remediation; Valo never instructs a bank or represents validity.",
       evidenceBasis:
-        "Exact tender clauses, prescribed forms and immutable issued-instrument versions with named review.",
+        "Tender clauses, prescribed forms and versioned issued instruments with named review.",
     },
     {
       id: "regulatory_watchtower",
-      title: "Regulatory Rule-Pack Watchtower",
-      shortLabel: "Rule watchtower",
+      title: "Regulatory change checks",
+      shortLabel: "Regulatory changes",
       level: 1,
       description:
-        "Shows potential pursuit and template impacts from verified official procurement or sector rule changes.",
+        "Shows how verified procurement or sector rule changes may affect pursuits and templates.",
       humanControl:
         "Compliance or legal owners approve source authority, interpretation and activation before any control or template changes.",
       evidenceBasis:
-        "Immutable official rule versions, effective dates, exact changed passages and approved impact records.",
+        "Versioned official rules, effective dates, changed passages and approved impact records.",
     },
     {
       id: "consortium_responsibility",
-      title: "JV / Consortium Responsibility Matrix",
-      shortLabel: "Consortium matrix",
+      title: "Consortium responsibilities",
+      shortLabel: "Responsibilities",
       level: 2,
       description:
-        "Proposes entity-bound ownership for eligibility, technical, commercial and signing obligations without treating credentials as transferable.",
+        "Proposes which organisation owns each eligibility, technical, commercial and signing obligation without treating credentials as transferable.",
       humanControl:
         "Authorised representatives accept each responsibility; Valo never binds a partner or edits consortium terms.",
       evidenceBasis:
@@ -316,11 +316,11 @@ export const INTELLIGENCE_CAPABILITY_CATALOG: readonly IntelligenceCapabilityDef
     },
     {
       id: "portal_submission_rehearsal",
-      title: "Portal Submission Rehearsal & Form Mapper",
-      shortLabel: "Portal rehearsal",
+      title: "Portal submission practice",
+      shortLabel: "Portal practice",
       level: 1,
       description:
-        "Checks a frozen package against an approved portal profile, field map, naming, size and upload-order rules.",
+        "Checks a locked package against approved portal fields, names, sizes and upload-order rules.",
       humanControl:
         "An authorised operator runs the real submission; Valo never logs in, clicks submit or acknowledges declarations.",
       evidenceBasis:
@@ -328,11 +328,11 @@ export const INTELLIGENCE_CAPABILITY_CATALOG: readonly IntelligenceCapabilityDef
     },
     {
       id: "commercial_exposure",
-      title: "Commercial Assumption & Cashflow Exposure Simulator",
-      shortLabel: "Commercial exposure",
+      title: "Commercial cash-flow scenarios",
+      shortLabel: "Cash-flow scenarios",
       level: 1,
       description:
-        "Models deterministic scenarios for payment timing, retention, mobilisation, tax, bonds, FX and price-adjustment terms.",
+        "Models rules-based scenarios for payment timing, retention, mobilisation, tax, bonds, foreign exchange and price adjustments.",
       humanControl:
         "Finance reviewers approve assumptions and decisions; Valo never selects a price, rate or financing commitment.",
       evidenceBasis:
@@ -340,75 +340,75 @@ export const INTELLIGENCE_CAPABILITY_CATALOG: readonly IntelligenceCapabilityDef
     },
     {
       id: "nigerian_content_composer",
-      title: "Nigerian-Content Evidence Composer",
-      shortLabel: "Local-content plan",
+      title: "Nigerian-content plan evidence",
+      shortLabel: "Content-plan evidence",
       level: 2,
       description:
-        "Composes source-exact plan lines for verified personnel, equipment, facilities, subcontracting and training evidence.",
+        "Drafts plan lines from verified evidence about people, equipment, facilities, subcontracting and training.",
       humanControl:
         "Evidence owners confirm availability and every quantity or percentage before a plan line can be used.",
       evidenceBasis:
-        "Tender-specific local-content clauses and current, named-review company evidence.",
+        "Tender-specific local-content clauses and current company evidence checked by a named reviewer.",
     },
     {
       id: "personnel_tailoring",
-      title: "Past-Performance & Key-Personnel Tailoring Studio",
-      shortLabel: "Personnel tailoring",
+      title: "Past performance and key personnel",
+      shortLabel: "People and experience",
       level: 2,
       description:
-        "Proposes criterion-relevant verified project and personnel facts while blocking unavailable people and unsupported claims.",
+        "Suggests verified project and personnel facts that match the criteria while blocking unavailable people and unsupported claims.",
       humanControl:
-        "HR, project and bid owners attest currency, availability and selection; Valo never embellishes credentials.",
+        "HR, project and bid owners confirm that facts are current, people are available and selections are correct. Valo never embellishes credentials.",
       evidenceBasis:
-        "Reviewed criteria, active CV/project evidence, exact citations and current owner attestations.",
+        "Reviewed criteria, current CV and project evidence, source quotes and owner confirmations.",
     },
     {
       id: "contract_deviation",
-      title: "Tender-to-Contract Deviation Desk",
-      shortLabel: "Contract deviations",
+      title: "Contract changes",
+      shortLabel: "Contract changes",
       level: 1,
       description:
-        "Compares solicitation, bid, clarification, award and draft-contract clauses to surface changed, omitted or new obligations.",
+        "Compares tender, bid, clarification, award and draft-contract clauses to show changed, missing or new obligations.",
       humanControl:
         "Legal and commercial owners decide every issue; Valo never accepts terms or communicates a redline.",
       evidenceBasis:
-        "Reviewed exact clauses from immutable versions across each contractual stage.",
+        "Reviewed clauses from versioned documents at each contract stage.",
     },
     {
       id: "critical_path_simulator",
-      title: "Pursuit Critical-Path & Capacity Simulator",
-      shortLabel: "Critical path",
+      title: "Pursuit schedule and capacity",
+      shortLabel: "Schedule and capacity",
       level: 1,
       description:
-        "Builds bounded dependency and resource scenarios from accepted milestones and shows deadline or capacity conflicts.",
+        "Builds limited dependency and resource scenarios from accepted milestones and shows deadline or capacity conflicts.",
       humanControl:
-        "Task owners confirm all owner and date changes; the simulator changes no authoritative plan state.",
+        "Task owners confirm every owner and date change. The simulator never changes the approved plan.",
       evidenceBasis:
         "Source-backed milestones, accepted dependencies, capacity records and reviewed scenarios.",
     },
     {
       id: "integrity_sentinel",
-      title: "Procurement-Integrity & Conflict Sentinel",
-      shortLabel: "Integrity sentinel",
+      title: "Procurement integrity and conflicts",
+      shortLabel: "Integrity and conflicts",
       level: 1,
       description:
-        "Produces restricted control signals for segregation-of-duties, contact-channel, relationship and override review—never allegations.",
+        "Flags restricted issues for separation of duties, contact channels, relationships and overrides. These flags are never allegations.",
       humanControl:
         "Only authorised ethics or legal reviewers assess a signal; Valo makes no misconduct finding or external report.",
       evidenceBasis:
-        "Tenant-bound immutable audit events, declared relationships and named confidential review.",
+        "Organisation-specific audit history, declared relationships and confidential review by named people.",
     },
     {
       id: "outcome_learning",
-      title: "Outcome Learning & Repeat-Defect Coach",
-      shortLabel: "Outcome learning",
+      title: "Outcome lessons and repeat issues",
+      shortLabel: "Outcome lessons",
       level: 2,
       description:
-        "Proposes tenant-local lessons from client-confirmed outcomes and repeated cited defects without training on confidential content by default.",
+        "Suggests lessons for this organisation from client-confirmed outcomes and repeated documented issues. Confidential content is not used for training by default.",
       humanControl:
-        "A governance owner approves each lesson, its reuse scope and retention; cross-tenant reuse remains disabled.",
+        "A governance owner approves each lesson, where it can be reused and how long it is kept. Reuse across organisations remains off.",
       evidenceBasis:
-        "Client-confirmed outcomes, authorised debrief sources, reviewed defects and subject-bound lesson approval.",
+        "Client-confirmed outcomes, approved debrief sources, reviewed issues and approval for each lesson.",
     },
   ] as const;
 

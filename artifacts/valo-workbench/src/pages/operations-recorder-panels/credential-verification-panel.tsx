@@ -34,7 +34,7 @@ export function CredentialVerificationPanel({
   return (
     <Panel
       title="6. Credential verification"
-      description="After a named person checks the official issuer source, select the exact current Vault item version and source digest, then record the source locator, outcome and retained receipt hash. The server requires a matching source document currently not marked security-quarantined; this snapshot does not itself prove a malware-scanner receipt."
+      description="After a named person checks the official issuer, select the current evidence version and document fingerprint. Then record the source link, outcome and check receipt. The document must match and must not be quarantined; this record alone does not prove that a malware scan passed."
       allowed={permissions.evidenceApprove}
       unavailableReason="Evidence approval permission is required."
       disabled={disabled}
@@ -86,9 +86,9 @@ export function CredentialVerificationPanel({
         })}
       >
         <Field
-          label="Active Vault item and exact source snapshot"
+          label="Active evidence item and current document"
           name="credentialVaultId"
-          hint="The selector supplies the Vault item ID, current version and full source SHA-256; the server revalidates all three."
+          hint="The selector supplies the evidence item ID, current version and full document fingerprint. The server checks all three again."
         >
           <VaultItemSelect
             id="credentialVaultId"
@@ -110,10 +110,7 @@ export function CredentialVerificationPanel({
             <option value="inconclusive">Inconclusive</option>
           </select>
         </Field>
-        <Field
-          label="Verification receipt SHA-256"
-          name="credentialReceiptHash"
-        />
+        <Field label="Check receipt SHA-256" name="credentialReceiptHash" />
         <Field label="Notes (optional)" name="credentialNotes">
           <TextArea id="credentialNotes" />
         </Field>

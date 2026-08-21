@@ -25,18 +25,18 @@ export class AppErrorBoundary extends Component<Props, State> {
         <section className="w-full max-w-lg rounded-lg border border-border bg-card p-6 text-center">
           <ValoMark className="mx-auto text-primary" />
           <p className="mt-6 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Interface recovery
+            Page error
           </p>
           <h1 className="mt-3 text-2xl font-semibold">
-            This view could not be displayed
+            We couldn't show this page
           </h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Your server-side records have not been changed by this display
-            error. Reload the current view, or return to the Valo home page.
+            This display error did not change your records. Reload the page, or
+            return to the Valo home page.
           </p>
           <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
             <Button type="button" onClick={() => window.location.reload()}>
-              Reload view
+              Reload page
             </Button>
             <Button asChild variant="outline">
               <Link href="/">Return home</Link>

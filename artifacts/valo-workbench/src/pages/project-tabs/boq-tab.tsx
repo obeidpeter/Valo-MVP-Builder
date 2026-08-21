@@ -318,7 +318,7 @@ export function BoqTab({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-serif font-medium">BOQ Verifier</h2>
+        <h2 className="text-lg font-serif font-medium">BOQ checks</h2>
       </div>
 
       {canWriteDefects &&
@@ -326,7 +326,7 @@ export function BoqTab({ projectId }: { projectId: string }) {
           <div className="bg-card border border-border p-4 rounded-lg shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-medium">Load BOQ Data</h3>
+                <h3 className="text-sm font-medium">Load BOQ data</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Upload a CSV or Excel file, or paste rows straight from a
                   spreadsheet. You'll map the columns before checks run.
@@ -359,7 +359,7 @@ export function BoqTab({ projectId }: { projectId: string }) {
               variant="outline"
             >
               <FileSpreadsheet className="w-4 h-4 mr-2" />
-              Load Pasted Rows
+              Load pasted rows
             </Button>
           </div>
         ) : (
@@ -367,7 +367,7 @@ export function BoqTab({ projectId }: { projectId: string }) {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-medium">
-                  Map Columns — {sourceName}
+                  Map columns — {sourceName}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {dataRows.length} data row(s). Confirm which column feeds each
@@ -453,7 +453,7 @@ export function BoqTab({ projectId }: { projectId: string }) {
             <div className="flex flex-wrap items-end gap-4">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground uppercase">
-                  Declared Grand Total (optional)
+                  Declared grand total (optional)
                 </label>
                 <Input
                   className="h-8 w-44 text-sm"
@@ -482,7 +482,7 @@ export function BoqTab({ projectId }: { projectId: string }) {
                 ) : (
                   <Calculator className="w-4 h-4 mr-2" />
                 )}
-                Run Arithmetic Checks
+                Run arithmetic checks
               </Button>
             </div>
           </div>
@@ -570,7 +570,7 @@ export function BoqTab({ projectId }: { projectId: string }) {
                           onClick={() => handleToDefect(check.id)}
                           disabled={toDefect.isPending}
                         >
-                          <Plus className="w-3 h-3 mr-1" /> Defect
+                          <Plus className="w-3 h-3 mr-1" /> Add issue
                         </Button>
                       )}
                       {check.status === "pushed_to_defect" && (
@@ -578,7 +578,7 @@ export function BoqTab({ projectId }: { projectId: string }) {
                           variant="outline"
                           className="text-blue-600 border-blue-200 bg-blue-50"
                         >
-                          Defect Logged
+                          Issue recorded
                         </Badge>
                       )}
                     </TableCell>

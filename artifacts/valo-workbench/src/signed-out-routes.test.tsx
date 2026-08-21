@@ -65,13 +65,13 @@ afterEach(() => {
 
 describe("public routing", () => {
   it.each([
-    ["/", /find the defects before submission/i],
+    ["/", /find the problems before submission/i],
     ["/request-bid-autopsy", /^request a bid autopsy$/i],
-    ["/product", /a controlled workspace for evidence-heavy pursuits/i],
-    ["/solutions", /the same evidence record, shaped for each responsibility/i],
-    ["/how-it-works", /a review process with explicit gates/i],
-    ["/security", /controls that are visible when they matter/i],
-    ["/about", /better tender operations begin with a better record/i],
+    ["/product", /one organised workspace for complex bids/i],
+    ["/solutions", /one trusted record, with clear access for each role/i],
+    ["/how-it-works", /a clear path from first contact to final review/i],
+    ["/security", /see the safeguards that protect each step/i],
+    ["/about", /better tender work starts with a clear record/i],
     ["/contact", /start with a bid autopsy request/i],
     ["/privacy", /^privacy notice$/i],
     ["/terms", /service terms notice/i],
@@ -79,6 +79,37 @@ describe("public routing", () => {
     renderAt(path);
     expect(
       await screen.findByRole("heading", { level: 1, name: heading }),
+    ).toBeInTheDocument();
+  });
+
+  it("explains necessary tender and security terms in plain language", async () => {
+    const workflow = renderAt("/how-it-works");
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /a clear path from first contact to final review/i,
+    });
+
+    expect(
+      screen.getAllByText(/non-disclosure agreement \(NDA\)/i).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/bill of quantities \(BOQ\)/i).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getByText(/checks for a file's real type and contents/i),
+    ).toBeInTheDocument();
+
+    workflow.unmount();
+    renderAt("/security");
+    await screen.findByRole("heading", {
+      level: 1,
+      name: /see the safeguards that protect each step/i,
+    });
+    expect(
+      screen.getByText(/links cryptographically to the one before it/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/malware inspection is not yet an approved/i),
     ).toBeInTheDocument();
   });
 
@@ -124,7 +155,7 @@ describe("public routing", () => {
     renderAt("/");
     await screen.findByRole("heading", {
       level: 1,
-      name: /find the defects before submission/i,
+      name: /find the problems before submission/i,
     });
 
     const faqSummary = screen
@@ -193,7 +224,7 @@ describe("public routing", () => {
     renderAt("/");
     await screen.findByRole("heading", {
       level: 1,
-      name: /find the defects before submission/i,
+      name: /find the problems before submission/i,
     });
 
     await waitFor(() =>
@@ -274,7 +305,7 @@ describe("Bid Autopsy request", () => {
     );
 
     const successHeading = await screen.findByRole("heading", {
-      name: /your request has been recorded/i,
+      name: /your request has been received/i,
     });
     expect(successHeading).toBeInTheDocument();
     await waitFor(() => expect(successHeading).toHaveFocus());
@@ -342,7 +373,7 @@ describe("Bid Autopsy request", () => {
     await user.click(screen.getByRole("button", { name: /try again/i }));
     expect(
       await screen.findByRole("heading", {
-        name: /your request has been recorded/i,
+        name: /your request has been received/i,
       }),
     ).toBeInTheDocument();
 
@@ -381,7 +412,7 @@ describe("Bid Autopsy request", () => {
     expect(alert).not.toHaveTextContent(/check your connection/i);
   });
 
-  it("does not offer an immediate retry when the page is not authorised", async () => {
+  it("does not offer an immediate retry when the page cannot accept the request", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -400,7 +431,7 @@ describe("Bid Autopsy request", () => {
 
     expect(
       await screen.findByRole("alert", {
-        name: /not authorised to accept the request/i,
+        name: /this page cannot accept your request/i,
       }),
     ).toHaveTextContent(/do not keep retrying/i);
     expect(
@@ -433,9 +464,9 @@ describe("Bid Autopsy request", () => {
 
     expect(
       await screen.findByRole("alert", {
-        name: /secure request window was refreshed/i,
+        name: /this request page was refreshed/i,
       }),
-    ).toHaveTextContent(/page had been open for too long/i);
+    ).toHaveTextContent(/page was open for too long/i);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -504,7 +535,7 @@ describe("Bid Autopsy request", () => {
       screen.getByRole("button", { name: /^request a bid autopsy$/i }),
     );
     await screen.findByRole("heading", {
-      name: /your request has been recorded/i,
+      name: /your request has been received/i,
     });
 
     const headers = fetchMock.mock.calls.map(

@@ -37,8 +37,8 @@ export function PostAwardPanel({
 }) {
   return (
     <Panel
-      title="8. Post-award delivery control"
-      description="Record obligations and internal progress. Canonical project documents supply source, evidence and completion-receipt identities; disputed or cancelled reasons still come from the named operator."
+      title="8. Post-award delivery"
+      description="Record obligations and internal progress. Approved pursuit documents provide the source, evidence and completion receipt IDs. A named operator must enter reasons for disputed or cancelled work."
       allowed={permissions.projectUpdate}
       unavailableReason="Project update permission is required."
       disabled={disabled}
@@ -141,13 +141,13 @@ export function PostAwardPanel({
           />
         </Field>
         <Field
-          label="Canonical source document (optional)"
+          label="Approved source document (optional)"
           name="postSourceDocument"
         >
           <DocumentSelect id="postSourceDocument" records={records.documents} />
         </Field>
         <Field
-          label="Initial canonical evidence document (optional)"
+          label="Initial approved evidence document (optional)"
           name="postEvidenceDocument"
         >
           <DocumentSelect
@@ -267,7 +267,7 @@ export function PostAwardPanel({
         </Field>
         <Field label="Due time, ISO (optional)" name="postUpdateDueAt" />
         <Field
-          label="Canonical completion evidence / receipt document (optional)"
+          label="Approved completion evidence or receipt (optional)"
           name="postCompletionDocument"
           hint="Selecting a project document adds its ID to the evidence list and records its exact current SHA-256 as the completion receipt."
         >

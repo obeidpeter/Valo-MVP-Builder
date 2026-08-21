@@ -108,10 +108,8 @@ export default function Clients() {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>Create New Client</DialogTitle>
-                <DialogDescription>
-                  Add a new client profile to the system.
-                </DialogDescription>
+                <DialogTitle>Create client</DialogTitle>
+                <DialogDescription>Add a client profile.</DialogDescription>
               </DialogHeader>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
@@ -191,7 +189,7 @@ export default function Clients() {
                       placeholder="0"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Owners / MDs (Gate 0 metric)
+                      Owners and managing directors
                     </p>
                   </div>
                   <div className="space-y-2">
@@ -245,7 +243,7 @@ export default function Clients() {
           <div className="col-span-full">
             <DataErrorPanel
               title="Client register could not be loaded"
-              description="No empty client register has been inferred. Retry after connectivity and tenant access recover."
+              description="We have not treated this as an empty register. Check your connection and organisation access, then try again."
               onRetry={() => void retryClients()}
             />
           </div>
@@ -299,7 +297,7 @@ export default function Clients() {
             <p className="text-sm">
               {canCreateClient
                 ? "Create your first client to get started."
-                : "No client records are available in this context."}
+                : "No client records are available for this organisation."}
             </p>
           </div>
         )}

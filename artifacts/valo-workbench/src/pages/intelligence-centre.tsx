@@ -63,7 +63,7 @@ function fallbackCapability(
     id,
     state: "empty",
     stateReason:
-      "This capability is absent from the supplied snapshot. Its state is unknown.",
+      "This capability is missing from the current data. Its state is unknown.",
     reviewItemCount: null,
     citationCount: null,
     citations: [],
@@ -73,8 +73,8 @@ function fallbackCapability(
 
 function formatTimestamp(value: string | null): string {
   return formatWatInstant(value, {
-    empty: "No connected snapshot",
-    invalid: "Snapshot time unavailable",
+    empty: "No current data",
+    invalid: "Update time unavailable",
   });
 }
 
@@ -160,9 +160,9 @@ function IntelligenceCentreReady({
     },
     {
       id: "advanced",
-      title: "Advanced decision-support engines",
+      title: "Advanced decision support",
       description:
-        "New deterministic engines for scoring, financial instruments, regulation, partners, submission operations, commercial exposure, delivery planning, integrity and governed learning.",
+        "Rules-based checks for scoring, financial instruments, regulation, partners, submissions, commercial exposure, delivery planning, integrity and lessons learned.",
       cards: capabilityCards.filter(
         ({ definition }) => !FOUNDATION_CAPABILITY_IDS.has(definition.id),
       ),
@@ -203,7 +203,7 @@ function IntelligenceCentreReady({
         <StatusPanel
           state="partial"
           title="Production model execution is disabled"
-          description="The deterministic, tenant-scoped signals below remain available. No model-backed capability is implied to be running, and manual review remains authoritative until provider, privacy, retrieval, evaluation, budget and tenant gates pass."
+          description="Recorded rules-based signals remain available. AI features are not running. A person must review all results until provider, privacy, search, evaluation, budget and organisation checks pass."
         />
       ) : null}
 
@@ -211,12 +211,12 @@ function IntelligenceCentreReady({
         <StatusPanel
           state="empty"
           title="No intelligence evidence is available"
-          description="The capability catalogue is shown below for orientation, but there are no tenant-scoped states, counts or citations to rely on."
+          description="The capability list is shown for reference, but there are no current statuses, counts or sources to rely on."
         />
       ) : missingCount > 0 ? (
         <StatusPanel
           state="partial"
-          title="The intelligence snapshot is incomplete"
+          title="The current intelligence data is incomplete"
           description={`${missingCount} of ${INTELLIGENCE_CAPABILITY_CATALOG.length} capability states were not supplied. Missing entries are shown as unknown, not as clear or disabled.`}
         />
       ) : null}
@@ -237,7 +237,7 @@ function IntelligenceCentreReady({
                 ? "Evidence search is abstaining"
                 : "Evidence search is blocked"
           }
-          description={`${snapshot.evidenceLayer.sourceCount.toLocaleString("en-NG")} exact, current and named-verified source span${snapshot.evidenceLayer.sourceCount === 1 ? " is" : "s are"} available. ${snapshot.evidenceLayer.rejectedCount.toLocaleString("en-NG")} candidate span${snapshot.evidenceLayer.rejectedCount === 1 ? " was" : "s were"} rejected. This deterministic layer does not invoke a model or approve a claim.`}
+          description={`${snapshot.evidenceLayer.sourceCount.toLocaleString("en-NG")} exact, current source passage${snapshot.evidenceLayer.sourceCount === 1 ? " is" : "s are"} available after named review. ${snapshot.evidenceLayer.rejectedCount.toLocaleString("en-NG")} candidate passage${snapshot.evidenceLayer.rejectedCount === 1 ? " was" : "s were"} rejected. This search does not use AI or approve claims.`}
         />
       ) : (
         <StatusPanel
@@ -272,7 +272,7 @@ function IntelligenceCentreReady({
                 ? "Not reported"
                 : totalReviewItems.toLocaleString("en-NG")
             }
-            detail="Recorded items remain subject to named-human review."
+            detail="Recorded items still need review by a named person."
           />
           <SummaryMetric
             icon={BookOpenCheck}
@@ -294,7 +294,7 @@ function IntelligenceCentreReady({
             icon={ShieldCheck}
             label="Current runtime"
             value="Level 0"
-            detail="Target ceilings are Level 1–2. No model previews, drafts or autonomous actions are enabled."
+            detail="The maximum planned levels are 1–2. AI previews, drafts and automatic actions are off."
           />
         </div>
       </section>
@@ -399,7 +399,7 @@ function IntelligenceCentreReady({
               </p>
             </div>
             <div className="text-xs leading-5 text-muted-foreground lg:text-right">
-              <p>Snapshot</p>
+              <p>Latest update</p>
               <p className="font-medium text-foreground">
                 {formatTimestamp(snapshot.generatedAt)} WAT
               </p>
@@ -423,13 +423,13 @@ export default function IntelligenceCentre({
     <main className="mx-auto w-full max-w-7xl space-y-7 p-5 sm:p-8">
       <PageHeader
         eyebrow="Human-led bid intelligence"
-        title="Intelligence Centre"
-        description="Evidence-backed previews and reversible drafts for authorised reviewers. Valo helps people find and assess risk; it does not make or execute the decision."
+        title="Bid insights"
+        description="Review evidence-based suggestions and drafts. Valo helps authorised reviewers find risk; people make and carry out every decision."
         state={state}
       />
 
       {loadState.status === "loading" ? (
-        <LoadingPanel label="Loading tenant-scoped intelligence evidence" />
+        <LoadingPanel label="Loading intelligence evidence for this organisation" />
       ) : null}
 
       {loadState.status === "error" ? (

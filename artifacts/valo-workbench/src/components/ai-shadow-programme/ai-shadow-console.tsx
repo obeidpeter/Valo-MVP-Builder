@@ -32,6 +32,20 @@ const VERSION_FIELDS = [
   "expectedCaseManifestSha256",
 ] as const;
 
+const VERSION_LABELS: Readonly<
+  Record<(typeof VERSION_FIELDS)[number], string>
+> = {
+  applicationReleaseSha256: "Application release SHA-256",
+  modelSnapshotSha256: "Model version SHA-256",
+  modelConfigurationSha256: "Model setup SHA-256",
+  promptSha256: "Prompt SHA-256",
+  schemaSha256: "Schema SHA-256",
+  retrievalPolicySha256: "Retrieval rules SHA-256",
+  corpusManifestSha256: "Source-data list SHA-256",
+  governanceDecisionSha256: "Approval record SHA-256",
+  expectedCaseManifestSha256: "Expected-results list SHA-256",
+};
+
 type VersionField = (typeof VERSION_FIELDS)[number];
 
 export interface AiShadowPlanCreateDraft {
@@ -89,7 +103,7 @@ function PlanCard({
       setReason("");
     } catch {
       setCloseError(
-        "Plan closure was not confirmed. Review the current register before retrying; the entered reason has been kept.",
+        "Plan closure was not confirmed. Review the current record before trying again. Your reason has been kept.",
       );
     }
   };
@@ -119,7 +133,7 @@ function PlanCard({
             </dd>
           </div>
           <div>
-            <dt className="text-muted-foreground">Cohorts</dt>
+            <dt className="text-muted-foreground">Test groups</dt>
             <dd className="font-medium">
               {item.coveredCohorts.length}/{AI_SHADOW_COHORTS.length}
             </dd>
@@ -237,7 +251,7 @@ export function AiShadowProgrammeConsole({
       form.reset();
     } catch {
       setFormError(
-        "Shadow plan registration was not confirmed. Review the current register before retrying; the entered evidence has been kept.",
+        "The test plan was not recorded. Review the current record before trying again. Your evidence has been kept.",
       );
     }
   };
@@ -282,7 +296,7 @@ export function AiShadowProgrammeConsole({
       form.reset();
     } catch {
       setFormError(
-        "Shadow observation was not confirmed. Review the current register before retrying; the entered evidence has been kept.",
+        "The test observation was not recorded. Review the current record before trying again. Your evidence has been kept.",
       );
     }
   };
@@ -296,21 +310,22 @@ export function AiShadowProgrammeConsole({
           </div>
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-primary">
-              Controlled evaluation
+              Controlled AI testing
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
-              AI Shadow Programme
+              AI testing programme
             </h1>
             <p className="mt-3 max-w-3xl text-sm text-muted-foreground sm:text-base">
-              Register no-output shadow plans and hash-only reviewer
-              observations. Nothing here calls a model, persists raw output,
-              reaches a customer, or activates production AI.
+              Create test plans and record reviewer observations as hashes,
+              without saving raw output. This page does not call a model,
+              contact customers or activate production AI.
             </p>
           </div>
         </div>
         <div className="mt-5 flex items-center gap-2 rounded-lg border border-border bg-muted p-3 text-sm text-success">
           <BotOff aria-hidden="true" className="size-5 shrink-0" />
-          Provider disclosure and production activation remain hard-disabled.
+          This programme cannot activate production AI. Provider disclosure is
+          also disabled.
         </div>
         <div className="mt-3 flex items-start gap-2 rounded-lg border border-warning bg-warning/10 p-3 text-sm text-foreground">
           <AlertTriangle
@@ -318,10 +333,10 @@ export function AiShadowProgrammeConsole({
             className="mt-0.5 size-5 shrink-0"
           />
           <span>
-            This pilot retains at most 25 lifetime plans per organisation and
-            has no in-app archive. Stop before capacity and use a reviewed
-            storage/retention migration; never delete tenant audit events to
-            make room.
+            This pilot allows 25 plans per organisation and has no in-app
+            archive. Before reaching the limit, move records through an approved
+            storage and retention process. Never delete organisation audit
+            events to free space.
           </span>
         </div>
       </section>
@@ -338,7 +353,7 @@ export function AiShadowProgrammeConsole({
           ) : null}
           <Card>
             <CardHeader>
-              <CardTitle>Create a version-bound plan</CardTitle>
+              <CardTitle>Create a plan tied to exact versions</CardTitle>
             </CardHeader>
             <CardContent>
               <form
@@ -384,7 +399,7 @@ export function AiShadowProgrammeConsole({
                   {VERSION_FIELDS.map((field) => (
                     <div className="grid gap-2" key={field}>
                       <Label htmlFor={`shadow-${field}`}>
-                        {field.replaceAll("Sha256", " SHA-256")}
+                        {VERSION_LABELS[field]}
                       </Label>
                       <Input
                         id={`shadow-${field}`}
@@ -426,7 +441,9 @@ export function AiShadowProgrammeConsole({
                   </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="shadow-plan-key">Idempotency key</Label>
+                  <Label htmlFor="shadow-plan-key">
+                    Duplicate-prevention key
+                  </Label>
                   <Input
                     id="shadow-plan-key"
                     name="idempotencyKey"
@@ -440,9 +457,7 @@ export function AiShadowProgrammeConsole({
                   className="min-h-11"
                   disabled={pending || capacityReached}
                 >
-                  {capacityReached
-                    ? "Pilot plan register is full"
-                    : "Register shadow plan"}
+                  {capacityReached ? "Plan limit reached" : "Create test plan"}
                 </Button>
               </form>
             </CardContent>
@@ -450,7 +465,7 @@ export function AiShadowProgrammeConsole({
 
           <Card>
             <CardHeader>
-              <CardTitle>Record a hash-only observation</CardTitle>
+              <CardTitle>Record an observation without raw output</CardTitle>
             </CardHeader>
             <CardContent>
               {selectedPlan ? (
@@ -486,7 +501,7 @@ export function AiShadowProgrammeConsole({
                       />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="shadow-cohort">Cohort</Label>
+                      <Label htmlFor="shadow-cohort">Test group</Label>
                       <select
                         id="shadow-cohort"
                         name="cohort"
@@ -501,11 +516,12 @@ export function AiShadowProgrammeConsole({
                     </div>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
-                    {["disposition", "expectedDisposition"].map((name) => (
+                    {[
+                      ["disposition", "Observed result"],
+                      ["expectedDisposition", "Expected result"],
+                    ].map(([name, label]) => (
                       <div className="grid gap-2" key={name}>
-                        <Label htmlFor={`shadow-${name}`}>
-                          {name.replace(/([A-Z])/g, " $1")}
-                        </Label>
+                        <Label htmlFor={`shadow-${name}`}>{label}</Label>
                         <select
                           id={`shadow-${name}`}
                           name={name}
@@ -550,8 +566,11 @@ export function AiShadowProgrammeConsole({
                       ["unsupportedMaterialClaimCount", "Unsupported claims"],
                       ["citationCorrectCount", "Correct citations"],
                       ["citationEvaluatedCount", "Citations evaluated"],
-                      ["latencyMs", "Latency ms"],
-                      ["costMinor", "Cost minor"],
+                      ["latencyMs", "Latency (ms)"],
+                      [
+                        "costMinor",
+                        "Cost (smallest currency unit, such as cents)",
+                      ],
                     ].map(([name, label]) => (
                       <div className="grid gap-2" key={name}>
                         <Label htmlFor={`shadow-${name}`}>{label}</Label>
@@ -573,7 +592,7 @@ export function AiShadowProgrammeConsole({
                     {[
                       ["passed", "Case passed"],
                       ["injectionContained", "Injection contained"],
-                      ["tenantLeakDetected", "Tenant leak detected"],
+                      ["tenantLeakDetected", "Organisation data leak detected"],
                     ].map(([name, label]) => (
                       <label
                         key={name}
@@ -590,7 +609,7 @@ export function AiShadowProgrammeConsole({
                   </fieldset>
                   <div className="grid gap-2">
                     <Label htmlFor="shadow-reviewer-note">
-                      Controlled reviewer note
+                      Reviewer outcome
                     </Label>
                     <select
                       id="shadow-reviewer-note"
@@ -598,13 +617,13 @@ export function AiShadowProgrammeConsole({
                       className="min-h-11 rounded-md border bg-background px-3"
                     >
                       {[
-                        "fixture_verified",
-                        "fixture_discrepancy",
-                        "safe_failure_verified",
-                        "requires_adjudication",
-                      ].map((value) => (
+                        ["fixture_verified", "Expected test data confirmed"],
+                        ["fixture_discrepancy", "Test data differs"],
+                        ["safe_failure_verified", "Safe failure confirmed"],
+                        ["requires_adjudication", "Needs independent review"],
+                      ].map(([value, label]) => (
                         <option key={value} value={value}>
-                          {value.replaceAll("_", " ")}
+                          {label}
                         </option>
                       ))}
                     </select>
@@ -615,7 +634,7 @@ export function AiShadowProgrammeConsole({
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="shadow-observation-key">
-                      Idempotency key
+                      Duplicate-prevention key
                     </Label>
                     <Input
                       id="shadow-observation-key"
@@ -645,7 +664,7 @@ export function AiShadowProgrammeConsole({
             Registered plans
           </h2>
           <span className="text-sm text-muted-foreground">
-            {snapshot.plans.length} bounded plan
+            {snapshot.plans.length} plan
             {snapshot.plans.length === 1 ? "" : "s"}
           </span>
         </div>
@@ -667,10 +686,10 @@ export function AiShadowProgrammeConsole({
               />
               <div>
                 <p className="font-medium">
-                  No shadow evidence has been inferred
+                  No AI test evidence has been recorded
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  A named evaluator must register an exact version-bound plan.
+                  A named evaluator must create a plan tied to exact versions.
                 </p>
               </div>
             </CardContent>

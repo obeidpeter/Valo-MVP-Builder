@@ -54,7 +54,7 @@ export function QuoteForm({
       className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2"
       onSubmit={submit}
     >
-      <FormField id="commercial-offer" label="Fixed offer version">
+      <FormField id="commercial-offer" label="Offer version">
         <select
           id="commercial-offer"
           name="offerVersionId"
@@ -93,7 +93,7 @@ export function QuoteForm({
       </FormField>
       <FormField
         id="commercial-amount"
-        label="Human-entered amount (minor units)"
+        label="Amount entered by a person (minor units)"
       >
         <Input
           id="commercial-amount"
@@ -140,7 +140,7 @@ export function QuoteForm({
         />
       </FormField>
       <div className="space-y-1.5 sm:col-span-2">
-        <Label htmlFor="commercial-scope">Human-agreed scope</Label>
+        <Label htmlFor="commercial-scope">Agreed scope</Label>
         <Textarea
           id="commercial-scope"
           name="scopeSummary"
@@ -150,7 +150,7 @@ export function QuoteForm({
       </div>
       <div className="sm:col-span-2">
         <Button type="submit" disabled={busy || orderable.length === 0}>
-          Create proposal for checker review
+          Create proposal for review
         </Button>
       </div>
     </form>

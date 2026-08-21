@@ -29,8 +29,8 @@ export function VisualPackageQaPanel({
 }) {
   return (
     <Panel
-      title="5. Visual package QA"
-      description="Record operator-supplied render metrics. Valo evaluates only the entered metrics; it does not invent pages, signatures or cross-reference results."
+      title="5. Visual package checks"
+      description="Record layout results supplied by the operator. Valo checks only the values entered; it does not invent pages, signatures or cross-reference results."
       allowed={permissions.packageGenerate}
       unavailableReason="Package generation permission is required."
       disabled={disabled || packageVersionsState !== "ready"}
@@ -73,7 +73,7 @@ export function VisualPackageQaPanel({
           };
         })}
       >
-        <Field label="Canonical package version" name="qaPackageVersion">
+        <Field label="Approved package version" name="qaPackageVersion">
           <PackageVersionSelect
             id="qaPackageVersion"
             records={records.packageVersions}

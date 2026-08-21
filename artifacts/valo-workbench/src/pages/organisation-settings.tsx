@@ -158,11 +158,11 @@ function AddMembershipForm({
     event.preventDefault();
     const targetUserId = userId.trim();
     if (!UUID_PATTERN.test(targetUserId)) {
-      setFormError("Enter the provisioned user's complete internal UUID.");
+      setFormError("Enter the user's full Valo user ID.");
       return;
     }
     if (!role || !allowedRoles.includes(role)) {
-      setFormError("Select a role within your delegation authority.");
+      setFormError("Select a role that you are allowed to grant.");
       return;
     }
     if (
@@ -209,14 +209,14 @@ function AddMembershipForm({
           toast({
             title: "Membership grant saved",
             description:
-              "The server revalidated the organisation, actor and delegation ceiling.",
+              "The server checked the organisation, your access and the roles you can grant.",
           });
         },
         onError: (error) => {
           setFormError(
             errorMessage(
               error,
-              "The membership grant was refused. Verify the user ID and role authority.",
+              "The membership grant was refused. Check the user ID and confirm that you can grant this role.",
             ),
           );
         },
@@ -239,11 +239,10 @@ function AddMembershipForm({
               id={helpId}
               className="mt-1 text-sm leading-6 text-muted-foreground"
             >
-              This API does not invite by email. The person must already have a
-              Valo identity, and you must enter their internal user ID. The
-              server enforces role compatibility and delegation ceilings. This
-              endpoint adds one role or reactivates a membership; role-grant
-              removal is not exposed by the current API.
+              This form does not send an email invitation. The person must sign
+              in to Valo first, then you enter their Valo user ID. The server
+              checks that you can grant the selected role. You can add one role
+              or reactivate a membership here, but you cannot remove a role.
             </p>
           </div>
         </div>
@@ -252,8 +251,8 @@ function AddMembershipForm({
         {allowedRoles.length === 0 ? (
           <StatusPanel
             state="blocked"
-            title="No delegable roles"
-            description="Your active direct membership does not include a role delegation recognised by this interface."
+            title="You cannot grant any roles"
+            description="Your current direct membership does not allow you to grant a role from this page."
           />
         ) : (
           <form className="space-y-5" onSubmit={submit} noValidate>
@@ -264,7 +263,7 @@ function AddMembershipForm({
             >
               <legend className="sr-only">New organisation membership</legend>
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="membership-user-id">Provisioned user ID</Label>
+                <Label htmlFor="membership-user-id">Valo user ID</Label>
                 <Input
                   id="membership-user-id"
                   value={userId}
@@ -285,7 +284,7 @@ function AddMembershipForm({
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="membership-role">Role grant</Label>
+                <Label htmlFor="membership-role">Role</Label>
                 <Select
                   value={role}
                   onValueChange={(value) => setRole(value as OrganisationRole)}
@@ -338,8 +337,8 @@ function AddMembershipForm({
                     htmlFor="membership-clear-access-end"
                     className="text-xs font-normal leading-5 text-muted-foreground"
                   >
-                    Explicitly remove any existing membership end date
-                    (indefinite access).
+                    Remove the current membership end date and allow access
+                    without an expiry date.
                   </Label>
                 </div>
               </div>
@@ -449,7 +448,7 @@ function MembershipCard({
           toast({
             title: label,
             description:
-              "The server accepted the current membership version and recorded the change.",
+              "The server checked the latest membership record and saved the change.",
           });
         },
         onError: async (error) => {
@@ -529,8 +528,8 @@ function MembershipCard({
                     </AlertDialogTitle>
                     <AlertDialogDescription>
                       {membership.user.email} will lose organisation access as
-                      soon as the server accepts this versioned change. Audit
-                      history and the membership record are retained.
+                      soon as the server saves this change. Audit history and
+                      the membership record are retained.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -613,13 +612,10 @@ function MembershipCard({
 
           <div>
             <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Non-revoked role grants
+              Roles
             </h3>
             {membership.roles.length > 0 ? (
-              <ul
-                className="mt-2 flex flex-wrap gap-2"
-                aria-label="Role grants"
-              >
+              <ul className="mt-2 flex flex-wrap gap-2" aria-label="Roles">
                 {membership.roles.map((grant) => {
                   const window = roleWindowLabel(grant);
                   return (
@@ -637,8 +633,8 @@ function MembershipCard({
               </ul>
             ) : (
               <p className="mt-2 text-sm text-muted-foreground">
-                No non-revoked role grant was returned. This record does not
-                establish effective access.
+                No current role was returned. This membership record alone does
+                not prove that the person has access.
               </p>
             )}
           </div>
@@ -650,7 +646,7 @@ function MembershipCard({
                   aria-hidden="true"
                   className="size-4 text-primary"
                 />
-                <h3 className="text-sm font-semibold">Membership access end</h3>
+                <h3 className="text-sm font-semibold">Access end date</h3>
               </div>
               <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
                 <div className="w-full max-w-64 space-y-2">
@@ -778,7 +774,7 @@ export default function OrganisationSettings() {
         <StatusPanel
           state="blocked"
           title="Select an organisation"
-          description="Membership records are tenant-scoped. Select a direct organisation membership before opening organisation settings."
+          description="Select an organisation where you have direct membership before opening organisation settings."
         />
       </div>
     );
@@ -787,9 +783,9 @@ export default function OrganisationSettings() {
   return (
     <div className="mx-auto w-full max-w-7xl space-y-7 p-5 sm:p-8">
       <PageHeader
-        eyebrow="Tenant administration"
+        eyebrow="Organisation administration"
         title="Organisation settings"
-        description={`Manage versioned membership access for ${organisation.name}. Every read and write is re-authorised by the server against the selected organisation.`}
+        description={`Manage membership access for ${organisation.name}. The server checks your authority for every view and change.`}
         state={
           !online
             ? "offline"
@@ -808,9 +804,7 @@ export default function OrganisationSettings() {
           <div className="rounded-lg border border-border bg-card p-4">
             <UsersRound aria-hidden="true" className="size-5 text-primary" />
             <p className="mt-3 text-2xl font-semibold">{memberships.length}</p>
-            <p className="text-xs text-muted-foreground">
-              Membership records returned
-            </p>
+            <p className="text-xs text-muted-foreground">Membership records</p>
           </div>
           <div className="rounded-lg border border-border bg-card p-4">
             <ShieldCheck aria-hidden="true" className="size-5 text-primary" />
@@ -829,9 +823,7 @@ export default function OrganisationSettings() {
           <div className="rounded-lg border border-border bg-card p-4">
             <KeyRound aria-hidden="true" className="size-5 text-primary" />
             <p className="mt-3 text-2xl font-semibold">{allowedRoles.length}</p>
-            <p className="text-xs text-muted-foreground">
-              Roles within your UI delegation ceiling
-            </p>
+            <p className="text-xs text-muted-foreground">Roles you can grant</p>
           </div>
         </div>
       ) : null}
@@ -852,13 +844,13 @@ export default function OrganisationSettings() {
         forbidden ? (
           <StatusPanel
             state="blocked"
-            title="Direct membership administration required"
-            description="The server did not authorise this membership register. Partner-derived and emergency access contexts cannot administer organisation memberships."
+            title="Direct organisation membership required"
+            description="The server did not allow access to this membership list. Partner access and emergency access cannot manage organisation memberships."
           />
         ) : (
           <DataErrorPanel
             title="Membership records could not be loaded"
-            description="Do not interpret missing rows as no access. Check connectivity, organisation selection and role authorisation, then retry."
+            description="Missing records do not mean nobody has access. Check your connection, selected organisation and permissions, then try again."
             onRetry={() => void query.refetch()}
           />
         )
@@ -882,19 +874,19 @@ export default function OrganisationSettings() {
               id="membership-register-heading"
               className="text-lg font-semibold"
             >
-              Membership register
+              Members and access
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Role grants are shown exactly as returned. A non-revoked grant can
-              still be scheduled or expired; effective permission is always
-              evaluated by the server at request time.
+              Roles are shown exactly as returned. A role that has not been
+              revoked may still be scheduled or expired. The server checks
+              effective permission for every request.
             </p>
           </div>
           {memberships.length === 0 ? (
             <StatusPanel
               state="empty"
               title="No membership records returned"
-              description="The selected organisation returned an empty register. Do not grant access until the unexpected state has been reviewed."
+              description="The selected organisation returned no membership records. Do not grant access until someone reviews this unexpected result."
             />
           ) : (
             <div className="grid gap-4 xl:grid-cols-2">

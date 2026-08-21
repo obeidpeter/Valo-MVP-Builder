@@ -107,7 +107,7 @@ function requestFailure(
   const leaseMayExist = phase === "finalizing" || status === null;
   if (code === "expired" || status === 410) {
     return new ClientActionUploadFlowError(
-      "The upload lease expired. Reload the exact request slot before requesting a new lease.",
+      "The upload slot expired. Reload the current request slot before starting again.",
       phase,
       "new_lease",
       true,
@@ -121,7 +121,7 @@ function requestFailure(
     [403, 404, 409].includes(status ?? 0)
   ) {
     return new ClientActionUploadFlowError(
-      "The organisation, membership, project, request, slot, version, or intent is no longer current. Reload before retrying.",
+      "The organisation, membership, pursuit, request, slot, version or upload details are no longer current. Reload before retrying.",
       phase,
       "reload_scope",
       leaseMayExist,
@@ -133,7 +133,7 @@ function requestFailure(
     status === 422
   ) {
     return new ClientActionUploadFlowError(
-      "Secure intake did not finalize this file. Do not retry blindly; reload the request and follow the server disposition.",
+      "The security checks did not finish this upload. Reload the request and follow the recorded result before retrying.",
       phase,
       "none",
       true,
@@ -143,8 +143,8 @@ function requestFailure(
   if (code === "unavailable") {
     return new ClientActionUploadFlowError(
       phase === "leasing"
-        ? "Governed upload issuance is not operationally activated. No signed transfer was started; reload only after an administrator confirms the lifecycle gate is open."
-        : "Secure intake is operationally unavailable. Staged bytes may exist; reload the authoritative request and do not retry blindly.",
+        ? "Uploads are not active. No transfer started. Try again only after an administrator confirms that uploads are available."
+        : "The security checks are unavailable. A temporary upload may exist; reload the current request before retrying.",
       phase,
       "none",
       phase === "finalizing",
@@ -153,8 +153,8 @@ function requestFailure(
   }
   return new ClientActionUploadFlowError(
     phase === "leasing"
-      ? "The lease result is unknown. Retry this same exact file and operation key; do not start a parallel upload."
-      : "The finalization result is unknown. Retry the same exact operation so the server can replay its receipt.",
+      ? "The upload permission result is unknown. Retry this same upload with the same file; do not start another upload."
+      : "The final result is unknown. Retry the same upload so Valo can return the existing receipt.",
     phase,
     "same_operation",
     leaseMayExist,
@@ -171,7 +171,7 @@ function assertCurrent(
     dependencies.assertCurrent();
   } catch (cause) {
     throw new ClientActionUploadFlowError(
-      "The organisation, membership, project, request, slot, version, or intent changed during upload. Reload before any retry.",
+      "The organisation, membership, pursuit, request, slot, version or upload details changed during upload. Reload before retrying.",
       phase,
       "reload_scope",
       leaseMayExist,
@@ -200,7 +200,7 @@ function validateBinding(binding: ClientActionUploadBinding): void {
     !accepted
   ) {
     throw new ClientActionUploadFlowError(
-      "This upload intent is outside the governed file policy. Record a new valid intent before selecting bytes.",
+      "These upload details do not meet the file rules. Record valid details before selecting a file.",
       "checking",
       "reload_scope",
       false,
@@ -217,7 +217,7 @@ export async function runClientActionUpload(
   validateBinding(input.binding);
   if (!SAFE_KEY.test(input.idempotencyKey)) {
     throw new ClientActionUploadFlowError(
-      "The upload operation key is invalid.",
+      "This upload cannot be resumed because its saved reference is invalid.",
       "checking",
       "none",
       false,
@@ -230,7 +230,7 @@ export async function runClientActionUpload(
     contentType !== input.binding.contentType
   ) {
     throw new ClientActionUploadFlowError(
-      "The selected file does not exactly match the acknowledged filename, byte count, and MIME type.",
+      "The selected file does not match the acknowledged filename, size and file type.",
       "checking",
       "none",
       false,
@@ -244,7 +244,7 @@ export async function runClientActionUpload(
     measuredSha256 = await (dependencies.digest ?? sha256)(bytes);
   } catch (cause) {
     throw new ClientActionUploadFlowError(
-      "The selected file could not be read and verified locally. No lease was requested.",
+      "The selected file could not be read and checked on this device. No upload permission was requested.",
       "checking",
       "none",
       false,
@@ -257,7 +257,7 @@ export async function runClientActionUpload(
     measuredSha256 !== input.binding.declaredSha256
   ) {
     throw new ClientActionUploadFlowError(
-      "The selected bytes do not match the acknowledged SHA-256 and byte count. No lease was requested.",
+      "The selected file does not match the acknowledged SHA-256 fingerprint and size. No upload permission was requested.",
       "checking",
       "none",
       false,
@@ -277,7 +277,7 @@ export async function runClientActionUpload(
     if (error instanceof ClientActionUploadFlowError) throw error;
     if (error instanceof ClientActionUploadContractError) {
       throw new ClientActionUploadFlowError(
-        "The upload lease response failed its exact binding checks. No bytes were transferred; server expiry and reconciliation remain authoritative.",
+        "The upload permission did not match this request. No file was transferred; server expiry and cleanup still apply.",
         "leasing",
         "none",
         true,
@@ -309,7 +309,7 @@ export async function runClientActionUpload(
     });
   } catch (cause) {
     throw new ClientActionUploadFlowError(
-      "The signed transfer result is unknown. Retry the same exact operation while its lease is current; staged bytes remain server-governed.",
+      "The transfer result is unknown. Retry the same upload while the upload slot is active. A temporary upload may still exist on the server.",
       "transferring",
       "same_operation",
       true,
@@ -318,7 +318,7 @@ export async function runClientActionUpload(
   }
   if (!uploadResponse.ok) {
     throw new ClientActionUploadFlowError(
-      `Signed storage rejected the transfer (${uploadResponse.status}). Retry the same exact operation while its lease is current.`,
+      `Storage rejected the transfer (${uploadResponse.status}). Retry the same upload while the upload slot is active.`,
       "transferring",
       "same_operation",
       true,
@@ -344,7 +344,7 @@ export async function runClientActionUpload(
     if (error instanceof ClientActionUploadFlowError) throw error;
     if (error instanceof ClientActionUploadContractError) {
       throw new ClientActionUploadFlowError(
-        "The final receipt failed its exact binding checks. Reload the request to reconcile the authoritative server state; do not retry blindly.",
+        "The final receipt did not match this request. Reload the current request and review the server result before retrying.",
         "finalizing",
         "none",
         true,

@@ -888,10 +888,10 @@ describe("PursuitOperationsSuiteRoute", () => {
 
     expect(
       await screen.findByRole("heading", {
-        name: "Pursuit operations suite",
+        name: "Pursuit workflows",
       }),
     ).toBeInTheDocument();
-    await screen.findByRole("heading", { name: "Record bounded operations" });
+    await screen.findByRole("heading", { name: "Record operations" });
     expect(screen.getByLabelText("Pursuit")).toHaveValue("project-1");
     expect(apiState.customFetch).toHaveBeenCalledWith(
       "/api/projects/project-1/operations-suite",
@@ -944,8 +944,8 @@ describe("PursuitOperationsSuiteRoute", () => {
 
   it("changes project without retaining the prior snapshot or recorder text", async () => {
     const { location } = renderRoute();
-    await screen.findByRole("heading", { name: "Pursuit operations suite" });
-    await screen.findByRole("heading", { name: "Record bounded operations" });
+    await screen.findByRole("heading", { name: "Pursuit workflows" });
+    await screen.findByRole("heading", { name: "Record operations" });
     fireEvent.click(screen.getByText("1. Opportunity intake"));
     fireEvent.change(screen.getByLabelText("Opportunity title"), {
       target: { value: "Sensitive former-project title" },
@@ -996,7 +996,7 @@ describe("PursuitOperationsSuiteRoute", () => {
 
     expect(
       await screen.findByRole("heading", {
-        name: "Low-bandwidth mobile summary",
+        name: "Mobile summary for slow connections",
       }),
     ).toBeInTheDocument();
     expect(apiState.customFetch).toHaveBeenCalledWith(
@@ -1008,7 +1008,7 @@ describe("PursuitOperationsSuiteRoute", () => {
       expect.anything(),
     );
     expect(
-      screen.queryByRole("heading", { name: "Pursuit operations suite" }),
+      screen.queryByRole("heading", { name: "Pursuit workflows" }),
     ).not.toBeInTheDocument();
 
     await user.click(
@@ -1036,7 +1036,7 @@ describe("PursuitOperationsSuiteRoute", () => {
     renderRoute();
 
     expect(
-      await screen.findByRole("heading", { name: "Pursuit operations suite" }),
+      await screen.findByRole("heading", { name: "Pursuit workflows" }),
     ).toBeInTheDocument();
     await waitFor(() =>
       expect(apiState.customFetch).toHaveBeenCalledWith(
@@ -1045,12 +1045,12 @@ describe("PursuitOperationsSuiteRoute", () => {
       ),
     );
     const user = userEvent.setup();
-    const panelTitle = screen.getByText("4. Submission war room");
+    const panelTitle = screen.getByText("4. Submission tracking");
     const details = panelTitle.closest("details");
     if (!details) throw new Error("Submission recorder panel is missing");
     await user.click(panelTitle);
     expect(
-      screen.getByLabelText("Canonical package version", {
+      screen.getByLabelText("Approved package version", {
         selector: "#submissionPackageVersion",
       }),
     ).toHaveTextContent("11111111-1");
@@ -1059,8 +1059,8 @@ describe("PursuitOperationsSuiteRoute", () => {
   it("hides evidence and package sections without their exact read permissions", async () => {
     apiState.permissions = ["project:read", "project:update"];
     const { container } = renderRoute();
-    await screen.findByRole("heading", { name: "Pursuit operations suite" });
-    await screen.findByRole("heading", { name: "Record bounded operations" });
+    await screen.findByRole("heading", { name: "Pursuit workflows" });
+    await screen.findByRole("heading", { name: "Record operations" });
 
     expect(container.querySelector("#opportunity-intake")).not.toBeNull();
     expect(container.querySelector("#pursuit-board")).not.toBeNull();
@@ -1094,7 +1094,7 @@ describe("PursuitOperationsSuiteRoute", () => {
     const empty = renderRoute();
     expect(
       screen.getByRole("heading", {
-        name: "No authorised pursuits are available",
+        name: "No accessible pursuits are available",
       }),
     ).toBeInTheDocument();
     empty.unmount();
@@ -1105,7 +1105,7 @@ describe("PursuitOperationsSuiteRoute", () => {
     expect(
       await screen.findByRole("heading", { name: "Read-only operations view" }),
     ).toBeInTheDocument();
-    await screen.findByRole("heading", { name: "Record bounded operations" });
+    await screen.findByRole("heading", { name: "Record operations" });
     expect(
       screen.getByRole("button", { name: "Confirm source and deadline" }),
     ).toBeDisabled();
@@ -1123,7 +1123,9 @@ describe("PursuitOperationsSuiteRoute", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/snapshot was unavailable or invalid/i),
+      screen.getByText(
+        /summary for this organisation was unavailable or invalid/i,
+      ),
     ).toBeInTheDocument();
   });
 });

@@ -68,7 +68,7 @@ function AccessLayout({
           </Link>
           <div className="max-w-lg py-16">
             <p className="text-sm font-semibold uppercase tracking-[0.13em] text-[#74d6c4]">
-              Controlled access
+              Secure sign-in
             </p>
             <h1 className="mt-5 text-balance text-4xl font-semibold leading-tight tracking-[-0.04em]">
               {title}
@@ -78,9 +78,9 @@ function AccessLayout({
             </p>
             <ul className="mt-8 space-y-4 text-sm text-slate-200">
               {[
-                "Organisation and role access resolved after sign-in",
-                "Multi-factor and recovery handled by the identity provider",
-                "Protected actions recorded against the authenticated identity",
+                "Valo checks your organisation and role after you sign in",
+                "Your sign-in service handles multi-factor authentication and account recovery",
+                "Valo records protected actions under your signed-in identity",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-3">
                   <Check
@@ -93,9 +93,9 @@ function AccessLayout({
             </ul>
           </div>
           <p className="text-xs leading-5 text-slate-400">
-            Never approve an unexpected MFA prompt. Contact your authorised
-            organisation administrator if an invitation or recovery request
-            looks unfamiliar.
+            Never approve a multi-factor authentication (MFA) prompt you did not
+            start. Contact your organisation administrator if an invitation or
+            account-recovery request looks unfamiliar.
           </p>
         </aside>
 
@@ -128,7 +128,7 @@ function AccessLayout({
                       className="mx-auto size-6 text-primary"
                     />
                     <p className="mt-3 text-sm text-muted-foreground">
-                      Loading secure access…
+                      Loading sign-in…
                     </p>
                   </div>
                 </div>
@@ -136,9 +136,9 @@ function AccessLayout({
               <ClerkLoaded>{children}</ClerkLoaded>
             </div>
             <p className="mt-5 text-center text-xs leading-5 text-muted-foreground">
-              Valo is invitation-only. Sign-in does not grant access to an
-              organisation or tender workspace without an active
-              server-authorised membership.
+              Valo is invitation-only. Signing in does not give access by
+              itself. Valo must also confirm an active membership for your
+              organisation.
             </p>
           </div>
         </main>
@@ -151,11 +151,11 @@ export default function SignInPage() {
   return (
     <AccessLayout
       title="Sign in to your Valo workspace."
-      description="Valo keeps tender records behind verified identity, explicit organisation selection and role-aware controls."
+      description="Valo verifies who you are, which organisation you can enter and what your role allows."
     >
       <PublicMeta
         title="Sign in"
-        description="Secure, invitation-only access to the Valo tender workspace."
+        description="Sign in to an invitation-only Valo tender workspace."
         path="/sign-in"
         index={false}
       />
@@ -172,12 +172,12 @@ export default function SignInPage() {
 export function InvitationPage() {
   return (
     <AccessLayout
-      title="Activate an authorised invitation."
-      description="Use the invited identity. Valo will still verify the corresponding organisation membership and assigned role before opening a workspace."
+      title="Accept your Valo invitation."
+      description="Use the email address or account that received the invitation. Valo checks your organisation membership and role before opening a workspace."
     >
       <PublicMeta
         title="Accept invitation"
-        description="Activate an authorised Valo invitation and complete provider-managed verification."
+        description="Accept a Valo invitation and complete secure account verification."
         path="/accept-invitation"
         index={false}
       />
@@ -194,12 +194,12 @@ export function InvitationPage() {
 export function AccessCallbackPage() {
   return (
     <AccessLayout
-      title="Completing secure sign-in."
-      description="The identity provider is returning control to Valo. No tender workspace opens until the session and organisation membership are verified."
+      title="Finishing sign-in."
+      description="Your sign-in service is sending you back to Valo. A workspace opens only after Valo verifies your session and active organisation membership."
     >
       <PublicMeta
-        title="Completing sign in"
-        description="Complete the secure identity-provider return to Valo."
+        title="Finishing sign-in"
+        description="Finish returning securely to Valo after signing in."
         path="/sso-callback"
         index={false}
       />

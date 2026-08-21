@@ -129,17 +129,17 @@ export default function SbdCorpus() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-serif tracking-tight font-medium">
-            SBD Corpus
+            Requirements &amp; compliance
           </h1>
           <p className="text-muted-foreground text-sm mt-1 max-w-2xl">
-            Normalised Standard Bidding Documents, held as versioned templates
-            with agency-format quirks captured as structured annotations.
+            Reusable, versioned bidding-document templates with notes about each
+            agency's required format.
           </p>
         </div>
         {canReviewRequirements && (
           <Button size="sm" onClick={openCreate}>
             <FilePlus2 className="w-4 h-4 mr-2" />
-            New Template
+            New template
           </Button>
         )}
       </div>
@@ -198,10 +198,9 @@ export default function SbdCorpus() {
         ) : (
           <div className="p-12 text-center text-muted-foreground">
             <Library className="w-12 h-12 mx-auto mb-3 text-muted" />
-            <p>No Standard Bidding Documents in the corpus yet.</p>
+            <p>No Standard Bidding Documents yet.</p>
             <p className="text-sm mt-1">
-              Add the BPP revised SBDs to normalise them into reusable
-              templates.
+              Add the revised BPP documents as reusable templates.
             </p>
           </div>
         )}
@@ -213,7 +212,7 @@ export default function SbdCorpus() {
       >
         <DialogContent className="sm:max-w-[520px]">
           <DialogHeader>
-            <DialogTitle className="font-serif">New SBD Template</DialogTitle>
+            <DialogTitle className="font-serif">New SBD template</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-4">
@@ -289,7 +288,7 @@ export default function SbdCorpus() {
               {createTemplate.isPending && (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               )}
-              Create Template
+              Create template
             </Button>
           </DialogFooter>
         </DialogContent>

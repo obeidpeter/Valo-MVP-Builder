@@ -256,15 +256,21 @@ function CandidateCard({
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">Provenance</dt>
-            <dd className="mt-1">{candidate.provenance.replace("_", " ")}</dd>
+            <dt className="text-xs text-muted-foreground">Source record</dt>
+            <dd className="mt-1">
+              {candidate.provenance === "operator_recorded"
+                ? "Recorded by operator"
+                : "Verified by connected source"}
+            </dd>
           </div>
           <div>
             <dt className="text-xs text-muted-foreground">Recorded by</dt>
             <dd className="mt-1">{candidate.recordedByName}</dd>
           </div>
           <div className="sm:col-span-2">
-            <dt className="text-xs text-muted-foreground">Receipt digest</dt>
+            <dt className="text-xs text-muted-foreground">
+              Receipt fingerprint
+            </dt>
             <dd className="mt-1 break-all font-mono text-xs">
               {candidate.receiptSha256}
             </dd>
@@ -282,7 +288,7 @@ function CandidateCard({
         {candidate.status === "pending_review" && canManage ? (
           <div className="space-y-3 border-t pt-4">
             <Label htmlFor={`reason-${candidate.id}`}>
-              Human decision reason
+              Reason for decision
             </Label>
             <Textarea
               id={`reason-${candidate.id}`}
@@ -297,7 +303,7 @@ function CandidateCard({
                 disabled={pending || !reason.trim()}
                 onClick={() => void decide("accept")}
               >
-                Accept into tender register
+                Accept source record
               </Button>
               <Button
                 type="button"
@@ -306,7 +312,7 @@ function CandidateCard({
                 disabled={pending || !reason.trim()}
                 onClick={() => void decide("reject")}
               >
-                Reject receipt
+                Reject source record
               </Button>
             </div>
           </div>
@@ -338,20 +344,20 @@ export function OpportunitySourceConsole(props: OpportunitySourceConsoleProps) {
   return (
     <div className="mx-auto w-full max-w-7xl space-y-7 p-5 sm:p-8">
       <PageHeader
-        eyebrow="Authorised acquisition"
-        title="Official Opportunity Source Network"
-        description="Capture licence-aware source metadata, deduplicate notices and require a named human to confirm every tender record. Valo does not scrape, qualify or open a pursuit automatically."
+        eyebrow="Official sources"
+        title="Opportunity sources"
+        description="Record official source details, avoid duplicates and require a named person to confirm each opportunity. Valo never scrapes a source, qualifies an opportunity or starts a pursuit automatically."
         state={pendingCount ? "pending" : "active"}
       />
       <StatusPanel
         state="partial"
-        title="Source text is untrusted and never executed"
-        description="External acquisition adapters remain disconnected. Recorded links and metadata are evidence for human inspection, not instructions, endorsements or confirmed tender terms."
+        title="Recorded source details need human review"
+        description="Automatic source connections are off. Recorded links and details are for human review only; they are not instructions, endorsements or confirmed tender terms."
       />
       <StatusPanel
         state="partial"
-        title="Bounded pilot register"
-        description={`This pilot retains at most ${props.snapshot.limit} lifetime source receipts per organisation and has no in-app archive. Stop intake before the limit and use a reviewed retention migration; never delete tenant audit events to recover capacity.`}
+        title="Pilot record limit"
+        description={`This pilot stores up to ${props.snapshot.limit} source records per organisation and cannot archive them in the app. Pause intake before reaching the limit and use an approved retention migration. Never delete audit history to create space.`}
       />
       {props.canManage ? (
         <ManualSourceForm
@@ -366,8 +372,8 @@ export function OpportunitySourceConsole(props: OpportunitySourceConsoleProps) {
             Source review inbox
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {pendingCount} pending of {props.snapshot.items.length} bounded
-            receipts.
+            {pendingCount} pending of {props.snapshot.items.length} source
+            records.
           </p>
         </div>
         {props.snapshot.items.length ? (
@@ -386,7 +392,7 @@ export function OpportunitySourceConsole(props: OpportunitySourceConsoleProps) {
           <StatusPanel
             state="empty"
             title="No source receipts recorded"
-            description="Use the form above to record an official HTTPS source for named-human review."
+            description="Use the form above to record an official HTTPS source for review by a named person."
           />
         )}
       </section>

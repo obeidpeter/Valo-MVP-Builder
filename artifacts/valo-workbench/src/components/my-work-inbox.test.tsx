@@ -118,10 +118,10 @@ describe("MyWorkInbox", () => {
       screen.getByText("Loading current work assignments"),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText("My Work could not be verified"),
+      screen.queryByText("My Work could not be loaded"),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByText("No authorised active work returned"),
+      screen.queryByText("No active work to show"),
     ).not.toBeInTheDocument();
     expect(mocks.customFetch).not.toHaveBeenCalled();
   });
@@ -137,7 +137,7 @@ describe("MyWorkInbox", () => {
       "/api/work-inbox?limit=50",
       expect.objectContaining({ cache: "no-store", responseType: "json" }),
     );
-    expect(screen.getByText(/first 50 authorised tasks/u)).toBeInTheDocument();
+    expect(screen.getByText(/first 50 tasks/iu)).toBeInTheDocument();
   });
 
   it("shows loading and then fails closed when the authority-scoped read fails", async () => {
@@ -154,7 +154,7 @@ describe("MyWorkInbox", () => {
     rejectRead(new Error("unavailable"));
     await waitFor(() =>
       expect(
-        screen.getByText("My Work could not be verified"),
+        screen.getByText("My Work could not be loaded"),
       ).toBeInTheDocument(),
     );
   });

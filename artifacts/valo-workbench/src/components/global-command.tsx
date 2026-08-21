@@ -76,7 +76,7 @@ export function GlobalCommand({
         type="button"
         onClick={() => setOpen(true)}
         className="flex min-h-10 w-full max-w-xs items-center gap-2 rounded-md border border-border bg-card px-3 text-sm text-muted-foreground transition-colors hover:border-input hover:text-foreground sm:min-w-56"
-        aria-label="Search navigation and pursuits"
+        aria-label="Search pages and pursuits"
       >
         <Search aria-hidden="true" className="size-4" />
         <span className="min-w-0 flex-1 truncate text-left">Search</span>
@@ -97,7 +97,7 @@ export function GlobalCommand({
                 autoFocus
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search navigation or a pursuit"
+                placeholder="Search pages or a pursuit"
                 className="h-11 pl-10"
               />
             </div>
@@ -108,7 +108,7 @@ export function GlobalCommand({
                 id="search-navigation-heading"
                 className="px-2 pb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground"
               >
-                Navigation
+                Pages
               </h2>
               <div className="space-y-1">
                 {navigationResults.map((item) => (
@@ -148,12 +148,11 @@ export function GlobalCommand({
                     className="px-3 py-4 text-sm text-muted-foreground"
                     role="status"
                   >
-                    Loading authorised pursuits…
+                    Loading pursuits…
                   </p>
                 ) : projectsQuery.isError ? (
                   <p className="px-3 py-4 text-sm text-destructive">
-                    Pursuit search is unavailable. Navigation search remains
-                    active.
+                    Pursuit search is unavailable. You can still search pages.
                   </p>
                 ) : projectResults.length > 0 ? (
                   <div className="space-y-1">
@@ -182,7 +181,7 @@ export function GlobalCommand({
                   </div>
                 ) : normalized ? (
                   <p className="px-3 py-4 text-sm text-muted-foreground">
-                    No authorised pursuit matches this search.
+                    No pursuit you can access matches this search.
                   </p>
                 ) : null}
               </section>

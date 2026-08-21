@@ -314,7 +314,7 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-serif font-medium">Requirement Matrix</h2>
+        <h2 className="text-lg font-serif font-medium">Requirements</h2>
         <div className="flex gap-2">
           {canReviewRequirements && selectMode ? (
             <>
@@ -327,7 +327,7 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
                 variant="default"
               >
                 <GitMerge className="w-4 h-4 mr-2" />
-                Merge Selected
+                Merge selected
               </Button>
               <Button onClick={exitSelectMode} variant="ghost">
                 Cancel
@@ -348,7 +348,7 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
                   </Button>
                   <Button onClick={openAdd} variant="outline">
                     <Plus className="w-4 h-4 mr-2" />
-                    Add Requirement
+                    Add requirement
                   </Button>
                 </>
               )}
@@ -363,7 +363,7 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
                   ) : (
                     <Zap className="w-4 h-4 mr-2" />
                   )}
-                  AI Extraction
+                  Find requirements with AI
                 </Button>
               )}
             </>
@@ -376,10 +376,10 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
           <div className="flex items-center gap-1.5 font-medium">
             <Target className="w-3.5 h-3.5 text-primary" />
             <span className="uppercase tracking-wider text-muted-foreground">
-              Gate 0 Scorecard
+              Initial readiness results
             </span>
           </div>
-          <span title="Engine-alone mandatory recall: verified mandatory requirements the AI surfaced ÷ all verified mandatory requirements. Gate 0 target ≥ 85%.">
+          <span title="AI-only mandatory recall: verified mandatory requirements found by AI ÷ all verified mandatory requirements. Initial readiness target ≥ 85%.">
             Mandatory recall:{" "}
             <strong>
               {totals.mandatoryRecall == null
@@ -503,7 +503,7 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
                         <summary className="cursor-pointer font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                           {req.origin === "engine" &&
                           req.mergedCitations?.length === 1
-                            ? "Show grounded source quote"
+                            ? "Show source quote"
                             : `Show ${req.mergedCitations?.length ?? 0} recorded citation ${
                                 req.mergedCitations?.length === 1
                                   ? "record"
@@ -551,9 +551,9 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
                       req.engineText !== req.text && (
                         <p
                           className="text-xs text-muted-foreground mt-1 italic"
-                          title="Original AI proposal, kept for the engine-vs-human diff."
+                          title="Original AI suggestion, kept for comparison with the reviewer's version."
                         >
-                          Engine proposed: “{req.engineText}”
+                          AI suggested: “{req.engineText}”
                         </p>
                       )}
                     {req.reviewedByName && (
@@ -648,7 +648,7 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
                 onClick={handleExtract}
                 disabled={extractReqs.isPending}
               >
-                Run AI Extraction
+                Find requirements with AI
               </Button>
             )}
           </div>
@@ -662,19 +662,19 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
         <DialogContent className="sm:max-w-[560px]">
           <DialogHeader>
             <DialogTitle className="font-serif">
-              {editing ? "Edit Requirement" : "Add Requirement"}
+              {editing ? "Edit requirement" : "Add requirement"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             {editing?.engineText && (
               <div className="rounded-md bg-muted/40 border border-border px-3 py-2 text-xs text-muted-foreground">
-                <span className="font-medium">Engine proposal:</span>{" "}
+                <span className="font-medium">AI suggestion:</span>{" "}
                 {editing.engineText}
               </div>
             )}
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground uppercase">
-                Requirement Text
+                Requirement text
               </label>
               <Textarea
                 value={form.text}
@@ -707,7 +707,7 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium text-muted-foreground uppercase">
-                  Expected Evidence
+                  Expected evidence
                 </label>
                 <Input
                   value={form.expectedEvidence}
@@ -730,7 +730,7 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
             {editing && (
               <div className="space-y-2">
                 <label className="text-xs font-medium text-muted-foreground uppercase">
-                  Reviewer Notes
+                  Reviewer notes
                 </label>
                 <Textarea
                   value={form.reviewerNotes}
@@ -749,7 +749,7 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
             </Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {editing ? "Save & Mark Edited" : "Add as Confirmed"}
+              {editing ? "Save and mark edited" : "Add as confirmed"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -761,7 +761,7 @@ export function RequirementsTab({ projectId }: { projectId: string }) {
       >
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle className="font-serif">Merge Requirements</DialogTitle>
+            <DialogTitle className="font-serif">Merge requirements</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">

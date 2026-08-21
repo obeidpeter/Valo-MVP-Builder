@@ -105,10 +105,10 @@ function HandoffForm({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Human-confirmed handoff
+              Manual confirmation
             </p>
             <h3 className="mt-1 text-lg font-semibold">
-              Create an intake pursuit
+              Create a draft pursuit
             </h3>
             <p className="mt-1 text-sm text-muted-foreground">
               This creates a draft intake record only. It does not activate a
@@ -132,7 +132,7 @@ function HandoffForm({
           <StatusPanel
             state="blocked"
             title="Client and independent reviewer required"
-            description="Create a tenant client and assign a different current named reviewer before confirming this handoff."
+            description="Add a client to this organisation and choose a different active reviewer before confirming this handoff."
           />
         ) : null}
         {selectedConflict ? (
@@ -235,7 +235,7 @@ function HandoffForm({
             <Label
               htmlFor={`handoff-deadline-${preparation.source.candidateId}`}
             >
-              Deadline confirmed (ISO 8601, blank if absent)
+              Confirmed deadline (ISO 8601; leave blank if none)
             </Label>
             <Input
               id={`handoff-deadline-${preparation.source.candidateId}`}
@@ -298,7 +298,7 @@ export function OpportunityPursuitHandoffPanel(
       <StatusPanel
         state="active"
         title="Intake pursuit created"
-        description={`Named human ${props.preparation.receipt.confirmedByName} confirmed the source handoff. Project ${props.preparation.receipt.projectId} remains in intake and has not been activated.`}
+        description={`${props.preparation.receipt.confirmedByName} confirmed this source. Pursuit ${props.preparation.receipt.projectId} remains in intake and is not active.`}
       >
         <p className="break-all font-mono text-xs text-muted-foreground">
           Receipt {props.preparation.receipt.receiptSha256}

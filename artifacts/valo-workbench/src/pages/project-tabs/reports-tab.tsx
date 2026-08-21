@@ -163,10 +163,10 @@ export function ReportsTab({ projectId }: { projectId: string }) {
     } catch (err) {
       toast({
         variant: "destructive",
-        title: "Project export blocked",
+        title: "Pursuit export blocked",
         description: errorMessage(
           err,
-          "Confirm physical archive instructions before exporting a signed-off project.",
+          "Confirm physical archive instructions before exporting a signed-off pursuit.",
         ),
       });
     } finally {
@@ -177,7 +177,7 @@ export function ReportsTab({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-serif font-medium">Export & Reporting</h2>
+        <h2 className="text-lg font-serif font-medium">Package and export</h2>
         <div className="flex gap-2">
           {canGenerateReport ? (
             <Button
@@ -190,7 +190,7 @@ export function ReportsTab({ projectId }: { projectId: string }) {
               ) : (
                 <ScrollText className="w-4 h-4 mr-2" />
               )}
-              Draft Responsiveness Review
+              Draft responsiveness review
             </Button>
           ) : null}
           {canExportReport ? (
@@ -204,7 +204,7 @@ export function ReportsTab({ projectId }: { projectId: string }) {
               ) : (
                 <Download className="w-4 h-4 mr-2" />
               )}
-              Export ZIP
+              Export ZIP package
             </Button>
           ) : null}
           {canGenerateReport ? (
@@ -217,7 +217,7 @@ export function ReportsTab({ projectId }: { projectId: string }) {
               ) : (
                 <FileBarChart className="w-4 h-4 mr-2" />
               )}
-              Generate Report
+              Generate report
             </Button>
           ) : null}
         </div>
@@ -231,8 +231,8 @@ export function ReportsTab({ projectId }: { projectId: string }) {
         ) : isError ? (
           <div className="p-5">
             <DataErrorPanel
-              title="Report register unavailable"
-              description="The report register could not be loaded. This failure is not an empty report history, so generation is paused until the current state can be checked."
+              title="Report list unavailable"
+              description="The report list could not be loaded. This does not mean the history is empty, so report generation is paused until the current status can be checked."
               onRetry={() => {
                 void reportsQuery.refetch();
               }}
@@ -245,7 +245,7 @@ export function ReportsTab({ projectId }: { projectId: string }) {
                 <TableHead>Version</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Reviewer</TableHead>
-                <TableHead>Generated At</TableHead>
+                <TableHead>Generated at</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -287,7 +287,7 @@ export function ReportsTab({ projectId }: { projectId: string }) {
                           disabled={signOffReport.isPending}
                         >
                           <FileSignature className="w-4 h-4 mr-2" />
-                          Sign Off
+                          Sign off
                         </Button>
                       )}
                       {report.status === "signed_off" && canExportReport && (

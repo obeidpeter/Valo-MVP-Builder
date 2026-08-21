@@ -28,10 +28,10 @@ const TEMPLATE_LABELS: Readonly<Record<CommunicationTemplateId, string>> = {
 
 const STATUS_LABELS: Readonly<Record<CommunicationEvent["status"], string>> = {
   queued: "Queued for human action",
-  prepared: "Attempt durably prepared",
+  prepared: "Attempt recorded",
   accepted_pending_receipt: "Accepted — receipt pending",
   retry_wait: "Known not delivered — retry available",
-  reconciliation_required: "Outcome unknown — reconcile",
+  reconciliation_required: "Outcome unknown — verify receipt",
   delivered: "Verified delivered",
   dead_letter: "Closed without verified delivery",
 };
@@ -74,7 +74,7 @@ function formatInstant(value: string | null): string {
 function contextSummary(event: CommunicationEvent): string {
   switch (event.context.kind) {
     case "deadline":
-      return `Canonical deadline ${formatInstant(event.context.deadlineAt)}`;
+      return `Project deadline ${formatInstant(event.context.deadlineAt)}`;
     case "evidence_request":
       return `Evidence request ${short(event.context.requestId)} · due ${formatInstant(event.context.dueAt)}`;
     case "evidence_correction":
@@ -131,16 +131,18 @@ function QueueIntentForm(props: {
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold">Queue an approved intent</h3>
+          <h3 className="text-base font-semibold">
+            Create an approved message plan
+          </h3>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Choose a named consented participant and a canonical project
-            reference. There is no free-form message, address, UUID, or consent
-            digest field.
+            Choose a named recipient with verified consent and an approved
+            project reference. Free-text messages and manually entered addresses
+            are not allowed.
           </p>
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800">
           <LockKeyhole className="size-3.5" aria-hidden="true" />
-          Content-minimised
+          Minimum data
         </span>
       </div>
 
@@ -165,7 +167,7 @@ function QueueIntentForm(props: {
           </select>
         </label>
         <label className="grid gap-1.5 text-sm font-medium">
-          Canonical template context
+          Approved template and project
           <select
             className="min-h-11 rounded-md border border-input bg-background px-3 py-2"
             required
@@ -195,7 +197,9 @@ function QueueIntentForm(props: {
 
       <div className="flex flex-col gap-3 rounded-lg border bg-muted/35 p-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">Idempotency key</span>{" "}
+          <span className="font-medium text-foreground">
+            Duplicate-prevention key
+          </span>{" "}
           <code className="break-all">{idempotencyKey}</code>
         </div>
         <Button
@@ -204,7 +208,7 @@ function QueueIntentForm(props: {
           size="sm"
           onClick={() => setIdempotencyKey(newIntentKey())}
         >
-          New intent key
+          Generate new key
         </Button>
       </div>
       <div className="flex justify-end">
@@ -213,7 +217,7 @@ function QueueIntentForm(props: {
           disabled={props.pending || !recipient || !selectedContext}
         >
           <Send className="mr-2 size-4" aria-hidden="true" />
-          Queue approved intent
+          Create message plan
         </Button>
       </div>
     </form>
@@ -275,7 +279,7 @@ function EventCard(props: {
           <dd className="mt-1">{formatInstant(props.event.deadlineAt)}</dd>
         </div>
         <div>
-          <dt className="text-xs text-muted-foreground">Attempt ledger</dt>
+          <dt className="text-xs text-muted-foreground">Attempts</dt>
           <dd className="mt-1">
             {props.event.attempts.length} / {props.event.maxAttempts}
           </dd>
@@ -285,7 +289,10 @@ function EventCard(props: {
       {latest ? (
         <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted-foreground">
           <span>
-            Latest: <strong className="text-foreground">{latest.status}</strong>
+            Latest attempt:{" "}
+            <strong className="text-foreground">
+              {latest.status.replaceAll("_", " ")}
+            </strong>
           </span>
           <span>Provider: {latest.provider}</span>
           {latest.nextAttemptAt ? (
@@ -301,7 +308,7 @@ function EventCard(props: {
         <p className="mt-4 flex items-start gap-2 rounded-lg border border-info bg-info/10 p-3 text-sm text-foreground">
           <Clock3 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           Provider acceptance is not delivery. A trusted receipt must be
-          reconciled before Valo will show this as delivered.
+          verified before Valo will show this as delivered.
         </p>
       ) : null}
       {props.event.status === "reconciliation_required" ? (
@@ -310,8 +317,8 @@ function EventCard(props: {
             className="mt-0.5 size-4 shrink-0"
             aria-hidden="true"
           />
-          The provider outcome is unknown. Do not retry; reconcile the same
-          attempt to avoid a duplicate external effect.
+          The provider outcome is unknown. Do not retry. Verify the receipt for
+          the same attempt to avoid sending a duplicate message.
         </p>
       ) : null}
       {props.event.status === "delivered" ? (
@@ -325,7 +332,7 @@ function EventCard(props: {
         <div className="mt-5 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-end sm:justify-end">
           {canReconcile && latest ? (
             <label className="grid flex-1 gap-1.5 text-sm font-medium sm:max-w-md">
-              Opaque receipt reference
+              Receipt reference
               <input
                 className="min-h-10 rounded-md border border-input bg-background px-3 py-2 font-mono text-sm"
                 maxLength={256}
@@ -352,7 +359,7 @@ function EventCard(props: {
               }
             >
               <MailCheck className="mr-2 size-4" aria-hidden="true" />
-              Record human delivery attempt
+              Record delivery attempt
             </Button>
           ) : null}
           {canReconcile && latest ? (
@@ -401,24 +408,28 @@ export function CommunicationsHub(props: {
             Approved templates only
           </h2>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            No arbitrary body or raw recipient address can enter the ledger.
+            Free-text content and raw recipient addresses cannot enter the
+            communication record.
           </p>
         </div>
         <div className="rounded-xl border bg-card p-4">
           <RefreshCw className="size-5 text-sky-700" aria-hidden="true" />
           <h2 className="mt-3 text-sm font-semibold">
-            Human-controlled effects
+            Human-controlled delivery
           </h2>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Every attempt is explicitly started by a named operator and fenced
-            by version.
+            A named operator starts every attempt. Version checks prevent stale
+            updates.
           </p>
         </div>
         <div className="rounded-xl border bg-card p-4">
           <ReceiptText className="size-5 text-violet-700" aria-hidden="true" />
-          <h2 className="mt-3 text-sm font-semibold">Receipt is authority</h2>
+          <h2 className="mt-3 text-sm font-semibold">
+            Verified receipt required
+          </h2>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Provider acceptance remains pending until trusted reconciliation.
+            Provider acceptance stays pending until a trusted receipt is
+            verified.
           </p>
         </div>
       </section>
@@ -445,12 +456,12 @@ export function CommunicationsHub(props: {
           <div>
             <h2 className="text-sm font-semibold">
               {props.snapshot.policy.providersConnected
-                ? "Approved provider configuration detected"
-                : "External providers are disconnected"}
+                ? "Approved message provider is connected"
+                : "Message providers are disconnected"}
             </h2>
             <p className="mt-1 text-xs leading-5">
               {props.snapshot.policy.providersConnected
-                ? "A health and approval check still runs after the pre-effect attempt record is committed."
+                ? "Valo checks provider health and approval after it records the planned attempt."
                 : "Attempts will be recorded as known not delivered. Valo will not simulate or claim an external send."}
             </p>
           </div>
@@ -484,13 +495,13 @@ export function CommunicationsHub(props: {
             }`}
           >
             {props.referencesLoading
-              ? "Valo is resolving the bounded recipient and project reference directory."
-              : "Valo will not accept manually entered participant IDs, consent digests, or project references. Reload after the bounded reference directory is available."}
+              ? "Valo is loading the approved recipient and project choices."
+              : "Manual participant IDs, consent records and project references are not accepted. Reload when the approved choices are available."}
           </p>
         </section>
       ) : (
         <section className="rounded-xl border bg-muted/30 p-5">
-          <h2 className="font-semibold">Read-only communication ledger</h2>
+          <h2 className="font-semibold">Read-only communication log</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Project update permission is required to queue, attempt, or
             reconcile a communication.
@@ -508,10 +519,10 @@ export function CommunicationsHub(props: {
               id="communication-ledger-heading"
               className="text-lg font-semibold"
             >
-              Reconciled delivery ledger
+              Communication log
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {props.snapshot.events.length} purpose-bound intent
+              {props.snapshot.events.length} approved message plan
               {props.snapshot.events.length === 1 ? "" : "s"}
             </p>
           </div>
@@ -522,9 +533,9 @@ export function CommunicationsHub(props: {
               className="mx-auto size-6 text-muted-foreground"
               aria-hidden="true"
             />
-            <h3 className="mt-3 font-semibold">No communication intents</h3>
+            <h3 className="mt-3 font-semibold">No message plans</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Nothing has been sent or inferred for this pursuit.
+              Nothing has been sent or assumed for this pursuit.
             </p>
           </div>
         ) : (

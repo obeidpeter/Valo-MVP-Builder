@@ -59,12 +59,10 @@ describe("ClientActionUploadControl", () => {
     const selected = new File([new Uint8Array([1, 2, 3])], "proof.pdf", {
       type: "application/pdf",
     });
-    fireEvent.change(screen.getByLabelText(/Exact file for proof\.pdf/u), {
+    fireEvent.change(screen.getByLabelText(/File for proof\.pdf/u), {
       target: { files: [selected] },
     });
-    fireEvent.click(
-      screen.getByRole("button", { name: /Verify, upload and finalize/u }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /Check and upload/u }));
     await screen.findByRole("alert");
     const persistedKey = firstUpload.mock.calls[0]?.[0].idempotencyKey;
     first.unmount();
@@ -78,17 +76,15 @@ describe("ClientActionUploadControl", () => {
     );
     render(<ClientActionUploadControl {...props} onUpload={recoveredUpload} />);
     expect(screen.getByRole("status")).toHaveTextContent(
-      /pending governed lease was recovered/u,
+      /pending upload was recovered/u,
     );
     expect(
-      screen.getByRole("button", { name: /Verify, upload and finalize/u }),
+      screen.getByRole("button", { name: /Check and upload/u }),
     ).toBeDisabled();
-    fireEvent.change(screen.getByLabelText(/Exact file for proof\.pdf/u), {
+    fireEvent.change(screen.getByLabelText(/File for proof\.pdf/u), {
       target: { files: [selected] },
     });
-    fireEvent.click(
-      screen.getByRole("button", { name: /Verify, upload and finalize/u }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /Check and upload/u }));
     await waitFor(() => expect(recoveredUpload).toHaveBeenCalledOnce());
     expect(recoveredUpload.mock.calls[0]?.[0].idempotencyKey).toBe(
       persistedKey,
@@ -127,27 +123,23 @@ describe("ClientActionUploadControl", () => {
     const selectedFile = new File([new Uint8Array([1, 2, 3])], "proof.pdf", {
       type: "application/pdf",
     });
-    fireEvent.change(screen.getByLabelText(/Exact file for proof\.pdf/u), {
+    fireEvent.change(screen.getByLabelText(/File for proof\.pdf/u), {
       target: { files: [selectedFile] },
     });
-    fireEvent.click(
-      screen.getByRole("button", { name: /Verify, upload and finalize/u }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /Check and upload/u }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /signed transfer result is unknown/u,
     );
-    expect(screen.getByRole("alert")).toHaveTextContent(/durable reconciler/u);
     expect(screen.getByRole("alert")).toHaveTextContent(
-      /Lease expiry recorded/u,
+      /server, not this browser, confirms cleanup/u,
     );
+    expect(screen.getByRole("alert")).toHaveTextContent(/Upload slot expires/u);
     const firstKey = onUpload.mock.calls[0]?.[0].idempotencyKey;
-    fireEvent.change(screen.getByLabelText(/Exact file for proof\.pdf/u), {
+    fireEvent.change(screen.getByLabelText(/File for proof\.pdf/u), {
       target: { files: [selectedFile] },
     });
-    fireEvent.click(
-      screen.getByRole("button", { name: /Verify, upload and finalize/u }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /Check and upload/u }));
     await waitFor(() => expect(onUpload).toHaveBeenCalledTimes(2));
     expect(onUpload.mock.calls[1]?.[0].idempotencyKey).toBe(firstKey);
 
@@ -155,7 +147,7 @@ describe("ClientActionUploadControl", () => {
       screen.getByRole("button", { name: /Discard local selection/u }),
     );
     expect(screen.getByRole("status")).toHaveTextContent(
-      /does not cancel a server lease or claim deletion/u,
+      /does not cancel the upload slot or prove that a temporary upload was deleted/u,
     );
   });
 
@@ -196,7 +188,7 @@ describe("ClientActionUploadControl", () => {
         onReload={vi.fn()}
       />,
     );
-    fireEvent.change(screen.getByLabelText(/Exact file for proof\.pdf/u), {
+    fireEvent.change(screen.getByLabelText(/File for proof\.pdf/u), {
       target: {
         files: [
           new File([new Uint8Array([9, 9, 9])], "proof.pdf", {
@@ -205,9 +197,7 @@ describe("ClientActionUploadControl", () => {
         ],
       },
     });
-    fireEvent.click(
-      screen.getByRole("button", { name: /Verify, upload and finalize/u }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /Check and upload/u }));
     await screen.findByRole("alert");
     expect(sessionStorage.getItem(storageKey)).toBe(before);
     expect(preflight.mock.calls[0]?.[0].idempotencyKey).toBe(
@@ -224,7 +214,7 @@ describe("ClientActionUploadControl", () => {
       />,
     );
     expect(screen.getByRole("status")).toHaveTextContent(
-      /pending governed lease was recovered/u,
+      /pending upload was recovered/u,
     );
   });
 
@@ -246,7 +236,7 @@ describe("ClientActionUploadControl", () => {
         onReload={onReload}
       />,
     );
-    fireEvent.change(screen.getByLabelText(/Exact file for proof\.pdf/u), {
+    fireEvent.change(screen.getByLabelText(/File for proof\.pdf/u), {
       target: {
         files: [
           new File([new Uint8Array([1, 2, 3])], "proof.pdf", {
@@ -255,17 +245,15 @@ describe("ClientActionUploadControl", () => {
         ],
       },
     });
-    fireEvent.click(
-      screen.getByRole("button", { name: /Verify, upload and finalize/u }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /Check and upload/u }));
     expect(
-      await screen.findByRole("button", { name: /Reload exact request/u }),
+      await screen.findByRole("button", { name: /Reload current request/u }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Retry same operation/u }),
+      screen.queryByRole("button", { name: /Retry same upload/u }),
     ).not.toBeInTheDocument();
     fireEvent.click(
-      screen.getByRole("button", { name: /Reload exact request/u }),
+      screen.getByRole("button", { name: /Reload current request/u }),
     );
     await waitFor(() => expect(onReload).toHaveBeenCalledOnce());
   });
@@ -287,7 +275,7 @@ describe("ClientActionUploadControl", () => {
         onReload={vi.fn()}
       />,
     );
-    fireEvent.change(screen.getByLabelText(/Exact file for proof\.pdf/u), {
+    fireEvent.change(screen.getByLabelText(/File for proof\.pdf/u), {
       target: {
         files: [
           new File([new Uint8Array([1, 2, 3])], "proof.pdf", {
@@ -296,19 +284,17 @@ describe("ClientActionUploadControl", () => {
         ],
       },
     });
-    fireEvent.click(
-      screen.getByRole("button", { name: /Verify, upload and finalize/u }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /Check and upload/u }));
     expect(
       await screen.findByRole("button", {
-        name: /Reload authoritative state/u,
+        name: /Reload current status/u,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Verify, upload and finalize/u }),
+      screen.queryByRole("button", { name: /Check and upload/u }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Retry same operation/u }),
+      screen.queryByRole("button", { name: /Retry same upload/u }),
     ).not.toBeInTheDocument();
   });
 });

@@ -43,7 +43,7 @@ describe("Intelligence Centre", () => {
     const { container } = render(<IntelligenceCentre />);
 
     expect(
-      screen.getByRole("heading", { name: "Intelligence Centre" }),
+      screen.getByRole("heading", { name: "Bid insights" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
@@ -52,16 +52,16 @@ describe("Intelligence Centre", () => {
     ).toBeInTheDocument();
     expect(container.querySelectorAll("[data-capability-id]")).toHaveLength(22);
     expect(
-      screen.getAllByText(/Current Level 0 · Target ceiling Level [12]/),
+      screen.getAllByText(/Current level 0 · Maximum planned level [12]/),
     ).toHaveLength(22);
     expect(
       screen.getByRole("heading", {
-        name: "Advanced decision-support engines",
+        name: "Advanced decision support",
       }),
     ).toBeInTheDocument();
     expect(screen.getByText("Current runtime")).toBeInTheDocument();
     expect(screen.getByText("Level 0")).toBeInTheDocument();
-    expect(screen.getByText(/No model previews/i)).toBeInTheDocument();
+    expect(screen.getByText(/AI previews/i)).toBeInTheDocument();
     expect(
       screen.getByText(/Valo does not approve evidence/i),
     ).toBeInTheDocument();
@@ -74,7 +74,7 @@ describe("Intelligence Centre", () => {
     );
 
     expect(
-      screen.getByText("Loading tenant-scoped intelligence evidence"),
+      screen.getByText("Loading intelligence evidence for this organisation"),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", {
@@ -123,13 +123,15 @@ describe("Intelligence Centre", () => {
     );
     expect(
       screen.getByRole("heading", {
-        name: "The intelligence snapshot is incomplete",
+        name: "The current intelligence data is incomplete",
       }),
     ).toBeInTheDocument();
     expect(screen.getByText(/21 of 22 capability states/i)).toBeInTheDocument();
     expect(screen.getByText("Invitation to Tender.pdf")).toBeInTheDocument();
     expect(screen.getByText("Page 14 · Clause 3.2")).toBeInTheDocument();
-    expect(screen.getByText(/A named reviewer verifies/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/A named reviewer checks every source quote/i),
+    ).toBeInTheDocument();
   });
 
   it("makes Restricted Mode explicit without implying that it was bypassed", () => {

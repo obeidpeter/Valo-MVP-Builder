@@ -360,16 +360,16 @@ export function parseBindingLines(value: string): ClaimsDeskDocumentBinding[] {
         !SHA.test(sha256)
       ) {
         throw new Error(
-          "Use one canonical document UUID and SHA-256 pair per line",
+          "Use one approved document ID and SHA-256 pair per line",
         );
       }
       return { documentId, sha256 };
     });
   if (rows.length < 1 || rows.length > 10) {
-    throw new Error("Provide between one and ten canonical document bindings");
+    throw new Error("Provide between one and ten approved document records");
   }
   if (new Set(rows.map((row) => row.documentId)).size !== rows.length) {
-    throw new Error("Each document may be bound once");
+    throw new Error("Each approved document may be included once");
   }
   return rows;
 }

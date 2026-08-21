@@ -17,10 +17,12 @@ describe("retention completion activation gate", () => {
   });
 
   it("states the durable lifecycle coverage required before reactivation", () => {
-    expect(source).toContain("no data is deleted");
-    expect(source).toMatch(/no\s+deletion certificate is issued/u);
-    expect(source).toContain("two-phase detach, reconcile and certify");
-    expect(source).toContain("upload sessions");
-    expect(source).toContain("storage-lifecycle");
+    expect(source).toMatch(/cannot delete\s+data/u);
+    expect(source).toMatch(
+      /cannot delete\s+data or issue a deletion certificate/u,
+    );
+    expect(source).toContain("approved two-step process");
+    expect(source).toContain("uploads");
+    expect(source).toMatch(/storage\s+lifecycle records/u);
   });
 });

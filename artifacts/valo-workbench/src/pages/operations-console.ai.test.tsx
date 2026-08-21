@@ -141,7 +141,7 @@ describe("AI operations console", () => {
     render(<OperationsConsole />);
 
     expect(
-      screen.getByRole("heading", { name: "AI control plane" }),
+      screen.getByRole("heading", { name: "AI service controls" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
@@ -154,7 +154,7 @@ describe("AI operations console", () => {
     expect(screen.getByText("release_evidence_missing")).toBeInTheDocument();
     expect(screen.getByText("ai-foundation-v1")).toBeInTheDocument();
     expect(
-      screen.getByText(/No configured model adapter is eligible/i),
+      screen.getByText(/No approved model provider is eligible/i),
     ).toBeInTheDocument();
     expect(screen.getAllByText("extract requirements").length).toBeGreaterThan(
       0,
@@ -181,7 +181,7 @@ describe("AI operations console", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "No tenant AI runs are recorded",
+        name: "No AI runs are recorded for this organisation",
       }),
     ).toBeInTheDocument();
     expect(
@@ -189,11 +189,11 @@ describe("AI operations console", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: "No tenant evaluation runs are recorded",
+        name: "No evaluation runs are recorded for this organisation",
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/no promotion decision can be inferred/i),
+      screen.getByText(/does not show that a promotion decision was made/i),
     ).toBeInTheDocument();
   });
 
@@ -205,12 +205,12 @@ describe("AI operations console", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "AI control-plane status could not be loaded",
+        name: "AI service status could not be loaded",
       }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", {
-        name: "No tenant AI runs are recorded",
+        name: "No AI runs are recorded for this organisation",
       }),
     ).not.toBeInTheDocument();
   });
@@ -238,7 +238,7 @@ describe("AI operations console", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "AI control plane is in development mode",
+        name: "AI services are in development mode",
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByText("Not evaluated").length).toBeGreaterThan(0);

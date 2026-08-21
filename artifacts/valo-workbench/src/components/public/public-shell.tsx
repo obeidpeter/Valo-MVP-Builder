@@ -14,8 +14,8 @@ import { ValoMark } from "@/components/valo-mark";
 import { cn } from "@/lib/utils";
 
 const NAVIGATION = [
-  { href: "/#how-it-works", label: "How It Works" },
-  { href: "/#what-we-check", label: "What We Check" },
+  { href: "/#how-it-works", label: "How it works" },
+  { href: "/#what-we-check", label: "What we check" },
   { href: "/#services", label: "Services" },
   { href: "/#trust", label: "Trust" },
   { href: "/#faq", label: "FAQ" },
@@ -109,7 +109,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
             <PublicNavigation />
             <div className="ml-2 flex items-center gap-2 border-l border-border pl-4">
               <Button asChild variant="ghost" className="min-h-11">
-                <Link href="/sign-in">Sign In</Link>
+                <Link href="/sign-in">Sign in</Link>
               </Button>
               <BidAutopsyCta className="rounded-lg shadow-sm" />
             </div>
@@ -145,7 +145,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
               />
               <div className="grid gap-2 border-t border-border pt-4 sm:grid-cols-2">
                 <Button asChild variant="outline" className="min-h-11">
-                  <Link href="/sign-in">Sign In</Link>
+                  <Link href="/sign-in">Sign in</Link>
                 </Button>
                 <BidAutopsyCta />
               </div>
@@ -161,15 +161,15 @@ export function PublicShell({ children }: { children: ReactNode }) {
           <div className="max-w-md space-y-4">
             <ValoMark className="text-sidebar-primary" />
             <p className="text-sm leading-6 text-sidebar-foreground/70">
-              Designed for AI-assisted, human-verified bid readiness and
-              disqualification defence for Nigerian public, oil-and-gas and
-              donor-funded tenders. Model-assisted steps operate only where
-              provider, privacy and evaluation gates are approved; human review
-              remains authoritative.
+              Valo helps Nigerian public-sector, oil-and-gas and donor-funded
+              bid teams find problems before submission. AI-assisted steps run
+              only after the required AI service, privacy and model-evaluation
+              approvals. A named human reviewer makes the final decision.
             </p>
             <p className="text-xs leading-5 text-sidebar-foreground/60">
-              Valo strengthens review and remediation. It does not guarantee an
-              award, evaluator acceptance or the absence of all bid risk.
+              Valo supports review and correction. It cannot guarantee an award,
+              that an evaluator will accept the bid, or that every risk will be
+              found.
             </p>
           </div>
           <div>
@@ -207,7 +207,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
                   className="flex min-h-11 items-center hover:text-sidebar-foreground"
                   href="/sign-in"
                 >
-                  Sign In
+                  Sign in
                 </Link>
               </li>
               <li>
@@ -240,7 +240,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
         <div className="border-t border-sidebar-border">
           <div className="content-shell flex flex-col gap-2 py-5 text-xs text-sidebar-foreground/55 sm:flex-row sm:items-center sm:justify-between">
             <p>&copy; {new Date().getFullYear()} Valo. All rights reserved.</p>
-            <p>Nigeria-focused. Human-reviewed. Audit-conscious.</p>
+            <p>Built for Nigerian tenders. Human-reviewed. Actions recorded.</p>
           </div>
         </div>
       </footer>

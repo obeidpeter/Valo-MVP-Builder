@@ -132,7 +132,7 @@ export function RecordsBoundary({
 }
 
 export function HumanAuthorityNotice({
-  title = "Named-human control",
+  title = "A named person must decide",
   children,
 }: {
   title?: string;

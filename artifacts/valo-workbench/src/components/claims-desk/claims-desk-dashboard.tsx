@@ -25,11 +25,11 @@ export function ClaimsDeskDashboard({
     { label: "Overdue", value: snapshot.posture.overdue, icon: AlertTriangle },
     { label: "Due in 7 days", value: snapshot.posture.dueSoon, icon: Clock3 },
     {
-      label: "Awaiting checker",
+      label: "Awaiting second review",
       value: snapshot.posture.awaitingChecker,
       icon: Scale,
     },
-    { label: "Terminal", value: snapshot.posture.terminal, icon: CheckCircle2 },
+    { label: "Closed", value: snapshot.posture.terminal, icon: CheckCircle2 },
   ] as const;
 
   return (
@@ -37,13 +37,13 @@ export function ClaimsDeskDashboard({
       <div className="overflow-hidden rounded-3xl border border-sidebar-border bg-sidebar p-6 text-sidebar-foreground sm:p-8">
         <div className="max-w-3xl space-y-3">
           <Badge className="bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent">
-            Project ledger · {label(snapshot.projectStatus)}
+            Project record · {label(snapshot.projectStatus)}
           </Badge>
           <h1
             id="claims-desk-title"
             className="text-3xl font-semibold tracking-tight sm:text-4xl"
           >
-            Commercial &amp; Claims Desk
+            Claims
           </h1>
           <p className="text-sm leading-6 text-sidebar-foreground/80 sm:text-base">
             {snapshot.authorityNote}
@@ -53,7 +53,7 @@ export function ClaimsDeskDashboard({
 
       <div
         className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5"
-        aria-label="Claims Desk posture"
+        aria-label="Claims summary"
       >
         {metrics.map(({ label: metricLabel, value, icon: Icon }) => (
           <Card key={metricLabel}>
@@ -72,13 +72,12 @@ export function ClaimsDeskDashboard({
 
       <Card>
         <CardHeader>
-          <CardTitle>Bounded project register</CardTitle>
+          <CardTitle>Project records</CardTitle>
         </CardHeader>
         <CardContent>
           {snapshot.records.length === 0 ? (
             <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-              No commercial workflow evidence has been recorded for this
-              project.
+              No claims evidence has been recorded for this project.
             </div>
           ) : (
             <div className="space-y-3">
@@ -115,14 +114,14 @@ export function ClaimsDeskDashboard({
                   </div>
                   <dl className="mt-4 grid gap-3 text-xs text-muted-foreground sm:grid-cols-3">
                     <div>
-                      <dt>Canonical evidence</dt>
+                      <dt>Approved document evidence</dt>
                       <dd className="mt-1 font-mono text-foreground">
                         {record.documentBindings.length} document
                         {record.documentBindings.length === 1 ? "" : "s"}
                       </dd>
                     </div>
                     <div>
-                      <dt>Latest immutable receipt</dt>
+                      <dt>Latest receipt</dt>
                       <dd
                         className="mt-1 font-mono text-foreground"
                         title={record.latestReceiptSha256}
@@ -140,8 +139,7 @@ export function ClaimsDeskDashboard({
                   {record.reasonHistory.length > 0 ? (
                     <details className="mt-4 text-sm">
                       <summary className="cursor-pointer font-medium">
-                        Controlled reason history ({record.reasonHistory.length}
-                        )
+                        Reason history ({record.reasonHistory.length})
                       </summary>
                       <ol className="mt-3 space-y-2 border-l pl-4">
                         {record.reasonHistory.map((entry) => (

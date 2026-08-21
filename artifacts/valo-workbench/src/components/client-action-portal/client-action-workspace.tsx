@@ -83,7 +83,7 @@ function EvidenceRequestCreator(props: {
       <StatusPanel
         state="pending"
         title="Loading named recipients"
-        description="No recipient identifier is inferred while the current project authority directory is loading."
+        description="Waiting for the current pursuit member list. No recipient is selected until it loads."
       />
     );
   }
@@ -92,7 +92,7 @@ function EvidenceRequestCreator(props: {
       <StatusPanel
         state="error"
         title="Named recipients are unavailable"
-        description="Creating a request is disabled until the exact project-scoped authority directory can be verified."
+        description="Request creation is off until the member list and permissions can be checked."
       />
     );
   }
@@ -101,7 +101,7 @@ function EvidenceRequestCreator(props: {
       <StatusPanel
         state="empty"
         title="No eligible named recipient"
-        description="The server returned no other current direct member with document-intake authority for this project organisation."
+        description="No other active member with permission to receive documents is available for this organisation."
       />
     );
   }
@@ -133,7 +133,7 @@ function EvidenceRequestCreator(props: {
     >
       <div>
         <h2 id="create-evidence-request-heading" className="font-semibold">
-          Create a bounded evidence request
+          Create an evidence request
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           This records an in-product request only. It does not email, message,
@@ -286,7 +286,7 @@ export function ClientActionWorkspace({
       <StatusPanel
         state="partial"
         title="Controlled actions only"
-        description="This workspace records acknowledgements and exact upload intents. For the current named recipient only, an acknowledged active intent can use governed direct-to-storage intake; the Valo API never accepts raw file bytes, and no message or package transfer is performed."
+        description="This workspace records acknowledgements and planned uploads. The named recipient can upload directly to approved storage after acknowledging an active request. Valo does not receive the file itself or send messages or packages."
       />
 
       {canCreateEvidenceRequest ? (
@@ -391,7 +391,7 @@ export function ClientActionWorkspace({
                             <p className="text-xs text-muted-foreground">
                               {slot.required ? "Required" : "Optional"} ·{" "}
                               {slot.acceptedContentTypes.join(", ") ||
-                                "Any canonical intake type"}
+                                "Any approved intake type"}
                             </p>
                           </div>
                           {attempt?.review ? (
@@ -586,8 +586,8 @@ export function ClientActionWorkspace({
                           ) : (
                             <StatusPanel
                               state="unavailable"
-                              title="Governed upload is not current"
-                              description="Reload the exact acknowledged request, named recipient, active slot, latest intent and record version before selecting file bytes."
+                              title="Upload details are out of date"
+                              description="Reload the acknowledged request, recipient, open slot and latest upload record before selecting a file."
                             />
                           )
                         ) : null}

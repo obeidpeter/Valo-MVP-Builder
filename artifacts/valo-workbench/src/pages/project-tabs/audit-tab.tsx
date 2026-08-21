@@ -19,7 +19,7 @@ export function AuditTab({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-serif font-medium">Audit Trail</h2>
+        <h2 className="text-lg font-serif font-medium">Activity and audit</h2>
       </div>
 
       {hasLegacyArchive ? (
@@ -34,9 +34,10 @@ export function AuditTab({ projectId }: { projectId: string }) {
           <div>
             <p className="font-semibold">Preserved legacy v1 evidence</p>
             <p className="mt-1 leading-5">
-              Amber events come from the read-only legacy archive. A payload
-              hash may verify without proving an intact chain; rows marked known
-              discontinuity must not be treated as active-chain verified.
+              Amber events come from the read-only legacy archive. A record
+              fingerprint can match without proving an unbroken audit chain.
+              Treat rows marked known discontinuity as unverified by the active
+              chain.
             </p>
           </div>
         </div>

@@ -205,7 +205,7 @@ export default function SbdDetails() {
         className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
       >
         <ArrowLeft className="w-4 h-4" />
-        SBD Corpus
+        Standard bidding documents
       </Link>
 
       <div className="flex items-start justify-between gap-4">
@@ -254,7 +254,7 @@ export default function SbdDetails() {
                 ) : (
                   <GitBranch className="w-4 h-4 mr-2" />
                 )}
-                New Version
+                New version
               </Button>
               <Button
                 size="icon"
@@ -278,7 +278,7 @@ export default function SbdDetails() {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-serif tracking-tight font-medium">
-            Agency-Format Annotations
+            Agency format notes
           </h2>
           {canReviewRequirements && (
             <Button
@@ -287,7 +287,7 @@ export default function SbdDetails() {
               onClick={() => setAnnDialogOpen(true)}
             >
               <Plus className="w-4 h-4 mr-2" />
-              Add Annotation
+              Add note
             </Button>
           )}
         </div>
@@ -336,10 +336,9 @@ export default function SbdDetails() {
           ) : (
             <div className="p-10 text-center text-muted-foreground">
               <Tag className="w-10 h-10 mx-auto mb-3 text-muted" />
-              <p>No annotations captured for this template version.</p>
+              <p>No agency format notes for this template version.</p>
               <p className="text-sm mt-1">
-                Record agency-specific format quirks and mandatory deviations
-                here.
+                Record agency-specific formatting and required deviations here.
               </p>
             </div>
           )}
@@ -352,7 +351,9 @@ export default function SbdDetails() {
       >
         <DialogContent className="sm:max-w-[520px]">
           <DialogHeader>
-            <DialogTitle className="font-serif">Add Annotation</DialogTitle>
+            <DialogTitle className="font-serif">
+              Add agency format note
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-4">
@@ -403,7 +404,7 @@ export default function SbdDetails() {
             </div>
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground uppercase">
-                Quirk / Note
+                Format note
               </label>
               <Textarea
                 placeholder="Describe the format quirk or deviation to watch for."
@@ -425,7 +426,7 @@ export default function SbdDetails() {
               {createAnnotation.isPending && (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               )}
-              Add Annotation
+              Add note
             </Button>
           </DialogFooter>
         </DialogContent>

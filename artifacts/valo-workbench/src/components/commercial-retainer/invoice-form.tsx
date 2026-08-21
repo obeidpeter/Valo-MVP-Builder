@@ -116,7 +116,7 @@ export function InvoiceForm({
         </FormField>
         <div className="sm:col-span-2">
           <Button type="submit" disabled={busy}>
-            Record invoice without provider call
+            Record invoice without contacting a provider
           </Button>
         </div>
       </form>

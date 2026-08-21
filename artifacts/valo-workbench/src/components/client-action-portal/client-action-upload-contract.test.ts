@@ -84,7 +84,7 @@ describe("governed Client Action upload adapters", () => {
         },
         binding,
       ),
-    ).toThrow(/Invalid governed client-upload response/u);
+    ).toThrow(/Invalid client-upload response/u);
   });
 
   it("rejects additional fields and unsafe signed URL authority", () => {
@@ -93,19 +93,19 @@ describe("governed Client Action upload adapters", () => {
         { ...rawLease(), unexpected: "field" },
         binding,
       ),
-    ).toThrow(/Invalid governed client-upload response/u);
+    ).toThrow(/Invalid client-upload response/u);
     expect(() =>
       adaptClientActionUploadLeaseGrant(
         { ...rawLease(), uploadUrl: "data:text/plain,bytes" },
         binding,
       ),
-    ).toThrow(/Invalid governed client-upload response/u);
+    ).toThrow(/Invalid client-upload response/u);
     expect(() =>
       adaptClientActionUploadLeaseGrant(
         { ...rawLease(), lateRewriteClosure: "signed-expiry-only" },
         binding,
       ),
-    ).toThrow(/Invalid governed client-upload response/u);
+    ).toThrow(/Invalid client-upload response/u);
   });
 
   it("binds the final receipt to the same lease and next record version", () => {
@@ -124,6 +124,6 @@ describe("governed Client Action upload adapters", () => {
         binding,
         lease,
       ),
-    ).toThrow(/Invalid governed client-upload response/u);
+    ).toThrow(/Invalid client-upload response/u);
   });
 });

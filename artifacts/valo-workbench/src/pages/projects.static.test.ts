@@ -11,8 +11,8 @@ describe("project register source controls", () => {
   it("does not claim creation-time authority over the commercial gate", () => {
     expect(source).not.toContain("paymentStatus");
     expect(source).not.toContain("Payment Gate");
-    expect(source).toContain("Every new project starts payment pending");
-    expect(source).toContain("cannot be selected here");
+    expect(source).toContain("Every new pursuit starts with payment pending");
+    expect(source).toContain("it cannot be changed here");
   });
 
   it("never silently chooses a reviewer", () => {

@@ -62,7 +62,7 @@ export function adaptCommercialRetainerSnapshot(
     snapshot.serviceRequests,
   ];
   if (boundedArrays.some((items) => items.length > 50)) {
-    throw new Error("Commercial snapshot exceeds its bounded contract");
+    throw new Error("Commercial record contains too many items");
   }
   return snapshot as unknown as CommercialRetainerSnapshotView;
 }
@@ -149,7 +149,7 @@ export default function CommercialRetainerPage() {
         variant: "destructive",
         title: "Commercial record was not saved",
         description:
-          "Refresh the tenant-scoped ledger before retrying. No provider call or external message was made.",
+          "Reload this organisation's commercial record before trying again. No provider was called and no external message was sent.",
       });
     },
   });
@@ -159,7 +159,7 @@ export default function CommercialRetainerPage() {
       <PageGatePanel
         state="blocked"
         title="Direct commercial membership required"
-        description="This private ledger requires current direct organisation membership with billing-read and entitlement-read authority. Partner-derived and break-glass access are not accepted."
+        description="You need a current direct organisation membership with permission to read billing and entitlements. Partner access and emergency access are not accepted."
       />
     );
   }
@@ -178,8 +178,8 @@ export default function CommercialRetainerPage() {
     return (
       <PageGatePanel
         state="pending"
-        title="Loading the private commercial ledger"
-        description="Checking fixed offer versions, named actors, manual reconciliation evidence and active entitlements."
+        title="Loading commercial records"
+        description="Checking approved offers, named reviewers, payment evidence and active entitlements."
       />
     );
   }
@@ -194,7 +194,7 @@ export default function CommercialRetainerPage() {
       <PageGatePanel
         state="error"
         title="Commercial records could not be verified"
-        description="The safe state is unavailable. No empty ledger, payment, entitlement or service capacity has been inferred."
+        description="We could not verify the commercial records. We have not treated them as empty or assumed any payment, entitlement or service capacity."
       >
         <Button
           type="button"
@@ -214,8 +214,8 @@ export default function CommercialRetainerPage() {
     <div className="mx-auto w-full max-w-7xl space-y-7 p-5 sm:p-8">
       <PageHeader
         eyebrow="Commercial & retainer controls"
-        title="Quote-to-cash and service desk"
-        description="A private human-controlled ledger for fixed offers, maker-checker approval, manual payment evidence, entitlements and purpose-bound retainer requests."
+        title="Quotes, invoices & retainers"
+        description="Review fixed offers, two-person approvals, manually verified payments, service access and retainer requests. People remain responsible for every decision."
         state={
           snapshotQuery.data.activation.fixedPriceBookReady
             ? "partial"

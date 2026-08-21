@@ -18,6 +18,11 @@ describe("public SEO and privacy boundary", () => {
     expect(html).toContain('property="og:image"');
     expect(html).not.toContain("maximum-scale");
     expect(html).not.toContain("fonts.googleapis.com");
+    expect(html).toContain("bill of quantities (BOQ)");
+    expect(html).toContain(
+      "Turn on JavaScript to view Valo's public pages or sign in securely.",
+    );
+    expect(html).not.toContain("responsiveness risks");
   });
 
   it("recognises only the exact approved production origin", () => {
@@ -91,7 +96,12 @@ describe("public SEO and privacy boundary", () => {
       id?: string;
       start_url?: string;
       display?: string;
-      shortcuts?: Array<{ url?: string }>;
+      shortcuts?: Array<{
+        name?: string;
+        short_name?: string;
+        description?: string;
+        url?: string;
+      }>;
     };
     const html = readFileSync(resolve(root, "index.html"), "utf8");
 
@@ -104,6 +114,18 @@ describe("public SEO and privacy boundary", () => {
       "/projects",
       "/operations",
     ]);
+    expect(manifest.shortcuts).toEqual([
+      expect.objectContaining({
+        name: "Pursuits",
+        short_name: "Pursuits",
+        description: "Open your secure pursuit workspace.",
+      }),
+      expect.objectContaining({
+        name: "Operations",
+        short_name: "Operations",
+        description: "Open reviews and AI service status.",
+      }),
+    ]);
     expect(html).toContain('name="mobile-web-app-capable" content="yes"');
     expect(html).toContain('name="apple-mobile-web-app-capable" content="yes"');
 
@@ -113,5 +135,32 @@ describe("public SEO and privacy boundary", () => {
     expect(readFileSync(resolve(root, "src", "main.tsx"), "utf8")).not.toMatch(
       /serviceWorker|navigator\.serviceWorker/,
     );
+  });
+
+  it("keeps public integrity and human-review boundaries explicit", () => {
+    const landing = readFileSync(
+      resolve(root, "src", "components", "public", "landing-sections.tsx"),
+      "utf8",
+    );
+    const terms = readFileSync(
+      resolve(root, "src", "pages", "public-pages.tsx"),
+      "utf8",
+    );
+    const signIn = readFileSync(
+      resolve(root, "src", "pages", "sign-in.tsx"),
+      "utf8",
+    );
+
+    expect(landing).toContain(
+      "No facilitation, relationship brokering, evaluator intelligence, collusion or portal submission",
+    );
+    expect(terms).toContain("treat unreviewed AI");
+    expect(terms).toContain("output as authoritative");
+    expect(terms).toContain("before a named person reviews it");
+    expect(terms).toContain("required readiness, security or service checks");
+    expect(signIn).toContain(
+      "Valo must also confirm an active membership for your",
+    );
+    expect(signIn).not.toContain("membership approved by your organisation");
   });
 });

@@ -106,7 +106,7 @@ export default function ReconciledCommunicationsRoute() {
         activeScope.current.organisationId !== requestedScope.organisationId ||
         activeScope.current.projectId !== requestedScope.projectId
       ) {
-        throw new Error("Communication scope changed while the ledger loaded");
+        throw new Error("Communication scope changed while the history loaded");
       }
       return result;
     },
@@ -165,13 +165,13 @@ export default function ReconciledCommunicationsRoute() {
       toast({
         title:
           input.kind === "queue"
-            ? "Communication intent queued"
+            ? "Message plan created"
             : input.kind === "attempt"
-              ? "Delivery attempt reconciled to the ledger"
+              ? "Delivery attempt added to the record"
               : "Provider receipt checked",
         description:
           input.kind === "attempt"
-            ? "Provider acceptance, if any, remains pending until a trusted delivery receipt is verified."
+            ? "The provider may have accepted the request, but delivery stays pending until a trusted receipt is verified."
             : undefined,
       });
       void queryClient.invalidateQueries({ queryKey });
@@ -182,7 +182,7 @@ export default function ReconciledCommunicationsRoute() {
         variant: "destructive",
         title: "Communication action could not be verified",
         description:
-          "Reload this pursuit before retrying. Do not infer that a message was sent or delivered.",
+          "Reload this pursuit before trying again. Do not assume that a message was sent or delivered.",
       });
       void queryClient.invalidateQueries({ queryKey });
       void queryClient.invalidateQueries({ queryKey: referenceKey });
@@ -194,7 +194,7 @@ export default function ReconciledCommunicationsRoute() {
       <PageGatePanel
         state="blocked"
         title="Direct membership required"
-        description="The communications ledger is unavailable through partner-derived or emergency access."
+        description="This communication record requires direct organisation membership. Partner access and emergency access are not accepted."
       />
     );
   }
@@ -210,7 +210,7 @@ export default function ReconciledCommunicationsRoute() {
       <PageGatePanel
         state="error"
         title="Available pursuits could not be verified"
-        description="No communication scope or delivery state has been inferred."
+        description="We have not assumed any communication scope or delivery status."
       />
     );
   }
@@ -219,7 +219,7 @@ export default function ReconciledCommunicationsRoute() {
       <PageGatePanel
         state="empty"
         title="No pursuit is available"
-        description="Select an authorised pursuit before recording a communication intent."
+        description="Select an authorised pursuit before creating a message plan."
       />
     );
   }
@@ -238,8 +238,8 @@ export default function ReconciledCommunicationsRoute() {
             Active pursuit
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Intents, attempts, consent, and receipts remain scoped to this exact
-            project.
+            All message plans, attempts, consent records and receipts are
+            limited to this project.
           </p>
         </div>
         <label
@@ -268,22 +268,22 @@ export default function ReconciledCommunicationsRoute() {
       </section>
 
       <PageHeader
-        eyebrow="Reconciled communications"
-        title="Human-controlled delivery, backed by receipts"
-        description="Queue content-minimised approved templates, record every external attempt before effect, and reconcile provider receipts without ever treating acceptance as delivery."
+        eyebrow="Communication history"
+        title="Communication log"
+        description="Use approved templates, record each delivery attempt before it happens, and verify provider receipts. Provider acceptance alone is not delivery."
         state={
           snapshotUnavailable ? "error" : snapshotPending ? "pending" : "active"
         }
       />
 
       {snapshotPending ? (
-        <LoadingPanel label="Loading the communication ledger" />
+        <LoadingPanel label="Loading the communication log" />
       ) : null}
       {snapshotUnavailable ? (
         <StatusPanel
           state="error"
-          title="Communication ledger is unavailable"
-          description="Do not interpret this as an empty queue or a completed delivery."
+          title="Communication log is unavailable"
+          description="We could not load the communication record. This does not mean the queue is empty or delivery is complete."
         >
           <Button
             type="button"

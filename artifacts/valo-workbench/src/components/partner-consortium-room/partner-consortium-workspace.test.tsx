@@ -178,9 +178,7 @@ describe("PartnerConsortiumWorkspace", () => {
     fireEvent.change(screen.getByLabelText(/^partner coordinator$/i), {
       target: { value: MAKER },
     });
-    fireEvent.click(
-      screen.getByRole("button", { name: /initialize bounded room/i }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /set up room/i }));
     expect(onMutate).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: "initialize",

@@ -227,12 +227,12 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-serif font-medium">Evidence Map</h2>
+        <h2 className="text-lg font-serif font-medium">Evidence links</h2>
         <div className="flex gap-2">
           {canWriteEvidence && (
             <>
               <Button onClick={openMap} variant="outline">
-                <Plus className="w-4 h-4 mr-2" /> Map Evidence
+                <Plus className="w-4 h-4 mr-2" /> Link evidence
               </Button>
               <Button
                 onClick={handleMap}
@@ -244,7 +244,7 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
                 ) : (
                   <Zap className="w-4 h-4 mr-2" />
                 )}
-                Auto-Map Evidence
+                Suggest evidence links
               </Button>
             </>
           )}
@@ -376,7 +376,7 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
         ) : (
           <div className="p-12 text-center text-muted-foreground">
             <Layers className="w-12 h-12 mx-auto mb-3 text-muted" />
-            <p>No evidence mapped yet.</p>
+            <p>No evidence linked yet.</p>
           </div>
         )}
       </div>
@@ -388,7 +388,7 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
         <DialogContent className="sm:max-w-[560px]">
           <DialogHeader>
             <DialogTitle className="font-serif">
-              {editingId ? "Edit Evidence" : "Map Evidence"}
+              {editingId ? "Edit evidence link" : "Link evidence"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -495,7 +495,7 @@ export function EvidenceTab({ projectId }: { projectId: string }) {
             </Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {editingId ? "Save Changes" : "Map Evidence"}
+              {editingId ? "Save changes" : "Link evidence"}
             </Button>
           </DialogFooter>
         </DialogContent>

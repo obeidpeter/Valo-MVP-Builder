@@ -269,7 +269,7 @@ describe("organisation access context", () => {
     await user.click(screen.getByRole("button", { name: /begin upload/i }));
     expect(switcher).toBeDisabled();
     expect(
-      screen.getByText(/protected workflow is in progress/i),
+      screen.getByText(/change or sensitive task is in progress/i),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /finish upload/i }));

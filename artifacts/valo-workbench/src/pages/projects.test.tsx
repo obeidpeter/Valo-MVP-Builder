@@ -176,11 +176,11 @@ describe("project register controls", () => {
     renderPage();
 
     expect(
-      screen.getByText(/project register could not be loaded/i),
+      screen.getByText(/pursuit register could not be loaded/i),
     ).toBeInTheDocument();
-    expect(screen.queryByText("No projects found.")).not.toBeInTheDocument();
+    expect(screen.queryByText("No pursuits found.")).not.toBeInTheDocument();
     await userEvent.click(
-      screen.getByRole("button", { name: /retry loading project register/i }),
+      screen.getByRole("button", { name: /retry loading pursuit register/i }),
     );
     expect(apiState.retryProjects).toHaveBeenCalledTimes(1);
   });
@@ -188,7 +188,7 @@ describe("project register controls", () => {
   it("shows a genuine empty state only after a successful complete response", () => {
     renderPage();
 
-    expect(screen.getByText("No projects found.")).toBeInTheDocument();
+    expect(screen.getByText("No pursuits found.")).toBeInTheDocument();
     expect(
       screen.queryByText(/register state is unavailable/i),
     ).not.toBeInTheDocument();
@@ -208,12 +208,12 @@ describe("project register controls", () => {
     renderPage();
 
     expect(
-      screen.getByLabelText(/loading project register/i),
+      screen.getByLabelText(/loading pursuit register/i),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(/project register could not be loaded/i),
+      screen.queryByText(/pursuit register could not be loaded/i),
     ).not.toBeInTheDocument();
-    expect(screen.queryByText("No projects found.")).not.toBeInTheDocument();
+    expect(screen.queryByText("No pursuits found.")).not.toBeInTheDocument();
   });
 
   it("does not tell a read-only user to create a project", () => {
@@ -223,11 +223,11 @@ describe("project register controls", () => {
 
     expect(
       screen.getByText(
-        /no projects are currently available to your organisation assignment/i,
+        /no pursuits are available for your current organisation access/i,
       ),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(/create a new project to start a forensic review/i),
+      screen.queryByText(/create a pursuit to begin/i),
     ).not.toBeInTheDocument();
   });
 
@@ -235,16 +235,16 @@ describe("project register controls", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(screen.getByRole("button", { name: /new project/i }));
+    await user.click(screen.getByRole("button", { name: /new pursuit/i }));
 
     expect(
-      await screen.findByText(/every new project starts payment pending/i),
+      await screen.findByText(/every new pursuit starts with payment pending/i),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Reviewer")).toHaveTextContent(
       "Select reviewer",
     );
     expect(
-      screen.getByRole("button", { name: "Create Project" }),
+      screen.getByRole("button", { name: "Create pursuit" }),
     ).toBeDisabled();
     expect(screen.queryByLabelText("Payment Gate")).not.toBeInTheDocument();
   });
@@ -253,14 +253,16 @@ describe("project register controls", () => {
     window.history.replaceState({}, "", "/projects?clientId=foreign-client-id");
     renderPage();
 
-    expect(await screen.findByText(/create new project/i)).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: /create pursuit/i }),
+    ).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByLabelText("Client")).toHaveTextContent(
         "Select client",
       );
     });
     expect(
-      screen.getByRole("button", { name: "Create Project" }),
+      screen.getByRole("button", { name: "Create pursuit" }),
     ).toBeDisabled();
   });
 
@@ -276,9 +278,9 @@ describe("project register controls", () => {
     };
     renderPage();
 
-    await user.click(screen.getByRole("button", { name: /new project/i }));
+    await user.click(screen.getByRole("button", { name: /new pursuit/i }));
     expect(
-      await screen.findByText(/client directory could not be loaded/i),
+      await screen.findByText(/client list could not be loaded/i),
     ).toBeInTheDocument();
     expect(
       screen.queryByText(/no client records are available/i),
@@ -299,12 +301,12 @@ describe("project register controls", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(screen.getByRole("button", { name: /new project/i }));
+    await user.click(screen.getByRole("button", { name: /new pursuit/i }));
     expect(
       await screen.findByText(/no client records are available/i),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(/client directory could not be loaded/i),
+      screen.queryByText(/client list could not be loaded/i),
     ).not.toBeInTheDocument();
   });
 
@@ -321,13 +323,11 @@ describe("project register controls", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(screen.getByRole("button", { name: /new project/i }));
+    await user.click(screen.getByRole("button", { name: /new pursuit/i }));
 
+    expect(await screen.findByText(/loading clients/i)).toBeInTheDocument();
     expect(
-      await screen.findByText(/loading the current client directory/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText(/client directory could not be loaded/i),
+      screen.queryByText(/client list could not be loaded/i),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByText(/no client records are available/i),
@@ -347,9 +347,9 @@ describe("project register controls", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(screen.getByRole("button", { name: /new project/i }));
+    await user.click(screen.getByRole("button", { name: /new pursuit/i }));
     expect(
-      await screen.findByText(/reviewer authority could not be verified/i),
+      await screen.findByText(/reviewer list could not be loaded/i),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Reviewer")).toBeDisabled();
     await user.click(screen.getByRole("button", { name: /retry reviewers/i }));
@@ -369,19 +369,15 @@ describe("project register controls", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(screen.getByRole("button", { name: /new project/i }));
+    await user.click(screen.getByRole("button", { name: /new pursuit/i }));
 
+    expect(await screen.findByText(/loading reviewers/i)).toBeInTheDocument();
     expect(
-      await screen.findByText(/loading current reviewer authority/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText(
-        /no active, current, directly authorised reviewer is available/i,
-      ),
+      screen.queryByText(/no active reviewer with direct access is available/i),
     ).not.toBeInTheDocument();
     expect(screen.getByLabelText("Reviewer")).toBeDisabled();
     expect(
-      screen.getByRole("button", { name: "Create Project" }),
+      screen.getByRole("button", { name: "Create pursuit" }),
     ).toBeDisabled();
   });
 

@@ -113,7 +113,7 @@ describe("Settings", () => {
     renderPage();
 
     for (const [title, retry] of [
-      ["Configuration could not be loaded", apiState.refetchConfig],
+      ["Settings could not be loaded", apiState.refetchConfig],
       ["Personnel access could not be loaded", apiState.refetchUsers],
       ["Retention requests could not be loaded", apiState.refetchRetention],
     ] as const) {
@@ -126,7 +126,9 @@ describe("Settings", () => {
     }
 
     expect(
-      screen.queryByText("No users are assigned to this organisation."),
+      screen.queryByText(
+        "No personnel records are available for this organisation.",
+      ),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByText("No retention requests are available."),
@@ -137,14 +139,16 @@ describe("Settings", () => {
     renderPage();
 
     expect(
-      screen.getByText("No users are assigned to this organisation."),
+      screen.getByText(
+        "No personnel records are available for this organisation.",
+      ),
     ).toBeInTheDocument();
     expect(
       screen.getByText("No retention requests are available."),
     ).toBeInTheDocument();
     await waitFor(() =>
       expect(
-        screen.queryByText("Configuration could not be loaded"),
+        screen.queryByText("Settings could not be loaded"),
       ).not.toBeInTheDocument(),
     );
   });
@@ -157,13 +161,15 @@ describe("Settings", () => {
     renderPage();
 
     expect(
-      screen.queryByText("No users are assigned to this organisation."),
+      screen.queryByText(
+        "No personnel records are available for this organisation.",
+      ),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByText("No retention requests are available."),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByText("Configuration could not be loaded"),
+      screen.queryByText("Settings could not be loaded"),
     ).not.toBeInTheDocument();
     expect(document.querySelectorAll(".animate-spin")).toHaveLength(4);
   });
@@ -174,13 +180,13 @@ describe("Settings", () => {
     fireEvent.change(await screen.findByLabelText("Fatal"), {
       target: { value: "1.5" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save Configuration" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save settings" }));
 
     expect(apiState.updateConfig).not.toHaveBeenCalled();
     expect(apiState.toast).toHaveBeenCalledWith(
       expect.objectContaining({
         variant: "destructive",
-        title: "Invalid numeric configuration",
+        title: "Invalid number settings",
       }),
     );
   });

@@ -408,8 +408,8 @@ export default function ProjectDetails() {
           Pursuit unavailable
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Valo could not verify this pursuit against the server. No missing or
-          readiness state has been inferred from the failed request.
+          Valo could not check this pursuit. The failed request does not show
+          that records are missing or that the pursuit is ready.
         </p>
         <p className="mt-3 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
           {errorMessage(projectError, "The pursuit could not be loaded.")}
@@ -514,7 +514,8 @@ export default function ProjectDetails() {
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground max-w-[220px]">
-            Gate 0 counts assisted-bid & retainer mandates, not autopsy-only.
+            The initial readiness check counts assisted-bid and retainer work,
+            not review-only work.
           </p>
         </div>
       </div>
@@ -565,7 +566,7 @@ export default function ProjectDetails() {
             className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium"
           >
             <AlertOctagon className="w-4 h-4 mr-2" />
-            Issues &amp; red team
+            Issues &amp; independent review
           </TabsTrigger>
           <TabsTrigger
             value="risk"
@@ -603,7 +604,7 @@ export default function ProjectDetails() {
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                   <div className="bg-card border border-border p-6 rounded-xl shadow-xs">
                     <h3 className="font-serif text-lg font-medium mb-4">
-                      Project Metadata
+                      Pursuit details
                     </h3>
                     <dl className="space-y-4 text-sm">
                       <div>
@@ -653,7 +654,7 @@ export default function ProjectDetails() {
                   <div className="bg-card border border-border p-6 rounded-xl shadow-xs xl:col-span-2 space-y-5">
                     <div className="flex items-center justify-between">
                       <h3 className="font-serif text-lg font-medium">
-                        Governance & Gates
+                        Status and controls
                       </h3>
                       {canUpdateProject ? (
                         <Button
@@ -697,7 +698,7 @@ export default function ProjectDetails() {
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label>SLA Class</Label>
+                        <Label>Review time target</Label>
                         <Select
                           value={governance.slaClass}
                           onValueChange={(slaClass) =>
@@ -718,7 +719,7 @@ export default function ProjectDetails() {
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label>Payment Gate</Label>
+                        <Label>Payment check</Label>
                         <Select value={governance.paymentStatus} disabled>
                           <SelectTrigger disabled>
                             <SelectValue />
@@ -812,7 +813,7 @@ export default function ProjectDetails() {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <Label>Conflict Status</Label>
+                        <Label>Conflict status</Label>
                         <Select value={governance.conflictStatus} disabled>
                           <SelectTrigger disabled>
                             <SelectValue />
@@ -827,7 +828,7 @@ export default function ProjectDetails() {
                         </Select>
                       </div>
                       <div className="space-y-2 md:col-span-2">
-                        <Label>Conflict Decision</Label>
+                        <Label>Conflict decision</Label>
                         <Input
                           value={governance.conflictDecision}
                           readOnly
@@ -838,7 +839,7 @@ export default function ProjectDetails() {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <Label>Conflict Rationale</Label>
+                        <Label>Reason for conflict decision</Label>
                         <Textarea
                           value={governance.conflictRationale}
                           readOnly
@@ -846,7 +847,7 @@ export default function ProjectDetails() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Physical Archive</Label>
+                        <Label>Physical archive instructions</Label>
                         <Textarea
                           value={governance.physicalArchiveInstruction}
                           onChange={(e) =>
@@ -860,7 +861,7 @@ export default function ProjectDetails() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Redaction Scope</Label>
+                        <Label>What to redact</Label>
                         <Textarea
                           value={governance.redactionScope}
                           onChange={(e) =>
@@ -950,7 +951,7 @@ export default function ProjectDetails() {
                           {createNotification.isPending && (
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                           )}
-                          Log Notification
+                          Record notification
                         </Button>
                       </div>
                     ) : null}
@@ -988,13 +989,13 @@ export default function ProjectDetails() {
                       <div className="flex items-center gap-2">
                         <Archive className="w-4 h-4 text-muted-foreground" />
                         <h3 className="font-serif text-lg font-medium">
-                          Retention Request
+                          Retention request
                         </h3>
                       </div>
                       <Textarea
                         value={retentionReason}
                         onChange={(e) => setRetentionReason(e.target.value)}
-                        placeholder="Reason for deletion or retention workflow"
+                        placeholder="Reason for deletion or retention review"
                         className="min-h-[88px]"
                       />
                       <Button
@@ -1005,7 +1006,7 @@ export default function ProjectDetails() {
                         {createRetentionRequest.isPending && (
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         )}
-                        Open Retention Workflow
+                        Start retention review
                       </Button>
                     </div>
                   ) : null}

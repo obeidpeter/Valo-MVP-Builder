@@ -285,7 +285,7 @@ export default function EncryptedFieldCompanionPage() {
   if (meQuery.isLoading)
     return (
       <div className="p-5 sm:p-8">
-        <LoadingPanel label="Verifying the local draft owner" />
+        <LoadingPanel label="Checking who owns these device drafts" />
       </div>
     );
 
@@ -294,7 +294,7 @@ export default function EncryptedFieldCompanionPage() {
       <PageGatePanel
         state="blocked"
         title="Direct pursuit membership required"
-        description="Device drafts are partitioned by the signed-in user and active direct organisation. Partner-derived and emergency access cannot open this local companion."
+        description="Device drafts are separated by signed-in user and direct organisation membership. Partner and emergency access cannot open these local drafts."
       />
     );
 
@@ -302,8 +302,8 @@ export default function EncryptedFieldCompanionPage() {
     <main className="space-y-6 p-5 sm:p-8">
       <PageHeader
         eyebrow="Local field workspace"
-        title="Encrypted Field Companion"
-        description="Capture small draft notes and checklist progress while this signed-in session is open. After reconnecting, a named operator may review selected fields against one existing governed work item. Drafts never become evidence or approval and remain local after a verified receipt."
+        title="Field notes"
+        description="Write short draft notes and update checklists during this signed-in session. After reconnecting, a named person can review selected fields against an existing work item. Drafts never become evidence or approval and stay on this device after a verified receipt."
       />
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -315,18 +315,18 @@ export default function EncryptedFieldCompanionPage() {
           <div>
             <p className="font-medium">Encrypted locally</p>
             <p className="text-sm text-muted-foreground">
-              Non-extractable user key; actor-and-tenant-bound authenticated
-              ciphertext.
+              Encrypted with a device key tied to the signed-in user and
+              organisation.
             </p>
           </div>
         </div>
         <div className="flex items-start gap-3 rounded-xl border bg-card p-4">
           <WifiOff aria-hidden="true" className="mt-0.5 size-5 text-primary" />
           <div>
-            <p className="font-medium">No automatic sync</p>
+            <p className="font-medium">No automatic upload</p>
             <p className="text-sm text-muted-foreground">
-              Reconnect, choose one compatible target, inspect the field diff
-              and confirm the bounded copy.
+              Reconnect, choose one compatible work item, review the field
+              changes and confirm the copy.
             </p>
           </div>
         </div>
@@ -355,7 +355,7 @@ export default function EncryptedFieldCompanionPage() {
       {error ? (
         <StatusPanel
           state="error"
-          title="Local companion action failed"
+          title="Field note action failed"
           description={error}
         />
       ) : null}
@@ -495,7 +495,7 @@ export default function EncryptedFieldCompanionPage() {
             <StatusPanel
               state="pending"
               title="Decrypting local drafts"
-              description="Validating the device key, tenant partition and ciphertext integrity."
+              description="Checking the device key, organisation boundary and encrypted data."
             />
           ) : drafts.length ? (
             drafts.map((draft) => (
@@ -505,7 +505,7 @@ export default function EncryptedFieldCompanionPage() {
                     <CardTitle className="text-base">{draft.title}</CardTitle>
                     <Badge variant="secondary">{KIND_LABELS[draft.kind]}</Badge>
                     {draft.promotion ? (
-                      <Badge variant="outline">Promoted copy recorded</Badge>
+                      <Badge variant="outline">Copied to work item</Badge>
                     ) : null}
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -594,7 +594,7 @@ export default function EncryptedFieldCompanionPage() {
                         onMarked={async () => {
                           await refresh(organisationId, actorUserId);
                           toast({
-                            title: "Governed copy recorded",
+                            title: "Copy to work item recorded",
                             description:
                               "The verified receipt is marked on the retained encrypted draft. Delete it only when you choose.",
                           });
@@ -626,8 +626,8 @@ export default function EncryptedFieldCompanionPage() {
           ) : (
             <StatusPanel
               state="empty"
-              title="No encrypted drafts on this device"
-              description="No blank or synced field state has been inferred."
+              title="No field note drafts on this device"
+              description="No blank or uploaded draft is shown."
             />
           )}
         </section>
