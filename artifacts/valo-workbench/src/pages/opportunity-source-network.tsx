@@ -94,6 +94,15 @@ export default function OpportunitySourceNetworkPage() {
         queryKey: ["opportunity-source-network", updatedOrganisationId],
       });
     },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Opportunity source record could not be updated",
+        description:
+          "Reload the source inbox before retrying. No opportunity was accepted, rejected, or recorded by this attempt.",
+      });
+      void queryClient.invalidateQueries({ queryKey });
+    },
   });
 
   if (!canRead)
@@ -112,7 +121,11 @@ export default function OpportunitySourceNetworkPage() {
         description="Reconnect before inspecting or deciding an external source receipt."
       />
     );
-  if (snapshot.isLoading)
+  const snapshotPending = snapshot.isLoading || snapshot.isPending;
+  const snapshotUnavailable =
+    snapshot.isError ||
+    (!snapshotPending && (!snapshot.isSuccess || snapshot.data === undefined));
+  if (snapshotPending)
     return (
       <PageGatePanel
         state="pending"
@@ -120,7 +133,7 @@ export default function OpportunitySourceNetworkPage() {
         description="Checking tenant scope, receipt digests and review state."
       />
     );
-  if (snapshot.isError || !snapshot.data)
+  if (snapshotUnavailable || !snapshot.data)
     return (
       <PageGatePanel
         state="error"
@@ -145,12 +158,12 @@ export default function OpportunitySourceNetworkPage() {
       canManage={canManage}
       pending={mutate.isPending}
       onRecord={(body) =>
-        mutate.mutateAsync({ kind: "record", body }).then(() => {})
+        mutate.mutateAsync({ kind: "record", body }).then(() => undefined)
       }
       onDecision={(candidate, decision, reason) =>
         mutate
           .mutateAsync({ kind: "decide", candidate, decision, reason })
-          .then(() => {})
+          .then(() => undefined)
       }
     />
   );

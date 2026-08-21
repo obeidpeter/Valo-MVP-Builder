@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { describe, expect, it, vi } from "vitest";
@@ -158,6 +158,46 @@ describe("CommercialControlCentre", () => {
       path: "/api/commercial-retainer/quotes/44444444-4444-4444-8444-444444444444/approve",
       body: { expectedVersion: 1 },
     });
+  });
+
+  it("settles a rejected checker action at the event boundary", async () => {
+    const onMutate = vi.fn().mockRejectedValue(new Error("Write rejected"));
+    renderCentre(snapshot({ quoteMaker: MAKER }), onMutate);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Approve as checker" }),
+    );
+
+    await waitFor(() => expect(onMutate).toHaveBeenCalledTimes(1));
+  });
+
+  it("retains proposal input when a rejected write is settled", async () => {
+    const onMutate = vi.fn().mockRejectedValue(new Error("Write rejected"));
+    renderCentre(snapshot(), onMutate);
+    const customerReference = screen.getByLabelText("Customer reference");
+    await userEvent.type(customerReference, "Retry customer");
+    const submit = screen.getByRole("button", {
+      name: "Create proposal for checker review",
+    });
+
+    fireEvent.submit(submit.closest("form") as HTMLFormElement);
+
+    await waitFor(() => expect(onMutate).toHaveBeenCalledTimes(1));
+    expect(customerReference).toHaveValue("Retry customer");
+  });
+
+  it("clears proposal input only after a successful write", async () => {
+    const { onMutate } = renderCentre(snapshot());
+    const customerReference = screen.getByLabelText("Customer reference");
+    await userEvent.type(customerReference, "Recorded customer");
+    const submit = screen.getByRole("button", {
+      name: "Create proposal for checker review",
+    });
+
+    fireEvent.submit(submit.closest("form") as HTMLFormElement);
+
+    await waitFor(() => expect(onMutate).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(customerReference).toHaveValue(""));
   });
 
   it("requires an evidence receipt before completion remains reachable", () => {

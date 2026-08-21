@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  onlineManager,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import {
   OrganisationProvider,
   useOrganisationAccess,
@@ -109,6 +113,23 @@ describe("organisation access context", () => {
       screen.getByText("Roles: client_organisation_owner"),
     ).toBeInTheDocument();
     expect(apiState.contextGetter?.()?.organisationId).toBe("org-1");
+  });
+
+  it("keeps a cold paused organisation query pending instead of exposing an empty context", () => {
+    onlineManager.setOnline(false);
+    try {
+      apiState.response = [
+        organisation("org-1", "Northwind Nigeria", [
+          "client_organisation_owner",
+        ]),
+      ];
+      const view = renderProvider(<AccessProbe />);
+      expect(screen.getByText("Loading access")).toBeInTheDocument();
+      expect(screen.queryByText("Active: none")).not.toBeInTheDocument();
+      view.unmount();
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 
   it("requires an explicit choice when more than one membership is active", async () => {

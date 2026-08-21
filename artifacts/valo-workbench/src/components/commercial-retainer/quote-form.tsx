@@ -23,25 +23,30 @@ export function QuoteForm({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    await onMutate({
-      path: "/api/commercial-retainer/quotes",
-      body: {
-        projectId: data.get("projectId") || null,
-        customerReference: data.get("customerReference"),
-        offerVersionId: data.get("offerVersionId"),
-        scopeSummary: data.get("scopeSummary"),
-        currency: data.get("currency"),
-        amountMinor: Number(data.get("amountMinor")),
-        validUntil: data.get("validUntil"),
-        serviceStartsOn: data.get("serviceStartsOn"),
-        serviceEndsOn: data.get("serviceEndsOn"),
-        serviceUnits: Number(data.get("serviceUnits")),
-        idempotencyDigest: digest,
-      },
-    });
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    try {
+      await onMutate({
+        path: "/api/commercial-retainer/quotes",
+        body: {
+          projectId: data.get("projectId") || null,
+          customerReference: data.get("customerReference"),
+          offerVersionId: data.get("offerVersionId"),
+          scopeSummary: data.get("scopeSummary"),
+          currency: data.get("currency"),
+          amountMinor: Number(data.get("amountMinor")),
+          validUntil: data.get("validUntil"),
+          serviceStartsOn: data.get("serviceStartsOn"),
+          serviceEndsOn: data.get("serviceEndsOn"),
+          serviceUnits: Number(data.get("serviceUnits")),
+          idempotencyDigest: digest,
+        },
+      });
+    } catch {
+      return;
+    }
     setDigest(randomDigest());
-    event.currentTarget.reset();
+    form.reset();
   }
 
   return (

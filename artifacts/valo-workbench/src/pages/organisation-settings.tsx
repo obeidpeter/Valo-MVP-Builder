@@ -770,6 +770,7 @@ export default function OrganisationSettings() {
     [organisation, organisationAccess?.effectiveRoles],
   );
   const forbidden = apiStatus(query.error) === 403;
+  const membershipsPending = query.isLoading || query.isPending;
 
   if (!organisation) {
     return (
@@ -792,7 +793,7 @@ export default function OrganisationSettings() {
         state={
           !online
             ? "offline"
-            : query.isLoading
+            : membershipsPending
               ? "pending"
               : query.isError
                 ? forbidden
@@ -843,7 +844,7 @@ export default function OrganisationSettings() {
         />
       ) : null}
 
-      {query.isLoading ? (
+      {membershipsPending ? (
         <LoadingPanel label="Loading organisation memberships" />
       ) : null}
 

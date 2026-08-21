@@ -100,6 +100,7 @@ export default function Projects() {
   const {
     data: projects,
     isLoading: loadingProjects,
+    isPending: projectsPending,
     isError: projectsFailed,
     isSuccess: projectsLoaded,
     isFetching: refreshingProjects,
@@ -108,6 +109,7 @@ export default function Projects() {
   const {
     data: clients,
     isLoading: loadingClients,
+    isPending: clientsPending,
     isError: clientsFailed,
     isSuccess: clientsLoaded,
     isFetching: refreshingClients,
@@ -118,7 +120,9 @@ export default function Projects() {
   const {
     data: users,
     isLoading: loadingUsers,
+    isPending: usersPending,
     isError: usersFailed,
+    isSuccess: usersLoaded,
     isFetching: refreshingUsers,
     refetch: retryUsers,
   } = useListUsers({
@@ -134,15 +138,37 @@ export default function Projects() {
   const [isCreateOpen, setIsCreateOpen] = useState(
     defaultClientId !== "" && canCreateProject,
   );
+  const projectRegisterPending = loadingProjects || projectsPending;
+  const projectRegisterUnavailable =
+    projectsFailed ||
+    (!projectRegisterPending &&
+      (projectsLoaded !== true || projects === undefined));
+  const clientDirectoryPending = loadingClients || clientsPending;
+  const clientDirectoryUnavailable =
+    clientsFailed ||
+    (!clientDirectoryPending &&
+      (clientsLoaded !== true || clients === undefined));
+  const reviewerDirectoryPending = Boolean(
+    canCreateProject && canReadMemberships && (loadingUsers || usersPending),
+  );
+  const reviewerDirectoryUnavailable = Boolean(
+    canCreateProject &&
+    (!canReadMemberships ||
+      usersFailed ||
+      (!reviewerDirectoryPending &&
+        (usersLoaded !== true || users === undefined))),
+  );
   const reviewerOptions = useMemo(
     () =>
-      (users ?? []).filter(
-        (user) =>
-          user.status === "active" &&
-          user.membershipStatus === "active" &&
-          user.reviewerEligible === true,
-      ),
-    [users],
+      usersLoaded === true && users
+        ? users.filter(
+            (user) =>
+              user.status === "active" &&
+              user.membershipStatus === "active" &&
+              user.reviewerEligible === true,
+          )
+        : [],
+    [users, usersLoaded],
   );
   const form = useForm<CreateProjectForm>({
     resolver: zodResolver(createProjectSchema),
@@ -167,6 +193,8 @@ export default function Projects() {
     clientsLoaded === true &&
     Boolean(retainEligibleSelectionId(selectedClientId, clients ?? []));
   const selectedReviewerEligible = Boolean(
+    usersLoaded === true &&
+    users !== undefined &&
     retainEligibleSelectionId(selectedReviewerId, reviewerOptions),
   );
 
@@ -317,12 +345,13 @@ export default function Projects() {
 
   useEffect(() => {
     if (
+      usersLoaded &&
       selectedReviewerId &&
       !retainEligibleSelectionId(selectedReviewerId, reviewerOptions)
     ) {
       form.setValue("reviewerId", "", { shouldValidate: true });
     }
-  }, [form, reviewerOptions, selectedReviewerId]);
+  }, [form, reviewerOptions, selectedReviewerId, usersLoaded]);
 
   const onSubmit = (data: CreateProjectForm) => {
     const canonicalDeadline = data.deadline
@@ -419,7 +448,9 @@ export default function Projects() {
                     }
                     value={form.watch("clientId")}
                     disabled={
-                      loadingClients || clientsFailed || !clients?.length
+                      clientDirectoryPending ||
+                      clientDirectoryUnavailable ||
+                      !clients?.length
                     }
                   >
                     <SelectTrigger id="clientId">
@@ -438,7 +469,7 @@ export default function Projects() {
                       {form.formState.errors.clientId.message}
                     </p>
                   )}
-                  {clientsFailed ? (
+                  {clientDirectoryUnavailable ? (
                     <div
                       className="flex flex-wrap items-center gap-2"
                       role="alert"
@@ -458,7 +489,12 @@ export default function Projects() {
                         Retry clients
                       </Button>
                     </div>
-                  ) : !loadingClients && clients?.length === 0 ? (
+                  ) : clientDirectoryPending ? (
+                    <p className="text-xs text-muted-foreground" role="status">
+                      Loading the current client directory. No client can be
+                      selected until it is complete.
+                    </p>
+                  ) : clientsLoaded && clients?.length === 0 ? (
                     <p className="text-xs text-muted-foreground">
                       No client records are available in this organisation.
                     </p>
@@ -529,8 +565,8 @@ export default function Projects() {
                       }
                       value={form.watch("reviewerId")}
                       disabled={
-                        loadingUsers ||
-                        usersFailed ||
+                        reviewerDirectoryPending ||
+                        reviewerDirectoryUnavailable ||
                         reviewerOptions.length === 0
                       }
                     >
@@ -550,7 +586,7 @@ export default function Projects() {
                         {form.formState.errors.reviewerId.message}
                       </p>
                     )}
-                    {usersFailed ? (
+                    {reviewerDirectoryUnavailable ? (
                       <div
                         className="flex flex-wrap items-center gap-2"
                         role="alert"
@@ -559,17 +595,27 @@ export default function Projects() {
                           Reviewer authority could not be verified. No reviewer
                           can be selected until the directory is available.
                         </p>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={refreshingUsers}
-                          onClick={() => void retryUsers()}
-                        >
-                          Retry reviewers
-                        </Button>
+                        {canReadMemberships ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={refreshingUsers}
+                            onClick={() => void retryUsers()}
+                          >
+                            Retry reviewers
+                          </Button>
+                        ) : null}
                       </div>
-                    ) : !loadingUsers && reviewerOptions.length === 0 ? (
+                    ) : reviewerDirectoryPending ? (
+                      <p
+                        className="text-xs text-muted-foreground"
+                        role="status"
+                      >
+                        Loading current reviewer authority. No reviewer can be
+                        selected until the directory is complete.
+                      </p>
+                    ) : usersLoaded && reviewerOptions.length === 0 ? (
                       <p className="text-xs text-muted-foreground">
                         No active, current, directly authorised reviewer is
                         available in this organisation.
@@ -678,9 +724,11 @@ export default function Projects() {
                     type="submit"
                     disabled={
                       createProject.isPending ||
-                      clientsFailed ||
+                      clientDirectoryPending ||
+                      clientDirectoryUnavailable ||
                       !selectedClientEligible ||
-                      usersFailed ||
+                      reviewerDirectoryPending ||
+                      reviewerDirectoryUnavailable ||
                       !selectedReviewerEligible
                     }
                   >
@@ -851,7 +899,7 @@ export default function Projects() {
       ) : null}
 
       <div className="bg-card border border-border rounded-lg shadow-xs overflow-hidden">
-        {loadingProjects ? (
+        {projectRegisterPending ? (
           <div
             className="p-12 flex justify-center"
             role="status"
@@ -859,7 +907,7 @@ export default function Projects() {
           >
             <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
           </div>
-        ) : projectsFailed ? (
+        ) : projectRegisterUnavailable ? (
           <div
             className="space-y-3 p-12 text-center text-muted-foreground"
             role="alert"
@@ -886,26 +934,14 @@ export default function Projects() {
               Retry
             </Button>
           </div>
-        ) : !projectsLoaded || !projects ? (
-          <div
-            className="space-y-3 p-12 text-center text-muted-foreground"
-            role="status"
-          >
-            <AlertTriangle className="mx-auto h-10 w-10" />
-            <p className="font-medium text-foreground">
-              The project register state is unavailable.
-            </p>
-            <p className="text-sm">
-              A successful complete response is required before an empty state
-              or count can be shown.
-            </p>
-          </div>
         ) : projects.length === 0 ? (
           <div className="p-12 text-center text-muted-foreground bg-card">
             <Briefcase className="w-12 h-12 mx-auto mb-3 text-muted" />
             <p>No projects found.</p>
             <p className="text-sm mt-1">
-              Create a new project to start a forensic review.
+              {canCreateProject
+                ? "Create a new project to start a forensic review."
+                : "No projects are currently available to your organisation assignment."}
             </p>
           </div>
         ) : visibleProjects.length > 0 ? (

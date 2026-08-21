@@ -1,5 +1,6 @@
 import {
   getGetProjectIntelligenceQueryKey,
+  getListProjectsQueryKey,
   useClaimIntelligenceReview,
   useDecideIntelligenceReview,
   useGetProjectIntelligence,
@@ -36,7 +37,12 @@ export default function IntelligenceCentreRoute() {
       organisationAccess.effectivePermissions.includes(permission),
     ),
   );
-  const projectsQuery = useListProjects();
+  const projectsQuery = useListProjects(undefined, {
+    query: {
+      queryKey: getListProjectsQueryKey(),
+      enabled: hasCompleteReadAccess,
+    },
+  });
   const projects = projectsQuery.data ?? [];
   const requestedProjectId = searchParams.get("project");
   const selectedProject =
@@ -84,7 +90,9 @@ export default function IntelligenceCentreRoute() {
   let loadState: IntelligenceCentreLoadState;
   if (
     projectsQuery.isLoading ||
-    (selectedProjectId.length > 0 && intelligenceQuery.isLoading)
+    projectsQuery.isPending ||
+    (selectedProjectId.length > 0 &&
+      (intelligenceQuery.isLoading || intelligenceQuery.isPending))
   ) {
     loadState = { status: "loading" };
   } else if (projectsQuery.isError || intelligenceQuery.isError) {
@@ -96,6 +104,12 @@ export default function IntelligenceCentreRoute() {
         void projectsQuery.refetch();
         if (selectedProjectId) void intelligenceQuery.refetch();
       },
+    };
+  } else if (selectedProjectId.length > 0 && !intelligenceQuery.data) {
+    loadState = {
+      status: "error",
+      message: "The tenant-scoped intelligence snapshot was not verified.",
+      retry: () => void intelligenceQuery.refetch(),
     };
   } else {
     loadState = {

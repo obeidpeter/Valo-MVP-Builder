@@ -220,12 +220,35 @@ export function adaptLeadContactHandoffResponse(
   };
 }
 
+export type GrowthLeadRegisterState =
+  | "hidden"
+  | "pending"
+  | "unavailable"
+  | "ready";
+
+export function growthLeadRegisterState(input: {
+  canOperateLeads: boolean;
+  hasData: boolean;
+  isLoading: boolean;
+  isPending: boolean;
+  isError: boolean;
+  isSuccess: boolean;
+}): GrowthLeadRegisterState {
+  if (!input.canOperateLeads) return "hidden";
+  if (input.isLoading || input.isPending) return "pending";
+  if (input.isError || !input.isSuccess || !input.hasData) {
+    return "unavailable";
+  }
+  return "ready";
+}
+
 export function GrowthOperationsView({
   onboarding,
   onboardingProgress,
   catalogueVersion,
   offers,
-  leads = [],
+  leads,
+  leadRegisterState,
   currentUserId,
   scopeKey,
   leadContactHandoff,
@@ -243,6 +266,7 @@ export function GrowthOperationsView({
   catalogueVersion: string;
   offers: readonly OfferCatalogueItem[];
   leads?: readonly LeadInboxItem[];
+  leadRegisterState?: GrowthLeadRegisterState;
   currentUserId?: string;
   scopeKey?: string;
   leadContactHandoff?: LeadContactHandoff | null;
@@ -259,6 +283,13 @@ export function GrowthOperationsView({
   onOnboardingToggle?: (itemId: string, markerSaved: boolean) => void;
   onboardingDestinations?: readonly { href: string; label: string }[];
 }) {
+  const resolvedLeadRegisterState =
+    leadRegisterState ??
+    (!canOperateLeads
+      ? "hidden"
+      : leads === undefined
+        ? "unavailable"
+        : "ready");
   return (
     <div className="mx-auto w-full max-w-7xl space-y-10 p-5 sm:p-8">
       <PageHeader
@@ -267,7 +298,19 @@ export function GrowthOperationsView({
         description="A bounded operating surface for lead qualification, first-pursuit onboarding and a versioned offer catalogue. It contains no CRM, automatic messaging, pricing, payment or pursuit-creation authority, and its durable quote ledger is unavailable."
         state="active"
       />
-      {canOperateLeads ? (
+      {resolvedLeadRegisterState === "pending" ? (
+        <StatusPanel
+          state="pending"
+          title="Loading lead operations queue"
+          description="Lead summaries remain unavailable until the tenant-scoped queue responds."
+        />
+      ) : resolvedLeadRegisterState === "unavailable" ? (
+        <StatusPanel
+          state="error"
+          title="Lead operations queue is unavailable"
+          description="Onboarding and the versioned catalogue remain available. Do not interpret unavailable lead data as an empty queue."
+        />
+      ) : resolvedLeadRegisterState === "ready" && leads ? (
         <LeadOperationsInbox
           key={scopeKey}
           items={leads}
@@ -353,6 +396,14 @@ export default function GrowthOperationsPage() {
     queryKey: [...queryPrefix, "leads"],
     queryFn: getGrowthLeads,
     enabled: canOperateLeads,
+  });
+  const leadRegisterState = growthLeadRegisterState({
+    canOperateLeads,
+    hasData: leadsQuery.data !== undefined,
+    isLoading: leadsQuery.isLoading,
+    isPending: leadsQuery.isPending,
+    isError: leadsQuery.isError,
+    isSuccess: leadsQuery.isSuccess,
   });
   const [leadContactHandoff, setLeadContactHandoff] =
     useState<LeadContactHandoff | null>(null);
@@ -528,7 +579,7 @@ export default function GrowthOperationsPage() {
     }
   };
 
-  if (meQuery.isLoading) {
+  if (meQuery.isLoading || meQuery.isPending) {
     return (
       <PageGatePanel
         state="pending"
@@ -537,7 +588,11 @@ export default function GrowthOperationsPage() {
       />
     );
   }
-  if (meQuery.isError || (organisationId && directMembership && !actorUserId)) {
+  if (
+    meQuery.isError ||
+    !meQuery.isSuccess ||
+    (organisationId && directMembership && !actorUserId)
+  ) {
     return (
       <PageGatePanel
         state="error"
@@ -555,7 +610,12 @@ export default function GrowthOperationsPage() {
       />
     );
   }
-  if (onboardingQuery.isLoading || offersQuery.isLoading) {
+  if (
+    onboardingQuery.isLoading ||
+    onboardingQuery.isPending ||
+    offersQuery.isLoading ||
+    offersQuery.isPending
+  ) {
     return (
       <PageGatePanel
         state="pending"
@@ -567,6 +627,8 @@ export default function GrowthOperationsPage() {
   if (
     onboardingQuery.isError ||
     offersQuery.isError ||
+    !onboardingQuery.isSuccess ||
+    !offersQuery.isSuccess ||
     !onboardingQuery.data ||
     !offersQuery.data
   ) {
@@ -592,27 +654,21 @@ export default function GrowthOperationsPage() {
 
   return (
     <>
-      {canOperateLeads && leadsQuery.isError ? (
-        <div className="mx-auto w-full max-w-7xl px-5 pt-5 sm:px-8 sm:pt-8">
-          <StatusPanel
-            state="partial"
-            title="Lead operations queue is unavailable"
-            description="Onboarding and the versioned catalogue remain available. Do not interpret unavailable lead data as an empty queue."
-          />
-        </div>
-      ) : null}
       <GrowthOperationsView
         onboarding={onboardingQuery.data.journey}
         onboardingProgress={onboardingQuery.data.progress}
         onboardingDestinations={onboardingDestinations}
         catalogueVersion={offersQuery.data.catalogueVersion}
         offers={offersQuery.data.items}
-        leads={leadsQuery.data?.items}
+        leads={
+          leadRegisterState === "ready" ? leadsQuery.data?.items : undefined
+        }
+        leadRegisterState={leadRegisterState}
         currentUserId={meQuery.data?.id}
         scopeKey={authorityScopeKey}
         leadContactHandoff={leadContactHandoff}
         handoffPendingLeadId={handoffPendingLeadId}
-        canOperateLeads={canOperateLeads && !leadsQuery.isError}
+        canOperateLeads={canOperateLeads}
         mutationPending={
           leadMutation.isPending ||
           onboardingMutation.isPending ||

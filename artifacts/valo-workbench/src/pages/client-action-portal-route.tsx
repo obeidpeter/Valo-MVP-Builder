@@ -373,14 +373,30 @@ export default function ClientActionPortalRoute() {
       />
     );
   }
-  if (meQuery.isLoading || projectsQuery.isLoading) {
+  if (meQuery.isLoading || meQuery.isPending) {
     return (
       <div className="p-5 sm:p-8">
         <LoadingPanel label="Loading available pursuits" />
       </div>
     );
   }
-  if (meQuery.isError || !meQuery.data || projectsQuery.isError) {
+  if (meQuery.isError || !meQuery.data) {
+    return (
+      <PageGatePanel
+        state="error"
+        title="Available pursuits could not be verified"
+        description="No project or client action has been inferred."
+      />
+    );
+  }
+  if (projectsQuery.isLoading || projectsQuery.isPending) {
+    return (
+      <div className="p-5 sm:p-8">
+        <LoadingPanel label="Loading available pursuits" />
+      </div>
+    );
+  }
+  if (projectsQuery.isError || !projectsQuery.isSuccess) {
     return (
       <PageGatePanel
         state="error"
@@ -447,7 +463,7 @@ export default function ClientActionPortalRoute() {
         state={
           snapshotQuery.isError
             ? "error"
-            : snapshotQuery.isLoading
+            : snapshotQuery.isLoading || snapshotQuery.isPending
               ? "pending"
               : "active"
         }
@@ -462,10 +478,12 @@ export default function ClientActionPortalRoute() {
           description="This pursuit is signed off, exported, or archived. Existing client-action records remain reviewable, but new evidence requests cannot be added to released content."
         />
       ) : null}
-      {snapshotQuery.isLoading ? (
+      {snapshotQuery.isLoading || snapshotQuery.isPending ? (
         <LoadingPanel label="Loading controlled client actions" />
       ) : null}
-      {snapshotQuery.isError || !snapshotQuery.data ? (
+      {snapshotQuery.isError ||
+      (!(snapshotQuery.isLoading || snapshotQuery.isPending) &&
+        !snapshotQuery.data) ? (
         <StatusPanel
           state="error"
           title="Client actions are unavailable"

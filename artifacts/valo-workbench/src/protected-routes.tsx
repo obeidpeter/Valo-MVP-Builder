@@ -192,7 +192,7 @@ export default function ProtectedRoutes() {
           </RequireArea>
         </Route>
         <Route path="/communications">
-          <RequireArea area="notifications">
+          <RequireArea area="communications">
             <ReconciledCommunications />
           </RequireArea>
         </Route>

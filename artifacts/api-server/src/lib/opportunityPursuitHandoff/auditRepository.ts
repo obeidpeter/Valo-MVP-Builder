@@ -677,7 +677,7 @@ async function lockMembershipAdministrationBoundary(
     INNER JOIN public.organisation_memberships AS membership_row
       ON membership_row.id = grant_row.membership_id
     WHERE membership_row.organisation_id = ${organisationId}::uuid
-    ORDER BY grant_row.id FOR UPDATE OF grant_row
+    ORDER BY grant_row.id
   `);
 }
 
@@ -722,7 +722,7 @@ async function lockAuthorityAndTargets(
     WHERE membership_row.organisation_id = ${scope.organisationId}::uuid
       AND (membership_row.id = ${scope.actorMembershipId}::uuid
         OR membership_row.user_id = ${draft.reviewerUserId}::uuid)
-    ORDER BY grant_row.id FOR SHARE OF grant_row
+    ORDER BY grant_row.id
   `);
   await tx.execute(sql`
     SELECT id FROM public.clients

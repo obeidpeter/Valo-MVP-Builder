@@ -13,6 +13,15 @@ import {
   RetainerRequestForm,
 } from "./retainer-request-forms";
 
+export function dispatchCommercialMutation(
+  onMutate: (mutation: CommercialRetainerMutation) => Promise<void>,
+  mutation: CommercialRetainerMutation,
+): void {
+  // The page mutation owns user-facing error feedback. Event handlers must
+  // still settle the rejected promise so React does not surface it globally.
+  void onMutate(mutation).catch(() => undefined);
+}
+
 export function CommercialControlCentre({
   snapshot,
   actorUserId,
@@ -121,7 +130,7 @@ export function CommercialControlCentre({
                         selfApproval ? `self-approval-${quote.id}` : undefined
                       }
                       onClick={() =>
-                        onMutate({
+                        dispatchCommercialMutation(onMutate, {
                           path: `/api/commercial-retainer/quotes/${quote.id}/approve`,
                           body: { expectedVersion: quote.version },
                         })
@@ -204,7 +213,7 @@ export function CommercialControlCentre({
                     type="button"
                     disabled={busy || selfVerification}
                     onClick={() =>
-                      onMutate({
+                      dispatchCommercialMutation(onMutate, {
                         path: `/api/commercial-retainer/payments/${payment.id}/verify`,
                         body: {
                           expectedPaymentVersion: payment.version,

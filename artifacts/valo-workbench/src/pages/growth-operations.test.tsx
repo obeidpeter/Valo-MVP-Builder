@@ -8,6 +8,7 @@ import {
   adaptLeadContactHandoffResponse,
   assertGrowthOnboardingAuthority,
   growthAuthorityFingerprint,
+  growthLeadRegisterState,
   growthOnboardingDestinations,
 } from "./growth-operations";
 import type {
@@ -27,7 +28,13 @@ const pageMocks = vi.hoisted(() => ({
 
 vi.mock("@workspace/api-client-react", () => ({
   customFetch: pageMocks.customFetch,
-  useGetMe: () => ({ data: { id: "operator-1" } }),
+  useGetMe: () => ({
+    data: { id: "operator-1" },
+    isLoading: false,
+    isPending: false,
+    isError: false,
+    isSuccess: true,
+  }),
 }));
 
 vi.mock("@/contexts/organisation-context", () => ({
@@ -124,6 +131,74 @@ beforeEach(() => {
 });
 
 describe("GrowthOperationsView", () => {
+  it("never treats an unresolved lead register as an authoritative empty queue", () => {
+    const baseProps = {
+      onboarding: ONBOARDING,
+      onboardingProgress: ONBOARDING_PROGRESS,
+      catalogueVersion: "2026-08-11.1",
+      offers: [OFFER],
+      canOperateLeads: true,
+    };
+    const pending = render(
+      <GrowthOperationsView {...baseProps} leadRegisterState="pending" />,
+    );
+
+    expect(
+      screen.getByText("Loading lead operations queue"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "No lead summaries are available in this tenant-scoped queue.",
+      ),
+    ).not.toBeInTheDocument();
+    pending.unmount();
+
+    render(
+      <GrowthOperationsView {...baseProps} leadRegisterState="unavailable" />,
+    );
+    expect(
+      screen.getByText("Lead operations queue is unavailable"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "No lead summaries are available in this tenant-scoped queue.",
+      ),
+    ).not.toBeInTheDocument();
+  });
+
+  it("classifies cold-paused, unresolved and successful lead queries distinctly", () => {
+    expect(
+      growthLeadRegisterState({
+        canOperateLeads: true,
+        hasData: false,
+        isLoading: false,
+        isPending: true,
+        isError: false,
+        isSuccess: false,
+      }),
+    ).toBe("pending");
+    expect(
+      growthLeadRegisterState({
+        canOperateLeads: true,
+        hasData: false,
+        isLoading: false,
+        isPending: false,
+        isError: false,
+        isSuccess: false,
+      }),
+    ).toBe("unavailable");
+    expect(
+      growthLeadRegisterState({
+        canOperateLeads: true,
+        hasData: true,
+        isLoading: false,
+        isPending: false,
+        isError: false,
+        isSuccess: true,
+      }),
+    ).toBe("ready");
+  });
+
   it("presents all three bounded growth workflows without contact or payment actions", () => {
     const { container } = render(
       <GrowthOperationsView

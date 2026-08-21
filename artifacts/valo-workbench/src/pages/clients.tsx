@@ -31,6 +31,7 @@ import * as z from "zod";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useOrganisationPermission } from "@/contexts/organisation-context";
+import { DataErrorPanel } from "@/components/platform-states";
 
 const createClientSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -47,7 +48,14 @@ const createClientSchema = z.object({
 type CreateClientForm = z.infer<typeof createClientSchema>;
 
 export default function Clients() {
-  const { data: clients, isLoading } = useListClients();
+  const {
+    data: clients,
+    isLoading,
+    isPending,
+    isError,
+    isSuccess,
+    refetch: retryClients,
+  } = useListClients();
   const createClient = useCreateClient();
   const queryClient = useQueryClient();
   const canCreateClient = useOrganisationPermission("client:create");
@@ -229,9 +237,17 @@ export default function Clients() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {isLoading ? (
+        {isLoading || isPending ? (
           <div className="col-span-full py-12 flex justify-center">
             <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : isError || !isSuccess || clients === undefined ? (
+          <div className="col-span-full">
+            <DataErrorPanel
+              title="Client register could not be loaded"
+              description="No empty client register has been inferred. Retry after connectivity and tenant access recover."
+              onRetry={() => void retryClients()}
+            />
           </div>
         ) : clients && clients.length > 0 ? (
           clients.map((client) => (

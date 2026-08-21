@@ -165,6 +165,29 @@ export default function ClaimsDeskPage() {
       return adaptCanonicalEvidenceOptions(payload, organisationId, projectId);
     },
   });
+  const identityPending = meQuery.isLoading || meQuery.isPending;
+  const identityUnavailable =
+    meQuery.isError ||
+    (!identityPending && (!meQuery.isSuccess || actorUserId === ""));
+  const projectsPending = projectsQuery.isLoading || projectsQuery.isPending;
+  const projectsUnavailable =
+    projectsQuery.isError ||
+    (!projectsPending &&
+      (!projectsQuery.isSuccess || projectsQuery.data === undefined));
+  const snapshotPending = snapshotQuery.isLoading || snapshotQuery.isPending;
+  const snapshotUnavailable =
+    snapshotQuery.isError ||
+    (!snapshotPending &&
+      (!snapshotQuery.isSuccess || snapshotQuery.data === undefined));
+  const evidenceOptionsPending =
+    canManage &&
+    (evidenceOptionsQuery.isLoading || evidenceOptionsQuery.isPending);
+  const evidenceOptionsUnavailable =
+    canManage &&
+    !evidenceOptionsPending &&
+    (evidenceOptionsQuery.isError ||
+      !evidenceOptionsQuery.isSuccess ||
+      evidenceOptionsQuery.data === undefined);
 
   const mutation = useMutation({
     mutationFn: async (request: Mutation) => {
@@ -247,7 +270,23 @@ export default function ClaimsDeskPage() {
         description="No cached commercial, deadline or claims posture is inferred. Reconnect to load the project ledger."
       />
     );
-  if (projectsQuery.isLoading)
+  if (identityPending)
+    return (
+      <PageGatePanel
+        state="pending"
+        title="Resolving the current Claims Desk actor"
+        description="The desk remains unavailable until the current identity is verified in this organisation context."
+      />
+    );
+  if (identityUnavailable)
+    return (
+      <PageGatePanel
+        state="error"
+        title="Current Claims Desk actor could not be verified"
+        description="No project, commercial or claims state has been inferred without an exact current actor."
+      />
+    );
+  if (projectsPending)
     return (
       <PageGatePanel
         state="pending"
@@ -255,7 +294,7 @@ export default function ClaimsDeskPage() {
         description="The desk remains unavailable until an exact non-archived project can be selected."
       />
     );
-  if (projectsQuery.isError)
+  if (projectsUnavailable)
     return (
       <PageGatePanel
         state="error"
@@ -271,7 +310,7 @@ export default function ClaimsDeskPage() {
         description="Create or receive direct access to a non-archived project before recording Claims Desk evidence."
       />
     );
-  if (snapshotQuery.isLoading)
+  if (snapshotPending)
     return (
       <PageGatePanel
         state="pending"
@@ -279,7 +318,7 @@ export default function ClaimsDeskPage() {
         description="Verifying scope, receipt chain and controlled workflow state."
       />
     );
-  if (snapshotQuery.isError || !snapshotQuery.data)
+  if (snapshotUnavailable || !snapshotQuery.data)
     return (
       <PageGatePanel
         state="error"
@@ -339,13 +378,19 @@ export default function ClaimsDeskPage() {
         </label>
       </section>
       <ClaimsDeskDashboard snapshot={snapshotQuery.data} />
-      {canManage && evidenceOptionsQuery.isError ? (
+      {evidenceOptionsPending ? (
+        <StatusPanel
+          state="pending"
+          title="Loading canonical evidence choices"
+          description="Claims Desk mutations remain disabled until current clean document versions are verified."
+        />
+      ) : evidenceOptionsUnavailable ? (
         <StatusPanel
           state="error"
           title="Canonical evidence could not be verified"
           description="Claims Desk mutations remain disabled until current clean document versions can be reloaded."
         />
-      ) : canManage ? (
+      ) : canManage && evidenceOptionsQuery.data ? (
         <div className="grid gap-6 xl:grid-cols-2">
           <ClaimsDeskCreatePanel
             pending={mutation.isPending || evidenceOptionsQuery.isLoading}
@@ -371,13 +416,13 @@ export default function ClaimsDeskPage() {
             }
           />
         </div>
-      ) : (
+      ) : !canManage ? (
         <StatusPanel
           state="blocked"
           title="Read-only Claims Desk"
           description="project:update is required to append workflow evidence. Reading the ledger does not authorize any external notice, invoice or payment action."
         />
-      )}
+      ) : null}
     </main>
   );
 }

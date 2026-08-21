@@ -115,6 +115,16 @@ export default function PartnerConsortiumRoomRoute() {
   const organisationId = organisation?.id ?? "";
   const permissions = access?.effectivePermissions ?? [];
   const actorUserId = meQuery.data?.id ?? "";
+  const hasReadAuthority = Boolean(
+    organisation &&
+    permissions.includes("project:read") &&
+    permissions.includes("partner_relationship:read") &&
+    ((organisation.accessSource === "membership" &&
+      organisation.membershipOrganisationId === organisationId &&
+      organisation.partnerRelationshipId === null) ||
+      (organisation.accessSource === "partner" &&
+        organisation.partnerRelationshipId)),
+  );
   const capabilityKey = capabilityFingerprint(
     permissions,
     organisation?.accessSource,
@@ -137,7 +147,7 @@ export default function PartnerConsortiumRoomRoute() {
         actorUserId,
         capabilityKey,
       ],
-      enabled: Boolean(organisationId && actorUserId),
+      enabled: hasReadAuthority && Boolean(actorUserId),
       select: (projects) => {
         assertAuthorityScopeCurrent(
           activeActorContext.current,
@@ -156,7 +166,7 @@ export default function PartnerConsortiumRoomRoute() {
         actorUserId,
         capabilityKey,
       ],
-      enabled: Boolean(organisationId && actorUserId),
+      enabled: hasReadAuthority && Boolean(actorUserId),
       select: (relationships) => {
         assertAuthorityScopeCurrent(
           activeActorContext.current,
@@ -196,7 +206,7 @@ export default function PartnerConsortiumRoomRoute() {
       (organisation.accessSource === "partner" &&
         organisation.partnerRelationshipId === relationshipId)),
   );
-  const canRead = exactAccess && permissions.includes("project:read");
+  const canRead = hasReadAuthority && exactAccess;
   const projectIsReleased =
     selectedProject?.status === "signed_off" ||
     selectedProject?.status === "exported" ||
@@ -333,10 +343,27 @@ export default function PartnerConsortiumRoomRoute() {
       />
     );
   }
+  if (meQuery.isLoading || meQuery.isPending) {
+    return (
+      <div className="p-5 sm:p-8">
+        <LoadingPanel label="Verifying relationship, project, and named actor" />
+      </div>
+    );
+  }
+  if (meQuery.isError || !meQuery.data) {
+    return (
+      <PageGatePanel
+        state="error"
+        title="Consortium authority could not be verified"
+        description="No relationship, responsibility, acceptance, or QA state has been inferred."
+      />
+    );
+  }
   if (
     projectsQuery.isLoading ||
+    projectsQuery.isPending ||
     relationshipsQuery.isLoading ||
-    meQuery.isLoading
+    relationshipsQuery.isPending
   ) {
     return (
       <div className="p-5 sm:p-8">
@@ -344,7 +371,12 @@ export default function PartnerConsortiumRoomRoute() {
       </div>
     );
   }
-  if (projectsQuery.isError || relationshipsQuery.isError || meQuery.isError) {
+  if (
+    projectsQuery.isError ||
+    relationshipsQuery.isError ||
+    projectsQuery.data === undefined ||
+    relationshipsQuery.data === undefined
+  ) {
     return (
       <PageGatePanel
         state="error"
@@ -411,9 +443,11 @@ export default function PartnerConsortiumRoomRoute() {
         title="Assign, accept, and independently check shared work"
         description="A bounded coordination ledger for one active relationship and one client-owned project, with bilateral ownership and immutable content-free receipts."
         state={
-          snapshotQuery.isError
+          snapshotQuery.isError ||
+          (!(snapshotQuery.isLoading || snapshotQuery.isPending) &&
+            snapshotQuery.data === undefined)
             ? "error"
-            : snapshotQuery.isLoading
+            : snapshotQuery.isLoading || snapshotQuery.isPending
               ? "pending"
               : snapshotQuery.data
                 ? "active"
@@ -429,10 +463,12 @@ export default function PartnerConsortiumRoomRoute() {
         />
       ) : null}
 
-      {snapshotQuery.isLoading ? (
+      {snapshotQuery.isLoading || snapshotQuery.isPending ? (
         <LoadingPanel label="Loading the exact consortium room" />
       ) : null}
-      {snapshotQuery.isError ? (
+      {snapshotQuery.isError ||
+      (!(snapshotQuery.isLoading || snapshotQuery.isPending) &&
+        snapshotQuery.data === undefined) ? (
         <StatusPanel
           state="error"
           title="Consortium room is unavailable"
@@ -464,7 +500,7 @@ export default function PartnerConsortiumRoomRoute() {
       ) : null}
       {snapshotQuery.data === null &&
       canWrite &&
-      participantsQuery.isLoading ? (
+      (participantsQuery.isLoading || participantsQuery.isPending) ? (
         <LoadingPanel label="Loading current named relationship participants" />
       ) : null}
       {snapshotQuery.data === null &&

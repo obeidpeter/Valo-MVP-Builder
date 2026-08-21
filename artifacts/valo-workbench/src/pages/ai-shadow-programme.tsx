@@ -157,7 +157,11 @@ export default function AiShadowProgrammePage() {
         description="Reconnect before reading or recording the append-only evaluation register."
       />
     );
-  if (snapshot.isLoading)
+  const snapshotPending = snapshot.isLoading || snapshot.isPending;
+  const snapshotUnavailable =
+    snapshot.isError ||
+    (!snapshotPending && (!snapshot.isSuccess || snapshot.data === undefined));
+  if (snapshotPending)
     return (
       <PageGatePanel
         state="pending"
@@ -165,7 +169,7 @@ export default function AiShadowProgrammePage() {
         description="Verifying tenant scope, exact version bindings and cohort coverage."
       />
     );
-  if (snapshot.isError || !snapshot.data)
+  if (snapshotUnavailable || !snapshot.data)
     return (
       <PageGatePanel
         state="error"

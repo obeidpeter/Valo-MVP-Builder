@@ -72,23 +72,29 @@ function HandoffForm({
       return;
     }
     const form = new FormData(event.currentTarget);
-    await onConfirm(preparation.source.candidateId, {
-      expectedCandidateVersion: preparation.source.candidateVersion,
-      expectedSourceReceiptSha256: preparation.source.sourceReceiptSha256,
-      expectedTenderVersion: preparation.source.tenderVersion,
-      expectedConflictBoundarySha256: preparation.conflictBoundary.sha256,
-      clientId: selectedClient.id,
-      expectedClientVersion: selectedClient.version,
-      tenderLotId: selectedLot?.id ?? null,
-      expectedTenderLotVersion: selectedLot?.version ?? null,
-      confirmedLotReference: selectedLot?.reference ?? null,
-      reviewerUserId,
-      officialSourceReopened: true,
-      confirmedBuyer: buyer.trim(),
-      confirmedReference: reference.trim(),
-      confirmedSubmissionDeadline: deadline.trim() || null,
-      confirmationNote: String(form.get("confirmationNote") ?? "").trim(),
-    });
+    try {
+      await onConfirm(preparation.source.candidateId, {
+        expectedCandidateVersion: preparation.source.candidateVersion,
+        expectedSourceReceiptSha256: preparation.source.sourceReceiptSha256,
+        expectedTenderVersion: preparation.source.tenderVersion,
+        expectedConflictBoundarySha256: preparation.conflictBoundary.sha256,
+        clientId: selectedClient.id,
+        expectedClientVersion: selectedClient.version,
+        tenderLotId: selectedLot?.id ?? null,
+        expectedTenderLotVersion: selectedLot?.version ?? null,
+        confirmedLotReference: selectedLot?.reference ?? null,
+        reviewerUserId,
+        officialSourceReopened: true,
+        confirmedBuyer: buyer.trim(),
+        confirmedReference: reference.trim(),
+        confirmedSubmissionDeadline: deadline.trim() || null,
+        confirmationNote: String(form.get("confirmationNote") ?? "").trim(),
+      });
+    } catch {
+      // The workflow owns the visible mutation error and idempotency digest.
+      // Keep this exact confirmation intact so the named human can reconcile
+      // the authoritative result and retry without leaking an event promise.
+    }
   }
 
   const missingChoices =

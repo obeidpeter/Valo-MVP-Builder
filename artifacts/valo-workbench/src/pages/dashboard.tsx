@@ -1,4 +1,7 @@
 import {
+  getGetVaultExpiringQueryKey,
+  getGetWorkflowAlertsQueryKey,
+  getListProjectsQueryKey,
   type Gate0Metric,
   type ProjectSummary,
   type VaultExpiringItem,
@@ -20,6 +23,7 @@ import {
   type SurfaceState,
 } from "@/components/platform-states";
 import { MyWorkInbox } from "@/components/my-work-inbox";
+import { useOrganisationAccess } from "@/contexts/organisation-context";
 import { formatWatInstant } from "@/lib/format";
 
 const TERMINAL_STATUSES = new Set(["signed_off", "exported", "archived"]);
@@ -213,10 +217,29 @@ function SectionHeading({
 }
 
 export default function Dashboard() {
+  const access = useOrganisationAccess();
+  const permissions = access?.effectivePermissions ?? [];
+  const canReadProjects = permissions.includes("project:read");
+  const canReadEvidence = permissions.includes("evidence:read");
   const metricsQuery = useGetDashboardMetrics();
-  const projectsQuery = useListProjects();
-  const vaultQuery = useGetVaultExpiring();
-  const alertsQuery = useGetWorkflowAlerts();
+  const projectsQuery = useListProjects(undefined, {
+    query: {
+      queryKey: getListProjectsQueryKey(),
+      enabled: canReadProjects,
+    },
+  });
+  const vaultQuery = useGetVaultExpiring({
+    query: {
+      queryKey: getGetVaultExpiringQueryKey(),
+      enabled: canReadEvidence,
+    },
+  });
+  const alertsQuery = useGetWorkflowAlerts({
+    query: {
+      queryKey: getGetWorkflowAlertsQueryKey(),
+      enabled: canReadProjects,
+    },
+  });
 
   const metrics = metricsQuery.data;
   const projects = projectsQuery.data ?? [];
@@ -266,35 +289,65 @@ export default function Dashboard() {
 
   const sources = [
     { name: "portfolio measures", query: metricsQuery },
-    { name: "pursuit register", query: projectsQuery },
-    { name: "evidence validity", query: vaultQuery },
-    { name: "workflow alerts", query: alertsQuery },
+    ...(canReadProjects
+      ? [
+          { name: "pursuit register", query: projectsQuery },
+          { name: "workflow alerts", query: alertsQuery },
+        ]
+      : []),
+    ...(canReadEvidence
+      ? [{ name: "evidence validity", query: vaultQuery }]
+      : []),
   ];
+  const restrictedSources = [
+    ...(!canReadProjects ? ["pursuit register and workflow exceptions"] : []),
+    ...(!canReadEvidence ? ["evidence validity"] : []),
+  ];
+  const queryPending = (query: (typeof sources)[number]["query"]) =>
+    query.isLoading || query.isPending;
   const unavailableSources = sources.filter(
     ({ query }) =>
-      query.isError || (!query.isLoading && query.data === undefined),
+      query.isError ||
+      (!queryPending(query) && (!query.isSuccess || query.data === undefined)),
   );
-  const allLoading = sources.every(({ query }) => query.isLoading);
-  const anyLoading = sources.some(({ query }) => query.isLoading);
+  const allLoading = sources.every(({ query }) => queryPending(query));
+  const anyLoading = sources.some(({ query }) => queryPending(query));
   const allUnavailable = unavailableSources.length === sources.length;
   const pageState: SurfaceState = allLoading
     ? "pending"
     : allUnavailable
       ? "error"
-      : unavailableSources.length > 0 || anyLoading
+      : unavailableSources.length > 0 ||
+          anyLoading ||
+          restrictedSources.length > 0
         ? "partial"
         : "active";
+  const alertsPending = alertsQuery.isLoading || alertsQuery.isPending;
   const alertsUnavailable =
-    alertsQuery.isError || (!alertsQuery.isLoading && !workflowAlerts);
+    alertsQuery.isError ||
+    (!alertsPending && (!alertsQuery.isSuccess || !workflowAlerts));
+  const projectsPending = projectsQuery.isLoading || projectsQuery.isPending;
   const projectsUnavailable =
     projectsQuery.isError ||
-    (!projectsQuery.isLoading && projectsQuery.data === undefined);
+    (!projectsPending &&
+      (!projectsQuery.isSuccess || projectsQuery.data === undefined));
+  const vaultPending = vaultQuery.isLoading || vaultQuery.isPending;
+  const vaultUnavailable =
+    vaultQuery.isError ||
+    (!vaultPending && (!vaultQuery.isSuccess || vaultQuery.data === undefined));
+  const metricsPending = metricsQuery.isLoading || metricsQuery.isPending;
+  const metricsUnavailable =
+    metricsQuery.isError ||
+    (!metricsPending &&
+      (!metricsQuery.isSuccess || metricsQuery.data === undefined));
 
   const retryAll = () => {
     void metricsQuery.refetch();
-    void projectsQuery.refetch();
-    void vaultQuery.refetch();
-    void alertsQuery.refetch();
+    if (canReadProjects) {
+      void projectsQuery.refetch();
+      void alertsQuery.refetch();
+    }
+    if (canReadEvidence) void vaultQuery.refetch();
   };
 
   return (
@@ -304,9 +357,11 @@ export default function Dashboard() {
         description="Review deadline, decision and exception signals before opening a pursuit. Dates and times are shown in West Africa Time (WAT)."
         state={pageState}
         actions={
-          <Button asChild variant="outline">
-            <Link href="/projects">Open all pursuits</Link>
-          </Button>
+          canReadProjects ? (
+            <Button asChild variant="outline">
+              <Link href="/projects">Open all pursuits</Link>
+            </Button>
+          ) : undefined
         }
       />
 
@@ -336,6 +391,14 @@ export default function Dashboard() {
         </StatusPanel>
       ) : null}
 
+      {!allLoading && restrictedSources.length > 0 ? (
+        <StatusPanel
+          state="unavailable"
+          title="Some signals are outside your current authority"
+          description={`${restrictedSources.join(" and ")} remain hidden because this organisation role does not include their read permissions. Restricted sources were not queried and are not reported as failures or zeroes.`}
+        />
+      ) : null}
+
       {!allLoading && !allUnavailable ? (
         <section
           aria-labelledby="attention-snapshot-heading"
@@ -346,92 +409,100 @@ export default function Dashboard() {
             title="Attention snapshot"
             description="Counts are exception signals, not automatic release or submission decisions. Open the relevant pursuit to verify its current control state."
           />
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <SignalCard
-              title="Review SLA breaches"
-              value={
-                alertsQuery.isLoading
-                  ? LOADING_VALUE
-                  : alertsUnavailable
-                    ? UNAVAILABLE_VALUE
-                    : (workflowAlerts?.slaBreaches.length ?? 0)
-              }
-              state={
-                alertsQuery.isLoading
-                  ? "pending"
-                  : alertsUnavailable
-                    ? "error"
-                    : (workflowAlerts?.slaBreaches.length ?? 0) > 0
-                      ? "blocked"
-                      : "empty"
-              }
-              description="Deterministic workflow alerts whose review due time has elapsed."
+          {canReadProjects ? (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <SignalCard
+                title="Review SLA breaches"
+                value={
+                  alertsPending
+                    ? LOADING_VALUE
+                    : alertsUnavailable
+                      ? UNAVAILABLE_VALUE
+                      : (workflowAlerts?.slaBreaches.length ?? 0)
+                }
+                state={
+                  alertsPending
+                    ? "pending"
+                    : alertsUnavailable
+                      ? "error"
+                      : (workflowAlerts?.slaBreaches.length ?? 0) > 0
+                        ? "blocked"
+                        : "empty"
+                }
+                description="Deterministic workflow alerts whose review due time has elapsed."
+              />
+              <SignalCard
+                title="Recorded deadlines passed"
+                value={
+                  projectsPending
+                    ? LOADING_VALUE
+                    : projectsUnavailable
+                      ? UNAVAILABLE_VALUE
+                      : recordedDeadlinesPassed
+                }
+                state={
+                  projectsPending
+                    ? "pending"
+                    : projectsUnavailable
+                      ? "error"
+                      : recordedDeadlinesPassed > 0
+                        ? "pending"
+                        : "empty"
+                }
+                description="Active pursuits whose recorded submission time is in the past; this does not assert submission status."
+              />
+              <SignalCard
+                title="Conflict blocks"
+                value={
+                  projectsPending
+                    ? LOADING_VALUE
+                    : projectsUnavailable
+                      ? UNAVAILABLE_VALUE
+                      : conflictBlocked
+                }
+                state={
+                  projectsPending
+                    ? "pending"
+                    : projectsUnavailable
+                      ? "error"
+                      : conflictBlocked > 0
+                        ? "blocked"
+                        : "empty"
+                }
+                description="Active pursuits with a blocked or declined conflict decision."
+              />
+              <SignalCard
+                title="Material findings recorded"
+                value={
+                  projectsPending
+                    ? LOADING_VALUE
+                    : projectsUnavailable
+                      ? UNAVAILABLE_VALUE
+                      : materialFindingProjects
+                }
+                state={
+                  projectsPending
+                    ? "pending"
+                    : projectsUnavailable
+                      ? "error"
+                      : materialFindingProjects > 0
+                        ? "pending"
+                        : "empty"
+                }
+                description="Pursuits containing fatal or likely-fatal findings. Their current resolution status must be checked in the pursuit readiness gate."
+              />
+            </div>
+          ) : (
+            <StatusPanel
+              state="unavailable"
+              title="Pursuit attention signals are restricted"
+              description="Review SLA, deadline, conflict and material-finding counts require project read authority. No project source was queried and no restricted count is shown as zero."
             />
-            <SignalCard
-              title="Recorded deadlines passed"
-              value={
-                projectsQuery.isLoading
-                  ? LOADING_VALUE
-                  : projectsUnavailable
-                    ? UNAVAILABLE_VALUE
-                    : recordedDeadlinesPassed
-              }
-              state={
-                projectsQuery.isLoading
-                  ? "pending"
-                  : projectsUnavailable
-                    ? "error"
-                    : recordedDeadlinesPassed > 0
-                      ? "pending"
-                      : "empty"
-              }
-              description="Active pursuits whose recorded submission time is in the past; this does not assert submission status."
-            />
-            <SignalCard
-              title="Conflict blocks"
-              value={
-                projectsQuery.isLoading
-                  ? LOADING_VALUE
-                  : projectsUnavailable
-                    ? UNAVAILABLE_VALUE
-                    : conflictBlocked
-              }
-              state={
-                projectsQuery.isLoading
-                  ? "pending"
-                  : projectsUnavailable
-                    ? "error"
-                    : conflictBlocked > 0
-                      ? "blocked"
-                      : "empty"
-              }
-              description="Active pursuits with a blocked or declined conflict decision."
-            />
-            <SignalCard
-              title="Material findings recorded"
-              value={
-                projectsQuery.isLoading
-                  ? LOADING_VALUE
-                  : projectsUnavailable
-                    ? UNAVAILABLE_VALUE
-                    : materialFindingProjects
-              }
-              state={
-                projectsQuery.isLoading
-                  ? "pending"
-                  : projectsUnavailable
-                    ? "error"
-                    : materialFindingProjects > 0
-                      ? "pending"
-                      : "empty"
-              }
-              description="Pursuits containing fatal or likely-fatal findings. Their current resolution status must be checked in the pursuit readiness gate."
-            />
-          </div>
+          )}
         </section>
       ) : null}
 
-      {!allLoading && !allUnavailable ? (
+      {!allLoading && !allUnavailable && canReadProjects ? (
         <section aria-labelledby="decisions-heading" className="space-y-4">
           <SectionHeading
             id="decisions-heading"
@@ -448,9 +519,9 @@ export default function Dashboard() {
             }
           />
 
-          {projectsQuery.isLoading ? (
+          {projectsPending ? (
             <LoadingPanel label="Loading pursuit decisions" />
-          ) : projectsQuery.isError || projectsQuery.data === undefined ? (
+          ) : projectsUnavailable ? (
             <StatusPanel
               state="error"
               title="Pursuit decisions are unavailable"
@@ -531,7 +602,7 @@ export default function Dashboard() {
         </section>
       ) : null}
 
-      {!allLoading && !allUnavailable ? (
+      {!allLoading && !allUnavailable && canReadProjects ? (
         <div className="grid gap-8 xl:grid-cols-2">
           <section
             aria-labelledby="deadline-register-heading"
@@ -542,9 +613,9 @@ export default function Dashboard() {
               title="Submission deadline register"
               description="Recorded tender deadlines for active pursuits, ordered by timestamp in WAT."
             />
-            {projectsQuery.isLoading ? (
+            {projectsPending ? (
               <LoadingPanel label="Loading recorded deadlines" />
-            ) : projectsQuery.isError || projectsQuery.data === undefined ? (
+            ) : projectsUnavailable ? (
               <StatusPanel
                 state="error"
                 title="Deadlines are unavailable"
@@ -594,9 +665,9 @@ export default function Dashboard() {
               title="Workflow exceptions"
               description="Server-reported SLA breaches and red-team review windows."
             />
-            {alertsQuery.isLoading ? (
+            {alertsPending ? (
               <LoadingPanel label="Loading workflow exceptions" />
-            ) : alertsQuery.isError || !workflowAlerts ? (
+            ) : alertsUnavailable || !workflowAlerts ? (
               <StatusPanel
                 state="error"
                 title="Workflow exceptions are unavailable"
@@ -649,7 +720,7 @@ export default function Dashboard() {
         </div>
       ) : null}
 
-      {!allLoading && !allUnavailable ? (
+      {!allLoading && !allUnavailable && canReadEvidence ? (
         <section
           aria-labelledby="evidence-validity-heading"
           className="space-y-4"
@@ -668,9 +739,9 @@ export default function Dashboard() {
               </Link>
             }
           />
-          {vaultQuery.isLoading ? (
+          {vaultPending ? (
             <LoadingPanel label="Loading evidence validity" />
-          ) : vaultQuery.isError || !expiring ? (
+          ) : vaultUnavailable || !expiring ? (
             <StatusPanel
               state="error"
               title="Evidence validity is unavailable"
@@ -718,9 +789,9 @@ export default function Dashboard() {
             title="Gate 0 readiness"
             description="Business validation thresholds from the connected dashboard metrics. These measures do not replace pursuit-level quality or release gates."
           />
-          {metricsQuery.isLoading ? (
+          {metricsPending ? (
             <LoadingPanel label="Loading Gate 0 measures" />
-          ) : metricsQuery.isError || !metrics ? (
+          ) : metricsUnavailable || !metrics ? (
             <StatusPanel
               state="error"
               title="Gate 0 measures are unavailable"

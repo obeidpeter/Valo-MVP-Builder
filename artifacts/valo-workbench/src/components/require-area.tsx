@@ -15,10 +15,10 @@ export default function RequireArea({
   area: PlatformArea;
   children: ReactNode;
 }) {
-  const { data: user, isLoading, error } = useGetMe();
+  const { data: user, isLoading, isPending, error } = useGetMe();
   const organisationAccess = useOrganisationAccess();
 
-  if (isLoading || organisationAccess?.isLoading) {
+  if (isLoading || isPending || organisationAccess?.isLoading) {
     return (
       <div className="p-6 sm:p-8">
         <LoadingPanel label="Checking workspace access" />

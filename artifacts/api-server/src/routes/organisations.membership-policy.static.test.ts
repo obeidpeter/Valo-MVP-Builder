@@ -10,6 +10,10 @@ const discoverySource = readFileSync(
   new URL("../lib/organisationDiscovery.ts", import.meta.url),
   "utf8",
 );
+const runtimeSecuritySource = readFileSync(
+  new URL("../../../../lib/db/src/runtimeSecurity.ts", import.meta.url),
+  "utf8",
+);
 
 describe("organisation membership route policy integration", () => {
   test("discovers only server-authorised direct and partner-projected contexts", () => {
@@ -43,10 +47,10 @@ describe("organisation membership route policy integration", () => {
     );
   });
 
-  test("serialises membership writers and locks the authority snapshots", () => {
+  test("serialises membership writers without requiring forbidden grant updates", () => {
     assert.match(source, /pg_advisory_xact_lock/);
     assert.match(source, /organisation_memberships[\s\S]*FOR UPDATE/);
-    assert.match(source, /role_grants[\s\S]*FOR UPDATE OF grant_row/);
+    assert.doesNotMatch(source, /FOR UPDATE OF grant_row/);
     const lockCalls =
       source.match(/lockOrganisationMembershipAdministration\(tx/g) ?? [];
     assert.equal(lockCalls.length, 2);
@@ -59,13 +63,13 @@ describe("organisation membership route policy integration", () => {
     assert.equal(lifecycleChecks.length, 2);
     assert.match(source, /context\.membershipId!/);
     assert.match(source, /eventType: "membership\.change_denied"/);
+    assert.match(source, /nullableInstantsEqual\(matchingGrant\.expiresAt/);
+    assert.match(source, /kind: "immutable_role_expiry"/);
+    assert.doesNotMatch(source, /update\(roleGrants\)/);
+    assert.match(runtimeSecuritySource, /proof\.can_update_role_grants \|\|/);
     assert.match(
       source,
-      /grants\.map\([\s\S]*grant\.id === matchingGrant\.id[\s\S]*expiresAt: roleExpiresAt/,
-    );
-    assert.match(
-      source,
-      /update\(roleGrants\)[\s\S]*set\(\{ expiresAt: roleExpiresAt \}\)/,
+      /Existing role expiry is immutable; reactivate without changing roleExpiresAt/,
     );
     assert.match(
       source,

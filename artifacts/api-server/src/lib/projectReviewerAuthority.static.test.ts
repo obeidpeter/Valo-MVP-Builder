@@ -24,6 +24,11 @@ test("project reviewer authority is direct, current and lock-stable", () => {
   assert.match(source, /isRoleAllowedForOrganisation/u);
   assert.match(source, /hasPermission\(\[role\], "draft:review"\)/u);
   assert.match(source, /validProjectReviewerName\(membership\.userName\)/u);
+  assert.doesNotMatch(source, /FOR (?:UPDATE|SHARE) OF grant_row/u);
+  assert.doesNotMatch(
+    source,
+    /FROM public\.organisations[\s\S]{0,120}FOR SHARE/u,
+  );
 });
 
 test("every supplied reviewer assignment is permission-gated and revalidated in the transaction", () => {

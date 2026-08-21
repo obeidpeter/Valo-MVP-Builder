@@ -56,9 +56,11 @@ type OrganisationTransaction = Parameters<
 
 /**
  * Every membership writer takes the same transaction-scoped organisation
- * lock before reading authority or counting administrators. The row locks keep
- * the snapshots stable and the advisory lock also serialises a concurrent
- * insert, which has no row to lock yet. The surrounding tenant transaction is
+ * lock before reading authority or counting administrators. Membership row
+ * locks keep existing access stable, while the advisory lock serialises grant
+ * changes and concurrent inserts that have no row to lock yet. Role grants are
+ * read without a row-lock clause because the constrained runtime deliberately
+ * has no UPDATE privilege on them. The surrounding tenant transaction is
  * intentionally read committed because the audit hash chain requires that
  * isolation level after waiting for its own advisory lock.
  */
@@ -86,7 +88,6 @@ async function lockOrganisationMembershipAdministration(
       ON membership_row.id = grant_row.membership_id
     WHERE membership_row.organisation_id = ${organisationId}::uuid
     ORDER BY grant_row.id
-    FOR UPDATE OF grant_row
   `);
 }
 
@@ -135,6 +136,11 @@ function roleGrantCanStillTakeEffect(
     !grant.revokedAt &&
     (!grant.expiresAt || grant.expiresAt.getTime() > now.getTime())
   );
+}
+
+function nullableInstantsEqual(left: Date | null, right: Date | null): boolean {
+  if (left === null || right === null) return left === right;
+  return left.getTime() === right.getTime();
 }
 
 function requirePlatformBootstrap(
@@ -761,6 +767,13 @@ router.post(
           ) {
             return { kind: "invalid_role_window" as const };
           }
+          if (
+            matchingGrant &&
+            changesRoleExpiry &&
+            !nullableInstantsEqual(matchingGrant.expiresAt, roleExpiresAt)
+          ) {
+            return { kind: "immutable_role_expiry" as const };
+          }
           const membershipAlreadyActive = existingMembership
             ? isActiveAccessWindow(
                 {
@@ -790,11 +803,7 @@ router.post(
                 },
               ];
           const policyGrants = matchingGrant
-            ? grants.map((grant) =>
-                grant.id === matchingGrant.id && changesRoleExpiry
-                  ? { ...grant, expiresAt: roleExpiresAt }
-                  : grant,
-              )
+            ? grants
             : [
                 ...grants,
                 {
@@ -879,11 +888,6 @@ router.post(
               grantedByMembershipId: context.membershipId,
               expiresAt: roleExpiresAt,
             });
-          } else if (changesRoleExpiry) {
-            await tx
-              .update(roleGrants)
-              .set({ expiresAt: roleExpiresAt })
-              .where(eq(roleGrants.id, matchingGrant.id));
           }
           await writeAuditTx(tx, {
             user: getLocalUser(req),
@@ -901,12 +905,11 @@ router.post(
               requestedRoleExpiresAt: changesRoleExpiry
                 ? roleExpiresAt
                 : undefined,
-              roleExpiresAt:
-                matchingGrant && !changesRoleExpiry
-                  ? matchingGrant.expiresAt
-                  : roleExpiresAt,
+              roleExpiresAt: matchingGrant
+                ? matchingGrant.expiresAt
+                : roleExpiresAt,
               previousRoleExpiresAt: matchingGrant?.expiresAt ?? null,
-              roleExpiryChanged: Boolean(matchingGrant && changesRoleExpiry),
+              roleExpiryChanged: false,
               requestedAccessExpiresAt: changesAccessExpiry
                 ? accessExpiresAt
                 : undefined,
@@ -942,6 +945,13 @@ router.post(
     if (outcome.kind === "invalid_role_window") {
       res.status(400).json({
         error: "Role expiry must be later than the retained grant start",
+      });
+      return;
+    }
+    if (outcome.kind === "immutable_role_expiry") {
+      res.status(409).json({
+        error:
+          "Existing role expiry is immutable; reactivate without changing roleExpiresAt",
       });
       return;
     }
