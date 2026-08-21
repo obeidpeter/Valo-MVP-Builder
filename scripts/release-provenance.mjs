@@ -432,9 +432,9 @@ export function attestGitHubCandidateRun({
     runId,
     "Selected candidate run id differs",
   );
-  assert.equal(
-    run.name,
-    expectedWorkflowName,
+  const expectedRunTitle = `${expectedWorkflowName} from ${expectedSourceCommit}`;
+  assert.ok(
+    run.name === expectedWorkflowName || run.name === expectedRunTitle,
     "Selected run is not the release-candidate workflow",
   );
   assert.equal(
@@ -449,7 +449,7 @@ export function attestGitHubCandidateRun({
   );
   assert.equal(
     run.display_title,
-    `${expectedWorkflowName} from ${expectedSourceCommit}`,
+    expectedRunTitle,
     "Selected run was dispatched for another source commit",
   );
   assert.equal(

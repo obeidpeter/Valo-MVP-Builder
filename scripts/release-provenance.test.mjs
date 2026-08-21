@@ -237,6 +237,17 @@ describe("GitHub candidate run provenance", () => {
     );
   });
 
+  it("accepts GitHub's source-bound run name", () => {
+    const sourceBoundName = `${WORKFLOW_NAME} from ${SOURCE_COMMIT}`;
+    const attestation = candidateAttestation({
+      ...githubRun(),
+      name: sourceBoundName,
+    });
+
+    assert.equal(attestation.workflow.name, WORKFLOW_NAME);
+    assert.equal(attestation.run.displayTitle, sourceBoundName);
+  });
+
   it("rejects candidate-run substitution across repository and workflow", () => {
     assert.throws(
       () => candidateAttestation({ ...githubRun(), id: 111111 }),
