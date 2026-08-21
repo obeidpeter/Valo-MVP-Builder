@@ -130,8 +130,11 @@ export default function PartnerWorkspace() {
 
   const loading =
     relationshipsQuery.isLoading ||
+    relationshipsQuery.isPending ||
     projectsQuery.isLoading ||
-    vaultQuery.isLoading;
+    projectsQuery.isPending ||
+    vaultQuery.isLoading ||
+    vaultQuery.isPending;
   const hasError =
     relationshipsQuery.isError || projectsQuery.isError || vaultQuery.isError;
   const relationships = relationshipsQuery.data ?? [];

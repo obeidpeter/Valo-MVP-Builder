@@ -114,7 +114,12 @@ export default function ClientPortal() {
   }
 
   const loading =
-    projectsQuery.isLoading || alertsQuery.isLoading || vaultQuery.isLoading;
+    projectsQuery.isLoading ||
+    projectsQuery.isPending ||
+    alertsQuery.isLoading ||
+    alertsQuery.isPending ||
+    vaultQuery.isLoading ||
+    vaultQuery.isPending;
   const hasError =
     projectsQuery.isError || alertsQuery.isError || vaultQuery.isError;
   const projects = [...(projectsQuery.data ?? [])].sort(deadlineOrder);

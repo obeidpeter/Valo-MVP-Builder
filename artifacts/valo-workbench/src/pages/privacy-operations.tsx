@@ -152,6 +152,20 @@ export default function PrivacyOperationsPage() {
       };
     },
   });
+  const evidenceOptionsPending = Boolean(
+    canBrowseDocuments &&
+    (evidenceOptionsQuery.isLoading || evidenceOptionsQuery.isPending),
+  );
+  const dashboardPending = dashboardQuery.isLoading || dashboardQuery.isPending;
+  const dashboardUnavailable =
+    dashboardQuery.isError ||
+    (!dashboardPending &&
+      (!dashboardQuery.isSuccess || dashboardQuery.data === undefined));
+  const assigneesPending = assigneesQuery.isLoading || assigneesQuery.isPending;
+  const assigneesUnavailable =
+    assigneesQuery.isError ||
+    (!assigneesPending &&
+      (!assigneesQuery.isSuccess || assigneesQuery.data === undefined));
 
   const workflowMutation = useMutation({
     mutationFn: async (workflow: WorkflowMutation) => {
@@ -222,7 +236,7 @@ export default function PrivacyOperationsPage() {
     );
   }
 
-  if (dashboardQuery.isLoading) {
+  if (dashboardPending) {
     return (
       <PageGatePanel
         state="pending"
@@ -232,7 +246,7 @@ export default function PrivacyOperationsPage() {
     );
   }
 
-  if (dashboardQuery.isError || !dashboardQuery.data) {
+  if (dashboardUnavailable || !dashboardQuery.data) {
     return (
       <PageGatePanel
         state="error"
@@ -259,56 +273,85 @@ export default function PrivacyOperationsPage() {
       dashboard={dashboardQuery.data}
       workflowPanel={
         canManage ? (
-          <>
-            {canBrowseDocuments && evidenceOptionsQuery.isError ? (
-              <StatusPanel
-                state="error"
-                title="Governed document choices are unavailable"
-                description="The optional picker could not be loaded. Existing external or legacy digest evidence can still be recorded and is not a scanner attestation."
-              />
-            ) : null}
-            <PrivacyWorkflowPanel
-              dashboard={dashboardQuery.data}
-              assigneeOptions={
-                assigneesQuery.data?.items.map(({ userId, name }) => ({
-                  id: userId,
-                  name,
-                })) ?? []
-              }
-              evidenceOptions={evidenceOptionsQuery.data?.items ?? []}
-              evidenceOptionsTruncated={
-                evidenceOptionsQuery.data?.truncated ?? false
-              }
-              busy={workflowMutation.isPending}
-              onTriage={(id, version, body) =>
-                run({
-                  path: `/api/privacy-operations/data-subject-requests/${id}/triage`,
-                  objectId: id,
-                  expectedEventType: "privacy.dsr_triage_recorded",
-                  version,
-                  body,
-                })
-              }
-              onWithdraw={(id, version, body) =>
-                run({
-                  path: `/api/privacy-operations/consent-records/${id}/withdrawal`,
-                  objectId: id,
-                  expectedEventType: "privacy.consent_withdrawal_recorded",
-                  version,
-                  body,
-                })
-              }
-              onReviewHold={(id, version, body) =>
-                run({
-                  path: `/api/privacy-operations/legal-holds/${id}/reviews`,
-                  objectId: id,
-                  expectedEventType: "privacy.legal_hold_review_recorded",
-                  version,
-                  body,
-                })
-              }
+          assigneesPending ? (
+            <StatusPanel
+              state="pending"
+              title="Loading privacy managers"
+              description="Named-human workflows remain disabled until the current tenant assignee directory is verified."
             />
-          </>
+          ) : assigneesUnavailable || !assigneesQuery.data ? (
+            <StatusPanel
+              state="error"
+              title="Privacy managers could not be loaded"
+              description="The directory state is unknown; this is not evidence that no active manager exists. Retry before triage or review."
+            >
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void assigneesQuery.refetch()}
+              >
+                Retry manager directory
+              </Button>
+            </StatusPanel>
+          ) : (
+            <>
+              {evidenceOptionsPending ? (
+                <StatusPanel
+                  state="pending"
+                  title="Loading governed document choices"
+                  description="The optional canonical picker is pending. Existing external or legacy digest evidence remains available and is not a scanner attestation."
+                />
+              ) : canBrowseDocuments && evidenceOptionsQuery.isError ? (
+                <StatusPanel
+                  state="error"
+                  title="Governed document choices are unavailable"
+                  description="The optional picker could not be loaded. Existing external or legacy digest evidence can still be recorded and is not a scanner attestation."
+                />
+              ) : null}
+              <PrivacyWorkflowPanel
+                dashboard={dashboardQuery.data}
+                assigneeOptions={assigneesQuery.data.items.map(
+                  ({ userId, name }) => ({
+                    id: userId,
+                    name,
+                  }),
+                )}
+                evidenceOptions={evidenceOptionsQuery.data?.items ?? []}
+                evidenceOptionsTruncated={
+                  evidenceOptionsQuery.data?.truncated ?? false
+                }
+                evidenceOptionsPending={evidenceOptionsPending}
+                busy={workflowMutation.isPending}
+                onTriage={(id, version, body) =>
+                  run({
+                    path: `/api/privacy-operations/data-subject-requests/${id}/triage`,
+                    objectId: id,
+                    expectedEventType: "privacy.dsr_triage_recorded",
+                    version,
+                    body,
+                  })
+                }
+                onWithdraw={(id, version, body) =>
+                  run({
+                    path: `/api/privacy-operations/consent-records/${id}/withdrawal`,
+                    objectId: id,
+                    expectedEventType: "privacy.consent_withdrawal_recorded",
+                    version,
+                    body,
+                  })
+                }
+                onReviewHold={(id, version, body) =>
+                  run({
+                    path: `/api/privacy-operations/legal-holds/${id}/reviews`,
+                    objectId: id,
+                    expectedEventType: "privacy.legal_hold_review_recorded",
+                    version,
+                    body,
+                  })
+                }
+              />
+            </>
+          )
         ) : undefined
       }
     />

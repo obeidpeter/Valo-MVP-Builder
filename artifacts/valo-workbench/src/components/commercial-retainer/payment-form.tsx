@@ -20,18 +20,22 @@ export function PaymentForm({
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    await onMutate({
-      path: `/api/commercial-retainer/invoices/${invoice.id}/payments`,
-      body: {
-        expectedInvoiceVersion: invoice.version,
-        evidenceReference: data.get("evidenceReference"),
-        evidenceSha256: data.get("evidenceSha256"),
-        amountMinor: invoice.netPayableMinor,
-        currency: invoice.currency,
-        settledAt: new Date(String(data.get("settledAt"))).toISOString(),
-        idempotencyDigest: digest,
-      },
-    });
+    try {
+      await onMutate({
+        path: `/api/commercial-retainer/invoices/${invoice.id}/payments`,
+        body: {
+          expectedInvoiceVersion: invoice.version,
+          evidenceReference: data.get("evidenceReference"),
+          evidenceSha256: data.get("evidenceSha256"),
+          amountMinor: invoice.netPayableMinor,
+          currency: invoice.currency,
+          settledAt: new Date(String(data.get("settledAt"))).toISOString(),
+          idempotencyDigest: digest,
+        },
+      });
+    } catch {
+      return;
+    }
     setDigest(randomDigest());
   }
   return (

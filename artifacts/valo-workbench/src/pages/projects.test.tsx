@@ -31,6 +31,7 @@ const apiState = vi.hoisted(() => ({
   retryClients: vi.fn(),
   retryUsers: vi.fn(),
   createProject: vi.fn(),
+  canCreateProject: true,
 }));
 
 vi.mock("@workspace/api-client-react", () => ({
@@ -46,7 +47,8 @@ vi.mock("@workspace/api-client-react", () => ({
 }));
 
 vi.mock("@/contexts/organisation-context", () => ({
-  useOrganisationPermission: () => true,
+  useOrganisationPermission: (permission: string) =>
+    permission === "project:create" ? apiState.canCreateProject : true,
 }));
 
 vi.mock("@/hooks/use-toast", () => ({
@@ -117,6 +119,7 @@ describe("project register controls", () => {
     apiState.retryClients.mockReset();
     apiState.retryUsers.mockReset();
     apiState.createProject.mockReset();
+    apiState.canCreateProject = true;
     apiState.projectsQuery = {
       data: [],
       isLoading: false,
@@ -146,7 +149,9 @@ describe("project register controls", () => {
         },
       ],
       isLoading: false,
+      isPending: false,
       isError: false,
+      isSuccess: true,
       isFetching: false,
       refetch: apiState.retryUsers,
     };
@@ -184,6 +189,21 @@ describe("project register controls", () => {
     expect(screen.getByText("No projects found.")).toBeInTheDocument();
     expect(
       screen.queryByText(/register state is unavailable/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not tell a read-only user to create a project", () => {
+    apiState.canCreateProject = false;
+
+    renderPage();
+
+    expect(
+      screen.getByText(
+        /no projects are currently available to your organisation assignment/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/create a new project to start a forensic review/i),
     ).not.toBeInTheDocument();
   });
 
@@ -268,7 +288,9 @@ describe("project register controls", () => {
     apiState.usersQuery = {
       data: undefined,
       isLoading: false,
+      isPending: false,
       isError: true,
+      isSuccess: false,
       isFetching: false,
       refetch: apiState.retryUsers,
     };
@@ -282,6 +304,35 @@ describe("project register controls", () => {
     expect(screen.getByLabelText("Reviewer")).toBeDisabled();
     await user.click(screen.getByRole("button", { name: /retry reviewers/i }));
     expect(apiState.retryUsers).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a cold paused reviewer directory pending instead of claiming no reviewer exists", async () => {
+    apiState.usersQuery = {
+      data: undefined,
+      isLoading: false,
+      isPending: true,
+      isError: false,
+      isSuccess: false,
+      isFetching: false,
+      refetch: apiState.retryUsers,
+    };
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: /new project/i }));
+
+    expect(
+      await screen.findByText(/loading current reviewer authority/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        /no active, current, directly authorised reviewer is available/i,
+      ),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Reviewer")).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Create Project" }),
+    ).toBeDisabled();
   });
 
   it("applies bounded search from the URL and writes subsequent search changes back", async () => {

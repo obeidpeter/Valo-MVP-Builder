@@ -44,9 +44,11 @@ export const PROJECT_REVIEWER_ROLES = ORGANISATION_ROLES.filter((role) =>
 );
 
 /**
- * Membership writers take this same organisation-scoped advisory lock. The
- * row locks make the selected identity, its direct membership and every role
- * grant stable until the surrounding project transaction commits.
+ * Membership writers take this same organisation-scoped advisory lock. It
+ * serialises grant changes while row locks keep the selected identity and
+ * direct memberships stable until the surrounding project transaction
+ * commits. The runtime role intentionally has no UPDATE privilege on grants
+ * or organisations, so those authority rows must not use a locking SELECT.
  */
 export async function lockProjectReviewerAuthorityBoundary(
   tx: ReviewerAuthorityTransaction,
@@ -73,12 +75,11 @@ export async function lockProjectReviewerAuthorityBoundary(
     INNER JOIN public.organisation_memberships AS membership_row
       ON membership_row.id = grant_row.membership_id
     WHERE membership_row.organisation_id = ${organisationId}::uuid
-    ORDER BY grant_row.id FOR UPDATE OF grant_row
+    ORDER BY grant_row.id
   `);
   await tx.execute(sql`
     SELECT id FROM public.organisations
     WHERE id = ${organisationId}::uuid
-    FOR SHARE
   `);
   await tx.execute(sql`
     SELECT id FROM public.users

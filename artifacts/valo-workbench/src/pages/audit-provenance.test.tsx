@@ -18,13 +18,17 @@ vi.mock("@workspace/api-client-react", () => ({
   useGetAccessReview: () => ({
     data: { month: "2026-08", rows: [] },
     isLoading: false,
+    isPending: false,
     isError: false,
+    isSuccess: true,
     refetch: vi.fn(),
   }),
   useGetLegacyIntegrityAssessment: () => ({
     data: mockState.assessments,
     isLoading: mockState.assessmentLoading,
+    isPending: mockState.assessmentLoading,
     isError: mockState.assessmentError,
+    isSuccess: !mockState.assessmentLoading && !mockState.assessmentError,
     refetch: vi.fn(),
   }),
 }));

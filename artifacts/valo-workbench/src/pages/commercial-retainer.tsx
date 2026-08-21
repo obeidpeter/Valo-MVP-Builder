@@ -222,7 +222,9 @@ export default function CommercialRetainerPage() {
         canReconcile={canReconcile}
         canUseRetainer={canUseRetainer}
         busy={mutation.isPending}
-        onMutate={(command) => mutation.mutateAsync(command).then(() => {})}
+        onMutate={async (command) => {
+          await mutation.mutateAsync(command);
+        }}
       />
     </div>
   );

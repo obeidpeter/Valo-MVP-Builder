@@ -48,6 +48,38 @@ it("requires an official-source reopen and submits only an intake confirmation",
   );
 });
 
+it("consumes a rejected confirmation and preserves the exact human input", async () => {
+  const preparation = adaptOpportunityPursuitHandoffPreparation(
+    readyHandoffResponse(),
+    ORGANISATION_ID,
+    CANDIDATE_ID,
+  );
+  const onConfirm = vi.fn().mockRejectedValue(new Error("conflict"));
+  render(
+    <OpportunityPursuitHandoffPanel
+      preparation={preparation}
+      pending={false}
+      onConfirm={onConfirm}
+    />,
+  );
+  const note = screen.getByLabelText(/confirmation note/i);
+  const reopened = screen.getByRole("checkbox");
+  fireEvent.change(note, {
+    target: { value: "Reopened and checked this exact source digest." },
+  });
+  fireEvent.click(reopened);
+  fireEvent.click(
+    screen.getByRole("button", { name: /create intake pursuit only/i }),
+  );
+
+  await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1));
+  expect(note).toHaveValue("Reopened and checked this exact source digest.");
+  expect(reopened).toBeChecked();
+  expect(
+    screen.getByLabelText(/buyer confirmed from official source/i),
+  ).toHaveValue("Representative buyer");
+});
+
 it("blocks persistence when the selected tender and lot is currently occupied", () => {
   const response = readyHandoffResponse();
   const conflicted = {

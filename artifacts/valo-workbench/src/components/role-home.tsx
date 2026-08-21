@@ -10,10 +10,10 @@ import {
 import { useOrganisationAccess } from "@/contexts/organisation-context";
 
 export default function RoleHome() {
-  const { data: user, isLoading, error } = useGetMe();
+  const { data: user, isLoading, isPending, error } = useGetMe();
   const organisationAccess = useOrganisationAccess();
 
-  if (isLoading || organisationAccess?.isLoading) {
+  if (isLoading || isPending || organisationAccess?.isLoading) {
     return (
       <div className="p-6 sm:p-8">
         <LoadingPanel label="Opening your workspace" />

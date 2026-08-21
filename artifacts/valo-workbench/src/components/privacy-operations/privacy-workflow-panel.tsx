@@ -37,6 +37,7 @@ export function PrivacyWorkflowPanel({
   assigneeOptions,
   evidenceOptions = [],
   evidenceOptionsTruncated = false,
+  evidenceOptionsPending = false,
   busy = false,
   onTriage,
   onWithdraw,
@@ -46,6 +47,7 @@ export function PrivacyWorkflowPanel({
   assigneeOptions: readonly { id: string; name: string }[];
   evidenceOptions?: readonly CanonicalEvidenceOption[];
   evidenceOptionsTruncated?: boolean;
+  evidenceOptionsPending?: boolean;
   busy?: boolean;
   onTriage: (
     id: string,
@@ -80,6 +82,9 @@ export function PrivacyWorkflowPanel({
   const withdrawalDigest =
     withdrawalEvidence[0]?.sha256 ?? withdrawalLegacyDigest.trim();
   const holdDigest = holdEvidence[0]?.sha256 ?? holdLegacyDigest.trim();
+  const evidenceVerificationNote = evidenceOptionsPending
+    ? "Governed document choices are loading. The external or legacy digest field remains available and is not a scanner attestation."
+    : "This optional picker copies a digest from a recent governed-document snapshot. The privacy receipt records the digest; it is not a mutation-time scanner or canonical attestation.";
   const activeConsents = dashboard.consentRecords.filter(
     ({ state }) => state === "active",
   );
@@ -296,9 +301,9 @@ export function PrivacyWorkflowPanel({
                     if (value.length > 0) setTriageLegacyDigest("");
                   }}
                   required={false}
-                  disabled={busy}
+                  disabled={busy || evidenceOptionsPending}
                   truncated={evidenceOptionsTruncated}
-                  verificationNote="This optional picker copies a digest from a recent governed-document snapshot. The privacy receipt records the digest; it is not a mutation-time scanner or canonical attestation."
+                  verificationNote={evidenceVerificationNote}
                 />
                 <Label htmlFor="privacy-triage-legacy-digest">
                   Decision external or legacy evidence digest — not a scanner
@@ -381,9 +386,9 @@ export function PrivacyWorkflowPanel({
                     if (value.length > 0) setWithdrawalLegacyDigest("");
                   }}
                   required={false}
-                  disabled={busy}
+                  disabled={busy || evidenceOptionsPending}
                   truncated={evidenceOptionsTruncated}
-                  verificationNote="This optional picker copies a digest from a recent governed-document snapshot. The privacy receipt records the digest; it is not a mutation-time scanner or canonical attestation."
+                  verificationNote={evidenceVerificationNote}
                 />
                 <Label htmlFor="privacy-withdrawal-legacy-digest">
                   Withdrawal external or legacy evidence digest — not a scanner
@@ -477,9 +482,9 @@ export function PrivacyWorkflowPanel({
                     if (value.length > 0) setHoldLegacyDigest("");
                   }}
                   required={false}
-                  disabled={busy}
+                  disabled={busy || evidenceOptionsPending}
                   truncated={evidenceOptionsTruncated}
-                  verificationNote="This optional picker copies a digest from a recent governed-document snapshot. The privacy receipt records the digest; it is not a mutation-time scanner or canonical attestation."
+                  verificationNote={evidenceVerificationNote}
                 />
                 <Label htmlFor="privacy-hold-legacy-digest">
                   Hold-review external or legacy evidence digest — not a scanner

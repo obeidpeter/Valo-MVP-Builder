@@ -49,23 +49,27 @@ function ManualSourceForm({
     const values = new FormData(form);
     const optional = (key: string) =>
       String(values.get(key) ?? "").trim() || null;
-    await onRecord({
-      sourceKind: "manual_url",
-      sourceSystem: String(values.get("sourceSystem") ?? "").trim(),
-      sourceAuthority: String(values.get("sourceAuthority") ?? "").trim(),
-      sourceLocator: String(values.get("sourceLocator") ?? "").trim(),
-      sourceLicenceReference: optional("sourceLicenceReference"),
-      externalReference: String(values.get("externalReference") ?? "").trim(),
-      title: String(values.get("title") ?? "").trim(),
-      procuringEntity: String(values.get("procuringEntity") ?? "").trim(),
-      jurisdiction: "NG",
-      fundingSource: optional("fundingSource"),
-      procurementCategory: optional("procurementCategory"),
-      publishedAt: null,
-      submissionDeadline: deadline ? new Date(deadline).toISOString() : null,
-      observedAt: new Date().toISOString(),
-      sourceContentSha256: null,
-    });
+    try {
+      await onRecord({
+        sourceKind: "manual_url",
+        sourceSystem: String(values.get("sourceSystem") ?? "").trim(),
+        sourceAuthority: String(values.get("sourceAuthority") ?? "").trim(),
+        sourceLocator: String(values.get("sourceLocator") ?? "").trim(),
+        sourceLicenceReference: optional("sourceLicenceReference"),
+        externalReference: String(values.get("externalReference") ?? "").trim(),
+        title: String(values.get("title") ?? "").trim(),
+        procuringEntity: String(values.get("procuringEntity") ?? "").trim(),
+        jurisdiction: "NG",
+        fundingSource: optional("fundingSource"),
+        procurementCategory: optional("procurementCategory"),
+        publishedAt: null,
+        submissionDeadline: deadline ? new Date(deadline).toISOString() : null,
+        observedAt: new Date().toISOString(),
+        sourceContentSha256: null,
+      });
+    } catch {
+      return;
+    }
     form.reset();
     setDeadline("");
   }
@@ -208,6 +212,14 @@ function CandidateCard({
   onDecision: OpportunitySourceConsoleProps["onDecision"];
 }) {
   const [reason, setReason] = useState("");
+  const decide = async (decision: "accept" | "reject") => {
+    try {
+      await onDecision(candidate, decision, reason.trim());
+    } catch {
+      // The route owns user-facing mutation errors. Consuming the rejection
+      // here keeps React event handlers from producing unhandled promises.
+    }
+  };
   const state =
     candidate.status === "accepted"
       ? "active"
@@ -283,9 +295,7 @@ function CandidateCard({
                 type="button"
                 className="min-h-11"
                 disabled={pending || !reason.trim()}
-                onClick={() =>
-                  void onDecision(candidate, "accept", reason.trim())
-                }
+                onClick={() => void decide("accept")}
               >
                 Accept into tender register
               </Button>
@@ -294,9 +304,7 @@ function CandidateCard({
                 variant="outline"
                 className="min-h-11"
                 disabled={pending || !reason.trim()}
-                onClick={() =>
-                  void onDecision(candidate, "reject", reason.trim())
-                }
+                onClick={() => void decide("reject")}
               >
                 Reject receipt
               </Button>

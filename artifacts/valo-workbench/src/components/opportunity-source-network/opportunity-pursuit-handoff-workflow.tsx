@@ -183,9 +183,9 @@ export function OpportunityPursuitHandoffWorkflow({
       <OpportunityPursuitHandoffPanel
         preparation={preparation.data}
         pending={confirm.isPending}
-        onConfirm={(_confirmedCandidateId, confirmation) =>
-          confirm.mutateAsync(confirmation).then(() => {})
-        }
+        onConfirm={async (_confirmedCandidateId, confirmation) => {
+          await confirm.mutateAsync(confirmation);
+        }}
       />
     </div>
   );

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import IntelligenceCentreRoute from "./intelligence-centre-route";
 
 const projectRefetch = vi.fn();
+const listProjects = vi.fn();
 const intelligenceRefetch = vi.fn();
 const getIntelligence = vi.fn();
 const claimReview = vi.fn();
@@ -14,6 +15,7 @@ const toast = vi.fn();
 
 const state = {
   projectsError: false,
+  projectsPending: false,
   permissions: [
     "client:read",
     "project:read",
@@ -44,12 +46,18 @@ vi.mock("@workspace/api-client-react", () => ({
     "/api/projects/intelligence",
     projectId,
   ],
-  useListProjects: () => ({
-    data: state.projects,
-    isLoading: false,
-    isError: state.projectsError,
-    refetch: projectRefetch,
-  }),
+  getListProjectsQueryKey: () => ["/api/projects"],
+  useListProjects: (...args: unknown[]) => {
+    listProjects(...args);
+    return {
+      data: state.projectsPending ? undefined : state.projects,
+      isLoading: false,
+      isPending: state.projectsPending,
+      isError: state.projectsError,
+      isSuccess: !state.projectsPending && !state.projectsError,
+      refetch: projectRefetch,
+    };
+  },
   useGetProjectIntelligence: (...args: unknown[]) => getIntelligence(...args),
   useClaimIntelligenceReview: () => ({
     mutate: claimReview,
@@ -163,6 +171,7 @@ function renderAt(path: string) {
 describe("Intelligence Centre route", () => {
   beforeEach(() => {
     state.projectsError = false;
+    state.projectsPending = false;
     state.permissions = [
       "client:read",
       "project:read",
@@ -181,6 +190,7 @@ describe("Intelligence Centre route", () => {
       { id: "project-2", tenderTitle: "Hospital equipment" },
     ];
     projectRefetch.mockReset();
+    listProjects.mockReset();
     intelligenceRefetch.mockReset();
     getIntelligence.mockReset();
     claimReview.mockReset();
@@ -189,7 +199,9 @@ describe("Intelligence Centre route", () => {
     getIntelligence.mockImplementation((projectId: string) => ({
       data: snapshot(projectId),
       isLoading: false,
+      isPending: false,
       isError: false,
+      isSuccess: true,
       refetch: intelligenceRefetch,
     }));
   });
@@ -213,6 +225,44 @@ describe("Intelligence Centre route", () => {
         query: expect.objectContaining({ enabled: true }),
       }),
     );
+  });
+
+  it("keeps a cold paused project request pending instead of showing an empty catalogue", () => {
+    state.projectsPending = true;
+    state.projects = [];
+
+    renderAt("/intelligence");
+
+    expect(
+      screen.getByText(/loading tenant-scoped intelligence evidence/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", {
+        name: /no intelligence evidence is available/i,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps a cold paused intelligence request pending instead of using the disconnected snapshot", () => {
+    getIntelligence.mockImplementation(() => ({
+      data: undefined,
+      isLoading: false,
+      isPending: true,
+      isError: false,
+      isSuccess: false,
+      refetch: intelligenceRefetch,
+    }));
+
+    renderAt("/intelligence?project=project-1");
+
+    expect(
+      screen.getByText(/loading tenant-scoped intelligence evidence/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", {
+        name: /no intelligence evidence is available/i,
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps project transport failures distinct and retryable", async () => {
@@ -243,6 +293,12 @@ describe("Intelligence Centre route", () => {
     ).toBeInTheDocument();
     expect(getIntelligence).toHaveBeenCalledWith(
       "project-1",
+      expect.objectContaining({
+        query: expect.objectContaining({ enabled: false }),
+      }),
+    );
+    expect(listProjects).toHaveBeenCalledWith(
+      undefined,
       expect.objectContaining({
         query: expect.objectContaining({ enabled: false }),
       }),

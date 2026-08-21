@@ -47,6 +47,7 @@ export type PlatformArea =
   | "billing_entitlements"
   | "commercial_retainer"
   | "claims_desk"
+  | "communications"
   | "notifications"
   | "security_audit"
   | "organisation_settings"
@@ -222,6 +223,11 @@ const AREA_ROLES: Record<PlatformArea, ReadonlySet<PlatformRole>> = {
   ]),
   commercial_retainer: COMMERCIAL_RETAINER_ROLES,
   claims_desk: PURSUIT_ROLES,
+  communications: new Set<PlatformRole>([
+    ...INTERNAL_ROLES,
+    ...CLIENT_ROLES,
+    ...PARTNER_ROLES,
+  ]),
   notifications: new Set<PlatformRole>([
     ...INTERNAL_ROLES,
     ...CLIENT_ROLES,
@@ -269,6 +275,7 @@ const AREA_REQUIRED_PERMISSION: Partial<Record<PlatformArea, string>> = {
   partner_workspace: "partner_relationship:read",
   evidence_readiness: "evidence:read",
   billing_entitlements: "entitlement:read",
+  communications: "project:read",
   notifications: "project:read",
   claims_desk: "project:read",
   security_audit: "audit:read",
@@ -431,9 +438,8 @@ const NAV_ITEMS: PlatformNavItem[] = [
   {
     href: "/communications",
     label: "Communication Receipts",
-    area: "notifications",
+    area: "communications",
     group: "Oversight",
-    feature: "notificationAdapters",
     requiredPermission: "project:read",
   },
   {
@@ -543,6 +549,7 @@ export function platformHomeForRole(
   const permits = (permission: string): boolean =>
     effectivePermissions === undefined ||
     effectivePermissions.includes(permission);
+  if (isInternalRole(role)) return "/app";
   if (isClientRole(role) && permits("project:read"))
     return flags.clientPortal ? "/portal" : "/projects";
   if (isPartnerRole(role)) {
@@ -628,6 +635,7 @@ export function getPlatformAccessDecision(
       "privacy_operations",
       "commercial_retainer",
       "claims_desk",
+      "communications",
     ].includes(area) &&
     accessSource !== "membership"
   ) {

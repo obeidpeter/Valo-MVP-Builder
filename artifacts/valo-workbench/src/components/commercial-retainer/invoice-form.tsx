@@ -19,29 +19,33 @@ export function InvoiceForm({
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    await onMutate({
-      path: `/api/commercial-retainer/quotes/${quote.id}/invoices`,
-      body: {
-        expectedOrderVersion: quote.version,
-        invoiceNumber: data.get("invoiceNumber"),
-        netAmountMinor: Number(data.get("netAmountMinor")),
-        vatRateBasisPoints: Number(data.get("vatRateBasisPoints")),
-        vatAmountMinor: Number(data.get("vatAmountMinor")),
-        grossAmountMinor: Number(data.get("grossAmountMinor")),
-        whtRateBasisPoints: data.get("whtRateBasisPoints")
-          ? Number(data.get("whtRateBasisPoints"))
-          : null,
-        whtAmountMinor: data.get("whtAmountMinor")
-          ? Number(data.get("whtAmountMinor"))
-          : null,
-        netPayableMinor: Number(data.get("netPayableMinor")),
-        taxRuleId: data.get("taxRuleId"),
-        taxPointAt: new Date(String(data.get("taxPointAt"))).toISOString(),
-        dueAt: data.get("dueAt")
-          ? new Date(String(data.get("dueAt"))).toISOString()
-          : null,
-      },
-    });
+    try {
+      await onMutate({
+        path: `/api/commercial-retainer/quotes/${quote.id}/invoices`,
+        body: {
+          expectedOrderVersion: quote.version,
+          invoiceNumber: data.get("invoiceNumber"),
+          netAmountMinor: Number(data.get("netAmountMinor")),
+          vatRateBasisPoints: Number(data.get("vatRateBasisPoints")),
+          vatAmountMinor: Number(data.get("vatAmountMinor")),
+          grossAmountMinor: Number(data.get("grossAmountMinor")),
+          whtRateBasisPoints: data.get("whtRateBasisPoints")
+            ? Number(data.get("whtRateBasisPoints"))
+            : null,
+          whtAmountMinor: data.get("whtAmountMinor")
+            ? Number(data.get("whtAmountMinor"))
+            : null,
+          netPayableMinor: Number(data.get("netPayableMinor")),
+          taxRuleId: data.get("taxRuleId"),
+          taxPointAt: new Date(String(data.get("taxPointAt"))).toISOString(),
+          dueAt: data.get("dueAt")
+            ? new Date(String(data.get("dueAt"))).toISOString()
+            : null,
+        },
+      });
+    } catch {
+      return;
+    }
   }
   return (
     <details className="mt-3 rounded-md border p-3">

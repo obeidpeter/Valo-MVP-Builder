@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PRODUCTION_ACCEPTANCE_CATEGORIES } from "@/components/production-acceptance/production-acceptance-contract";
 import ProductionAcceptancePage from "./production-acceptance";
@@ -141,6 +141,56 @@ describe("ProductionAcceptancePage", () => {
     expect(
       await screen.findByRole("option", { name: /^Migration Owner/u }),
     ).toBeInTheDocument();
+  });
+
+  it("fails closed and retries when the authority directory is unavailable", async () => {
+    let authorityAttempts = 0;
+    mocks.customFetch.mockImplementation((url: string) => {
+      if (url.endsWith("/authorities")) {
+        authorityAttempts += 1;
+        return authorityAttempts === 1
+          ? Promise.reject(new Error("directory unavailable"))
+          : Promise.resolve(authoritiesResponse());
+      }
+      return Promise.resolve(snapshotResponse());
+    });
+
+    renderPage();
+
+    expect(
+      await screen.findByText("Acceptance authorities could not be loaded"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/No other active named authority is available/u),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Retry authority directory" }),
+    );
+
+    expect(
+      await screen.findByRole("option", { name: /^Migration Owner/u }),
+    ).toBeInTheDocument();
+    expect(authorityAttempts).toBe(2);
+  });
+
+  it("distinguishes a verified empty authority directory from a load failure", async () => {
+    mocks.customFetch.mockImplementation((url: string) =>
+      Promise.resolve(
+        url.endsWith("/authorities")
+          ? { ...authoritiesResponse(), items: [] }
+          : snapshotResponse(),
+      ),
+    );
+
+    renderPage();
+
+    expect(
+      await screen.findByText(/No other active named authority is available/u),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Acceptance authorities could not be loaded"),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps the register read-only when the role lacks recording authority", async () => {

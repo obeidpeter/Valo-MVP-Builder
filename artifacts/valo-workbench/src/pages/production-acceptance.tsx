@@ -9,7 +9,7 @@ import {
   type ProductionAcceptanceEvidenceDraft,
 } from "@/components/production-acceptance/production-acceptance-contract";
 import { ProductionAcceptanceEvidenceForm } from "@/components/production-acceptance/production-acceptance-evidence-form";
-import { PageGatePanel } from "@/components/platform-states";
+import { PageGatePanel, StatusPanel } from "@/components/platform-states";
 import { Button } from "@/components/ui/button";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
 import { useOnlineStatus } from "@/hooks/use-online-status";
@@ -192,14 +192,36 @@ export default function ProductionAcceptancePage() {
       snapshot={snapshotQuery.data}
       evidenceRecorder={
         canRecord ? (
-          <ProductionAcceptanceEvidenceForm
-            releaseSha256={snapshotQuery.data.expectedReleaseSha256}
-            ownerOptions={ownerOptions}
-            pending={evidenceMutation.isPending}
-            onSubmit={(draft) =>
-              evidenceMutation.mutateAsync(draft).then(() => {})
-            }
-          />
+          authoritiesQuery.isLoading ? (
+            <StatusPanel
+              state="pending"
+              title="Loading acceptance authorities"
+              description="Evidence recording remains disabled until the current tenant authority directory is verified."
+            />
+          ) : authoritiesQuery.isError || !authoritiesQuery.data ? (
+            <StatusPanel
+              state="error"
+              title="Acceptance authorities could not be loaded"
+              description="The directory state is unknown; this is not evidence that no independent authority exists. Retry before recording evidence."
+            >
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void authoritiesQuery.refetch()}
+              >
+                Retry authority directory
+              </Button>
+            </StatusPanel>
+          ) : (
+            <ProductionAcceptanceEvidenceForm
+              releaseSha256={snapshotQuery.data.expectedReleaseSha256}
+              ownerOptions={ownerOptions}
+              pending={evidenceMutation.isPending}
+              onSubmit={(draft) =>
+                evidenceMutation.mutateAsync(draft).then(() => {})
+              }
+            />
+          )
         ) : undefined
       }
     />

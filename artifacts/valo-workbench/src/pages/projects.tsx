@@ -118,7 +118,9 @@ export default function Projects() {
   const {
     data: users,
     isLoading: loadingUsers,
+    isPending: usersPending,
     isError: usersFailed,
+    isSuccess: usersLoaded,
     isFetching: refreshingUsers,
     refetch: retryUsers,
   } = useListUsers({
@@ -134,15 +136,27 @@ export default function Projects() {
   const [isCreateOpen, setIsCreateOpen] = useState(
     defaultClientId !== "" && canCreateProject,
   );
+  const reviewerDirectoryPending = Boolean(
+    canCreateProject && canReadMemberships && (loadingUsers || usersPending),
+  );
+  const reviewerDirectoryUnavailable = Boolean(
+    canCreateProject &&
+    (!canReadMemberships ||
+      usersFailed ||
+      (!reviewerDirectoryPending &&
+        (usersLoaded !== true || users === undefined))),
+  );
   const reviewerOptions = useMemo(
     () =>
-      (users ?? []).filter(
-        (user) =>
-          user.status === "active" &&
-          user.membershipStatus === "active" &&
-          user.reviewerEligible === true,
-      ),
-    [users],
+      usersLoaded === true && users
+        ? users.filter(
+            (user) =>
+              user.status === "active" &&
+              user.membershipStatus === "active" &&
+              user.reviewerEligible === true,
+          )
+        : [],
+    [users, usersLoaded],
   );
   const form = useForm<CreateProjectForm>({
     resolver: zodResolver(createProjectSchema),
@@ -167,6 +181,8 @@ export default function Projects() {
     clientsLoaded === true &&
     Boolean(retainEligibleSelectionId(selectedClientId, clients ?? []));
   const selectedReviewerEligible = Boolean(
+    usersLoaded === true &&
+    users !== undefined &&
     retainEligibleSelectionId(selectedReviewerId, reviewerOptions),
   );
 
@@ -317,12 +333,13 @@ export default function Projects() {
 
   useEffect(() => {
     if (
+      usersLoaded &&
       selectedReviewerId &&
       !retainEligibleSelectionId(selectedReviewerId, reviewerOptions)
     ) {
       form.setValue("reviewerId", "", { shouldValidate: true });
     }
-  }, [form, reviewerOptions, selectedReviewerId]);
+  }, [form, reviewerOptions, selectedReviewerId, usersLoaded]);
 
   const onSubmit = (data: CreateProjectForm) => {
     const canonicalDeadline = data.deadline
@@ -529,8 +546,8 @@ export default function Projects() {
                       }
                       value={form.watch("reviewerId")}
                       disabled={
-                        loadingUsers ||
-                        usersFailed ||
+                        reviewerDirectoryPending ||
+                        reviewerDirectoryUnavailable ||
                         reviewerOptions.length === 0
                       }
                     >
@@ -550,7 +567,7 @@ export default function Projects() {
                         {form.formState.errors.reviewerId.message}
                       </p>
                     )}
-                    {usersFailed ? (
+                    {reviewerDirectoryUnavailable ? (
                       <div
                         className="flex flex-wrap items-center gap-2"
                         role="alert"
@@ -559,17 +576,27 @@ export default function Projects() {
                           Reviewer authority could not be verified. No reviewer
                           can be selected until the directory is available.
                         </p>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={refreshingUsers}
-                          onClick={() => void retryUsers()}
-                        >
-                          Retry reviewers
-                        </Button>
+                        {canReadMemberships ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={refreshingUsers}
+                            onClick={() => void retryUsers()}
+                          >
+                            Retry reviewers
+                          </Button>
+                        ) : null}
                       </div>
-                    ) : !loadingUsers && reviewerOptions.length === 0 ? (
+                    ) : reviewerDirectoryPending ? (
+                      <p
+                        className="text-xs text-muted-foreground"
+                        role="status"
+                      >
+                        Loading current reviewer authority. No reviewer can be
+                        selected until the directory is complete.
+                      </p>
+                    ) : usersLoaded && reviewerOptions.length === 0 ? (
                       <p className="text-xs text-muted-foreground">
                         No active, current, directly authorised reviewer is
                         available in this organisation.
@@ -680,7 +707,8 @@ export default function Projects() {
                       createProject.isPending ||
                       clientsFailed ||
                       !selectedClientEligible ||
-                      usersFailed ||
+                      reviewerDirectoryPending ||
+                      reviewerDirectoryUnavailable ||
                       !selectedReviewerEligible
                     }
                   >
@@ -905,7 +933,9 @@ export default function Projects() {
             <Briefcase className="w-12 h-12 mx-auto mb-3 text-muted" />
             <p>No projects found.</p>
             <p className="text-sm mt-1">
-              Create a new project to start a forensic review.
+              {canCreateProject
+                ? "Create a new project to start a forensic review."
+                : "No projects are currently available to your organisation assignment."}
             </p>
           </div>
         ) : visibleProjects.length > 0 ? (

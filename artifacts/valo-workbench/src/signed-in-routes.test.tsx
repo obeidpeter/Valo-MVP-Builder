@@ -52,6 +52,9 @@ vi.mock("@workspace/api-client-react", async (importOriginal) => {
         status: "active",
       },
       isLoading: false,
+      isPending: false,
+      isError: false,
+      isSuccess: true,
     }),
     useGetDashboardMetrics: () => ({ data: undefined, isLoading: false }),
     useListProjects: () => ({
@@ -94,11 +97,16 @@ vi.mock("@workspace/api-client-react", async (importOriginal) => {
     useGetAccessReview: () => ({
       data: { month: "2026-08", rows: [] },
       isLoading: false,
+      isPending: false,
+      isError: false,
+      isSuccess: true,
     }),
     useGetLegacyIntegrityAssessment: () => ({
       data: [],
       isLoading: false,
+      isPending: false,
       isError: false,
+      isSuccess: true,
     }),
     customFetch: async (path: string) => {
       if (path === "/api/growth-suite/onboarding") {

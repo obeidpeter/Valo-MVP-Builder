@@ -43,10 +43,10 @@ describe("organisation membership route policy integration", () => {
     );
   });
 
-  test("serialises membership writers and locks the authority snapshots", () => {
+  test("serialises membership writers without requiring forbidden grant updates", () => {
     assert.match(source, /pg_advisory_xact_lock/);
     assert.match(source, /organisation_memberships[\s\S]*FOR UPDATE/);
-    assert.match(source, /role_grants[\s\S]*FOR UPDATE OF grant_row/);
+    assert.doesNotMatch(source, /FOR UPDATE OF grant_row/);
     const lockCalls =
       source.match(/lockOrganisationMembershipAdministration\(tx/g) ?? [];
     assert.equal(lockCalls.length, 2);

@@ -26,6 +26,7 @@ test("source reads and decisions revalidate current direct tenant authority", ()
     source,
     /lockMembershipAdministrationBoundary\(tx, scope\.organisationId\)[\s\S]*?lockOpportunitySourceNetwork\(tx, scope\.organisationId\)[\s\S]*?currentDatabaseTime\(tx\)[\s\S]*?requireCurrentActor\(tx, scope, true, now\)/u,
   );
+  assert.doesNotMatch(source, /FOR (?:UPDATE|SHARE) OF grant_row/u);
 });
 
 test("accepted sources create only an identified tenant tender plus audit receipt", () => {

@@ -122,7 +122,7 @@ describe("ClaimsDeskDashboard", () => {
     const withHistory = (entry: Record<string, unknown>) => {
       const base = snapshot();
       base.records[0]!.reasonHistory = [
-        entry as (typeof base.records)[number]["reasonHistory"][number],
+        entry as unknown as (typeof base.records)[number]["reasonHistory"][number],
       ];
       return base;
     };

@@ -94,6 +94,15 @@ export default function OpportunitySourceNetworkPage() {
         queryKey: ["opportunity-source-network", updatedOrganisationId],
       });
     },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Opportunity source record could not be updated",
+        description:
+          "Reload the source inbox before retrying. No opportunity was accepted, rejected, or recorded by this attempt.",
+      });
+      void queryClient.invalidateQueries({ queryKey });
+    },
   });
 
   if (!canRead)
@@ -145,12 +154,12 @@ export default function OpportunitySourceNetworkPage() {
       canManage={canManage}
       pending={mutate.isPending}
       onRecord={(body) =>
-        mutate.mutateAsync({ kind: "record", body }).then(() => {})
+        mutate.mutateAsync({ kind: "record", body }).then(() => undefined)
       }
       onDecision={(candidate, decision, reason) =>
         mutate
           .mutateAsync({ kind: "decide", candidate, decision, reason })
-          .then(() => {})
+          .then(() => undefined)
       }
     />
   );

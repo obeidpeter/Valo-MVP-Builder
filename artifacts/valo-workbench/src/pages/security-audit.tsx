@@ -44,6 +44,14 @@ export default function SecurityAudit() {
     [query.data],
   );
   const assessment = assessmentQuery.data?.[0];
+  const reviewPending = query.isLoading || query.isPending;
+  const assessmentPending =
+    assessmentQuery.isLoading || assessmentQuery.isPending;
+  const reviewUnavailable =
+    query.isError || (!reviewPending && !query.isSuccess);
+  const assessmentUnavailable =
+    assessmentQuery.isError ||
+    (!assessmentPending && !assessmentQuery.isSuccess);
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-7 p-5 sm:p-8">
@@ -52,17 +60,19 @@ export default function SecurityAudit() {
         title="Security & audit"
         description="Attributed access-review evidence and the status of security queues that require independent, server-enforced controls."
         state={
-          !online || query.isError || assessmentQuery.isError
-            ? !online
-              ? "offline"
-              : "error"
-            : "active"
+          !online
+            ? "offline"
+            : reviewUnavailable || assessmentUnavailable
+              ? "error"
+              : reviewPending || assessmentPending
+                ? "pending"
+                : "active"
         }
       />
 
-      {assessmentQuery.isLoading ? (
+      {assessmentPending ? (
         <LoadingPanel label="Loading legacy audit integrity assessment" />
-      ) : assessmentQuery.isError ? (
+      ) : assessmentUnavailable ? (
         <DataErrorPanel
           title="Legacy integrity assessment could not be loaded"
           description="Do not infer an intact legacy chain while its stored assessment is unavailable. Check connectivity and role authorisation, then retry."
@@ -178,10 +188,10 @@ export default function SecurityAudit() {
           </div>
         </div>
 
-        {query.isLoading ? (
+        {reviewPending ? (
           <LoadingPanel label="Loading monthly access review" />
         ) : null}
-        {query.isError ? (
+        {reviewUnavailable ? (
           <DataErrorPanel
             title="Access review could not be loaded"
             description="Do not interpret missing rows as no access. Check connectivity and role authorisation, then retry."

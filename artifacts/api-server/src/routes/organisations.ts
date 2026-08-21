@@ -56,9 +56,11 @@ type OrganisationTransaction = Parameters<
 
 /**
  * Every membership writer takes the same transaction-scoped organisation
- * lock before reading authority or counting administrators. The row locks keep
- * the snapshots stable and the advisory lock also serialises a concurrent
- * insert, which has no row to lock yet. The surrounding tenant transaction is
+ * lock before reading authority or counting administrators. Membership row
+ * locks keep existing access stable, while the advisory lock serialises grant
+ * changes and concurrent inserts that have no row to lock yet. Role grants are
+ * read without a row-lock clause because the constrained runtime deliberately
+ * has no UPDATE privilege on them. The surrounding tenant transaction is
  * intentionally read committed because the audit hash chain requires that
  * isolation level after waiting for its own advisory lock.
  */
@@ -86,7 +88,6 @@ async function lockOrganisationMembershipAdministration(
       ON membership_row.id = grant_row.membership_id
     WHERE membership_row.organisation_id = ${organisationId}::uuid
     ORDER BY grant_row.id
-    FOR UPDATE OF grant_row
   `);
 }
 

@@ -79,7 +79,20 @@ function PlanCard({
   onClose: (item: AiShadowPlanSnapshot, reason: string) => Promise<void>;
 }) {
   const [reason, setReason] = useState("");
+  const [closeError, setCloseError] = useState<string | null>(null);
   const active = item.plan.status === "active";
+  const submitClosure = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setCloseError(null);
+    try {
+      await onClose(item, reason);
+      setReason("");
+    } catch {
+      setCloseError(
+        "Plan closure was not confirmed. Review the current register before retrying; the entered reason has been kept.",
+      );
+    }
+  };
   return (
     <Card>
       <CardHeader className="gap-3">
@@ -131,10 +144,7 @@ function PlanCard({
         {active ? (
           <form
             className="space-y-2 border-t pt-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void onClose(item, reason).then(() => setReason(""));
-            }}
+            onSubmit={(event) => void submitClosure(event)}
           >
             <Label htmlFor={`close-${item.plan.id}`}>
               Independent closure reason
@@ -147,6 +157,11 @@ function PlanCard({
               maxLength={1000}
               required
             />
+            {closeError ? (
+              <p role="alert" className="text-sm font-medium text-destructive">
+                {closeError}
+              </p>
+            ) : null}
             <Button
               type="submit"
               variant="outline"
@@ -194,6 +209,7 @@ export function AiShadowProgrammeConsole({
     >,
   );
   const [observationPlanId, setObservationPlanId] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
   const selectedPlan = useMemo(
     () =>
       activePlans.find(({ plan }) => plan.id === observationPlanId) ??
@@ -201,24 +217,32 @@ export function AiShadowProgrammeConsole({
     [activePlans, observationPlanId],
   );
 
-  const submitPlan = (event: FormEvent<HTMLFormElement>) => {
+  const submitPlan = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (capacityReached) return;
     const form = event.currentTarget;
     const data = new FormData(form);
-    void onCreatePlan({
-      capabilityId: capability,
-      title: String(data.get("title") ?? ""),
-      purpose: String(data.get("purpose") ?? ""),
-      versions,
-      cohorts: [...AI_SHADOW_COHORTS],
-      expectedCaseCount: Number(data.get("expectedCaseCount")),
-      expiresAt: new Date(String(data.get("expiresAt"))).toISOString(),
-      idempotencyKey: String(data.get("idempotencyKey") ?? ""),
-    }).then(() => form.reset());
+    setFormError(null);
+    try {
+      await onCreatePlan({
+        capabilityId: capability,
+        title: String(data.get("title") ?? ""),
+        purpose: String(data.get("purpose") ?? ""),
+        versions,
+        cohorts: [...AI_SHADOW_COHORTS],
+        expectedCaseCount: Number(data.get("expectedCaseCount")),
+        expiresAt: new Date(String(data.get("expiresAt"))).toISOString(),
+        idempotencyKey: String(data.get("idempotencyKey") ?? ""),
+      });
+      form.reset();
+    } catch {
+      setFormError(
+        "Shadow plan registration was not confirmed. Review the current register before retrying; the entered evidence has been kept.",
+      );
+    }
   };
 
-  const submitObservation = (event: FormEvent<HTMLFormElement>) => {
+  const submitObservation = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedPlan) return;
     const form = event.currentTarget;
@@ -230,29 +254,37 @@ export function AiShadowProgrammeConsole({
       data.get("expectedDisposition"),
     ) as AiShadowObservationCreateDraft["expectedDisposition"];
     const outputSha256 = String(data.get("outputSha256") ?? "").trim();
-    void onRecordObservation(selectedPlan.plan.id, {
-      caseId: String(data.get("caseId") ?? ""),
-      cohort: String(data.get("cohort")) as AiShadowCohort,
-      disposition,
-      expectedDisposition,
-      passed: data.get("passed") === "on",
-      outputSha256: outputSha256 || null,
-      fatalMissCount: Number(data.get("fatalMissCount")),
-      unsupportedMaterialClaimCount: Number(
-        data.get("unsupportedMaterialClaimCount"),
-      ),
-      tenantLeakDetected: data.get("tenantLeakDetected") === "on",
-      injectionContained: data.get("injectionContained") === "on",
-      citationCorrectCount: Number(data.get("citationCorrectCount")),
-      citationEvaluatedCount: Number(data.get("citationEvaluatedCount")),
-      latencyMs: Number(data.get("latencyMs")),
-      costMinor: Number(data.get("costMinor")),
-      reviewerNoteCode: String(
-        data.get("reviewerNoteCode"),
-      ) as AiShadowObservationCreateDraft["reviewerNoteCode"],
-      observedAt: new Date(String(data.get("observedAt"))).toISOString(),
-      idempotencyKey: String(data.get("idempotencyKey") ?? ""),
-    }).then(() => form.reset());
+    setFormError(null);
+    try {
+      await onRecordObservation(selectedPlan.plan.id, {
+        caseId: String(data.get("caseId") ?? ""),
+        cohort: String(data.get("cohort")) as AiShadowCohort,
+        disposition,
+        expectedDisposition,
+        passed: data.get("passed") === "on",
+        outputSha256: outputSha256 || null,
+        fatalMissCount: Number(data.get("fatalMissCount")),
+        unsupportedMaterialClaimCount: Number(
+          data.get("unsupportedMaterialClaimCount"),
+        ),
+        tenantLeakDetected: data.get("tenantLeakDetected") === "on",
+        injectionContained: data.get("injectionContained") === "on",
+        citationCorrectCount: Number(data.get("citationCorrectCount")),
+        citationEvaluatedCount: Number(data.get("citationEvaluatedCount")),
+        latencyMs: Number(data.get("latencyMs")),
+        costMinor: Number(data.get("costMinor")),
+        reviewerNoteCode: String(
+          data.get("reviewerNoteCode"),
+        ) as AiShadowObservationCreateDraft["reviewerNoteCode"],
+        observedAt: new Date(String(data.get("observedAt"))).toISOString(),
+        idempotencyKey: String(data.get("idempotencyKey") ?? ""),
+      });
+      form.reset();
+    } catch {
+      setFormError(
+        "Shadow observation was not confirmed. Review the current register before retrying; the entered evidence has been kept.",
+      );
+    }
   };
 
   return (
@@ -296,12 +328,23 @@ export function AiShadowProgrammeConsole({
 
       {canManage ? (
         <div className="grid gap-6 xl:grid-cols-2">
+          {formError ? (
+            <p
+              role="alert"
+              className="text-sm font-medium text-destructive xl:col-span-2"
+            >
+              {formError}
+            </p>
+          ) : null}
           <Card>
             <CardHeader>
               <CardTitle>Create a version-bound plan</CardTitle>
             </CardHeader>
             <CardContent>
-              <form className="space-y-4" onSubmit={submitPlan}>
+              <form
+                className="space-y-4"
+                onSubmit={(event) => void submitPlan(event)}
+              >
                 <div className="grid gap-2">
                   <Label htmlFor="shadow-title">Title</Label>
                   <Input
@@ -411,7 +454,10 @@ export function AiShadowProgrammeConsole({
             </CardHeader>
             <CardContent>
               {selectedPlan ? (
-                <form className="space-y-4" onSubmit={submitObservation}>
+                <form
+                  className="space-y-4"
+                  onSubmit={(event) => void submitObservation(event)}
+                >
                   <div className="grid gap-2">
                     <Label htmlFor="shadow-plan">Active plan</Label>
                     <select

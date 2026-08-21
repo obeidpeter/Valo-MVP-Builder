@@ -76,6 +76,11 @@ export default function ReconciledCommunicationsRoute() {
     },
   });
   const projects = projectsQuery.data ?? [];
+  const projectsPending = projectsQuery.isLoading || projectsQuery.isPending;
+  const projectsUnavailable =
+    projectsQuery.isError ||
+    (!projectsPending &&
+      (!projectsQuery.isSuccess || projectsQuery.data === undefined));
   const requestedProjectId = searchParams.get("project")?.trim() ?? "";
   const selectedProject =
     projects.find(({ id }) => id === requestedProjectId) ?? projects[0];
@@ -122,6 +127,11 @@ export default function ReconciledCommunicationsRoute() {
     },
     enabled: Boolean(canManage && projectId),
   });
+  const snapshotPending = snapshotQuery.isLoading || snapshotQuery.isPending;
+  const snapshotUnavailable =
+    snapshotQuery.isError ||
+    (!snapshotPending &&
+      (!snapshotQuery.isSuccess || snapshotQuery.data === undefined));
 
   const mutation = useMutation({
     mutationFn: async (input: CommunicationMutation) => {
@@ -188,14 +198,14 @@ export default function ReconciledCommunicationsRoute() {
       />
     );
   }
-  if (projectsQuery.isLoading) {
+  if (projectsPending) {
     return (
       <div className="p-5 sm:p-8">
         <LoadingPanel label="Loading available pursuits" />
       </div>
     );
   }
-  if (projectsQuery.isError) {
+  if (projectsUnavailable) {
     return (
       <PageGatePanel
         state="error"
@@ -262,18 +272,14 @@ export default function ReconciledCommunicationsRoute() {
         title="Human-controlled delivery, backed by receipts"
         description="Queue content-minimised approved templates, record every external attempt before effect, and reconcile provider receipts without ever treating acceptance as delivery."
         state={
-          snapshotQuery.isError
-            ? "error"
-            : snapshotQuery.isLoading
-              ? "pending"
-              : "active"
+          snapshotUnavailable ? "error" : snapshotPending ? "pending" : "active"
         }
       />
 
-      {snapshotQuery.isLoading ? (
+      {snapshotPending ? (
         <LoadingPanel label="Loading the communication ledger" />
       ) : null}
-      {snapshotQuery.isError || !snapshotQuery.data ? (
+      {snapshotUnavailable ? (
         <StatusPanel
           state="error"
           title="Communication ledger is unavailable"
@@ -293,7 +299,9 @@ export default function ReconciledCommunicationsRoute() {
           key={`${organisationId}:${projectId}`}
           snapshot={snapshotQuery.data}
           references={referencesQuery.data ?? null}
-          referencesLoading={referencesQuery.isLoading}
+          referencesLoading={
+            referencesQuery.isLoading || referencesQuery.isPending
+          }
           canManage={canManage}
           pending={mutation.isPending}
           onMutate={(input) => mutation.mutate(input)}

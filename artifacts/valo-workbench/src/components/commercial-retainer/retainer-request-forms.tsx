@@ -32,21 +32,26 @@ export function RetainerRequestForm({
   );
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    await onMutate({
-      path: "/api/commercial-retainer/retainer/requests",
-      body: {
-        projectId: data.get("projectId"),
-        entitlementId: data.get("entitlementId"),
-        purpose: data.get("purpose"),
-        summary: data.get("summary"),
-        ownerMembershipId: data.get("ownerMembershipId"),
-        sla: data.get("sla"),
-        idempotencyDigest: digest,
-      },
-    });
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    try {
+      await onMutate({
+        path: "/api/commercial-retainer/retainer/requests",
+        body: {
+          projectId: data.get("projectId"),
+          entitlementId: data.get("entitlementId"),
+          purpose: data.get("purpose"),
+          summary: data.get("summary"),
+          ownerMembershipId: data.get("ownerMembershipId"),
+          sla: data.get("sla"),
+          idempotencyDigest: digest,
+        },
+      });
+    } catch {
+      return;
+    }
     setDigest(randomDigest());
-    event.currentTarget.reset();
+    form.reset();
   }
   return (
     <form
@@ -135,27 +140,35 @@ export function RetainerRequestCard({
   async function addComment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    await onMutate({
-      path: `/api/commercial-retainer/retainer/requests/${request.id}/actions`,
-      body: {
-        action: "comment",
-        expectedVersion: request.version,
-        body: data.get("comment"),
-      },
-    });
+    try {
+      await onMutate({
+        path: `/api/commercial-retainer/retainer/requests/${request.id}/actions`,
+        body: {
+          action: "comment",
+          expectedVersion: request.version,
+          body: data.get("comment"),
+        },
+      });
+    } catch {
+      return;
+    }
   }
   async function addEvidence(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    await onMutate({
-      path: `/api/commercial-retainer/retainer/requests/${request.id}/actions`,
-      body: {
-        action: "record_evidence",
-        expectedVersion: request.version,
-        reference: data.get("evidenceReference"),
-        sha256: data.get("evidenceSha256"),
-      },
-    });
+    try {
+      await onMutate({
+        path: `/api/commercial-retainer/retainer/requests/${request.id}/actions`,
+        body: {
+          action: "record_evidence",
+          expectedVersion: request.version,
+          reference: data.get("evidenceReference"),
+          sha256: data.get("evidenceSha256"),
+        },
+      });
+    } catch {
+      return;
+    }
   }
   return (
     <Card>
@@ -265,16 +278,16 @@ export function RetainerRequestCard({
                     (status === "completed" &&
                       request.evidenceReceipts.length === 0)
                   }
-                  onClick={() =>
-                    onMutate({
+                  onClick={() => {
+                    void onMutate({
                       path: `/api/commercial-retainer/retainer/requests/${request.id}/actions`,
                       body: {
                         action: "set_status",
                         expectedVersion: request.version,
                         status,
                       },
-                    })
-                  }
+                    }).catch(() => undefined);
+                  }}
                 >
                   {status.replaceAll("_", " ")}
                 </Button>

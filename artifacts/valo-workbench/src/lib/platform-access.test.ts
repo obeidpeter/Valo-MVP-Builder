@@ -46,6 +46,21 @@ describe("v2.5 platform access", () => {
     );
   });
 
+  it("keeps Command Centre as home when an internal assignment is combined with an external role", () => {
+    const roles = [
+      "valo_operations_administrator",
+      "client_reviewer_approver",
+    ] as const;
+    const permissions = ["analytics:read", "project:read"];
+
+    expect(platformHomeForRole(roles, enabledFlags, permissions)).toBe("/app");
+    expect(
+      navigationForRole(roles, enabledFlags, permissions).map(
+        (item) => item.href,
+      ),
+    ).toEqual(expect.arrayContaining(["/app", "/portal"]));
+  });
+
   it("gives client owners the pursuit workbench plus their role surfaces", () => {
     const items = navigationForRole("client_organisation_owner", disabledFlags);
     expect(items.map((item) => item.href)).toEqual([
@@ -59,7 +74,6 @@ describe("v2.5 platform access", () => {
       "/clients",
       "/billing",
       "/notifications",
-      "/communications",
       "/organisation-settings",
     ]);
     expect(items.find((item) => item.href === "/portal")?.state).toBe(
@@ -186,6 +200,7 @@ describe("v2.5 platform access", () => {
       "consultancy_partner_administrator",
       enabledFlags,
       permissions,
+      "partner",
     ).map((item) => item.href);
     expect(hrefs).toEqual([
       "/projects",
@@ -195,7 +210,6 @@ describe("v2.5 platform access", () => {
       "/reports",
       "/clients",
       "/notifications",
-      "/communications",
     ]);
     expect(
       platformHomeForRole(
@@ -401,6 +415,32 @@ describe("v2.5 platform access", () => {
         enabledFlags,
         [],
         "membership",
+      ),
+    ).toMatchObject({ allowed: false, state: "denied" });
+  });
+
+  it("keeps the durable communications ledger direct-only and independent of notification adapters", () => {
+    const permissions = ["project:read"];
+    const navigation = navigationForRole(
+      "client_reviewer_approver",
+      disabledFlags,
+      permissions,
+      "membership",
+    );
+
+    expect(
+      navigation.find(({ href }) => href === "/notifications")?.state,
+    ).toBe("pending_activation");
+    expect(
+      navigation.find(({ href }) => href === "/communications")?.state,
+    ).toBe("active");
+    expect(
+      getPlatformAccessDecision(
+        "consultancy_partner_analyst_reviewer",
+        "communications",
+        disabledFlags,
+        permissions,
+        "partner",
       ),
     ).toMatchObject({ allowed: false, state: "denied" });
   });

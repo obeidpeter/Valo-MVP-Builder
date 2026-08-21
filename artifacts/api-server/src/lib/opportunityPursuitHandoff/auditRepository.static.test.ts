@@ -19,6 +19,7 @@ test("write transaction shares the membership writer lock and rechecks database-
   );
   assert.ok((checks?.length ?? 0) >= 2);
   assert.match(source, /loadReviewers\(tx, scope, authorityTime\)/u);
+  assert.doesNotMatch(source, /FOR (?:UPDATE|SHARE) OF grant_row/u);
 });
 
 test("source materialisation stays in the locked caller transaction", () => {
