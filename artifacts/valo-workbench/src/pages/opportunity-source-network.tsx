@@ -121,7 +121,11 @@ export default function OpportunitySourceNetworkPage() {
         description="Reconnect before inspecting or deciding an external source receipt."
       />
     );
-  if (snapshot.isLoading)
+  const snapshotPending = snapshot.isLoading || snapshot.isPending;
+  const snapshotUnavailable =
+    snapshot.isError ||
+    (!snapshotPending && (!snapshot.isSuccess || snapshot.data === undefined));
+  if (snapshotPending)
     return (
       <PageGatePanel
         state="pending"
@@ -129,7 +133,7 @@ export default function OpportunitySourceNetworkPage() {
         description="Checking tenant scope, receipt digests and review state."
       />
     );
-  if (snapshot.isError || !snapshot.data)
+  if (snapshotUnavailable || !snapshot.data)
     return (
       <PageGatePanel
         state="error"

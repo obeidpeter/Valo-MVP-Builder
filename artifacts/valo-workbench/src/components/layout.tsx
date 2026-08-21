@@ -224,6 +224,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const {
     data: user,
     isLoading,
+    isPending,
     error,
   } = useGetMe({
     query: {
@@ -239,7 +240,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   useEffect(() => setMobileOpen(false), [location]);
 
-  if (isLoading || organisationAccess?.isLoading) {
+  if (isLoading || isPending || organisationAccess?.isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-5">
         <div className="w-full max-w-lg">

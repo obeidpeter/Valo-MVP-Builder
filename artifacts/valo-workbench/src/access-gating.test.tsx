@@ -6,6 +6,8 @@ import RequireAdmin from "./components/require-admin";
 type MeResult = {
   data?: unknown;
   isLoading: boolean;
+  isPending?: boolean;
+  isError?: boolean;
   error?: unknown;
 };
 
@@ -149,6 +151,23 @@ describe("access gating in Layout", () => {
     meResult = { data: undefined, isLoading: false };
     renderLayout();
     expect(screen.getByText(/authentication failed/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("protected-child")).not.toBeInTheDocument();
+  });
+
+  it("keeps a cold paused identity query in the authentication loading state", () => {
+    meResult = {
+      data: undefined,
+      isLoading: false,
+      isPending: true,
+      isError: false,
+    };
+    renderLayout();
+    expect(
+      screen.getByText(/authenticating and loading your assigned workspace/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/authentication failed/i),
+    ).not.toBeInTheDocument();
     expect(screen.queryByTestId("protected-child")).not.toBeInTheDocument();
   });
 
@@ -298,6 +317,27 @@ describe("access gating in Layout", () => {
 describe("RequireAdmin route guard for the settings page", () => {
   beforeEach(() => {
     meResult = { data: undefined, isLoading: true };
+  });
+
+  it("does not evaluate cached administration authority while identity is pending", () => {
+    meResult = {
+      data: undefined,
+      isLoading: false,
+      isPending: true,
+      isError: false,
+    };
+    render(
+      <RequireAdmin>
+        <div data-testid="settings-admin-controls">Personnel Management</div>
+      </RequireAdmin>,
+    );
+    expect(
+      screen.getByText(/checking administrative access/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("settings-admin-controls"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/access denied/i)).not.toBeInTheDocument();
   });
 
   it("blocks an approved reviewer from the settings route with access denied", () => {

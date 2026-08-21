@@ -138,6 +138,11 @@ function roleGrantCanStillTakeEffect(
   );
 }
 
+function nullableInstantsEqual(left: Date | null, right: Date | null): boolean {
+  if (left === null || right === null) return left === right;
+  return left.getTime() === right.getTime();
+}
+
 function requirePlatformBootstrap(
   req: Request,
   res: Response,
@@ -762,6 +767,13 @@ router.post(
           ) {
             return { kind: "invalid_role_window" as const };
           }
+          if (
+            matchingGrant &&
+            changesRoleExpiry &&
+            !nullableInstantsEqual(matchingGrant.expiresAt, roleExpiresAt)
+          ) {
+            return { kind: "immutable_role_expiry" as const };
+          }
           const membershipAlreadyActive = existingMembership
             ? isActiveAccessWindow(
                 {
@@ -791,11 +803,7 @@ router.post(
                 },
               ];
           const policyGrants = matchingGrant
-            ? grants.map((grant) =>
-                grant.id === matchingGrant.id && changesRoleExpiry
-                  ? { ...grant, expiresAt: roleExpiresAt }
-                  : grant,
-              )
+            ? grants
             : [
                 ...grants,
                 {
@@ -880,11 +888,6 @@ router.post(
               grantedByMembershipId: context.membershipId,
               expiresAt: roleExpiresAt,
             });
-          } else if (changesRoleExpiry) {
-            await tx
-              .update(roleGrants)
-              .set({ expiresAt: roleExpiresAt })
-              .where(eq(roleGrants.id, matchingGrant.id));
           }
           await writeAuditTx(tx, {
             user: getLocalUser(req),
@@ -902,12 +905,11 @@ router.post(
               requestedRoleExpiresAt: changesRoleExpiry
                 ? roleExpiresAt
                 : undefined,
-              roleExpiresAt:
-                matchingGrant && !changesRoleExpiry
-                  ? matchingGrant.expiresAt
-                  : roleExpiresAt,
+              roleExpiresAt: matchingGrant
+                ? matchingGrant.expiresAt
+                : roleExpiresAt,
               previousRoleExpiresAt: matchingGrant?.expiresAt ?? null,
-              roleExpiryChanged: Boolean(matchingGrant && changesRoleExpiry),
+              roleExpiryChanged: false,
               requestedAccessExpiresAt: changesAccessExpiry
                 ? accessExpiresAt
                 : undefined,
@@ -943,6 +945,13 @@ router.post(
     if (outcome.kind === "invalid_role_window") {
       res.status(400).json({
         error: "Role expiry must be later than the retained grant start",
+      });
+      return;
+    }
+    if (outcome.kind === "immutable_role_expiry") {
+      res.status(409).json({
+        error:
+          "Existing role expiry is immutable; reactivate without changing roleExpiresAt",
       });
       return;
     }

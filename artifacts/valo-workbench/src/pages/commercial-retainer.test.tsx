@@ -1,5 +1,48 @@
-import { describe, expect, it } from "vitest";
-import { adaptCommercialRetainerSnapshot } from "./commercial-retainer";
+import { render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import CommercialRetainerPage, {
+  adaptCommercialRetainerSnapshot,
+} from "./commercial-retainer";
+
+const queryState = vi.hoisted(() => ({
+  current: {} as Record<string, unknown>,
+}));
+const identityState = vi.hoisted(() => ({
+  current: {} as Record<string, unknown>,
+}));
+
+vi.mock("@tanstack/react-query", () => ({
+  useQuery: () => queryState.current,
+  useMutation: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+}));
+
+vi.mock("@workspace/api-client-react", () => ({
+  customFetch: vi.fn(),
+  useGetMe: () => identityState.current,
+}));
+
+vi.mock("@/contexts/organisation-context", () => ({
+  useOrganisationAccess: () => ({
+    activeOrganisation: {
+      id: "org-a",
+      membershipId: "membership-a",
+      membershipOrganisationId: "org-a",
+      accessSource: "membership",
+    },
+    effectiveRoles: ["client_administrator"],
+    effectivePermissions: ["billing:read", "entitlement:read", "order:create"],
+    beginCriticalWorkflow: vi.fn(),
+  }),
+}));
+
+vi.mock("@/hooks/use-toast", () => ({
+  useToast: () => ({ toast: vi.fn() }),
+}));
+
+vi.mock("@/components/commercial-retainer/commercial-control-centre", () => ({
+  CommercialControlCentre: () => <div>Commercial control centre</div>,
+}));
 
 function envelope() {
   return {
@@ -33,6 +76,25 @@ function envelope() {
 }
 
 describe("adaptCommercialRetainerSnapshot", () => {
+  beforeEach(() => {
+    queryState.current = {
+      data: envelope().snapshot,
+      isLoading: false,
+      isPending: false,
+      isError: false,
+      isSuccess: true,
+      refetch: vi.fn(),
+    };
+    identityState.current = {
+      data: { id: "actor-a" },
+      isLoading: false,
+      isPending: false,
+      isError: false,
+      isSuccess: true,
+      refetch: vi.fn(),
+    };
+  });
+
   it("accepts only a bounded fail-closed authority contract", () => {
     expect(
       adaptCommercialRetainerSnapshot(envelope(), "org-a").activation,
@@ -70,5 +132,30 @@ describe("adaptCommercialRetainerSnapshot", () => {
     expect(() => adaptCommercialRetainerSnapshot(envelope(), "org-b")).toThrow(
       /safety contract/u,
     );
+  });
+
+  it("keeps cold paused ledger and identity reads pending", () => {
+    const coldPaused = {
+      data: undefined,
+      isLoading: false,
+      isPending: true,
+      isError: false,
+      isSuccess: false,
+      refetch: vi.fn(),
+    };
+    queryState.current = coldPaused;
+    identityState.current = coldPaused;
+
+    render(<CommercialRetainerPage />);
+
+    expect(
+      screen.getByText("Loading the private commercial ledger"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Commercial records could not be verified"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Commercial control centre"),
+    ).not.toBeInTheDocument();
   });
 });

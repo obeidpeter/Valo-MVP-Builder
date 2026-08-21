@@ -1,7 +1,11 @@
 import type { ReactNode } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  onlineManager,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MyWorkInbox } from "./my-work-inbox";
 
 const ORGANISATION_ID = "10000000-0000-4000-8000-000000000001";
@@ -14,7 +18,13 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@workspace/api-client-react", () => ({
   customFetch: mocks.customFetch,
-  useGetMe: () => ({ data: { id: ACTOR_ID }, isLoading: false }),
+  useGetMe: () => ({
+    data: { id: ACTOR_ID },
+    isLoading: false,
+    isPending: false,
+    isError: false,
+    isSuccess: true,
+  }),
 }));
 
 vi.mock("@/contexts/organisation-context", () => ({
@@ -90,8 +100,30 @@ function renderInbox() {
 
 describe("MyWorkInbox", () => {
   beforeEach(() => {
+    onlineManager.setOnline(true);
     mocks.customFetch.mockReset();
     mocks.online = true;
+  });
+
+  afterEach(() => {
+    onlineManager.setOnline(true);
+  });
+
+  it("keeps a cold paused inbox pending instead of reporting a failed or empty read", () => {
+    onlineManager.setOnline(false);
+
+    renderInbox();
+
+    expect(
+      screen.getByText("Loading current work assignments"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("My Work could not be verified"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("No authorised active work returned"),
+    ).not.toBeInTheDocument();
+    expect(mocks.customFetch).not.toHaveBeenCalled();
   });
 
   it("loads only the authority-scoped private inbox and renders truncation", async () => {

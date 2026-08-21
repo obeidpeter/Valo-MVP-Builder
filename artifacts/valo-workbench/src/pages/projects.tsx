@@ -100,6 +100,7 @@ export default function Projects() {
   const {
     data: projects,
     isLoading: loadingProjects,
+    isPending: projectsPending,
     isError: projectsFailed,
     isSuccess: projectsLoaded,
     isFetching: refreshingProjects,
@@ -108,6 +109,7 @@ export default function Projects() {
   const {
     data: clients,
     isLoading: loadingClients,
+    isPending: clientsPending,
     isError: clientsFailed,
     isSuccess: clientsLoaded,
     isFetching: refreshingClients,
@@ -136,6 +138,16 @@ export default function Projects() {
   const [isCreateOpen, setIsCreateOpen] = useState(
     defaultClientId !== "" && canCreateProject,
   );
+  const projectRegisterPending = loadingProjects || projectsPending;
+  const projectRegisterUnavailable =
+    projectsFailed ||
+    (!projectRegisterPending &&
+      (projectsLoaded !== true || projects === undefined));
+  const clientDirectoryPending = loadingClients || clientsPending;
+  const clientDirectoryUnavailable =
+    clientsFailed ||
+    (!clientDirectoryPending &&
+      (clientsLoaded !== true || clients === undefined));
   const reviewerDirectoryPending = Boolean(
     canCreateProject && canReadMemberships && (loadingUsers || usersPending),
   );
@@ -436,7 +448,9 @@ export default function Projects() {
                     }
                     value={form.watch("clientId")}
                     disabled={
-                      loadingClients || clientsFailed || !clients?.length
+                      clientDirectoryPending ||
+                      clientDirectoryUnavailable ||
+                      !clients?.length
                     }
                   >
                     <SelectTrigger id="clientId">
@@ -455,7 +469,7 @@ export default function Projects() {
                       {form.formState.errors.clientId.message}
                     </p>
                   )}
-                  {clientsFailed ? (
+                  {clientDirectoryUnavailable ? (
                     <div
                       className="flex flex-wrap items-center gap-2"
                       role="alert"
@@ -475,7 +489,12 @@ export default function Projects() {
                         Retry clients
                       </Button>
                     </div>
-                  ) : !loadingClients && clients?.length === 0 ? (
+                  ) : clientDirectoryPending ? (
+                    <p className="text-xs text-muted-foreground" role="status">
+                      Loading the current client directory. No client can be
+                      selected until it is complete.
+                    </p>
+                  ) : clientsLoaded && clients?.length === 0 ? (
                     <p className="text-xs text-muted-foreground">
                       No client records are available in this organisation.
                     </p>
@@ -705,7 +724,8 @@ export default function Projects() {
                     type="submit"
                     disabled={
                       createProject.isPending ||
-                      clientsFailed ||
+                      clientDirectoryPending ||
+                      clientDirectoryUnavailable ||
                       !selectedClientEligible ||
                       reviewerDirectoryPending ||
                       reviewerDirectoryUnavailable ||
@@ -879,7 +899,7 @@ export default function Projects() {
       ) : null}
 
       <div className="bg-card border border-border rounded-lg shadow-xs overflow-hidden">
-        {loadingProjects ? (
+        {projectRegisterPending ? (
           <div
             className="p-12 flex justify-center"
             role="status"
@@ -887,7 +907,7 @@ export default function Projects() {
           >
             <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
           </div>
-        ) : projectsFailed ? (
+        ) : projectRegisterUnavailable ? (
           <div
             className="space-y-3 p-12 text-center text-muted-foreground"
             role="alert"
@@ -913,20 +933,6 @@ export default function Projects() {
               )}
               Retry
             </Button>
-          </div>
-        ) : !projectsLoaded || !projects ? (
-          <div
-            className="space-y-3 p-12 text-center text-muted-foreground"
-            role="status"
-          >
-            <AlertTriangle className="mx-auto h-10 w-10" />
-            <p className="font-medium text-foreground">
-              The project register state is unavailable.
-            </p>
-            <p className="text-sm">
-              A successful complete response is required before an empty state
-              or count can be shown.
-            </p>
           </div>
         ) : projects.length === 0 ? (
           <div className="p-12 text-center text-muted-foreground bg-card">

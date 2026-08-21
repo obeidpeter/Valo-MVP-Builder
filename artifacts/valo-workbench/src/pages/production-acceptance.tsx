@@ -158,7 +158,19 @@ export default function ProductionAcceptancePage() {
     );
   }
 
-  if (snapshotQuery.isLoading) {
+  const snapshotPending = snapshotQuery.isLoading || snapshotQuery.isPending;
+  const snapshotUnavailable =
+    snapshotQuery.isError ||
+    (!snapshotPending &&
+      (!snapshotQuery.isSuccess || snapshotQuery.data === undefined));
+  const authoritiesPending =
+    authoritiesQuery.isLoading || authoritiesQuery.isPending;
+  const authoritiesUnavailable =
+    authoritiesQuery.isError ||
+    (!authoritiesPending &&
+      (!authoritiesQuery.isSuccess || authoritiesQuery.data === undefined));
+
+  if (snapshotPending) {
     return (
       <PageGatePanel
         state="pending"
@@ -168,7 +180,7 @@ export default function ProductionAcceptancePage() {
     );
   }
 
-  if (snapshotQuery.isError || !snapshotQuery.data) {
+  if (snapshotUnavailable || !snapshotQuery.data) {
     return (
       <PageGatePanel
         state="error"
@@ -192,13 +204,13 @@ export default function ProductionAcceptancePage() {
       snapshot={snapshotQuery.data}
       evidenceRecorder={
         canRecord ? (
-          authoritiesQuery.isLoading ? (
+          authoritiesPending ? (
             <StatusPanel
               state="pending"
               title="Loading acceptance authorities"
               description="Evidence recording remains disabled until the current tenant authority directory is verified."
             />
-          ) : authoritiesQuery.isError || !authoritiesQuery.data ? (
+          ) : authoritiesUnavailable || !authoritiesQuery.data ? (
             <StatusPanel
               state="error"
               title="Acceptance authorities could not be loaded"

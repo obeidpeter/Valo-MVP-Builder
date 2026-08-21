@@ -123,6 +123,7 @@ describe("project register controls", () => {
     apiState.projectsQuery = {
       data: [],
       isLoading: false,
+      isPending: false,
       isError: false,
       isSuccess: true,
       isFetching: false,
@@ -131,6 +132,7 @@ describe("project register controls", () => {
     apiState.clientsQuery = {
       data: [{ id: "client-a", name: "Apex Client" }],
       isLoading: false,
+      isPending: false,
       isError: false,
       isSuccess: true,
       isFetching: false,
@@ -190,6 +192,28 @@ describe("project register controls", () => {
     expect(
       screen.queryByText(/register state is unavailable/i),
     ).not.toBeInTheDocument();
+  });
+
+  it("keeps a cold paused project register pending instead of rendering unavailable or empty", () => {
+    apiState.projectsQuery = {
+      data: undefined,
+      isLoading: false,
+      isPending: true,
+      isError: false,
+      isSuccess: false,
+      isFetching: false,
+      refetch: apiState.retryProjects,
+    };
+
+    renderPage();
+
+    expect(
+      screen.getByLabelText(/loading project register/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/project register could not be loaded/i),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("No projects found.")).not.toBeInTheDocument();
   });
 
   it("does not tell a read-only user to create a project", () => {
@@ -281,6 +305,32 @@ describe("project register controls", () => {
     ).toBeInTheDocument();
     expect(
       screen.queryByText(/client directory could not be loaded/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps a cold paused client directory pending instead of claiming it is empty", async () => {
+    apiState.clientsQuery = {
+      data: undefined,
+      isLoading: false,
+      isPending: true,
+      isError: false,
+      isSuccess: false,
+      isFetching: false,
+      refetch: apiState.retryClients,
+    };
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: /new project/i }));
+
+    expect(
+      await screen.findByText(/loading the current client directory/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/client directory could not be loaded/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/no client records are available/i),
     ).not.toBeInTheDocument();
   });
 

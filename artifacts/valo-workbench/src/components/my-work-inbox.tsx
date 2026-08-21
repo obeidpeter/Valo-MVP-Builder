@@ -96,6 +96,11 @@ export function MyWorkInbox() {
       return adaptWorkInbox(payload, organisationId);
     },
   });
+  const identityPending = meQuery.isLoading || meQuery.isPending;
+  const inboxPending = query.isLoading || query.isPending;
+  const inboxUnavailable =
+    query.isError ||
+    (!inboxPending && (!query.isSuccess || query.data === undefined));
 
   if (!directMembership) return null;
   return (
@@ -115,9 +120,9 @@ export function MyWorkInbox() {
           title="My Work is unavailable offline"
           description="No cached assignment state is shown. Reconnect to revalidate current tenant authority."
         />
-      ) : query.isLoading || meQuery.isLoading ? (
+      ) : inboxPending || identityPending ? (
         <LoadingPanel label="Loading current work assignments" />
-      ) : query.isError || !query.data ? (
+      ) : meQuery.isError || !meQuery.isSuccess || inboxUnavailable ? (
         <StatusPanel
           state="error"
           title="My Work could not be verified"

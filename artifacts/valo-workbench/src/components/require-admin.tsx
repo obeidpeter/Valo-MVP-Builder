@@ -11,13 +11,25 @@ export default function RequireAdmin({
 }: {
   children: React.ReactNode;
 }) {
-  const { isLoading } = useGetMe();
+  const { data: user, isLoading, isPending, isError } = useGetMe();
   const organisationAccess = useOrganisationAccess();
 
-  if (isLoading || organisationAccess?.isLoading) {
+  if (isLoading || isPending || organisationAccess?.isLoading) {
     return (
       <div className="p-6 sm:p-8">
         <LoadingPanel label="Checking administrative access" />
+      </div>
+    );
+  }
+
+  if (isError || !user || organisationAccess?.isError) {
+    return (
+      <div className="p-6 sm:p-8">
+        <StatusPanel
+          state="error"
+          title="Administrative access could not be verified"
+          description="The current identity and organisation authority must both be verified before settings can be opened."
+        />
       </div>
     );
   }

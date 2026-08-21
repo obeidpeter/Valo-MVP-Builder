@@ -164,7 +164,17 @@ export default function CommercialRetainerPage() {
     );
   }
 
-  if (snapshotQuery.isLoading || meQuery.isLoading) {
+  const snapshotPending = snapshotQuery.isLoading || snapshotQuery.isPending;
+  const identityPending = meQuery.isLoading || meQuery.isPending;
+  const snapshotUnavailable =
+    snapshotQuery.isError ||
+    (!snapshotPending &&
+      (!snapshotQuery.isSuccess || snapshotQuery.data === undefined));
+  const identityUnavailable =
+    meQuery.isError ||
+    (!identityPending && (!meQuery.isSuccess || !meQuery.data?.id));
+
+  if (snapshotPending || identityPending) {
     return (
       <PageGatePanel
         state="pending"
@@ -175,9 +185,9 @@ export default function CommercialRetainerPage() {
   }
 
   if (
-    snapshotQuery.isError ||
+    snapshotUnavailable ||
     !snapshotQuery.data ||
-    meQuery.isError ||
+    identityUnavailable ||
     !meQuery.data?.id
   ) {
     return (

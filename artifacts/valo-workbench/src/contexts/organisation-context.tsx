@@ -304,7 +304,9 @@ export function OrganisationProvider({ children }: { children: ReactNode }) {
       effectivePermissions: activeOrganisation?.permissions ?? [],
       isLoading:
         meQuery.isLoading ||
-        (Boolean(user && user.status === "active") && accessQuery.isLoading),
+        meQuery.isPending ||
+        (Boolean(user && user.status === "active") &&
+          (accessQuery.isLoading || accessQuery.isPending)),
       isError: meQuery.isError || accessQuery.isError,
       error: meQuery.error ?? accessQuery.error,
       needsSelection: organisations.length > 1 && !activeOrganisation,
@@ -327,6 +329,7 @@ export function OrganisationProvider({ children }: { children: ReactNode }) {
       meQuery.error,
       meQuery.isError,
       meQuery.isLoading,
+      meQuery.isPending,
       organisations,
       pendingMutations,
       user,

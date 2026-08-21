@@ -303,12 +303,15 @@ export default function Dashboard() {
     ...(!canReadProjects ? ["pursuit register and workflow exceptions"] : []),
     ...(!canReadEvidence ? ["evidence validity"] : []),
   ];
+  const queryPending = (query: (typeof sources)[number]["query"]) =>
+    query.isLoading || query.isPending;
   const unavailableSources = sources.filter(
     ({ query }) =>
-      query.isError || (!query.isLoading && query.data === undefined),
+      query.isError ||
+      (!queryPending(query) && (!query.isSuccess || query.data === undefined)),
   );
-  const allLoading = sources.every(({ query }) => query.isLoading);
-  const anyLoading = sources.some(({ query }) => query.isLoading);
+  const allLoading = sources.every(({ query }) => queryPending(query));
+  const anyLoading = sources.some(({ query }) => queryPending(query));
   const allUnavailable = unavailableSources.length === sources.length;
   const pageState: SurfaceState = allLoading
     ? "pending"
@@ -319,11 +322,24 @@ export default function Dashboard() {
           restrictedSources.length > 0
         ? "partial"
         : "active";
+  const alertsPending = alertsQuery.isLoading || alertsQuery.isPending;
   const alertsUnavailable =
-    alertsQuery.isError || (!alertsQuery.isLoading && !workflowAlerts);
+    alertsQuery.isError ||
+    (!alertsPending && (!alertsQuery.isSuccess || !workflowAlerts));
+  const projectsPending = projectsQuery.isLoading || projectsQuery.isPending;
   const projectsUnavailable =
     projectsQuery.isError ||
-    (!projectsQuery.isLoading && projectsQuery.data === undefined);
+    (!projectsPending &&
+      (!projectsQuery.isSuccess || projectsQuery.data === undefined));
+  const vaultPending = vaultQuery.isLoading || vaultQuery.isPending;
+  const vaultUnavailable =
+    vaultQuery.isError ||
+    (!vaultPending && (!vaultQuery.isSuccess || vaultQuery.data === undefined));
+  const metricsPending = metricsQuery.isLoading || metricsQuery.isPending;
+  const metricsUnavailable =
+    metricsQuery.isError ||
+    (!metricsPending &&
+      (!metricsQuery.isSuccess || metricsQuery.data === undefined));
 
   const retryAll = () => {
     void metricsQuery.refetch();
@@ -398,14 +414,14 @@ export default function Dashboard() {
               <SignalCard
                 title="Review SLA breaches"
                 value={
-                  alertsQuery.isLoading
+                  alertsPending
                     ? LOADING_VALUE
                     : alertsUnavailable
                       ? UNAVAILABLE_VALUE
                       : (workflowAlerts?.slaBreaches.length ?? 0)
                 }
                 state={
-                  alertsQuery.isLoading
+                  alertsPending
                     ? "pending"
                     : alertsUnavailable
                       ? "error"
@@ -418,14 +434,14 @@ export default function Dashboard() {
               <SignalCard
                 title="Recorded deadlines passed"
                 value={
-                  projectsQuery.isLoading
+                  projectsPending
                     ? LOADING_VALUE
                     : projectsUnavailable
                       ? UNAVAILABLE_VALUE
                       : recordedDeadlinesPassed
                 }
                 state={
-                  projectsQuery.isLoading
+                  projectsPending
                     ? "pending"
                     : projectsUnavailable
                       ? "error"
@@ -438,14 +454,14 @@ export default function Dashboard() {
               <SignalCard
                 title="Conflict blocks"
                 value={
-                  projectsQuery.isLoading
+                  projectsPending
                     ? LOADING_VALUE
                     : projectsUnavailable
                       ? UNAVAILABLE_VALUE
                       : conflictBlocked
                 }
                 state={
-                  projectsQuery.isLoading
+                  projectsPending
                     ? "pending"
                     : projectsUnavailable
                       ? "error"
@@ -458,14 +474,14 @@ export default function Dashboard() {
               <SignalCard
                 title="Material findings recorded"
                 value={
-                  projectsQuery.isLoading
+                  projectsPending
                     ? LOADING_VALUE
                     : projectsUnavailable
                       ? UNAVAILABLE_VALUE
                       : materialFindingProjects
                 }
                 state={
-                  projectsQuery.isLoading
+                  projectsPending
                     ? "pending"
                     : projectsUnavailable
                       ? "error"
@@ -503,9 +519,9 @@ export default function Dashboard() {
             }
           />
 
-          {projectsQuery.isLoading ? (
+          {projectsPending ? (
             <LoadingPanel label="Loading pursuit decisions" />
-          ) : projectsQuery.isError || projectsQuery.data === undefined ? (
+          ) : projectsUnavailable ? (
             <StatusPanel
               state="error"
               title="Pursuit decisions are unavailable"
@@ -597,9 +613,9 @@ export default function Dashboard() {
               title="Submission deadline register"
               description="Recorded tender deadlines for active pursuits, ordered by timestamp in WAT."
             />
-            {projectsQuery.isLoading ? (
+            {projectsPending ? (
               <LoadingPanel label="Loading recorded deadlines" />
-            ) : projectsQuery.isError || projectsQuery.data === undefined ? (
+            ) : projectsUnavailable ? (
               <StatusPanel
                 state="error"
                 title="Deadlines are unavailable"
@@ -649,9 +665,9 @@ export default function Dashboard() {
               title="Workflow exceptions"
               description="Server-reported SLA breaches and red-team review windows."
             />
-            {alertsQuery.isLoading ? (
+            {alertsPending ? (
               <LoadingPanel label="Loading workflow exceptions" />
-            ) : alertsQuery.isError || !workflowAlerts ? (
+            ) : alertsUnavailable || !workflowAlerts ? (
               <StatusPanel
                 state="error"
                 title="Workflow exceptions are unavailable"
@@ -723,9 +739,9 @@ export default function Dashboard() {
               </Link>
             }
           />
-          {vaultQuery.isLoading ? (
+          {vaultPending ? (
             <LoadingPanel label="Loading evidence validity" />
-          ) : vaultQuery.isError || !expiring ? (
+          ) : vaultUnavailable || !expiring ? (
             <StatusPanel
               state="error"
               title="Evidence validity is unavailable"
@@ -773,9 +789,9 @@ export default function Dashboard() {
             title="Gate 0 readiness"
             description="Business validation thresholds from the connected dashboard metrics. These measures do not replace pursuit-level quality or release gates."
           />
-          {metricsQuery.isLoading ? (
+          {metricsPending ? (
             <LoadingPanel label="Loading Gate 0 measures" />
-          ) : metricsQuery.isError || !metrics ? (
+          ) : metricsUnavailable || !metrics ? (
             <StatusPanel
               state="error"
               title="Gate 0 measures are unavailable"

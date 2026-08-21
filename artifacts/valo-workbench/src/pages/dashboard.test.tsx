@@ -6,6 +6,7 @@ import Dashboard from "./dashboard";
 
 const mocks = vi.hoisted(() => ({
   permissions: ["analytics:read"] as string[],
+  useGetDashboardMetrics: vi.fn(),
   useListProjects: vi.fn(),
   useGetVaultExpiring: vi.fn(),
   useGetWorkflowAlerts: vi.fn(),
@@ -14,6 +15,7 @@ const mocks = vi.hoisted(() => ({
 const successfulQuery = <T,>(data: T) => ({
   data,
   isLoading: false,
+  isPending: false,
   isError: false,
   isSuccess: true,
   refetch: vi.fn(),
@@ -23,20 +25,7 @@ vi.mock("@workspace/api-client-react", () => ({
   getListProjectsQueryKey: () => ["/api/projects"],
   getGetVaultExpiringQueryKey: () => ["/api/vault/expiring"],
   getGetWorkflowAlertsQueryKey: () => ["/api/workflow/alerts"],
-  useGetDashboardMetrics: () => ({
-    data: {
-      totalProjects: 0,
-      openProjects: 0,
-      paidMandates: 0,
-      packagesShared: 0,
-      materialDefectRate: 0,
-      gate0: { metrics: [], metCount: 0, totalCount: 0 },
-    },
-    isLoading: false,
-    isError: false,
-    isSuccess: true,
-    refetch: vi.fn(),
-  }),
+  useGetDashboardMetrics: mocks.useGetDashboardMetrics,
   useListProjects: mocks.useListProjects,
   useGetVaultExpiring: mocks.useGetVaultExpiring,
   useGetWorkflowAlerts: mocks.useGetWorkflowAlerts,
@@ -64,9 +53,20 @@ function renderDashboard() {
 describe("Dashboard authority-aware sources", () => {
   beforeEach(() => {
     mocks.permissions = ["analytics:read"];
+    mocks.useGetDashboardMetrics.mockReset();
     mocks.useListProjects.mockReset();
     mocks.useGetVaultExpiring.mockReset();
     mocks.useGetWorkflowAlerts.mockReset();
+    mocks.useGetDashboardMetrics.mockReturnValue(
+      successfulQuery({
+        totalProjects: 0,
+        openProjects: 0,
+        paidMandates: 0,
+        packagesShared: 0,
+        materialDefectRate: 0,
+        gate0: { metrics: [], metCount: 0, totalCount: 0 },
+      }),
+    );
     mocks.useListProjects.mockReturnValue(successfulQuery([]));
     mocks.useGetVaultExpiring.mockReturnValue(
       successfulQuery({
@@ -152,6 +152,34 @@ describe("Dashboard authority-aware sources", () => {
       screen.queryByRole("heading", {
         name: "Some signals are outside your current authority",
       }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps cold paused sources pending instead of reporting them unavailable", () => {
+    const coldPausedQuery = {
+      data: undefined,
+      isLoading: false,
+      isPending: true,
+      isError: false,
+      isSuccess: false,
+      refetch: vi.fn(),
+    };
+    mocks.permissions = ["analytics:read", "project:read", "evidence:read"];
+    mocks.useGetDashboardMetrics.mockReturnValue(coldPausedQuery);
+    mocks.useListProjects.mockReturnValue(coldPausedQuery);
+    mocks.useGetVaultExpiring.mockReturnValue(coldPausedQuery);
+    mocks.useGetWorkflowAlerts.mockReturnValue(coldPausedQuery);
+
+    renderDashboard();
+
+    expect(
+      screen.getByText("Loading Command Centre signals"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Command Centre data could not be loaded"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Some Command Centre signals are unavailable"),
     ).not.toBeInTheDocument();
   });
 });

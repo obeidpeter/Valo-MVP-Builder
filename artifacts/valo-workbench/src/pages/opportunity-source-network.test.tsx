@@ -1,9 +1,12 @@
 import { act, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import OpportunitySourceNetworkPage from "./opportunity-source-network";
 
 const mutationState = vi.hoisted(() => ({
   onError: undefined as (() => void) | undefined,
+}));
+const queryState = vi.hoisted(() => ({
+  current: {} as Record<string, unknown>,
 }));
 const toast = vi.hoisted(() => vi.fn());
 
@@ -12,14 +15,7 @@ vi.mock("@workspace/api-client-react", () => ({
 }));
 
 vi.mock("@tanstack/react-query", () => ({
-  useQuery: () => ({
-    data: { items: [], limit: 250, truncated: false },
-    isLoading: false,
-    isPending: false,
-    isError: false,
-    isSuccess: true,
-    refetch: vi.fn(),
-  }),
+  useQuery: () => queryState.current,
   useMutation: (options: { onError?: () => void }) => {
     mutationState.onError = options.onError;
     return {
@@ -54,6 +50,17 @@ vi.mock("@/hooks/use-toast", () => ({
 }));
 
 describe("Opportunity Source route mutation errors", () => {
+  beforeEach(() => {
+    queryState.current = {
+      data: { items: [], limit: 250, truncated: false },
+      isLoading: false,
+      isPending: false,
+      isError: false,
+      isSuccess: true,
+      refetch: vi.fn(),
+    };
+  });
+
   it("surfaces a destructive error instead of silently dropping a rejected write", () => {
     render(<OpportunitySourceNetworkPage />);
     expect(screen.getByText(/opportunity source console/i)).toBeInTheDocument();
@@ -66,5 +73,26 @@ describe("Opportunity Source route mutation errors", () => {
         title: "Opportunity source record could not be updated",
       }),
     );
+  });
+
+  it("keeps a cold paused source register pending instead of reporting an error", () => {
+    queryState.current = {
+      data: undefined,
+      isLoading: false,
+      isPending: true,
+      isError: false,
+      isSuccess: false,
+      refetch: vi.fn(),
+    };
+
+    render(<OpportunitySourceNetworkPage />);
+
+    expect(screen.getByText("Loading source receipts")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Source receipts could not be verified"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/opportunity source console/i),
+    ).not.toBeInTheDocument();
   });
 });

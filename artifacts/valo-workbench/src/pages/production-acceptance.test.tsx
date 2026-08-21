@@ -1,6 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  onlineManager,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PRODUCTION_ACCEPTANCE_CATEGORIES } from "@/components/production-acceptance/production-acceptance-contract";
 import ProductionAcceptancePage from "./production-acceptance";
 
@@ -86,10 +90,11 @@ function snapshotResponse() {
   };
 }
 
-function renderPage() {
+function renderPage(configure?: (client: QueryClient) => void) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
+  configure?.(client);
   return render(
     <QueryClientProvider client={client}>
       <ProductionAcceptancePage />
@@ -99,11 +104,16 @@ function renderPage() {
 
 describe("ProductionAcceptancePage", () => {
   beforeEach(() => {
+    onlineManager.setOnline(true);
     mocks.customFetch.mockReset();
     mocks.toast.mockReset();
     mocks.accessSource = "membership";
     mocks.roles = ["valo_operations_administrator"];
     mocks.permissions = ["audit:read", "configuration:manage"];
+  });
+
+  afterEach(() => {
+    onlineManager.setOnline(true);
   });
 
   it("denies partner-derived access without calling the API", () => {
@@ -201,6 +211,43 @@ describe("ProductionAcceptancePage", () => {
     await screen.findByRole("heading", {
       name: "Production acceptance & recovery",
     });
+    expect(
+      screen.queryByRole("heading", { name: "Record retained evidence" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps a cold paused acceptance snapshot pending", () => {
+    onlineManager.setOnline(false);
+
+    renderPage();
+
+    expect(
+      screen.getByText("Loading production acceptance evidence"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Production acceptance evidence could not be verified",
+      ),
+    ).not.toBeInTheDocument();
+    expect(mocks.customFetch).not.toHaveBeenCalled();
+  });
+
+  it("keeps a cold paused authority directory pending after the snapshot is verified", () => {
+    onlineManager.setOnline(false);
+
+    renderPage((client) => {
+      client.setQueryData(
+        ["production-acceptance", "organisation-a"],
+        snapshotResponse(),
+      );
+    });
+
+    expect(
+      screen.getByText("Loading acceptance authorities"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Acceptance authorities could not be loaded"),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("heading", { name: "Record retained evidence" }),
     ).not.toBeInTheDocument();
