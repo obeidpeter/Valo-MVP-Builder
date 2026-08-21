@@ -24,6 +24,11 @@ function renderAt(path: string) {
 describe("provider-backed access routes", () => {
   it("renders the invitation-only sign-in entry", () => {
     renderAt("/sign-in");
+    expect(
+      screen.getByRole("heading", {
+        name: "Sign in to your Valo workspace.",
+      }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Provider sign in")).toBeInTheDocument();
     expect(screen.getByText(/valo is invitation-only/i)).toBeInTheDocument();
   });

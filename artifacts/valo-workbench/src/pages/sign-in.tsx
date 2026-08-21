@@ -150,7 +150,7 @@ function AccessLayout({
 export default function SignInPage() {
   return (
     <AccessLayout
-      title="Return to the work, with the right authority."
+      title="Sign in to your Valo workspace."
       description="Valo keeps tender records behind verified identity, explicit organisation selection and role-aware controls."
     >
       <PublicMeta
