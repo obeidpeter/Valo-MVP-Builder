@@ -79,6 +79,12 @@ test("dead-letter listing uses a strict opaque stable continuation cursor", () =
     openapi,
     /StorageDeletionDeadLetterPage:[\s\S]*required: \[items, limit, truncated, nextCursor\]/u,
   );
+  const deadLetter = openapi.slice(
+    openapi.indexOf("    StorageDeletionDeadLetter:"),
+    openapi.indexOf("    StorageDeletionDeadLetterPage:"),
+  );
+  assert.match(deadLetter, /project_retention/u);
+  assert.match(deadLetter, /retention_completion/u);
 });
 
 test("resolution never claims deletion and unresolved locators are retained indefinitely", () => {

@@ -758,17 +758,24 @@ export const retentionRequests = pgTable(
     organisationId: uuid("organisation_id").references(() => organisations.id, {
       onDelete: "restrict",
     }),
-    projectId: uuid("project_id")
-      .notNull()
-      .references(() => projects.id, { onDelete: "cascade" }),
-    requestedBy: uuid("requested_by").references(() => users.id, {
+    // The live FK is detached by the project cascade, while the immutable
+    // subject UUID below keeps the request and its control evidence addressable.
+    projectId: uuid("project_id").references(() => projects.id, {
       onDelete: "set null",
     }),
+    subjectProjectId: uuid("subject_project_id").notNull(),
+    requestedBy: uuid("requested_by").references(() => users.id, {
+      onDelete: "restrict",
+    }),
+    requestedByName: text("requested_by_name").notNull(),
     reason: text("reason"),
     dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     certificateText: text("certificate_text"),
     status: text("status").notNull().default("pending"),
+    completionProtocolVersion: integer("completion_protocol_version")
+      .notNull()
+      .default(1),
     version: optimisticVersion(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -778,8 +785,17 @@ export const retentionRequests = pgTable(
   // guarantee that concurrent runs can never create duplicate pending requests.
   (t) => [
     uniqueIndex("retention_requests_one_pending_per_project")
-      .on(t.projectId)
+      .on(t.subjectProjectId)
       .where(sql`${t.status} = 'pending'`),
+    index("retention_requests_org_subject_idx").on(
+      t.organisationId,
+      t.subjectProjectId,
+      t.createdAt,
+    ),
+    check(
+      "retention_requests_completion_state_check",
+      sql`${t.completionProtocolVersion} = 0 or (${t.completionProtocolVersion} = 1 and ((${t.status} in ('pending', 'reconciling') and ${t.completedAt} is null and ${t.certificateText} is null) or (${t.status} = 'completed' and ${t.completedAt} is not null and ${t.certificateText} is not null and length(btrim(${t.certificateText})) between 1 and 512) or (${t.status} = 'blocked' and ${t.completedAt} is not null and ${t.certificateText} is null)))`,
+    ),
   ],
 );
 
@@ -2792,11 +2808,37 @@ export const retentionActions = pgTable(
     objectType: text("object_type").notNull(),
     objectId: uuid("object_id").notNull(),
     action: text("action").notNull(),
+    // Historical subject identity is deliberately not a project FK: the action
+    // and certificate must survive deletion of the governed project graph.
+    subjectProjectId: uuid("subject_project_id"),
     status: text("status").notNull().default("pending"),
+    // Existing privacy-operation rows remain protocol zero. The durable
+    // detach/reconcile/certify workflow opts in explicitly at insert time.
+    completionProtocolVersion: integer("completion_protocol_version")
+      .notNull()
+      .default(0),
     evidence: text("evidence"),
+    sourceManifest: text("source_manifest"),
+    sourceManifestSha256: text("source_manifest_sha256"),
+    purgeReceipt: text("purge_receipt"),
+    purgeReceiptSha256: text("purge_receipt_sha256"),
+    purgedAt: timestamp("purged_at", { withTimezone: true }),
+    reconciliationManifest: text("reconciliation_manifest"),
+    reconciliationManifestSha256: text("reconciliation_manifest_sha256"),
+    preparedByUserId: uuid("prepared_by_user_id").references(() => users.id, {
+      onDelete: "restrict",
+    }),
+    preparedByName: text("prepared_by_name"),
+    preparedAt: timestamp("prepared_at", { withTimezone: true }),
+    checkedByUserId: uuid("checked_by_user_id").references(() => users.id, {
+      onDelete: "restrict",
+    }),
+    checkedByName: text("checked_by_name"),
+    checkedAt: timestamp("checked_at", { withTimezone: true }),
     executedByUserId: uuid("executed_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
+    executedByName: text("executed_by_name"),
     executedAt: timestamp("executed_at", { withTimezone: true }),
     version: optimisticVersion(),
     createdAt: createdAt(),
@@ -2804,6 +2846,98 @@ export const retentionActions = pgTable(
   },
   (t) => [
     index("retention_actions_org_status_idx").on(t.organisationId, t.status),
+    uniqueIndex("retention_actions_one_completion_per_request")
+      .on(t.retentionRequestId)
+      .where(sql`${t.completionProtocolVersion} = 1`),
+    check(
+      "retention_actions_source_manifest_pair_check",
+      sql`(${t.sourceManifest} is null and ${t.sourceManifestSha256} is null) or (${t.sourceManifest} is not null and ${t.sourceManifestSha256} ~ '^[0-9a-f]{64}$')`,
+    ),
+    check(
+      "retention_actions_reconciliation_manifest_pair_check",
+      sql`(${t.reconciliationManifest} is null and ${t.reconciliationManifestSha256} is null) or (${t.reconciliationManifest} is not null and ${t.reconciliationManifestSha256} ~ '^[0-9a-f]{64}$')`,
+    ),
+    check(
+      "retention_actions_purge_receipt_stamp_check",
+      sql`(${t.purgeReceipt} is null and ${t.purgeReceiptSha256} is null and ${t.purgedAt} is null) or (${t.completionProtocolVersion} = 1 and ${t.purgeReceipt} is not null and ${t.purgeReceiptSha256} ~ '^[0-9a-f]{64}$' and ${t.purgedAt} is not null)`,
+    ),
+    check(
+      "retention_actions_preparer_stamp_check",
+      sql`(${t.preparedByUserId} is null and ${t.preparedByName} is null and ${t.preparedAt} is null) or (${t.preparedByUserId} is not null and ${t.preparedByName} is not null and length(btrim(${t.preparedByName})) between 1 and 256 and ${t.preparedAt} is not null)`,
+    ),
+    check(
+      "retention_actions_executor_name_check",
+      sql`${t.executedByName} is null or length(btrim(${t.executedByName})) between 1 and 256`,
+    ),
+    check(
+      "retention_actions_checker_stamp_check",
+      sql`(${t.checkedByUserId} is null and ${t.checkedByName} is null and ${t.checkedAt} is null) or (${t.checkedByUserId} is not null and ${t.checkedByName} is not null and length(btrim(${t.checkedByName})) between 1 and 256 and ${t.checkedAt} is not null and ${t.checkedByUserId} <> ${t.preparedByUserId})`,
+    ),
+    check(
+      "retention_actions_completion_state_check",
+      sql`(${t.completionProtocolVersion} = 0 and ${t.status} not in ('detached', 'reconciled', 'certified') and ${t.sourceManifest} is null and ${t.reconciliationManifest} is null and ${t.preparedAt} is null and ${t.checkedAt} is null) or (${t.completionProtocolVersion} = 1 and ((${t.status} = 'pending' and ${t.sourceManifest} is null and ${t.executedByName} is null and ${t.reconciliationManifest} is null and ${t.preparedAt} is null and ${t.checkedAt} is null) or (${t.status} = 'detached' and ${t.subjectProjectId} is not null and ${t.sourceManifest} is not null and ${t.executedByName} is not null and ${t.preparedAt} is null and ${t.reconciliationManifest} is null and ${t.checkedAt} is null) or (${t.status} = 'reconciled' and ${t.subjectProjectId} is not null and ${t.sourceManifest} is not null and ${t.executedByName} is not null and ${t.preparedAt} is not null and ${t.reconciliationManifest} is not null and ${t.checkedAt} is null) or (${t.status} = 'certified' and ${t.subjectProjectId} is not null and ${t.sourceManifest} is not null and ${t.executedByName} is not null and ${t.preparedAt} is not null and ${t.reconciliationManifest} is not null and ${t.checkedAt} is not null) or ${t.status} = 'blocked'))`,
+    ),
+  ],
+);
+
+/**
+ * Tamper-evident binding between a retention completion and the exact durable
+ * storage lifecycle intent. Raw object paths are intentionally not duplicated.
+ */
+export const retentionActionStorageEvents = pgTable(
+  "retention_action_storage_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organisationId: uuid("organisation_id")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "restrict" }),
+    retentionActionId: uuid("retention_action_id")
+      .notNull()
+      .references(() => retentionActions.id, { onDelete: "restrict" }),
+    storageEventId: uuid("storage_event_id")
+      .notNull()
+      .references(() => notificationEvents.id, { onDelete: "restrict" }),
+    requestSha256: text("request_sha256").notNull(),
+    objectPathSha256: text("object_path_sha256").notNull(),
+    boundEventVersion: integer("bound_event_version").notNull(),
+    terminalDisposition: text("terminal_disposition"),
+    terminalEventVersion: integer("terminal_event_version"),
+    terminalAt: timestamp("terminal_at", { withTimezone: true }),
+    version: optimisticVersion(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("retention_action_storage_events_action_event_unique").on(
+      t.retentionActionId,
+      t.storageEventId,
+    ),
+    uniqueIndex("retention_action_storage_events_action_path_unique").on(
+      t.retentionActionId,
+      t.objectPathSha256,
+    ),
+    index("retention_action_storage_events_org_terminal_idx").on(
+      t.organisationId,
+      t.retentionActionId,
+      t.terminalAt,
+      t.id,
+    ),
+    check(
+      "retention_action_storage_events_request_hash_check",
+      sql`${t.requestSha256} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "retention_action_storage_events_path_hash_check",
+      sql`${t.objectPathSha256} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "retention_action_storage_events_bound_version_check",
+      sql`${t.boundEventVersion} >= 1`,
+    ),
+    check(
+      "retention_action_storage_events_terminal_check",
+      sql`(${t.terminalDisposition} is null and ${t.terminalEventVersion} is null and ${t.terminalAt} is null) or (${t.terminalDisposition} in ('deleted', 'already_absent', 'cancelled_referenced', 'accepted_unresolved') and ${t.terminalEventVersion} >= ${t.boundEventVersion} and ${t.terminalAt} is not null)`,
+    ),
   ],
 );
 
@@ -2819,12 +2953,15 @@ export const deletionCertificates = pgTable(
       .references(() => retentionActions.id, { onDelete: "restrict" }),
     certificateNumber: text("certificate_number").notNull(),
     scopeManifestHash: text("scope_manifest_hash").notNull(),
+    certificateManifest: text("certificate_manifest"),
+    certificateManifestSha256: text("certificate_manifest_sha256"),
     method: text("method").notNull(),
     completedAt: timestamp("completed_at", { withTimezone: true }).notNull(),
     exceptions: text("exceptions"),
     signedByUserId: uuid("signed_by_user_id")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
+    signedByName: text("signed_by_name").notNull(),
     signatureEvidence: text("signature_evidence").notNull(),
     createdAt: createdAt(),
   },
@@ -2832,6 +2969,21 @@ export const deletionCertificates = pgTable(
     uniqueIndex("deletion_certificates_org_number_unique").on(
       t.organisationId,
       t.certificateNumber,
+    ),
+    uniqueIndex("deletion_certificates_retention_action_unique")
+      .on(t.retentionActionId)
+      .where(sql`${t.certificateManifest} is not null`),
+    check(
+      "deletion_certificates_scope_hash_check",
+      sql`${t.scopeManifestHash} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "deletion_certificates_manifest_pair_check",
+      sql`(${t.certificateManifest} is null and ${t.certificateManifestSha256} is null) or (${t.certificateManifest} is not null and ${t.certificateManifestSha256} ~ '^[0-9a-f]{64}$')`,
+    ),
+    check(
+      "deletion_certificates_signer_name_check",
+      sql`length(btrim(${t.signedByName})) between 1 and 256`,
     ),
   ],
 );

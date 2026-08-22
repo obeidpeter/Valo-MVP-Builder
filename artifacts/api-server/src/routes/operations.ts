@@ -285,7 +285,10 @@ router.post(
     const { retentionDefaultDays } = await getActiveConfig();
     let dueAt = new Date(now + retentionDefaultDays * 24 * 60 * 60 * 1000);
     if (parsed.data.dueAt !== undefined) {
-      const requested = Date.parse(parsed.data.dueAt);
+      const requested =
+        parsed.data.dueAt instanceof Date
+          ? parsed.data.dueAt.valueOf()
+          : Date.parse(parsed.data.dueAt);
       if (Number.isNaN(requested)) {
         res.status(400).json({ error: "dueAt must be a valid date" });
         return;
@@ -301,7 +304,7 @@ router.post(
       .from(retentionRequests)
       .where(
         and(
-          eq(retentionRequests.projectId, projectId),
+          eq(retentionRequests.subjectProjectId, projectId),
           eq(retentionRequests.status, "pending"),
         ),
       );
@@ -312,12 +315,26 @@ router.post(
       return;
     }
     const user = getLocalUser(req);
+    const requestedByName = user?.name?.trim();
+    if (
+      !user ||
+      !requestedByName ||
+      requestedByName !== user.name ||
+      requestedByName.length > 256
+    ) {
+      res
+        .status(403)
+        .json({ error: "A current named retention actor is required" });
+      return;
+    }
     const [created] = await db
       .insert(retentionRequests)
       .values({
         organisationId: getOrganisationId(req),
         projectId,
-        requestedBy: user?.id ?? null,
+        subjectProjectId: projectId,
+        requestedBy: user.id,
+        requestedByName,
         reason: parsed.data.reason ?? null,
         dueAt,
       })
@@ -331,24 +348,6 @@ router.post(
       details: `due ${dueAt.toISOString()}`,
     });
     res.status(201).json(serializeRetention(created));
-  },
-);
-
-router.get(
-  "/retention-requests",
-  requirePermissionOrLegacy("retention:manage"),
-  async (req: Request, res: Response) => {
-    const organisationId = getOrganisationId(req);
-    const rows = await db
-      .select()
-      .from(retentionRequests)
-      .where(
-        organisationId
-          ? eq(retentionRequests.organisationId, organisationId)
-          : undefined,
-      )
-      .orderBy(desc(retentionRequests.createdAt));
-    res.json(rows.map(serializeRetention));
   },
 );
 
@@ -455,35 +454,5 @@ for (const action of ["replay", "resolve"] as const) {
     },
   );
 }
-
-/**
- * Retention completion is deliberately unavailable in this release. Blob
- * deletion and relational deletion cannot be represented by one atomic
- * transaction, and upload-session/lifecycle control rows must be detached and
- * reconciled as part of the same governed outcome. Keep this endpoint
- * fail-closed until a durable two-phase detach/reconcile/certify workflow has
- * proven every postcondition. This handler must stay free of storage, database
- * and audit calls: a refusal is not a completion event.
- */
-router.post(
-  "/retention-requests/:id/complete",
-  requirePermissionOrLegacy("retention:manage"),
-  (_req: Request, res: Response) => {
-    res.set("Cache-Control", "private, no-store");
-    res.status(503).json({
-      error:
-        "Retention completion is not activated. No data was deleted and no deletion certificate was issued.",
-      code: "RETENTION_COMPLETION_NOT_ACTIVATED",
-      sideEffectsApplied: false,
-      requiredWorkflow: "durable_two_phase_detach_reconcile_certify",
-      requiredCoverage: [
-        "project_content_rows",
-        "object_storage",
-        "upload_sessions",
-        "storage_lifecycle_control_rows",
-      ],
-    });
-  },
-);
 
 export default router;

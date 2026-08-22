@@ -348,12 +348,17 @@ export function serializeRetention(r: any) {
   return {
     id: r.id,
     projectId: r.projectId,
+    subjectProjectId: r.subjectProjectId,
+    completionProtocolVersion: r.completionProtocolVersion,
+    requestedByUserId: r.requestedBy ?? null,
+    requestedByName: r.requestedByName,
     reason: r.reason ?? null,
     dueAt: iso(r.dueAt) ?? new Date(0).toISOString(),
     completedAt: iso(r.completedAt),
-    certificateText: r.certificateText ?? null,
     status: r.status,
+    version: r.version,
     createdAt: iso(r.createdAt) ?? new Date(0).toISOString(),
+    updatedAt: iso(r.updatedAt) ?? new Date(0).toISOString(),
   };
 }
 

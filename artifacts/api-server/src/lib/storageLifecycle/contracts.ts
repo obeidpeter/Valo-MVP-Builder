@@ -51,9 +51,17 @@ export interface StorageDeletionIntentEnvelope {
   organisationId: string;
   projectId: string | null;
   objectPath: string;
-  aggregateType: "document" | "vault_item" | "upload_session";
+  aggregateType:
+    | "document"
+    | "vault_item"
+    | "upload_session"
+    | "project_retention";
   aggregateId: string;
-  reason: "record_deleted" | "reference_replaced" | "lease_expired";
+  reason:
+    | "record_deleted"
+    | "reference_replaced"
+    | "lease_expired"
+    | "retention_completion";
   requestedAt: string;
   requestSha256: string;
   maximumAttempts: 5;
@@ -311,13 +319,16 @@ export function parseStorageDeletionIntent(
     !candidate.objectPath.startsWith(
       `/objects/tenants/${candidate.organisationId}/`,
     ) ||
-    !["document", "vault_item", "upload_session"].includes(
+    !["document", "vault_item", "upload_session", "project_retention"].includes(
       candidate.aggregateType,
     ) ||
     !UUID.test(candidate.aggregateId) ||
-    !["record_deleted", "reference_replaced", "lease_expired"].includes(
-      candidate.reason,
-    ) ||
+    ![
+      "record_deleted",
+      "reference_replaced",
+      "lease_expired",
+      "retention_completion",
+    ].includes(candidate.reason) ||
     !instant(candidate.requestedAt) ||
     candidate.maximumAttempts !== STORAGE_LIFECYCLE_BOUNDS.maximumAttempts ||
     !SHA256.test(candidate.requestSha256)

@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "registryId": "valo-product-capabilities/second-wave-v1",
+  "authority": "checked_in_source_runtime_gates_and_external_evidence_are_authoritative",
+  "capabilities": [
+    {
+      "id": "durable_retention_completion",
+      "title": "Durable retention completion",
+      "wave": "second",
+      "deliveryState": "source_integrated",
+      "productionState": "activation_blocked",
+      "availability": "admin_only_when_activated",
+      "externalEffects": "none_while_activation_blocked",
+      "automaticMutation": false,
+      "namedHumanAuthority": true,
+      "authorityBoundary": "Detach, reconciliation and certification are explicit version-bound actions; production remains disabled until every checked operational precondition has independently reviewed evidence.",
+      "evidence": [
+        "config/operations/retention-completion-activation.v1.json",
+        "lib/db/migrations/0011_retention_completion.sql",
+        "lib/db/src/schema/index.ts",
+        "artifacts/api-server/src/lib/retentionCompletion/service.ts",
+        "artifacts/api-server/src/lib/retentionCompletion/drizzleRepository.ts",
+        "artifacts/api-server/src/routes/index.ts",
+        "artifacts/api-server/src/routes/retentionCompletion.ts",
+        "lib/api-spec/openapi.yaml",
+        "artifacts/valo-workbench/src/pages/settings.tsx",
+        "docs/second-wave/IMPLEMENTATION.md"
+      ],
+      "sourceAssertions": [
+        {
+          "path": "config/operations/retention-completion-activation.v1.json",
+          "includes": "\"productionActivationGranted\": false"
+        },
+        {
+          "path": "lib/db/migrations/0011_retention_completion.sql",
+          "includes": "retention_action_storage_events"
+        },
+        {
+          "path": "lib/db/migrations/0011_retention_completion.sql",
+          "includes": "REVOKE EXECUTE ON FUNCTION valo_security.purge_retention_project"
+        },
+        {
+          "path": "artifacts/api-server/src/routes/index.ts",
+          "includes": "loadCheckedRetentionCompletionActivationManifest()"
+        },
+        {
+          "path": "artifacts/api-server/src/routes/retentionCompletion.ts",
+          "includes": "retention-actions/:id/reconcile"
+        },
+        {
+          "path": "artifacts/api-server/src/routes/retentionCompletion.ts",
+          "includes": "retention-actions/:id/certify"
+        },
+        {
+          "path": "lib/api-spec/openapi.yaml",
+          "includes": "/retention-actions/{id}/reconcile:"
+        },
+        {
+          "path": "docs/second-wave/IMPLEMENTATION.md",
+          "includes": "It never deletes an object synchronously."
+        }
+      ]
+    },
+    {
+      "id": "controlled_evaluation_runner",
+      "title": "Controlled evaluation runner",
+      "wave": "second",
+      "deliveryState": "foundation_only",
+      "productionState": "activation_blocked",
+      "availability": "internal_unmounted",
+      "externalEffects": "provider_disconnected",
+      "automaticMutation": false,
+      "namedHumanAuthority": true,
+      "authorityBoundary": "The metadata-only binder never loads private fixtures, calls a provider, writes run results, persists raw material, produces customer output, or grants production activation.",
+      "evidence": [
+        "config/operations/controlled-evaluation-runner.v1.json",
+        "artifacts/api-server/src/lib/controlledEvaluationRunnerFoundation.ts",
+        "artifacts/api-server/src/lib/controlledEvaluationRunnerFoundation.test.ts",
+        "artifacts/api-server/src/lib/aiContinuousEval.ts",
+        "docs/second-wave/IMPLEMENTATION.md"
+      ],
+      "sourceAssertions": [
+        {
+          "path": "config/operations/controlled-evaluation-runner.v1.json",
+          "includes": "\"deliveryState\": \"foundation_only\""
+        },
+        {
+          "path": "config/operations/controlled-evaluation-runner.v1.json",
+          "includes": "\"productionActivationGranted\": false"
+        },
+        {
+          "path": "artifacts/api-server/src/lib/controlledEvaluationRunnerFoundation.ts",
+          "includes": "readyForExecution: false"
+        },
+        {
+          "path": "artifacts/api-server/src/lib/controlledEvaluationRunnerFoundation.ts",
+          "includes": "rawOutputPersisted: false"
+        },
+        {
+          "path": "config/operations/controlled-evaluation-runner.v1.json",
+          "includes": "\"privateAuthorisationEvidenceConnected\": false"
+        }
+      ]
+    },
+    {
+      "id": "authorised_evaluation_corpus",
+      "title": "Authorised evaluation corpus",
+      "wave": "second",
+      "deliveryState": "externally_blocked",
+      "productionState": "evidence_unavailable",
+      "availability": "not_available",
+      "externalEffects": "none",
+      "automaticMutation": false,
+      "namedHumanAuthority": true,
+      "authorityBoundary": "Synthetic repository fixtures are development evidence only; production requires at least 25 approved-redacted, independently adjudicated holdout cases and immutable private authorisation references.",
+      "evidence": [
+        "config/operations/controlled-evaluation-runner.v1.json",
+        "artifacts/api-server/src/lib/evalHarness.ts",
+        "docs/second-wave/IMPLEMENTATION.md"
+      ],
+      "sourceAssertions": [
+        {
+          "path": "config/operations/controlled-evaluation-runner.v1.json",
+          "includes": "\"authorisedProductionCorpusAvailable\": false"
+        },
+        {
+          "path": "artifacts/api-server/src/lib/evalHarness.ts",
+          "includes": "EVAL_PRODUCTION_MIN_CORPUS = 25"
+        },
+        {
+          "path": "docs/second-wave/IMPLEMENTATION.md",
+          "includes": "An authorised production corpus remains externally blocked"
+        }
+      ]
+    }
+  ]
+}

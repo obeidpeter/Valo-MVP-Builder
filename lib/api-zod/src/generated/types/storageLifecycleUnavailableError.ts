@@ -16,9 +16,8 @@
  * OpenAPI spec version: 2.5.0
  */
 
-export const StorageLifecycleUnavailableErrorValue = {
-  error: 'Storage lifecycle persistence is unavailable',
-  code: 'STORAGE_LIFECYCLE_PERSISTENCE_UNAVAILABLE',
-  sideEffectsApplied: false,
-} as const;
-export type StorageLifecycleUnavailableError = typeof StorageLifecycleUnavailableErrorValue;
+export interface StorageLifecycleUnavailableError {
+  error: 'Storage lifecycle persistence is unavailable';
+  code: 'STORAGE_LIFECYCLE_PERSISTENCE_UNAVAILABLE';
+  sideEffectsApplied: false;
+}

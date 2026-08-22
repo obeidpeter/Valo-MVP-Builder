@@ -1,17 +1,35 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
+  getGetMeQueryKey,
+  getGetRetentionCompletionReadinessQueryKey,
+  getGetRetentionRequestCompletionQueryKey,
   useListUsers,
   useListRetentionRequests,
+  useGetMe,
   useGetAppConfig,
+  useGetRetentionCompletionReadiness,
+  useGetRetentionRequestCompletion,
+  useCompleteRetentionRequest,
+  useReconcileRetentionAction,
+  useCertifyRetentionAction,
   useUpdateAppConfig,
   getGetAppConfigQueryKey,
+  getListRetentionRequestsQueryKey,
 } from "@workspace/api-client-react";
-import type { AppConfig, AppConfigUpdate } from "@workspace/api-client-react";
+import type {
+  AppConfig,
+  AppConfigUpdate,
+  RetentionAction,
+  RetentionCompletionSnapshot,
+  RetentionRequest,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Archive,
-  CheckCircle2,
+  AlertTriangle,
+  DatabaseZap,
   Loader2,
+  RefreshCw,
   Shield,
   Info,
   SlidersHorizontal,
@@ -30,9 +48,1131 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { DataErrorPanel } from "@/components/platform-states";
+import {
+  DataErrorPanel,
+  LoadingPanel,
+  StateBadge,
+  StatusPanel,
+  type SurfaceState,
+} from "@/components/platform-states";
+import { useOrganisationAccess } from "@/contexts/organisation-context";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 import { useToast } from "@/hooks/use-toast";
-import { mutationErrorToast } from "@/lib/errors";
+import { errorMessage, mutationErrorToast, requestStatus } from "@/lib/errors";
+
+type RetentionPhase = "detach" | "reconcile" | "certify";
+
+interface RetentionPhaseDraft {
+  phase: RetentionPhase;
+  confirmation: string;
+  attestation: string;
+  idempotencyKey: string;
+}
+
+const RETENTION_ATTESTATION_MIN_LENGTH = 16;
+const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
+
+function humanise(value: string): string {
+  return value.replaceAll("_", " ");
+}
+
+function requestSurfaceState(status: RetentionRequest["status"]): SurfaceState {
+  if (status === "completed") return "active";
+  if (status === "blocked") return "blocked";
+  if (status === "reconciling") return "partial";
+  return "pending";
+}
+
+function actionSurfaceState(status: RetentionAction["status"]): SurfaceState {
+  if (status === "certified") return "active";
+  if (status === "blocked") return "blocked";
+  if (status === "reconciled") return "partial";
+  return "pending";
+}
+
+function ownerPurgeProofVerified(
+  action: RetentionAction | null | undefined,
+): boolean {
+  if (!action) return false;
+  const phaseVersionVerified =
+    (action.status === "detached" && action.version === 3) ||
+    (action.status === "reconciled" && action.version === 4) ||
+    (action.status === "certified" && action.version === 5) ||
+    (action.status === "blocked" && action.version >= 3);
+  return Boolean(
+    phaseVersionVerified &&
+    action.purgeReceipt !== null &&
+    action.purgeReceipt !== undefined &&
+    action.purgeReceiptSha256 &&
+    SHA256_PATTERN.test(action.purgeReceiptSha256) &&
+    action.purgedAt &&
+    Number.isFinite(Date.parse(action.purgedAt)),
+  );
+}
+
+function phaseConfirmation(
+  phase: RetentionPhase,
+  snapshot: RetentionCompletionSnapshot,
+): string {
+  if (phase === "detach") {
+    return `DETACH ${snapshot.request.subjectProjectId}`;
+  }
+  return `${phase === "reconcile" ? "RECONCILE" : "CERTIFY"} ${snapshot.action?.id ?? ""}`;
+}
+
+function newRetentionIdempotencyKey(phase: RetentionPhase): string {
+  return `retention-${phase}:${crypto.randomUUID()}`;
+}
+
+function RetentionOperatorPanel() {
+  const access = useOrganisationAccess();
+  const online = useOnlineStatus();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const directMembership =
+    access?.activeOrganisation?.accessSource === "membership";
+  const canManageRetention = Boolean(
+    directMembership &&
+    access?.effectivePermissions.includes("retention:manage"),
+  );
+  const liveQueriesEnabled = canManageRetention && online;
+
+  const meQuery = useGetMe({
+    query: { queryKey: getGetMeQueryKey(), enabled: liveQueriesEnabled },
+  });
+  const readinessQuery = useGetRetentionCompletionReadiness({
+    query: {
+      queryKey: getGetRetentionCompletionReadinessQueryKey(),
+      enabled: liveQueriesEnabled,
+    },
+  });
+  const retentionQuery = useListRetentionRequests({
+    query: {
+      queryKey: getListRetentionRequestsQueryKey(),
+      enabled: liveQueriesEnabled,
+    },
+  });
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(
+    null,
+  );
+  const completionQuery = useGetRetentionRequestCompletion(
+    selectedRequestId ?? "",
+    {
+      query: {
+        queryKey: getGetRetentionRequestCompletionQueryKey(
+          selectedRequestId ?? "",
+        ),
+        enabled: liveQueriesEnabled && Boolean(selectedRequestId),
+      },
+    },
+  );
+  const completeMutation = useCompleteRetentionRequest();
+  const reconcileMutation = useReconcileRetentionAction();
+  const certifyMutation = useCertifyRetentionAction();
+  const [phaseDraft, setPhaseDraft] = useState<RetentionPhaseDraft | null>(
+    null,
+  );
+  const [phaseError, setPhaseError] = useState<string | null>(null);
+
+  const retentionRequests = retentionQuery.data;
+  useEffect(() => {
+    if (!retentionRequests || retentionRequests.length === 0) {
+      setSelectedRequestId(null);
+      return;
+    }
+    if (
+      !selectedRequestId ||
+      !retentionRequests.some((request) => request.id === selectedRequestId)
+    ) {
+      setSelectedRequestId(retentionRequests[0]!.id);
+    }
+  }, [retentionRequests, selectedRequestId]);
+
+  const snapshot = completionQuery.data;
+  useEffect(() => {
+    setPhaseDraft(null);
+    setPhaseError(null);
+  }, [selectedRequestId, snapshot?.action?.version, snapshot?.request.version]);
+
+  const mutationPending =
+    completeMutation.isPending ||
+    reconcileMutation.isPending ||
+    certifyMutation.isPending;
+  const readiness = readinessQuery.data;
+  const readinessEvidenceCurrent = Boolean(
+    liveQueriesEnabled &&
+    readinessQuery.isSuccess &&
+    !readinessQuery.isError &&
+    !readinessQuery.isPending &&
+    !readinessQuery.isFetching &&
+    readiness,
+  );
+  const listEvidenceCurrent = Boolean(
+    liveQueriesEnabled &&
+    retentionQuery.isSuccess &&
+    !retentionQuery.isError &&
+    !retentionQuery.isPending &&
+    !retentionQuery.isFetching &&
+    retentionQuery.data,
+  );
+  const identityEvidenceCurrent = Boolean(
+    liveQueriesEnabled &&
+    meQuery.isSuccess &&
+    !meQuery.isError &&
+    !meQuery.isPending &&
+    !meQuery.isFetching &&
+    meQuery.data?.id,
+  );
+  const completionEvidenceCurrent = Boolean(
+    selectedRequestId &&
+    liveQueriesEnabled &&
+    completionQuery.isSuccess &&
+    !completionQuery.isError &&
+    !completionQuery.isPending &&
+    !completionQuery.isFetching &&
+    snapshot,
+  );
+  const criticalEvidenceCurrent = Boolean(
+    readinessEvidenceCurrent &&
+    listEvidenceCurrent &&
+    identityEvidenceCurrent &&
+    completionEvidenceCurrent,
+  );
+  const blockers = readiness
+    ? [...readiness.activationBlockers, ...readiness.evidenceBlockers]
+    : [];
+  const activationVerified = Boolean(
+    online &&
+    readinessEvidenceCurrent &&
+    readiness &&
+    readiness.activated === true &&
+    readiness.manifestValid === true &&
+    readiness.environmentOptIn === true &&
+    readiness.makerCheckerRequired === true &&
+    blockers.length === 0,
+  );
+  const identityVerified = identityEvidenceCurrent;
+  const terminalStorageVerified = Boolean(
+    snapshot &&
+    snapshot.objectReconciliation.expected ===
+      snapshot.objectReconciliation.reconciled &&
+    snapshot.objectReconciliation.pending === 0 &&
+    snapshot.objectReconciliation.deadLetters === 0 &&
+    snapshot.blockers.length === 0,
+  );
+  const purgeProofVerified = ownerPurgeProofVerified(snapshot?.action);
+  const certificateEvidenceVerified = Boolean(
+    snapshot?.certificate &&
+    purgeProofVerified &&
+    snapshot.request.status === "completed" &&
+    snapshot.action?.status === "certified" &&
+    snapshot.certificate.retentionActionId === snapshot.action.id &&
+    snapshot.certificate.signedByUserId === snapshot.action.checkedByUserId &&
+    snapshot.action.checkedByUserId !== snapshot.action.preparedByUserId &&
+    snapshot.certificate.scopeManifestHash ===
+      snapshot.action.sourceManifestSha256,
+  );
+  const legacyProtocolEvidence = Boolean(
+    snapshot &&
+    snapshot.request.completionProtocolVersion === 0 &&
+    !snapshot.action &&
+    !snapshot.certificate,
+  );
+  const startAuthorized = Boolean(
+    readiness?.permissions.canStart && snapshot?.permissions.canStart,
+  );
+  const reconcileAuthorized = Boolean(
+    readiness?.permissions.canReconcile && snapshot?.permissions.canReconcile,
+  );
+  const certifyAuthorized = Boolean(
+    readiness?.permissions.canCertify && snapshot?.permissions.canCertify,
+  );
+
+  useEffect(() => {
+    if (!criticalEvidenceCurrent || !activationVerified || !identityVerified) {
+      setPhaseDraft(null);
+      setPhaseError(null);
+    }
+  }, [activationVerified, criticalEvidenceCurrent, identityVerified]);
+
+  const openPhase = (phase: RetentionPhase) => {
+    setPhaseError(null);
+    setPhaseDraft({
+      phase,
+      confirmation: "",
+      attestation: "",
+      idempotencyKey: newRetentionIdempotencyKey(phase),
+    });
+  };
+
+  const refreshEvidence = () => {
+    void readinessQuery.refetch();
+    void retentionQuery.refetch();
+    if (selectedRequestId) void completionQuery.refetch();
+  };
+
+  const recordPhase = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (
+      !phaseDraft ||
+      !snapshot ||
+      !activationVerified ||
+      !identityVerified ||
+      !criticalEvidenceCurrent
+    ) {
+      setPhaseError(
+        "Live activation, identity and completion evidence must be verified before this action.",
+      );
+      return;
+    }
+    const expectedConfirmation = phaseConfirmation(phaseDraft.phase, snapshot);
+    const attestation = phaseDraft.attestation.trim();
+    if (phaseDraft.confirmation !== expectedConfirmation) {
+      setPhaseError("The typed confirmation does not match this exact record.");
+      return;
+    }
+    if (
+      attestation.length < RETENTION_ATTESTATION_MIN_LENGTH ||
+      attestation.length > 512
+    ) {
+      setPhaseError("The attestation must contain 16 to 512 characters.");
+      return;
+    }
+
+    const releaseCriticalWorkflow = access?.beginCriticalWorkflow();
+    try {
+      let result: RetentionCompletionSnapshot;
+      if (phaseDraft.phase === "detach") {
+        if (!startAuthorized || snapshot.request.version !== 1) {
+          throw new Error("The server did not grant phase-one authority.");
+        }
+        result = await completeMutation.mutateAsync({
+          id: snapshot.request.id,
+          data: { attestation },
+          ifMatch: String(snapshot.request.version),
+          idempotencyKey: phaseDraft.idempotencyKey,
+        });
+        if (
+          result.request.status !== "reconciling" ||
+          result.request.version !== 2 ||
+          result.action?.status !== "detached" ||
+          result.action.version !== 3 ||
+          !ownerPurgeProofVerified(result.action) ||
+          result.action.retentionRequestId !== result.request.id ||
+          result.action.subjectProjectId !== result.request.subjectProjectId ||
+          result.certificate !== null
+        ) {
+          throw new Error(
+            "The server response did not prove detached version 3 with a complete owner-purge receipt.",
+          );
+        }
+      } else if (phaseDraft.phase === "reconcile") {
+        if (
+          !snapshot.action ||
+          !reconcileAuthorized ||
+          !purgeProofVerified ||
+          !terminalStorageVerified
+        ) {
+          throw new Error(
+            "Exact terminal storage evidence is not ready for reconciliation.",
+          );
+        }
+        result = await reconcileMutation.mutateAsync({
+          id: snapshot.action.id,
+          data: { attestation },
+          ifMatch: String(snapshot.action.version),
+          idempotencyKey: phaseDraft.idempotencyKey,
+        });
+        if (
+          result.request.status !== "reconciling" ||
+          result.action?.status !== "reconciled" ||
+          result.action.version !== 4 ||
+          !ownerPurgeProofVerified(result.action) ||
+          !result.action.reconciliationManifestSha256 ||
+          result.action.id !== snapshot.action.id ||
+          result.action.preparedByUserId !== meQuery.data?.id ||
+          result.action.retentionRequestId !== result.request.id ||
+          result.certificate !== null
+        ) {
+          throw new Error(
+            "The server response did not contain owner-purge proof and exact version 4 reconciliation evidence.",
+          );
+        }
+      } else {
+        if (
+          !snapshot.action ||
+          !certifyAuthorized ||
+          !purgeProofVerified ||
+          snapshot.action.preparedByUserId === meQuery.data?.id
+        ) {
+          throw new Error(
+            "Certification requires a different authorised checker.",
+          );
+        }
+        result = await certifyMutation.mutateAsync({
+          id: snapshot.action.id,
+          data: { attestation },
+          ifMatch: String(snapshot.action.version),
+          idempotencyKey: phaseDraft.idempotencyKey,
+        });
+        if (
+          result.request.status !== "completed" ||
+          result.action?.status !== "certified" ||
+          result.action.version !== 5 ||
+          !ownerPurgeProofVerified(result.action) ||
+          !result.certificate ||
+          result.action.id !== snapshot.action.id ||
+          result.action.checkedByUserId !== meQuery.data?.id ||
+          result.certificate.signedByUserId !== meQuery.data?.id ||
+          result.action.checkedByUserId === result.action.preparedByUserId ||
+          result.certificate.retentionActionId !== result.action.id ||
+          result.certificate.scopeManifestHash !==
+            result.action.sourceManifestSha256
+        ) {
+          throw new Error(
+            "The server response did not contain owner-purge proof and independent version 5 certificate evidence.",
+          );
+        }
+      }
+
+      queryClient.setQueryData(
+        getGetRetentionRequestCompletionQueryKey(snapshot.request.id),
+        result,
+      );
+      void queryClient.invalidateQueries({
+        queryKey: getListRetentionRequestsQueryKey(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: getGetRetentionCompletionReadinessQueryKey(),
+      });
+      setPhaseDraft(null);
+      setPhaseError(null);
+      toast({
+        title:
+          result.request.status === "completed"
+            ? "Retention action certified"
+            : result.action?.status === "reconciled"
+              ? "Reconciliation evidence recorded"
+              : "Relational detachment started",
+        description:
+          result.request.status === "completed"
+            ? "The server returned an independently signed certificate."
+            : result.action?.status === "reconciled"
+              ? "A different authorised checker must certify this exact action."
+              : "The server returned an owner-purge receipt. Durable object evidence is still being reconciled; no certificate was issued.",
+      });
+    } catch (error) {
+      const status = requestStatus(error);
+      const stale = status === 409 || status === 412 || status === 428;
+      setPhaseError(
+        stale
+          ? "This record or its evidence changed. Live state is being reloaded; review it before trying again."
+          : errorMessage(
+              error,
+              "The retention action was not recorded. No completion or certification has been assumed.",
+            ),
+      );
+      if (stale) setPhaseDraft(null);
+      refreshEvidence();
+      toast({
+        variant: "destructive",
+        title: "Retention action not confirmed",
+        description: stale
+          ? "A current version is required. Review the refreshed evidence."
+          : "Verify the live request, storage evidence and authority before retrying.",
+      });
+    } finally {
+      releaseCriticalWorkflow?.();
+    }
+  };
+
+  if (!canManageRetention) {
+    return (
+      <StatusPanel
+        state="blocked"
+        title="Retention management permission required"
+        description="A current direct membership with retention management permission is required. Partner and emergency access cannot run this destructive workflow."
+      />
+    );
+  }
+
+  if (!online) {
+    return (
+      <StatusPanel
+        state="offline"
+        title="Live retention evidence is unavailable offline"
+        description="Reconnect before reviewing or acting. Cached request, object or certificate data is not treated as current authority."
+      />
+    );
+  }
+
+  const readinessPending = readinessQuery.isLoading || readinessQuery.isPending;
+  const readinessUnavailable =
+    readinessQuery.isError ||
+    (!readinessPending && (!readinessQuery.isSuccess || !readiness));
+  const retentionPending = retentionQuery.isLoading || retentionQuery.isPending;
+  const retentionUnavailable =
+    retentionQuery.isError ||
+    (!retentionPending && (!retentionQuery.isSuccess || !retentionRequests));
+
+  return (
+    <div className="space-y-4">
+      {readinessPending ? (
+        <LoadingPanel label="Verifying retention activation and evidence gates" />
+      ) : readinessUnavailable ? (
+        <DataErrorPanel
+          title="Retention completion readiness could not be verified"
+          description="No destructive control is available until the server confirms activation, evidence gates and current authority."
+          onRetry={() => void readinessQuery.refetch()}
+        />
+      ) : readiness ? (
+        <StatusPanel
+          state={activationVerified ? "active" : "blocked"}
+          title={
+            activationVerified
+              ? "Governed retention completion is active"
+              : "Retention completion is not activated"
+          }
+          description={
+            activationVerified
+              ? "The server verified the production manifest, environment opt-in and three-phase operator controls. Each action still requires current evidence and authority."
+              : blockers.length > 0
+                ? "The server reported the blockers below. Review is available, but detachment, reconciliation and certification controls are hidden."
+                : "The server did not return the evidence required to explain activation. Destructive controls remain hidden."
+          }
+        >
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-md border p-3 text-sm">
+              <p className="font-medium">Production manifest</p>
+              <StateBadge
+                state={readiness.manifestValid ? "active" : "blocked"}
+                label={readiness.manifestValid ? "Verified" : "Blocked"}
+                className="mt-2"
+              />
+            </div>
+            <div className="rounded-md border p-3 text-sm">
+              <p className="font-medium">Environment opt-in</p>
+              <StateBadge
+                state={readiness.environmentOptIn ? "active" : "blocked"}
+                label={readiness.environmentOptIn ? "Verified" : "Blocked"}
+                className="mt-2"
+              />
+            </div>
+            <div className="rounded-md border p-3 text-sm">
+              <p className="font-medium">Maker-checker</p>
+              <StateBadge
+                state={readiness.makerCheckerRequired ? "active" : "blocked"}
+                label={
+                  readiness.makerCheckerRequired ? "Required" : "Unverified"
+                }
+                className="mt-2"
+              />
+            </div>
+          </div>
+          {blockers.length > 0 ? (
+            <div className="mt-4 space-y-2" aria-label="Activation blockers">
+              {blockers.map((blocker) => (
+                <div
+                  key={`${blocker.code}:${blocker.message}`}
+                  className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900"
+                >
+                  <p className="font-mono text-xs font-semibold">
+                    {blocker.code}
+                  </p>
+                  <p className="mt-1">{blocker.message}</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          <p className="mt-3 text-xs text-muted-foreground">
+            Verified {new Date(readiness.checkedAt).toLocaleString()}.
+          </p>
+        </StatusPanel>
+      ) : null}
+
+      {retentionUnavailable ? (
+        <DataErrorPanel
+          title="Retention requests could not be loaded"
+          description="The queue state is unknown. Retry before concluding that no retention work is open."
+          onRetry={() => void retentionQuery.refetch()}
+        />
+      ) : retentionPending ? (
+        <LoadingPanel label="Loading retention requests" />
+      ) : retentionRequests && retentionRequests.length > 0 ? (
+        <div className="rounded-lg border border-border bg-card shadow-xs">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="font-mono text-xs uppercase tracking-wider">
+                    Subject project
+                  </TableHead>
+                  <TableHead className="font-mono text-xs uppercase tracking-wider">
+                    Request
+                  </TableHead>
+                  <TableHead className="font-mono text-xs uppercase tracking-wider">
+                    Due
+                  </TableHead>
+                  <TableHead className="font-mono text-xs uppercase tracking-wider">
+                    Status
+                  </TableHead>
+                  <TableHead className="text-right font-mono text-xs uppercase tracking-wider">
+                    Evidence
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {retentionRequests.map((request) => (
+                  <TableRow key={request.id} data-state={request.status}>
+                    <TableCell className="font-mono text-xs">
+                      {request.subjectProjectId}
+                    </TableCell>
+                    <TableCell className="max-w-[360px]">
+                      <div className="text-sm">{request.reason || "-"}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Requested by{" "}
+                        {request.requestedByName ||
+                          "requester name unavailable"}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(request.dueAt).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <StateBadge
+                        state={requestSurfaceState(request.status)}
+                        label={humanise(request.status)}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        type="button"
+                        variant={
+                          selectedRequestId === request.id
+                            ? "secondary"
+                            : "outline"
+                        }
+                        className="min-h-11"
+                        onClick={() => setSelectedRequestId(request.id)}
+                        disabled={mutationPending}
+                        aria-pressed={selectedRequestId === request.id}
+                      >
+                        Review evidence
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      ) : (
+        <StatusPanel
+          state="empty"
+          title="No retention requests are available"
+          description="The verified organisation queue is empty. This is not a deletion or certification result."
+        />
+      )}
+
+      {selectedRequestId ? (
+        completionQuery.isLoading || completionQuery.isPending ? (
+          <LoadingPanel label="Loading exact retention completion evidence" />
+        ) : completionQuery.isError || !snapshot ? (
+          <DataErrorPanel
+            title="Retention completion evidence could not be loaded"
+            description="No reconciliation or certification conclusion can be drawn from the request summary alone."
+            onRetry={() => void completionQuery.refetch()}
+          />
+        ) : (
+          <section
+            className="space-y-5 rounded-lg border border-border bg-card p-5 shadow-xs sm:p-6"
+            aria-labelledby="retention-evidence-heading"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3
+                  id="retention-evidence-heading"
+                  className="font-serif text-lg font-medium"
+                >
+                  Completion evidence
+                </h3>
+                <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
+                  Request {snapshot.request.id}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Evidence snapshot verified{" "}
+                  {new Date(snapshot.generatedAt).toLocaleString()}.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <StateBadge
+                  state={requestSurfaceState(snapshot.request.status)}
+                  label={`Request ${humanise(snapshot.request.status)}`}
+                />
+                {snapshot.action ? (
+                  <StateBadge
+                    state={actionSurfaceState(snapshot.action.status)}
+                    label={`Action ${humanise(snapshot.action.status)}`}
+                  />
+                ) : null}
+              </div>
+            </div>
+
+            <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {(
+                [
+                  ["Expected", snapshot.objectReconciliation.expected],
+                  ["Bound intents", snapshot.objectReconciliation.detached],
+                  ["Reconciled", snapshot.objectReconciliation.reconciled],
+                  ["Pending", snapshot.objectReconciliation.pending],
+                  ["Dead letters", snapshot.objectReconciliation.deadLetters],
+                ] as const
+              ).map(([label, count]) => (
+                <div key={label} className="rounded-md border p-3">
+                  <dt className="text-xs text-muted-foreground">{label}</dt>
+                  <dd className="mt-1 text-2xl font-semibold tabular-nums">
+                    {count}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+
+            {snapshot.action ? (
+              purgeProofVerified ? (
+                <StatusPanel
+                  state="partial"
+                  title="Owner purge proof returned"
+                  description="The server returned a canonical purge receipt, its SHA-256 digest and a purge timestamp for this exact action version. This evidence is required before storage reconciliation, but it is not a deletion certificate."
+                />
+              ) : (
+                <StatusPanel
+                  state="blocked"
+                  title="Owner purge proof is incomplete"
+                  description="Detached status alone does not prove the owner-scoped relational purge. Reconciliation and certification remain unavailable until the server returns a receipt, a valid SHA-256 digest, a purge timestamp and the expected protocol version."
+                />
+              )
+            ) : null}
+
+            {snapshot.objectReconciliation.deadLetters > 0 ? (
+              <StatusPanel
+                state="blocked"
+                title="Storage dead letters require resolution"
+                description="At least one bound object lacks trustworthy terminal evidence. Reconciliation and certification remain unavailable."
+              />
+            ) : snapshot.objectReconciliation.pending > 0 ? (
+              <StatusPanel
+                state="pending"
+                title="Object reconciliation is still in progress"
+                description="Relational content may already be detached. Wait for every bound storage event to reach a trustworthy terminal disposition before recording reconciliation."
+              >
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11"
+                  onClick={() => void completionQuery.refetch()}
+                >
+                  <RefreshCw className="mr-2 size-4" aria-hidden="true" />
+                  Refresh evidence
+                </Button>
+              </StatusPanel>
+            ) : null}
+
+            {snapshot.blockers.length > 0 ? (
+              <div className="space-y-2" aria-label="Completion blockers">
+                {snapshot.blockers.map((blocker) => (
+                  <div
+                    key={`${blocker.code}:${blocker.message}`}
+                    className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900"
+                    role="alert"
+                  >
+                    <p className="font-mono text-xs font-semibold">
+                      {blocker.code}
+                    </p>
+                    <p className="mt-1">{blocker.message}</p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="rounded-md border p-4">
+                <h4 className="font-medium">Manifest evidence</h4>
+                <dl className="mt-3 space-y-3 text-sm">
+                  <div>
+                    <dt className="text-muted-foreground">
+                      Action protocol version
+                    </dt>
+                    <dd className="mt-1 font-mono text-xs">
+                      {snapshot.action?.version ?? "Not recorded"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">
+                      Canonical owner purge receipt
+                    </dt>
+                    <dd className="mt-1 text-xs">
+                      {snapshot.action?.purgeReceipt !== null &&
+                      snapshot.action?.purgeReceipt !== undefined
+                        ? "Returned (contents withheld from this surface)"
+                        : "Not recorded"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">
+                      Owner purge receipt SHA-256
+                    </dt>
+                    <dd className="mt-1 break-all font-mono text-xs">
+                      {snapshot.action?.purgeReceiptSha256 || "Not recorded"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Owner purged at</dt>
+                    <dd className="mt-1 text-xs">
+                      {snapshot.action?.purgedAt
+                        ? new Date(snapshot.action.purgedAt).toLocaleString()
+                        : "Not recorded"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Source manifest</dt>
+                    <dd className="mt-1 break-all font-mono text-xs">
+                      {snapshot.action?.sourceManifestSha256 || "Not recorded"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">
+                      Reconciliation manifest
+                    </dt>
+                    <dd className="mt-1 break-all font-mono text-xs">
+                      {snapshot.action?.reconciliationManifestSha256 ||
+                        "Not recorded"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Prepared by</dt>
+                    <dd className="mt-1">
+                      {snapshot.action?.preparedByName || "Not recorded"}
+                      {snapshot.action?.preparedAt
+                        ? ` · ${new Date(snapshot.action.preparedAt).toLocaleString()}`
+                        : ""}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div className="rounded-md border p-4">
+                <h4 className="font-medium">
+                  Retained legal and financial categories
+                </h4>
+                {snapshot.retainedCategories.length > 0 ? (
+                  <ul className="mt-3 space-y-3">
+                    {snapshot.retainedCategories.map((item) => (
+                      <li key={item.category} className="text-sm">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="font-medium capitalize">
+                            {humanise(item.category)}
+                          </span>
+                          <Badge variant="outline">{item.count}</Badge>
+                        </div>
+                        <p className="mt-1 text-muted-foreground">
+                          {item.reason}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    The server reported no retained categories for this exact
+                    action. This does not replace the manifest evidence.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {snapshot.objectBindings.length > 0 ? (
+              <details className="rounded-md border p-4">
+                <summary className="cursor-pointer font-medium">
+                  Path-free object evidence ({snapshot.objectBindings.length})
+                </summary>
+                <div className="mt-3 overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Kind</TableHead>
+                        <TableHead>Queue status</TableHead>
+                        <TableHead>Terminal disposition</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {snapshot.objectBindings.map((binding) => (
+                        <TableRow key={binding.id}>
+                          <TableCell>{humanise(binding.kind)}</TableCell>
+                          <TableCell>{humanise(binding.status)}</TableCell>
+                          <TableCell>
+                            {binding.terminalDisposition
+                              ? humanise(binding.terminalDisposition)
+                              : "Pending"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </details>
+            ) : null}
+
+            {legacyProtocolEvidence ? (
+              <StatusPanel
+                state="partial"
+                title="Legacy retention evidence is read-only"
+                description="This request predates the detach, reconcile, and certify evidence protocol. Its historical status is shown without claiming a canonical deletion certificate, and no Wave 2 controls are available."
+              />
+            ) : certificateEvidenceVerified && snapshot.certificate ? (
+              <StatusPanel
+                state="active"
+                title="Independent certificate evidence returned"
+                description={`Certificate ${snapshot.certificate.certificateNumber} was signed by ${snapshot.certificate.signedByName} on ${new Date(snapshot.certificate.completedAt).toLocaleString()}.`}
+              >
+                <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                  <div>
+                    <dt className="text-muted-foreground">Scope manifest</dt>
+                    <dd className="mt-1 break-all font-mono text-xs">
+                      {snapshot.certificate.scopeManifestHash}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">
+                      Certificate manifest
+                    </dt>
+                    <dd className="mt-1 break-all font-mono text-xs">
+                      {snapshot.certificate.certificateManifestSha256 ||
+                        "Not separately recorded"}
+                    </dd>
+                  </div>
+                </dl>
+              </StatusPanel>
+            ) : snapshot.request.status === "completed" ||
+              snapshot.action?.status === "certified" ||
+              snapshot.certificate ? (
+              <StatusPanel
+                state="error"
+                title="Certificate evidence is inconsistent"
+                description="The request, action and immutable certificate do not agree. No completion claim is shown; reload and escalate the control-plane record."
+              />
+            ) : (
+              <StatusPanel
+                state="pending"
+                title="No deletion certificate has been issued"
+                description="Detachment or reconciliation evidence is not certification. Only a distinct checker and returned immutable certificate can complete this request."
+              />
+            )}
+
+            {phaseError ? (
+              <div
+                role="alert"
+                className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900"
+              >
+                {phaseError}
+              </div>
+            ) : null}
+
+            {activationVerified &&
+            identityVerified &&
+            criticalEvidenceCurrent &&
+            snapshot.request.completionProtocolVersion === 1 &&
+            !phaseDraft ? (
+              <div className="flex flex-wrap gap-3">
+                {snapshot.request.status === "pending" &&
+                snapshot.request.version === 1 &&
+                !snapshot.action &&
+                startAuthorized ? (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    className="min-h-11"
+                    onClick={() => openPhase("detach")}
+                  >
+                    <DatabaseZap className="mr-2 size-4" aria-hidden="true" />
+                    Prepare relational detachment
+                  </Button>
+                ) : null}
+                {snapshot.action?.status === "detached" &&
+                purgeProofVerified &&
+                terminalStorageVerified &&
+                reconcileAuthorized ? (
+                  <Button
+                    type="button"
+                    className="min-h-11"
+                    onClick={() => openPhase("reconcile")}
+                  >
+                    Record reconciliation evidence
+                  </Button>
+                ) : null}
+                {snapshot.action?.status === "reconciled" &&
+                purgeProofVerified &&
+                certifyAuthorized &&
+                snapshot.action.preparedByUserId !== meQuery.data?.id ? (
+                  <Button
+                    type="button"
+                    className="min-h-11"
+                    onClick={() => openPhase("certify")}
+                  >
+                    Certify as independent checker
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
+
+            {snapshot.action?.status === "reconciled" &&
+            snapshot.action.preparedByUserId === meQuery.data?.id ? (
+              <StatusPanel
+                state="blocked"
+                title="A different checker must certify"
+                description="You prepared this reconciliation evidence. Maker-checker separation prevents you from issuing its certificate."
+              />
+            ) : null}
+
+            {phaseDraft &&
+            activationVerified &&
+            identityVerified &&
+            criticalEvidenceCurrent ? (
+              <form
+                className="space-y-4 rounded-lg border-2 border-red-300 bg-red-50 p-4"
+                onSubmit={(event) => void recordPhase(event)}
+                aria-labelledby="retention-confirmation-heading"
+              >
+                <div className="flex gap-3">
+                  <AlertTriangle
+                    className="mt-0.5 size-5 shrink-0 text-red-700"
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <h4
+                      id="retention-confirmation-heading"
+                      className="font-semibold text-red-950"
+                    >
+                      {phaseDraft.phase === "detach"
+                        ? "Confirm irreversible relational detachment"
+                        : phaseDraft.phase === "reconcile"
+                          ? "Confirm exact terminal reconciliation"
+                          : "Confirm independent certificate issuance"}
+                    </h4>
+                    <p className="mt-1 text-sm text-red-900">
+                      {phaseDraft.phase === "detach"
+                        ? "Project content will be irreversibly detached, then the owner-scoped relational graph will be purged and must return a canonical receipt before durable object reconciliation. Governed legal, financial and audit evidence is retained. This step does not issue a certificate."
+                        : phaseDraft.phase === "reconcile"
+                          ? "Confirm the owner-purge receipt and that every bound storage event has trustworthy terminal deletion evidence. This records you as the preparer and still does not issue a certificate."
+                          : "Confirm an independent review distinct from the preparer, including the owner-purge receipt and both manifests, and authorise immutable certificate issuance."}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="retention-typed-confirmation">
+                    Type this exact confirmation
+                  </Label>
+                  <p className="break-all font-mono text-xs font-semibold">
+                    {phaseConfirmation(phaseDraft.phase, snapshot)}
+                  </p>
+                  <Input
+                    id="retention-typed-confirmation"
+                    value={phaseDraft.confirmation}
+                    onChange={(event) =>
+                      setPhaseDraft((draft) =>
+                        draft
+                          ? { ...draft, confirmation: event.target.value }
+                          : draft,
+                      )
+                    }
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-describedby="retention-confirmation-help"
+                  />
+                  <p
+                    id="retention-confirmation-help"
+                    className="text-xs text-red-900"
+                  >
+                    The phrase binds this action to the exact request or action
+                    shown above.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="retention-attestation">
+                    Named operator attestation
+                  </Label>
+                  <Textarea
+                    id="retention-attestation"
+                    minLength={RETENTION_ATTESTATION_MIN_LENGTH}
+                    maxLength={512}
+                    rows={4}
+                    value={phaseDraft.attestation}
+                    onChange={(event) =>
+                      setPhaseDraft((draft) =>
+                        draft
+                          ? { ...draft, attestation: event.target.value }
+                          : draft,
+                      )
+                    }
+                    aria-describedby="retention-attestation-help"
+                  />
+                  <p
+                    id="retention-attestation-help"
+                    className="text-xs text-red-900"
+                  >
+                    Use 16–512 characters and record what you personally
+                    verified. Do not paste credentials, object paths or tender
+                    content.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <Button
+                    type="submit"
+                    variant={
+                      phaseDraft.phase === "detach" ? "destructive" : "default"
+                    }
+                    className="min-h-11"
+                    disabled={
+                      mutationPending ||
+                      !online ||
+                      phaseDraft.confirmation !==
+                        phaseConfirmation(phaseDraft.phase, snapshot) ||
+                      phaseDraft.attestation.trim().length <
+                        RETENTION_ATTESTATION_MIN_LENGTH ||
+                      phaseDraft.attestation.trim().length > 512
+                    }
+                  >
+                    {mutationPending ? (
+                      <Loader2
+                        className="mr-2 size-4 animate-spin"
+                        aria-hidden="true"
+                      />
+                    ) : null}
+                    {phaseDraft.phase === "detach"
+                      ? "Start phase-one detachment"
+                      : phaseDraft.phase === "reconcile"
+                        ? "Record reconciled manifest"
+                        : "Issue independent certificate"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-11"
+                    disabled={mutationPending}
+                    onClick={() => {
+                      setPhaseDraft(null);
+                      setPhaseError(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            ) : null}
+          </section>
+        )
+      ) : null}
+    </div>
+  );
+}
 
 export default function Settings() {
   const {
@@ -42,13 +1182,6 @@ export default function Settings() {
     isError: usersFailed,
     refetch: refetchUsers,
   } = useListUsers();
-  const {
-    data: retentionRequests,
-    isLoading: loadingRetention,
-    isPending: retentionPending,
-    isError: retentionFailed,
-    refetch: refetchRetention,
-  } = useListRetentionRequests();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -175,9 +1308,9 @@ export default function Settings() {
       <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-lg p-4 flex gap-3">
         <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <h3 className="font-medium text-blue-900 dark:text-blue-300">
+          <h2 className="font-medium text-blue-900 dark:text-blue-300">
             Data retention & security
-          </h3>
+          </h2>
           <p className="text-sm text-blue-800 dark:text-blue-400/80 leading-relaxed">
             Tender documents and extracted evidence are encrypted in storage.
             Service keys are kept in environment secrets. Do not publish keys or
@@ -591,115 +1724,7 @@ export default function Settings() {
             Retention requests
           </h2>
         </div>
-
-        <div
-          role="status"
-          className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-950"
-        >
-          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <div className="space-y-1 text-sm">
-            <p className="font-medium">Retention completion is unavailable</p>
-            <p>
-              You can open and review requests here, but this page cannot delete
-              data or issue a deletion certificate. Re-enabling completion
-              requires an approved two-step process that removes, checks and
-              certifies project content, stored objects, uploads and storage
-              lifecycle records.
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-card border border-border rounded-lg shadow-xs overflow-hidden">
-          {retentionFailed ? (
-            <div className="p-6">
-              <DataErrorPanel
-                title="Retention requests could not be loaded"
-                description="The queue state is unknown. Retry before concluding that no retention work is open."
-                onRetry={() => void refetchRetention()}
-              />
-            </div>
-          ) : loadingRetention || retentionPending ? (
-            <div className="p-12 flex justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : retentionRequests && retentionRequests.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="font-mono text-xs uppercase tracking-wider">
-                    Project
-                  </TableHead>
-                  <TableHead className="font-mono text-xs uppercase tracking-wider">
-                    Reason
-                  </TableHead>
-                  <TableHead className="font-mono text-xs uppercase tracking-wider">
-                    Due
-                  </TableHead>
-                  <TableHead className="font-mono text-xs uppercase tracking-wider">
-                    Status
-                  </TableHead>
-                  <TableHead className="font-mono text-xs uppercase tracking-wider text-right">
-                    Action
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {retentionRequests.map((request) => (
-                  <TableRow key={request.id}>
-                    <TableCell className="font-mono text-xs">
-                      {request.projectId}
-                    </TableCell>
-                    <TableCell className="max-w-[360px]">
-                      <div className="text-sm">{request.reason || "-"}</div>
-                      {request.certificateText && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {request.certificateText}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Date(request.dueAt).toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          request.status === "completed"
-                            ? "default"
-                            : "secondary"
-                        }
-                        className="capitalize"
-                      >
-                        {request.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {request.status === "completed" ? (
-                        <Badge
-                          variant="outline"
-                          className="text-emerald-700 border-emerald-200 bg-emerald-50"
-                        >
-                          <CheckCircle2 className="w-3 h-3 mr-1" />
-                          Certified
-                        </Badge>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className="border-amber-300 bg-amber-50 text-amber-800"
-                        >
-                          Activation required
-                        </Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="p-8 text-center text-muted-foreground">
-              No retention requests are available.
-            </div>
-          )}
-        </div>
+        <RetentionOperatorPanel />
       </div>
     </div>
   );

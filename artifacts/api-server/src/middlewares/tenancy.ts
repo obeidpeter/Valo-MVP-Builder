@@ -15,6 +15,7 @@ import {
   projects,
   reports,
   requirements,
+  retentionActions,
   retentionRequests,
   roleGrants,
   sbdAnnotations,
@@ -577,6 +578,10 @@ const RESOURCE_LOOKUPS: Array<{ pattern: RegExp; load: OrganisationLookup }> = [
     pattern: /^\/retention-requests\/([^/]+)/,
     load: lookupOrganisation(retentionRequests),
   },
+  {
+    pattern: /^\/retention-actions\/([^/]+)/,
+    load: lookupOrganisation(retentionActions),
+  },
 ];
 
 const PROJECT_LOOKUPS: Array<{ pattern: RegExp; load: ProjectLookup }> = [
@@ -672,7 +677,8 @@ export async function enforceTenantResourceBoundary(
     }
     const governedRetentionWorkflow =
       /^\/projects\/[^/]+\/retention-requests$/.test(req.path) ||
-      /^\/retention-requests\/[^/]+\/complete$/.test(req.path);
+      /^\/retention-requests\/[^/]+\/complete$/.test(req.path) ||
+      /^\/retention-actions\/[^/]+\/(?:reconcile|certify)$/.test(req.path);
     if (
       !governedRetentionWorkflow &&
       !new Set(["GET", "HEAD", "OPTIONS"]).has(req.method)

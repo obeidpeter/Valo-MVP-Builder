@@ -23,4 +23,5 @@ export const StorageDeletionDeadLetterAggregateType = {
   document: 'document',
   vault_item: 'vault_item',
   upload_session: 'upload_session',
+  project_retention: 'project_retention',
 } as const;

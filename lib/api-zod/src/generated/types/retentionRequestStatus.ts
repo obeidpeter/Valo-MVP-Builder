@@ -21,6 +21,7 @@ export type RetentionRequestStatus = typeof RetentionRequestStatus[keyof typeof 
 
 export const RetentionRequestStatus = {
   pending: 'pending',
+  reconciling: 'reconciling',
   completed: 'completed',
-  cancelled: 'cancelled',
+  blocked: 'blocked',
 } as const;

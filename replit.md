@@ -76,16 +76,16 @@ The Replit production database has completed the reviewed legacy bridge. Never
 replay that bridge, the baseline, or a push/schema-diff operation. Both
 production run manifests use the shared same-process startup wrapper, which may
 invoke only the bounded `migration:replit:intake` implementation: it pins the
-nine source migration hashes and accepts only the exact `0000`-`0002`,
-`0000`-`0005`, `0000`-`0006`, `0000`-`0007`, or `0000`-`0008` journal prefix.
-The three-row baseline requires `valo_intake` to be absent and atomically
-applies `0003`-`0008`; the six-row upgrade state applies `0006`-`0008`; the
-seven-row upgrade state applies `0007`-`0008`; and the eight-row upgrade state
-applies only `0008`. Each upgrade state requires the existing intake schema;
-the nine-row state is current. The launcher also
+twelve source migration hashes and accepts only the exact `0000`-`0002`,
+`0000`-`0005`, `0000`-`0006`, `0000`-`0007`, `0000`-`0008`,
+`0000`-`0009`, `0000`-`0010`, or `0000`-`0011` journal prefix. The
+three-row baseline requires `valo_intake` to be absent and atomically applies
+`0003`-`0011`; the six- through eleven-row upgrade states apply only their
+respective missing suffix (`0006`-`0011` through `0011`). Each upgrade state
+requires the existing intake schema; the twelve-row state is current. The launcher also
 validates the separate same-target owner/runtime credentials, serializes
 Autoscale starts with a PostgreSQL advisory lock, and completes the exact
-nine-row journal and catalog proof before API startup. Any other journal,
+twelve-row journal and catalog proof before API startup. Any other journal,
 source, credential, schema, or postcondition stops the candidate before listen.
 Development and
 production remain separate source instances; never reuse one environment's
@@ -178,9 +178,10 @@ RCE/native-process isolation boundary.
 That startup proof is pinned to PostgreSQL 16 and runs in a repeatable-read,
 read-only transaction. It requires the ambient path to be exactly
 `pg_catalog, public`, then uses transaction-local `search_path=pg_catalog` for
-deterministic catalog deparsing. It verifies the exact 97-table RLS flag set,
-86 FORCE-RLS table identities, 105 policy contracts, 116 security triggers,
-11 `valo_security` routine contracts, all seven `valo_intake` routine
+deterministic catalog deparsing. It verifies the exact 106-table RLS flag set,
+94 FORCE-RLS table identities, 113 policy contracts, the 118-edge tenant-parent
+trigger graph, all 35 special trigger contracts, 15 `valo_security` routine
+contracts, all seven `valo_intake` routine
 contracts, and every effective runtime table/column/sequence privilege. It also
 requires `row_security=on`, `session_replication_role=origin`, no
 ownership/schema-creation path, and runtime EXECUTE only on the two
@@ -244,12 +245,12 @@ Server-side commercial flags also default off when no tenant/global record exist
    quiescence, verified backup and isolated restore, frozen source evidence, and
    an approved rehearsal. Stop on journal, schema, count, audit, ownership, or
    RLS differences.
-4. Confirm production is still the exact bridged `0000`-`0002` state and do not
-   replay the bridge or baseline. Verify both checked-in Replit run paths name
+4. Confirm production has exactly one approved journal prefix through `0011`
+   and do not replay the bridge or baseline. Verify both checked-in Replit run paths name
    `scripts/start-replit-production.mjs`; it runs the bounded
    `migration:replit:intake` owner-side implementation before importing the API
-   in the same process. The gate may apply only
-   `0003`-`0008` and then requires the exact nine-entry journal and two-table,
+   in the same process. The gate may apply only the missing suffix from
+   `0003`-`0011` and then requires the exact twelve-entry journal and two-table,
    seven-function intake catalog. API startup separately proves
    `valo_app_runtime` has only schema usage and bounded store, limiter, active-queue read and status-transition execution,
    with no purge execution or direct intake-table/column privileges.

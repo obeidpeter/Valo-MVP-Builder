@@ -15,16 +15,7 @@
  *
  * OpenAPI spec version: 2.5.0
  */
+import type { RetentionCompletionControlPlaneUnavailable } from './retentionCompletionControlPlaneUnavailable';
+import type { RetentionCompletionNotActivated } from './retentionCompletionNotActivated';
 
-export interface RetentionCompletionUnavailable {
-  /** @minLength 1 */
-  error: string;
-  code: 'RETENTION_COMPLETION_NOT_ACTIVATED';
-  sideEffectsApplied: false;
-  requiredWorkflow: 'durable_two_phase_detach_reconcile_certify';
-  /**
-     * @minItems 4
-     * @maxItems 4
-     */
-  requiredCoverage: ['project_content_rows', 'object_storage', 'upload_sessions', 'storage_lifecycle_control_rows'];
-}
+export type RetentionCompletionUnavailable = RetentionCompletionNotActivated | RetentionCompletionControlPlaneUnavailable;

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "manifestId": "valo-retention-completion-activation/v1",
+  "status": "preconditions_open_workflow_disabled",
+  "workflow": "durable_two_phase_detach_reconcile_certify",
+  "productionActivationGranted": false,
+  "preconditions": [
+    {
+      "id": "database_controls_attested",
+      "description": "Retention control rows, tenant boundaries, immutable evidence and transition constraints are installed and runtime-attested.",
+      "status": "open",
+      "evidence": null
+    },
+    {
+      "id": "storage_reconciler_schedule_verified",
+      "description": "The tenant-fair storage deletion reconciler has a production schedule, monitored liveness and bounded retry/dead-letter handling.",
+      "status": "open",
+      "evidence": null
+    },
+    {
+      "id": "storage_terminal_evidence_verified",
+      "description": "Deleted and already-absent terminal receipts are independently exercised against the production storage adapter.",
+      "status": "open",
+      "evidence": null
+    },
+    {
+      "id": "protected_record_selectors_reviewed",
+      "description": "Legal-hold, financial, accounting, retainer and Claims Desk selectors have named legal and finance review evidence.",
+      "status": "open",
+      "evidence": null
+    },
+    {
+      "id": "deletion_rehearsal_verified",
+      "description": "A restore-aware end-to-end deletion rehearsal proves relational detach, object reconciliation and certificate postconditions.",
+      "status": "open",
+      "evidence": null
+    },
+    {
+      "id": "activation_approval_recorded",
+      "description": "A named production owner approved the exact manifest after reviewing every preceding evidence reference.",
+      "status": "open",
+      "evidence": null
+    }
+  ]
+}

@@ -15,15 +15,26 @@
  *
  * OpenAPI spec version: 2.5.0
  */
+import type { RetentionRequestCompletionProtocolVersion } from './retentionRequestCompletionProtocolVersion';
 import type { RetentionRequestStatus } from './retentionRequestStatus';
 
 export interface RetentionRequest {
   id: string;
-  projectId: string;
-  reason?: string | null;
-  dueAt: string;
-  completedAt?: string | null;
-  certificateText?: string | null;
+  projectId: string | null;
+  subjectProjectId: string;
+  requestedByUserId: string | null;
+  requestedByName: string | null;
+  reason: string | null;
+  dueAt: Date;
+  completedAt: Date | null;
   status: RetentionRequestStatus;
-  createdAt: string;
+  /** Zero identifies a read-only historical record that predates the detach/reconcile/certify evidence protocol. Only protocol one may expose completion actions. */
+  completionProtocolVersion: RetentionRequestCompletionProtocolVersion;
+  /**
+     * @minimum 1
+     * @maximum 9007199254740991
+     */
+  version: number;
+  createdAt: Date;
+  updatedAt: Date;
 }

@@ -1,6 +1,6 @@
 # Valo — Expansion Opportunities
 
-Audit of the codebase against the Valo Business Plan v1.1/v1.2, the Replit Build Brief, the Product Roadmap v1.0, and the TRD v1.0. Originally written July 2026 against the Gate 0 MVP; updated after the Phase 1 hardening milestone (PR #1), the pipeline/UX milestone (PR #2), the parallel operations/readiness work (PRs #3–#4), and the July 2026 cleanup/hardening sweep — to keep what is built separated from what remains.
+Audit of the codebase against the Valo Business Plan v1.1/v1.2, the Replit Build Brief, the Product Roadmap v1.0, and the TRD v1.0. Originally written July 2026 against the Gate 0 MVP; updated through the August 2026 second-wave source integration — to keep what is built separated from what remains operationally or externally blocked.
 
 ## Shipped
 
@@ -19,18 +19,19 @@ Audit of the codebase against the Valo Business Plan v1.1/v1.2, the Replit Build
 - **Workflow governance + SLA clocks** (FR-CSM-01/03, FR-WFM-01) — deterministic status-transition gate (named reviewer, conflict, payment, physical-archive instruction), SLA breach + red-team-window alerts on the dashboard (red-team alerts now expire at the tender deadline).
 - **Dual payment confirmation with identities** (FR-BIL-01) — `POST /projects/:id/payment-confirmations` derives the confirming identity server-side, requires two _distinct_ people for the founder/advisor legs, and stamps who/when. The gate no longer trusts client-supplied booleans.
 - **Conflict register with decisions** — same-tender/lot conflicts block intake; consent/decline decisions now stamp `decidedBy`/`decidedAt` on the open conflict record, and an unrelated PATCH can no longer silently re-block a consented conflict.
-- **Fail-closed retention request queue** (NFR-PRV-02) — admins can open and list requests, while completion returns an explicit `503` with zero storage, database, project, request, certificate or audit mutations. Historic certificates remain readable; no new certificate is represented as issued.
+- **Durable retention-completion source workflow** (NFR-PRV-02) — the admin queue now has explicit, version-bound detach → reconcile → certify actions, exact storage-event bindings, separately retained evidence, immutable manifests and maker/checker certificates. Production remains fail-closed: every activation precondition is open, the runtime purge privilege is revoked, and mutation attempts return `503` without side effects.
 - **Project Readiness Gate** — reviewer-facing checklist across governance/intake/evidence/defects/BOQ/risk/report; gate logic extracted to a pure, unit-tested module aligned with the server's deterministic gates (dual payment confirmation; only OPEN material defects block).
 - **SBD Corpus v1** — templates + agency-quirk annotations; single-active-lineage enforced on activation, version cloning supersedes the source.
 - **DOCX report** — document control block, table of contents, requirement matrix with evidence-trace annex, defect register, risk score, responsiveness review (UI trigger in the Reports tab), BOQ annex, remediation plan, copies manifest, signature/seal checklist, process warranty.
 - **CI** (`.github/workflows/ci.yml`) — the full TRD §12.2 gate order: secret scan (gitleaks, NFR-SEC-04), typecheck, unit + DB-backed integration tests (including the retention activation gate, governance, and export end-to-end suites plus the FR-ASM-01 golden-file report test), offline injection + doctrine proofs, the eval-harness offline gates, and both production builds on every push/PR.
 - **Eval harness Gate-0** (FR-EXT-05 / FR-EXT-04 / NFR-QLT-02) — 14 synthetic repository tenders are scored by the unit-tested matcher. The 85% Gate-0 threshold is non-production; the production profile requires at least 25 authorised adjudicated holdout cases, at least 95% recall and at least 98% citation correctness.
+- **Controlled-evaluation source-binding foundation** — a metadata-only binder rejects raw fixture/model content, binds exact tenant/project/plan/capability and corpus hashes, and requires at least 25 approved-redacted, independently adjudicated holdout cases with cohort coverage. The fixture loader, authorisation-evidence plane, provider gateway, result writer, customer path and production activation are deliberately disconnected, so this cannot execute an evaluation.
 - **Offline pre-ship compatibility gate** — `prove:ship` runs the offline doctrine, structural injection, and Gate-0 checks. It makes no provider call and is not production evidence. Runbook: `docs/PRE_SHIP_PROOFS.md`.
 - **Configurable scoring + Settings** — severity weights, band cutoffs, report template details and retention defaults are editable app config (with the active config versioned); reports keep their provenance stamps so historic sign-offs stay traceable.
 - **PDF export** — reports render to PDF alongside DOCX.
 - **Requirement merge** — near-duplicate AI extractions can be merged in the review queue with citations preserved.
 - **Founder Gate 0 metrics** — decision-maker conversations and mandate-quality tracking with a readiness dashboard.
-- **Retention automation** (NFR-PRV-02, scheduled half) — `retention:scan` auto-opens retention requests at the 12-month mark. It never purges, and completion remains unavailable pending the durable workflow below.
+- **Retention automation** (NFR-PRV-02, scheduled half) — `retention:scan` auto-opens retention requests at the 12-month mark. It never purges; the separate durable completion workflow remains production-disabled pending the operational proofs below.
 - **Cost telemetry** (FR-ANL-03) — token counts on every llm_runs row, per-engagement rollup (`GET /projects/:id/cost`, shown on the project overview) and an admin monthly variance report (`GET /analytics/cost?month=`) against the BP ₦15–30k unit assumption.
 - **Extraction telemetry** (FR-OCR-01/02) — every document records how its text was obtained (text layer / multimodal OCR / native), a deterministic confidence heuristic, and per-document notes that accumulate into the OCR evaluation set; surfaced in the Documents tab.
 - **Versioned defect taxonomy** (FR-ANL-01) — `TAXONOMY_VERSION` joins the provenance stamp on every report row and DOCX; registry + governed change process in `docs/DEFECT_TAXONOMY.md`.
@@ -39,8 +40,8 @@ Audit of the codebase against the Valo Business Plan v1.1/v1.2, the Replit Build
 
 ## Remaining — near-term (current gate)
 
-1. **Build and prove durable retention completion** — implement a two-phase detach/reconcile/certify workflow covering relational content, object storage, `upload_sessions`, lifecycle/deletion-intent control rows, legal holds and separately governed financial records. Only then may the `503` activation gate be removed.
-2. **Build the controlled shadow/evaluation runner** — it must derive tenant context, capture actual gateway telemetry, bind an authorised manifest, and keep retained evidence private.
+1. **Rehearse, attest and activate durable retention completion** — the source workflow exists, but migration rehearsal, runtime database proof, reviewed protected-record selectors, a monitored storage reconciler, trusted terminal receipts, restore-aware deletion rehearsal, a separately reviewed purge execution identity and named activation approval remain mandatory. The `503` gate stays closed until every checked item is verified.
+2. **Complete the controlled shadow/evaluation execution plane** — connect private authorisation evidence, a privacy-safe fixture loader, the central gateway and telemetry, and a bounded evidence writer without creating a customer-output path. The checked foundation must continue to fail closed until that entire chain is independently approved.
 3. **Assemble the authorised evaluation corpus** — 14 synthetic cases exist today; production needs at least 25 independently adjudicated holdout cases under approved privacy controls (labels are never edited to make a run pass).
 
 ## Remaining — v1.0 trio (gated on Phase 1 commercial exit; do not build early)

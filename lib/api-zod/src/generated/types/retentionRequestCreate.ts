@@ -17,6 +17,10 @@
  */
 
 export interface RetentionRequestCreate {
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
   reason?: string;
-  dueAt?: string;
+  dueAt?: Date;
 }
