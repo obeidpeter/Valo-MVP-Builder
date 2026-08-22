@@ -38,7 +38,9 @@ for (const [caseName, tamperedSource] of [
       configurations[relativePath] = tamperedSource;
       assert.throws(
         () => assertReleaseIdentityIsDeploymentOnly(configurations),
-        new RegExp(relativePath.replaceAll(/[./-]/g, "\\$&")),
+        (error) =>
+          error instanceof assert.AssertionError &&
+          error.message.includes(relativePath),
       );
     }
   });
