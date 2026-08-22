@@ -6758,6 +6758,31 @@ BEGIN
     ), expected_edges AS (
       SELECT * FROM valo_security.expected_tenant_parent_edges()
       UNION ALL
+      -- BEGIN BRIDGE-ONLY 0010 TENANT-PARENT PREFLIGHT EXTENSION.
+      SELECT *
+      FROM (VALUES
+        ('addendum_impact_assessments','baseline_document_version_id','document_versions','id',false),
+        ('addendum_impact_assessments','project_id','projects','id',false),
+        ('addendum_impact_assessments','revision_document_version_id','document_versions','id',false),
+        ('addendum_impact_items','assessment_id','addendum_impact_assessments','id',false),
+        ('document_version_snapshots','document_version_id','document_versions','id',false),
+        ('tender_context_artifacts','document_version_id','document_versions','id',false),
+        ('tender_context_artifacts','project_id','projects','id',false),
+        ('tender_context_artifacts','tender_context_version_id','tender_context_versions','id',false),
+        ('tender_context_artifacts','vault_item_version_id','vault_item_versions','id',false),
+        ('tender_context_requirements','project_id','projects','id',false),
+        ('tender_context_requirements','requirement_citation_id','requirement_citations','id',false),
+        ('tender_context_requirements','requirement_id','requirements','id',false),
+        ('tender_context_requirements','tender_context_version_id','tender_context_versions','id',false),
+        ('tender_context_versions','primary_document_version_id','document_versions','id',false),
+        ('tender_context_versions','project_id','projects','id',false),
+        ('tender_context_versions','supersedes_context_version_id','tender_context_versions','id',false),
+        ('tender_eligibility_passports','project_id','projects','id',false),
+        ('tender_eligibility_passports','tender_context_version_id','tender_context_versions','id',false)
+      ) AS tender_edge(child_table, child_column, parent_table, parent_column, allow_global_parent)
+      WHERE (SELECT tender_context_expected FROM _valo_bridge_state)
+      UNION ALL
+      -- END BRIDGE-ONLY 0010 TENANT-PARENT PREFLIGHT EXTENSION.
       SELECT
         'legacy_audit_events',
         'assessment_id',
