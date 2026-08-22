@@ -7623,7 +7623,7 @@ BEGIN
     ('tender_eligibility_passports','project_id','projects','id',false),
     ('tender_eligibility_passports','tender_context_version_id','tender_context_versions','id',false)
   ) AS edge(child_table, child_column, parent_table, parent_column, allow_global_parent);
-      $function$
+$function$
     $sql$;
   END IF;
 END;
