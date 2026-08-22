@@ -67,7 +67,7 @@ const process = [
 
 const services = [
   {
-    title: "Help producing a bid",
+    title: "Help addressing findings",
     body: "Support to fix identified requirement, evidence and answer gaps. The client remains responsible for its bid decisions.",
   },
   {
@@ -207,13 +207,13 @@ export function LandingSections() {
     <>
       <nav
         aria-label="Landing page sections"
-        className="sticky top-16 z-30 border-b border-border bg-background/88 backdrop-blur-xl"
+        className="relative z-20 border-b border-border bg-background/88 backdrop-blur-xl"
       >
         <div className="content-shell overflow-x-auto">
           <ul className="flex min-w-max items-center gap-1 py-3">
             {[
               ["#what-we-check", "What we check"],
-              ["#how-it-works", "Process"],
+              ["#how-it-works", "How it works"],
               ["#services", "Services"],
               ["#trust", "Trust"],
               ["#faq", "FAQ"],
@@ -233,14 +233,14 @@ export function LandingSections() {
 
       <section className="relative z-10" aria-label="Operating boundaries">
         <div className="border-b border-sidebar-border bg-sidebar text-sidebar-foreground">
-          <div className="content-shell grid grid-cols-2 divide-x divide-y divide-sidebar-border sm:grid-cols-4 sm:divide-y-0">
+          <ul className="content-shell grid grid-cols-2 divide-x divide-y divide-sidebar-border sm:grid-cols-4 sm:divide-y-0">
             {[
               "No award promises",
               "Named human review",
               "Client-supplied pricing",
               "Source-linked findings",
             ].map((item) => (
-              <p
+              <li
                 key={item}
                 className="flex min-h-18 items-center gap-3 px-4 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-sidebar-foreground/70 sm:justify-center"
               >
@@ -251,9 +251,9 @@ export function LandingSections() {
                   />
                 </span>
                 {item}
-              </p>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       </section>
 
@@ -265,7 +265,7 @@ export function LandingSections() {
         <div className="content-shell relative grid gap-12 lg:grid-cols-[0.82fr_1.18fr] lg:gap-24">
           <div className="lg:sticky lg:top-36 lg:self-start">
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">
-              Pass the compliance check
+              Find preventable submission risks
             </p>
             <h2 className="public-display mt-5 text-balance text-4xl font-medium leading-[1.02] tracking-[-0.05em] sm:text-5xl lg:text-6xl">
               A good bid can be rejected before anyone considers its strengths.
@@ -321,7 +321,7 @@ export function LandingSections() {
               {autopsyDeliverables.map(([title, body], index) => (
                 <article
                   key={title}
-                  className="group min-h-52 rounded-3xl border border-primary/15 bg-background/55 p-6 transition-colors hover:border-primary/35 hover:bg-background"
+                  className="min-h-52 rounded-3xl border border-primary/15 bg-background/55 p-6"
                 >
                   <span className="font-mono text-xs font-semibold text-primary/70">
                     {String(index + 1).padStart(2, "0")}
@@ -405,7 +405,7 @@ export function LandingSections() {
         <div className="grid gap-12 lg:grid-cols-[0.72fr_1.28fr] lg:gap-20">
           <div className="lg:sticky lg:top-36 lg:self-start">
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">
-              From review to submission
+              Optional follow-on support
             </p>
             <h2 className="public-display mt-5 text-balance text-4xl font-medium leading-[1.02] tracking-[-0.05em] sm:text-5xl lg:text-6xl">
               Start with the review. Continue only where Valo can help.
@@ -443,14 +443,14 @@ export function LandingSections() {
               Why Valo
             </p>
             <h2 className="public-display mt-5 text-balance text-4xl font-medium leading-[1.02] tracking-[-0.05em] sm:text-5xl lg:text-6xl">
-              Built around evidence that can stand up to review.
+              Built around evidence a reviewer can trace.
             </h2>
           </div>
           <div className="mt-14 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {differentiators.map(([Icon, title, body]) => (
               <article
                 key={title}
-                className="min-h-64 rounded-3xl border border-primary/15 bg-background/55 p-7 transition-colors hover:border-primary/35 hover:bg-background"
+                className="min-h-64 rounded-3xl border border-primary/15 bg-background/55 p-7"
               >
                 <span className="flex size-11 items-center justify-center rounded-full border border-primary/20 bg-accent/60 text-primary">
                   <Icon aria-hidden="true" className="size-5" />
@@ -473,7 +473,7 @@ export function LandingSections() {
             <UsersRound aria-hidden="true" className="size-6" />
           </span>
           <h2 className="public-display mt-6 text-balance text-4xl font-medium leading-[1.02] tracking-[-0.05em] sm:text-5xl lg:text-6xl">
-            For teams that cannot leave compliance until the final day.
+            For teams managing complex bids under deadline.
           </h2>
         </div>
         <div className="mt-14 border-t border-border">

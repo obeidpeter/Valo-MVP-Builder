@@ -185,7 +185,7 @@ describe("public routing", () => {
     await waitFor(() =>
       expect(
         screen
-          .getAllByRole("link", { name: /how it works/i })
+          .getAllByRole("link", { name: /what we check/i })
           .some((link) => link === document.activeElement),
       ).toBe(true),
     );

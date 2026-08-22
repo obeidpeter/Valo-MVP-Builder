@@ -14,8 +14,8 @@ import { ValoMark } from "@/components/valo-mark";
 import { cn } from "@/lib/utils";
 
 const NAVIGATION = [
-  { href: "/#how-it-works", label: "How it works" },
   { href: "/#what-we-check", label: "What we check" },
+  { href: "/#how-it-works", label: "How it works" },
   { href: "/#services", label: "Services" },
   { href: "/#trust", label: "Trust" },
   { href: "/#faq", label: "FAQ" },

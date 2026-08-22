@@ -198,28 +198,40 @@
   }
 
   .landing-hero-copy h1 {
-    margin-top: 0.5rem;
     font-size: 2rem;
     line-height: 1.05;
   }
 
+  .landing-hero-details {
+    margin-top: 1rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1.5rem;
+    padding-top: 1rem;
+  }
+
   .landing-hero-summary {
-    margin-top: 0.75rem;
     max-width: 38rem;
     font-size: 1rem;
     line-height: 1.5;
   }
 
   .landing-hero-actions {
-    margin-top: 1rem;
+    margin-top: 0;
     flex-direction: row;
     align-items: center;
+    align-self: end;
   }
 
   .landing-hero-secondary,
-  .landing-hero-trust,
   .landing-hero-preview {
     display: none;
+  }
+
+  .landing-hero-trust {
+    margin-top: 0.75rem;
+    max-width: none;
+    font-size: 0.625rem;
+    line-height: 1rem;
   }
 }
 
