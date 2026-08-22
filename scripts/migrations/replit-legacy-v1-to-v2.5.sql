@@ -7891,6 +7891,8 @@ BEGIN
   EXECUTE format('REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM %I', role_name);
   EXECUTE format('REVOKE ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA valo_security FROM %I', role_name);
   EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO %I', role_name);
+  EXECUTE format('REVOKE UPDATE ON TABLE public.document_versions FROM %I', role_name);
+  EXECUTE format('REVOKE INSERT, UPDATE, DELETE ON TABLE public.jurisdiction_rule_packs, public.jurisdiction_rules FROM %I', role_name);
   EXECUTE format('REVOKE UPDATE, DELETE ON TABLE public.organisations FROM %I', role_name);
   EXECUTE format('REVOKE DELETE ON TABLE public.users FROM %I', role_name);
   EXECUTE format('REVOKE DELETE ON TABLE public.organisation_memberships, public.partner_relationships, public.break_glass_sessions FROM %I', role_name);
@@ -7913,7 +7915,7 @@ BEGIN
       role_name
     );
     EXECUTE format(
-      'REVOKE UPDATE ON TABLE public.document_versions, public.tender_context_artifacts, public.tender_context_requirements FROM %I',
+      'REVOKE UPDATE ON TABLE public.tender_context_artifacts, public.tender_context_requirements FROM %I',
       role_name
     );
   END IF;
@@ -8030,12 +8032,15 @@ BEGIN
             OR has_table_privilege(role_name, relation.oid, 'INSERT') IS DISTINCT FROM
               (relation.relname NOT IN (
                 'audit_events','legacy_audit_events',
-                'legacy_audit_integrity_assessments'
+                'legacy_audit_integrity_assessments',
+                'jurisdiction_rule_packs','jurisdiction_rules'
               ))
             OR has_table_privilege(role_name, relation.oid, 'UPDATE') IS DISTINCT FROM
               (relation.relname NOT IN (
                 'audit_events','legacy_audit_events',
-                'legacy_audit_integrity_assessments','organisations','role_grants',
+                'legacy_audit_integrity_assessments','document_versions',
+                'jurisdiction_rule_packs','jurisdiction_rules',
+                'organisations','role_grants',
                 'tender_context_artifacts','tender_context_requirements'
               ))
             OR has_table_privilege(role_name, relation.oid, 'DELETE') IS DISTINCT FROM
@@ -8045,6 +8050,7 @@ BEGIN
                 'addendum_impact_assessments','addendum_impact_items',
                 'break_glass_sessions','legacy_audit_events',
                 'document_version_snapshots',
+                'jurisdiction_rule_packs','jurisdiction_rules',
                 'legacy_audit_integrity_assessments',
                 'organisation_memberships','organisations',
                 'partner_relationships','role_grants',
@@ -8079,7 +8085,8 @@ BEGIN
                   'prev_hash','hash','hash_version','created_at'
                 ]::text[])
                 ELSE relation.relname NOT IN (
-                  'legacy_audit_events','legacy_audit_integrity_assessments'
+                  'legacy_audit_events','legacy_audit_integrity_assessments',
+                  'jurisdiction_rule_packs','jurisdiction_rules'
                 )
               END
             )
@@ -8087,7 +8094,9 @@ BEGIN
               role_name, relation.oid, attribute.attnum, 'UPDATE'
             ) IS DISTINCT FROM (relation.relname NOT IN (
               'audit_events','legacy_audit_events',
-              'legacy_audit_integrity_assessments','organisations','role_grants'
+              'legacy_audit_integrity_assessments','document_versions',
+              'jurisdiction_rule_packs','jurisdiction_rules',
+              'organisations','role_grants'
             ))
             OR has_column_privilege(
               role_name, relation.oid, attribute.attnum, 'REFERENCES'
