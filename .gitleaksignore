@@ -6,3 +6,7 @@
 3f4b624feecc48c43bfe60169d2e831ff14036bd:artifacts/api-server/src/lib/aiShadowProgramme/service.test.ts:generic-api-key:61
 3f4b624feecc48c43bfe60169d2e831ff14036bd:artifacts/api-server/src/lib/aiShadowProgramme/service.ts:generic-api-key:474
 3f4b624feecc48c43bfe60169d2e831ff14036bd:artifacts/api-server/src/lib/aiShadowProgramme/service.ts:generic-api-key:512
+
+# Known non-secret retention idempotency fixtures from the second-wave implementation commit.
+625f4fa222f9304bc65f9a2cd7730dce52da134d:artifacts/api-server/src/lib/retentionCompletion/service.test.ts:generic-api-key:133
+625f4fa222f9304bc65f9a2cd7730dce52da134d:artifacts/api-server/src/lib/retentionCompletion/service.test.ts:generic-api-key:152
