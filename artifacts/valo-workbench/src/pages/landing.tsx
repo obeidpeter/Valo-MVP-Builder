@@ -36,7 +36,7 @@ function HeroReviewPreview() {
           <span aria-hidden="true" className="size-2 rounded-full bg-success" />
           Example review / fictional data
         </p>
-        <p className="font-mono text-[0.68rem] uppercase tracking-[0.16em] text-sidebar-foreground/55">
+        <p className="font-mono text-xs uppercase tracking-[0.16em] text-sidebar-foreground/60">
           VA-042 / pre-submission
         </p>
       </div>
@@ -56,7 +56,7 @@ function HeroReviewPreview() {
           </p>
           <dl className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-1">
             <div className="border-t border-sidebar-border pt-3">
-              <dt className="text-xs text-sidebar-foreground/55">Open</dt>
+              <dt className="text-xs text-sidebar-foreground/55">Shown</dt>
               <dd className="mt-1 text-2xl font-medium text-warning">03</dd>
             </div>
             <div className="border-t border-sidebar-border pt-3">
@@ -73,7 +73,7 @@ function HeroReviewPreview() {
                 Issues to fix
               </p>
               <p className="mt-2 text-xl font-medium tracking-[-0.02em]">
-                What must be decided before submission
+                What needs attention before submission
               </p>
             </div>
             <span className="inline-flex w-fit items-center gap-2 rounded-full border border-sidebar-border bg-sidebar px-3 py-1.5 text-xs text-sidebar-foreground/75">
@@ -116,13 +116,13 @@ function HeroReviewPreview() {
               aria-hidden="true"
               className="mt-0.5 size-4 shrink-0 text-sidebar-primary"
             />
-            Each issue shows its source, evidence status, owner, next action and
-            record of human review.
+            The full review records each issue&apos;s source, evidence status,
+            owner, next action and human-review history.
           </div>
         </div>
       </div>
       <figcaption className="border-t border-sidebar-border bg-sidebar/60 px-5 py-3 text-xs text-sidebar-foreground/55 sm:px-6">
-        Example Valo report using fictional tender data.
+        Illustrative Valo review using fictional tender data.
       </figcaption>
     </figure>
   );
@@ -148,35 +148,20 @@ export default function LandingPage() {
         />
         <div className="landing-hero-grid content-shell relative py-14 sm:py-20 lg:py-24">
           <div className="landing-hero-copy">
-            <p className="inline-flex min-h-8 items-center rounded-full border border-sidebar-border bg-sidebar-accent/70 px-3 text-xs font-semibold uppercase tracking-[0.14em] text-sidebar-primary backdrop-blur-sm">
-              <span
-                aria-hidden="true"
-                className="mr-2 size-1.5 rounded-full bg-success"
-              />
-              Tender compliance review for Nigerian bid teams
-            </p>
-            <h1 className="public-display mt-7 max-w-7xl text-balance text-5xl font-medium leading-[0.94] tracking-[-0.065em] sm:text-7xl lg:text-[7rem] xl:text-[7.75rem]">
+            <h1 className="public-display max-w-7xl text-balance text-5xl font-medium leading-[0.94] tracking-[-0.045em] sm:text-7xl sm:tracking-[-0.065em] lg:text-[7rem] xl:text-[7.75rem]">
               <span className="block">Find the problems</span>{" "}
               <span className="block text-sidebar-primary">
                 before submission.
               </span>
             </h1>
-            <div className="mt-10 grid gap-8 border-t border-sidebar-border pt-7 md:grid-cols-[1.2fr_0.8fr] lg:gap-20">
-              <div className="max-w-2xl">
-                <p className="landing-hero-summary text-xl leading-8 text-sidebar-foreground/78 sm:text-2xl sm:leading-9">
-                  Valo helps Nigerian public-sector, oil-and-gas and
-                  donor-funded bid teams find problems they can fix before the
-                  evaluator does.
-                </p>
-                <p className="landing-hero-secondary mt-5 max-w-xl text-sm leading-6 text-sidebar-foreground/58">
-                  Valo uses AI to assist a named human reviewer. It links each
-                  requirement to its source, checks evidence and client-supplied
-                  bill of quantities (BOQ) calculations, and challenges the
-                  package before submission.
-                </p>
-              </div>
-              <div className="landing-hero-actions flex flex-col items-start gap-4 md:items-end md:justify-end">
-                <BidAutopsyCta className="rounded-full border-sidebar-primary bg-sidebar-primary px-6 text-sidebar-primary-foreground shadow-md transition-transform hover:-translate-y-0.5 hover:bg-sidebar-primary/90" />
+            <div className="landing-hero-details mt-10 grid gap-x-8 gap-y-6 border-t border-sidebar-border pt-7 md:grid-cols-[1.2fr_0.8fr] lg:gap-x-20">
+              <p className="landing-hero-summary max-w-2xl text-xl leading-8 text-sidebar-foreground/85 sm:text-2xl sm:leading-9">
+                Valo helps Nigerian public-sector, oil-and-gas and donor-funded
+                bid teams find requirement gaps, weak evidence and BOQ issues
+                before submission.
+              </p>
+              <div className="landing-hero-actions flex w-full flex-col items-start gap-4 md:col-start-2 md:row-span-2 md:row-start-1 md:w-auto md:items-end md:justify-end">
+                <BidAutopsyCta className="w-full justify-center rounded-full border-sidebar-primary bg-sidebar-primary px-6 text-sidebar-primary-foreground shadow-md transition-transform hover:-translate-y-0.5 hover:bg-sidebar-primary/90 sm:w-auto" />
                 <a
                   href="#what-we-check"
                   className="inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-semibold text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
@@ -185,6 +170,12 @@ export default function LandingPage() {
                   <ArrowDown aria-hidden="true" className="size-4" />
                 </a>
               </div>
+              <p className="landing-hero-secondary max-w-xl text-sm leading-6 text-sidebar-foreground/70 md:col-start-1">
+                Where approved, AI assists a named human reviewer. Valo links
+                each requirement to its source, checks evidence and
+                client-supplied bill of quantities (BOQ) calculations, and
+                records what needs attention before submission.
+              </p>
             </div>
           </div>
           <div className="landing-hero-preview relative mt-14 w-full lg:mt-18">
@@ -194,7 +185,7 @@ export default function LandingPage() {
             />
             <HeroReviewPreview />
           </div>
-          <p className="landing-hero-trust mt-7 max-w-4xl border-l-2 border-sidebar-primary/35 pl-4 text-xs leading-5 text-sidebar-foreground/55">
+          <p className="landing-hero-trust mt-7 max-w-4xl border-l-2 border-sidebar-primary/35 pl-4 text-xs leading-5 text-sidebar-foreground/65">
             Valo supports the review process. It cannot guarantee an award or
             that an evaluator will accept the bid. AI-assisted steps run only
             after the required AI service, privacy and model-evaluation
