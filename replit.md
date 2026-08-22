@@ -33,6 +33,10 @@ Live model/prompt changes also require `pnpm --filter @workspace/api-server prov
 Keep secrets in Replit Secrets, never in source, command examples, screenshots,
 deployment records, or build logs. At minimum, configure and verify:
 
+- `VALO_RELEASE_SHA256` is the exact `releaseSha256` from the approved candidate
+  manifest. Inject it as a Replit Publishing production secret only after that
+  candidate is frozen; never commit a candidate-specific value to `.replit` or
+  another source-controlled deployment manifest.
 - `DATABASE_URL` is the migration-owner connection used only by approved DDL
   and migration operations. A production API must instead use a distinct
   `VALO_RUNTIME_DATABASE_URL` that authenticates as the least-privilege

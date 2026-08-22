@@ -77,8 +77,10 @@ output file.
 Before publishing, inject the candidate's `releaseSha256` into the target as
 `VALO_RELEASE_SHA256` through the approved environment-secret mechanism. It is
 not a secret, but environment-scoping prevents one target from claiming
-another candidate. Do not paste credentials or the optional probe
-authorization value into source, workflow inputs, logs, or deployment records.
+another candidate. Never pin this candidate-specific value in `.replit`, a
+checked-in `.replit-artifact/artifact.toml`, or another tracked source file. Do
+not paste credentials or the optional probe authorization value into source,
+workflow inputs, logs, or deployment records.
 
 The exact health routes publish `X-Valo-Release-Sha256` only when the configured
 value is a lowercase 64-character digest. This is a deployment-controlled,

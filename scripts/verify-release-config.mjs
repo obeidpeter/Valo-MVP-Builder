@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
+import {
+  assertReleaseIdentityIsDeploymentOnly,
+  RELEASE_IDENTITY_SOURCE_CONFIG_PATHS,
+} from "./release-config-policy.mjs";
+
 const root = resolve(import.meta.dirname, "..");
 
 async function loadJson(relativePath) {
@@ -36,10 +41,20 @@ function readTomlSection(source, name) {
 const rulePack = await loadJson("config/rules/nigeria/v2026-08-08.json");
 const alerts = await loadJson("config/observability/alerts.v2.5.json");
 const dbPackage = await loadJson("lib/db/package.json");
-const replitConfiguration = await loadText(".replit");
-const replitArtifactConfiguration = await loadText(
-  "artifacts/api-server/.replit-artifact/artifact.toml",
+const releaseIdentitySourceConfigurations = Object.fromEntries(
+  await Promise.all(
+    RELEASE_IDENTITY_SOURCE_CONFIG_PATHS.map(async (relativePath) => [
+      relativePath,
+      await loadText(relativePath),
+    ]),
+  ),
 );
+assertReleaseIdentityIsDeploymentOnly(releaseIdentitySourceConfigurations);
+const replitConfiguration = releaseIdentitySourceConfigurations[".replit"];
+const replitArtifactConfiguration =
+  releaseIdentitySourceConfigurations[
+    "artifacts/api-server/.replit-artifact/artifact.toml"
+  ];
 const replitProductionStartup = await loadText(
   "scripts/start-replit-production.mjs",
 );

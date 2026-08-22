@@ -47,9 +47,11 @@ No production deployment is authorised by this document. Replace bracketed provi
 2. Capture pre-deploy versions, configuration digests, flag/rule-pack versions and backup status.
 3. Apply backward-compatible expand migrations with the controlled migration identity.
 4. Run migration reconciliation and RLS policy inspection using non-owner app role.
-5. Inject the exact candidate `VALO_RELEASE_SHA256`, deploy API/workers/web with
-   flags off, then use the deployment-verification workflow to bind liveness,
-   readiness and runtime identity to the candidate.
+5. Inject the exact candidate `VALO_RELEASE_SHA256` through the target's
+   deployment-secret mechanism (never tracked `.replit` or artifact
+   configuration), deploy API/workers/web with flags off, then use the
+   deployment-verification workflow to bind liveness, readiness and runtime
+   identity to the candidate.
 6. Run smoke: sign-in/MFA, tenant denial, create engagement, safe test upload/quarantine/job progress, requirement review, evidence/fatal gate, BOQ fixture, package render/sign/export, audit anchor and notification simulator.
 7. Run staging E2E/a11y/performance security subset; verify logs contain no content/secrets.
 8. Approve promotion using the same artefacts.
