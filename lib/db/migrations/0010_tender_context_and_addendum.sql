@@ -67,7 +67,6 @@ CREATE TABLE "document_version_snapshots" (
     CHECK (char_length("captured_by_name") BETWEEN 1 AND 200
       AND ("verified_by_name" IS NULL
         OR char_length("verified_by_name") BETWEEN 1 AND 200))
-    )
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX "document_version_snapshots_version_unique"
