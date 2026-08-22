@@ -8121,7 +8121,8 @@ BEGIN
               'audit_events','legacy_audit_events',
               'legacy_audit_integrity_assessments','document_versions',
               'jurisdiction_rule_packs','jurisdiction_rules',
-              'organisations','role_grants'
+              'organisations','role_grants',
+              'tender_context_artifacts','tender_context_requirements'
             ))
             OR has_column_privilege(
               role_name, relation.oid, attribute.attnum, 'REFERENCES'
