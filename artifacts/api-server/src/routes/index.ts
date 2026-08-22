@@ -26,6 +26,9 @@ import analyticsRouter from "./analytics";
 import configRouter from "./config";
 import aiOperationsRouter from "./aiOperations";
 import intelligenceRouter from "./intelligence";
+import { createAddendumImpactRouter } from "./addendumImpact";
+import { createTenderContextRouter } from "./tenderContext";
+import { createDocumentVersionSnapshotRouter } from "./documentVersionSnapshots";
 import { createGrowthSuiteRouter } from "./growthSuite";
 import { createClientActionPortalRouter } from "./clientActionPortal";
 import { createOpportunitySourceNetworkRouter } from "./opportunitySourceNetwork";
@@ -111,6 +114,9 @@ const commercialRetainerRouter = createCommercialRetainerRouter({
 const partnerConsortiumRoomRouter = createDefaultPartnerConsortiumRoomRouter();
 const claimsDeskRouter = createClaimsDeskRouter();
 const boqVerificationRouter = createBoqVerificationRouter();
+const addendumImpactRouter = createAddendumImpactRouter();
+const tenderContextRouter = createTenderContextRouter();
+const documentVersionSnapshotRouter = createDocumentVersionSnapshotRouter();
 
 const router: IRouter = Router();
 
@@ -146,6 +152,7 @@ router.use(dashboardRouter);
 router.use(workInboxRouter);
 router.use(projectsRouter);
 router.use(documentsRouter);
+router.use(documentVersionSnapshotRouter);
 router.use(canonicalEvidenceOptionsRouter);
 router.use(requirementsRouter);
 router.use(evidenceRouter);
@@ -176,6 +183,8 @@ router.use(analyticsRouter);
 router.use(aiOperationsRouter);
 router.use(aiShadowProgrammeRouter);
 router.use(intelligenceRouter);
+router.use(addendumImpactRouter);
+router.use(tenderContextRouter);
 router.use(configRouter);
 router.use(storageRouter);
 

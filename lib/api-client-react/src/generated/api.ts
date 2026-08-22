@@ -31,6 +31,10 @@ import type {
 
 import type {
   AccessReview,
+  AddendumImpactApplyRequest,
+  AddendumImpactApplyResponse,
+  AddendumImpactCentreSnapshot,
+  AddendumImpactReviewRequest,
   AiBudgetExceededResponse,
   AiInputRejectedResponse,
   AiInvalidProviderResultResponse,
@@ -122,6 +126,7 @@ import type {
   CreateClientEvidenceRequestInput,
   CreateClientPackageDeliveryInput,
   CreateRetainerRequest,
+  CurrentDocumentVersionSnapshot,
   DashboardMetrics,
   Defect,
   DefectCreate,
@@ -133,6 +138,9 @@ import type {
   DocumentIntakeFailure,
   DocumentIntegrity,
   DocumentUpdate,
+  DocumentVersionSnapshot,
+  DocumentVersionSnapshotCaptureRequest,
+  DocumentVersionSnapshotReviewRequest,
   ErrorEnvelope,
   EvidenceCreate,
   EvidenceItem,
@@ -155,6 +163,7 @@ import type {
   FeatureFlagRecord,
   ForbiddenResponse,
   GetAccessReviewParams,
+  GetAddendumImpactCentreParams,
   GetCommercialRetainerSnapshotParams,
   GetMonthlyCostReportParams,
   GetPrivacyOperationsParams,
@@ -301,6 +310,11 @@ import type {
   TenantFeatureFlagSaved,
   TenantFeatureFlagUpdate,
   TenantSelectionRequiredResponse,
+  TenderContextCentre,
+  TenderContextVersion,
+  TenderContextVersionCreateRequest,
+  TenderEligibilityPassport,
+  TenderNamedReviewRequest,
   UnauthorizedResponse,
   User,
   UserUpdate,
@@ -6896,7 +6910,7 @@ export const getGetBoqVerificationQueryKey = (projectId: string,) => {
     }
 
 
-export const getGetBoqVerificationQueryOptions = <TData = Awaited<ReturnType<typeof getBoqVerification>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapRepositoryUnavailableResponse>>(projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBoqVerification>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetBoqVerificationQueryOptions = <TData = Awaited<ReturnType<typeof getBoqVerification>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBoqVerification>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -6915,14 +6929,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetBoqVerificationQueryResult = NonNullable<Awaited<ReturnType<typeof getBoqVerification>>>
-export type GetBoqVerificationQueryError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapRepositoryUnavailableResponse>
+export type GetBoqVerificationQueryError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
 
 
 /**
  * @summary Read the commercial BOQ verification register for a pursuit
  */
 
-export function useGetBoqVerification<TData = Awaited<ReturnType<typeof getBoqVerification>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapRepositoryUnavailableResponse>>(
+export function useGetBoqVerification<TData = Awaited<ReturnType<typeof getBoqVerification>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(
  projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBoqVerification>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -7048,7 +7062,7 @@ export const getGetBoqVerificationRunQueryKey = (projectId: string,
     }
 
 
-export const getGetBoqVerificationRunQueryOptions = <TData = Awaited<ReturnType<typeof getBoqVerificationRun>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapRepositoryUnavailableResponse>>(projectId: string,
+export const getGetBoqVerificationRunQueryOptions = <TData = Awaited<ReturnType<typeof getBoqVerificationRun>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(projectId: string,
     runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBoqVerificationRun>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
@@ -7068,14 +7082,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetBoqVerificationRunQueryResult = NonNullable<Awaited<ReturnType<typeof getBoqVerificationRun>>>
-export type GetBoqVerificationRunQueryError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapRepositoryUnavailableResponse>
+export type GetBoqVerificationRunQueryError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
 
 
 /**
  * @summary Read one verification run with its exception register
  */
 
-export function useGetBoqVerificationRun<TData = Awaited<ReturnType<typeof getBoqVerificationRun>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | RoadmapRepositoryUnavailableResponse>>(
+export function useGetBoqVerificationRun<TData = Awaited<ReturnType<typeof getBoqVerificationRun>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(
  projectId: string,
     runId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBoqVerificationRun>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
@@ -7456,6 +7470,835 @@ export function useGetProjectIntelligence<TData = Awaited<ReturnType<typeof getP
 
 
 
+
+export const getGetCurrentDocumentVersionSnapshotUrl = (id: string,) => {
+
+
+
+
+  return `/api/documents/${id}/version-snapshot`
+}
+
+/**
+ * Returns only the uniquely matched current document version. A snapshot remains usable only while its uploaded-byte hash and captured redaction state still match the current document. This endpoint does not infer authoritative fields or verify a proposal.
+ * @summary Inspect the exact current document version and its immutable snapshot
+ */
+export const getCurrentDocumentVersionSnapshot = async (id: string, options?: RequestInit): Promise<CurrentDocumentVersionSnapshot> => {
+
+  return customFetch<CurrentDocumentVersionSnapshot>(getGetCurrentDocumentVersionSnapshotUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCurrentDocumentVersionSnapshotQueryKey = (id: string,) => {
+    return [
+    `/api/documents/${id}/version-snapshot`
+    ] as const;
+    }
+
+
+export const getGetCurrentDocumentVersionSnapshotQueryOptions = <TData = Awaited<ReturnType<typeof getCurrentDocumentVersionSnapshot>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCurrentDocumentVersionSnapshot>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCurrentDocumentVersionSnapshotQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCurrentDocumentVersionSnapshot>>> = ({ signal }) => getCurrentDocumentVersionSnapshot(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCurrentDocumentVersionSnapshot>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCurrentDocumentVersionSnapshotQueryResult = NonNullable<Awaited<ReturnType<typeof getCurrentDocumentVersionSnapshot>>>
+export type GetCurrentDocumentVersionSnapshotQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse>
+
+
+/**
+ * @summary Inspect the exact current document version and its immutable snapshot
+ */
+
+export function useGetCurrentDocumentVersionSnapshot<TData = Awaited<ReturnType<typeof getCurrentDocumentVersionSnapshot>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCurrentDocumentVersionSnapshot>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCurrentDocumentVersionSnapshotQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCaptureDocumentVersionSnapshotUrl = (id: string,) => {
+
+
+
+
+  return `/api/documents/${id}/version-snapshots`
+}
+
+/**
+ * A current direct member submits the complete canonical proposal. Tender and addendum sources require the closed v2 full/delta structure; current approved company evidence may intentionally use null structure. Capture never verifies the proposal, and the response is exposed only after COMMIT.
+ * @summary Capture one explicit immutable proposal for the exact current version
+ */
+export const captureDocumentVersionSnapshot = async (id: string,
+    documentVersionSnapshotCaptureRequest: DocumentVersionSnapshotCaptureRequest, options?: RequestInit): Promise<DocumentVersionSnapshot> => {
+
+  return customFetch<DocumentVersionSnapshot>(getCaptureDocumentVersionSnapshotUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(documentVersionSnapshotCaptureRequest)
+  }
+);}
+
+
+
+
+export const getCaptureDocumentVersionSnapshotMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof captureDocumentVersionSnapshot>>, TError,{id: string;data: BodyType<DocumentVersionSnapshotCaptureRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof captureDocumentVersionSnapshot>>, TError,{id: string;data: BodyType<DocumentVersionSnapshotCaptureRequest>}, TContext> => {
+
+const mutationKey = ['captureDocumentVersionSnapshot'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof captureDocumentVersionSnapshot>>, {id: string;data: BodyType<DocumentVersionSnapshotCaptureRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  captureDocumentVersionSnapshot(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CaptureDocumentVersionSnapshotMutationResult = NonNullable<Awaited<ReturnType<typeof captureDocumentVersionSnapshot>>>
+    export type CaptureDocumentVersionSnapshotMutationBody = BodyType<DocumentVersionSnapshotCaptureRequest>
+    export type CaptureDocumentVersionSnapshotMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse>
+
+    /**
+ * @summary Capture one explicit immutable proposal for the exact current version
+ */
+export const useCaptureDocumentVersionSnapshot = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof captureDocumentVersionSnapshot>>, TError,{id: string;data: BodyType<DocumentVersionSnapshotCaptureRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof captureDocumentVersionSnapshot>>,
+        TError,
+        {id: string;data: BodyType<DocumentVersionSnapshotCaptureRequest>},
+        TContext
+      > => {
+      return useMutation(getCaptureDocumentVersionSnapshotMutationOptions(options));
+    }
+
+export const getReviewDocumentVersionSnapshotUrl = (id: string,
+    snapshotId: string,) => {
+
+
+
+
+  return `/api/documents/${id}/version-snapshots/${snapshotId}/review`
+}
+
+/**
+ * A different current direct member with Intelligence review authority reviews the exact immutable bytes, captured redaction state and complete v2 predecessor chain. Verification is a named evidence decision, not legal or compliance clearance, and returns only after COMMIT.
+ * @summary Verify or reject an exact captured document-version snapshot
+ */
+export const reviewDocumentVersionSnapshot = async (id: string,
+    snapshotId: string,
+    documentVersionSnapshotReviewRequest: DocumentVersionSnapshotReviewRequest, ifMatch: string, options?: RequestInit): Promise<DocumentVersionSnapshot> => {
+
+  return customFetch<DocumentVersionSnapshot>(getReviewDocumentVersionSnapshotUrl(id,snapshotId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'If-Match': ifMatch, ...options?.headers },
+    body: JSON.stringify(documentVersionSnapshotReviewRequest)
+  }
+);}
+
+
+
+
+export const getReviewDocumentVersionSnapshotMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewDocumentVersionSnapshot>>, TError,{id: string;snapshotId: string;data: BodyType<DocumentVersionSnapshotReviewRequest>;ifMatch: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewDocumentVersionSnapshot>>, TError,{id: string;snapshotId: string;data: BodyType<DocumentVersionSnapshotReviewRequest>;ifMatch: string}, TContext> => {
+
+const mutationKey = ['reviewDocumentVersionSnapshot'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewDocumentVersionSnapshot>>, {id: string;snapshotId: string;data: BodyType<DocumentVersionSnapshotReviewRequest>;ifMatch: string}> = (props) => {
+          const {id,snapshotId,data,ifMatch} = props ?? {};
+
+          return  reviewDocumentVersionSnapshot(id,snapshotId,data,ifMatch,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewDocumentVersionSnapshotMutationResult = NonNullable<Awaited<ReturnType<typeof reviewDocumentVersionSnapshot>>>
+    export type ReviewDocumentVersionSnapshotMutationBody = BodyType<DocumentVersionSnapshotReviewRequest>
+    export type ReviewDocumentVersionSnapshotMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse>
+
+    /**
+ * @summary Verify or reject an exact captured document-version snapshot
+ */
+export const useReviewDocumentVersionSnapshot = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewDocumentVersionSnapshot>>, TError,{id: string;snapshotId: string;data: BodyType<DocumentVersionSnapshotReviewRequest>;ifMatch: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewDocumentVersionSnapshot>>,
+        TError,
+        {id: string;snapshotId: string;data: BodyType<DocumentVersionSnapshotReviewRequest>;ifMatch: string},
+        TContext
+      > => {
+      return useMutation(getReviewDocumentVersionSnapshotMutationOptions(options));
+    }
+
+export const getGetTenderContextCentreUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/tender-context`
+}
+
+/**
+ * Returns immutable decision records as they were recorded at named review. Historical accepted or ready states do not assert current usability: every new review or generation action rechecks the current source, vault and approved Nigeria rule-pack authority and fails on drift. This is not a universal eligibility checklist, legal advice, compliance clearance, submission approval or award prediction.
+ * @summary View tender-specific context versions and Eligibility Passports
+ */
+export const getTenderContextCentre = async (id: string, options?: RequestInit): Promise<TenderContextCentre> => {
+
+  return customFetch<TenderContextCentre>(getGetTenderContextCentreUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTenderContextCentreQueryKey = (id: string,) => {
+    return [
+    `/api/projects/${id}/tender-context`
+    ] as const;
+    }
+
+
+export const getGetTenderContextCentreQueryOptions = <TData = Awaited<ReturnType<typeof getTenderContextCentre>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTenderContextCentre>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTenderContextCentreQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTenderContextCentre>>> = ({ signal }) => getTenderContextCentre(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTenderContextCentre>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTenderContextCentreQueryResult = NonNullable<Awaited<ReturnType<typeof getTenderContextCentre>>>
+export type GetTenderContextCentreQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+
+/**
+ * @summary View tender-specific context versions and Eligibility Passports
+ */
+
+export function useGetTenderContextCentre<TData = Awaited<ReturnType<typeof getTenderContextCentre>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTenderContextCentre>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTenderContextCentreQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateTenderContextVersionUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/tender-context/versions`
+}
+
+/**
+ * A current direct member proposes exact verified sources, requirements and company evidence. Every citation must match one unique UTF-16 span. The proposer cannot accept the same version, and the response is exposed only after COMMIT.
+ * @summary Propose a tender-specific context version for named review
+ */
+export const createTenderContextVersion = async (id: string,
+    tenderContextVersionCreateRequest: TenderContextVersionCreateRequest, options?: RequestInit): Promise<TenderContextVersion> => {
+
+  return customFetch<TenderContextVersion>(getCreateTenderContextVersionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(tenderContextVersionCreateRequest)
+  }
+);}
+
+
+
+
+export const getCreateTenderContextVersionMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTenderContextVersion>>, TError,{id: string;data: BodyType<TenderContextVersionCreateRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTenderContextVersion>>, TError,{id: string;data: BodyType<TenderContextVersionCreateRequest>}, TContext> => {
+
+const mutationKey = ['createTenderContextVersion'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTenderContextVersion>>, {id: string;data: BodyType<TenderContextVersionCreateRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createTenderContextVersion(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTenderContextVersionMutationResult = NonNullable<Awaited<ReturnType<typeof createTenderContextVersion>>>
+    export type CreateTenderContextVersionMutationBody = BodyType<TenderContextVersionCreateRequest>
+    export type CreateTenderContextVersionMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Propose a tender-specific context version for named review
+ */
+export const useCreateTenderContextVersion = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTenderContextVersion>>, TError,{id: string;data: BodyType<TenderContextVersionCreateRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTenderContextVersion>>,
+        TError,
+        {id: string;data: BodyType<TenderContextVersionCreateRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateTenderContextVersionMutationOptions(options));
+    }
+
+export const getReviewTenderContextVersionUrl = (id: string,
+    contextVersionId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/tender-context/versions/${contextVersionId}/review`
+}
+
+/**
+ * Acceptance rechecks the immutable context, current source eligibility, live vault evidence and exact approved rule material in the tenant transaction. The reviewer must differ from the proposer.
+ * @summary Record a named review of one exact Tender Context version
+ */
+export const reviewTenderContextVersion = async (id: string,
+    contextVersionId: string,
+    tenderNamedReviewRequest: TenderNamedReviewRequest, ifMatch: string, options?: RequestInit): Promise<TenderContextVersion> => {
+
+  return customFetch<TenderContextVersion>(getReviewTenderContextVersionUrl(id,contextVersionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'If-Match': ifMatch, ...options?.headers },
+    body: JSON.stringify(tenderNamedReviewRequest)
+  }
+);}
+
+
+
+
+export const getReviewTenderContextVersionMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewTenderContextVersion>>, TError,{id: string;contextVersionId: string;data: BodyType<TenderNamedReviewRequest>;ifMatch: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewTenderContextVersion>>, TError,{id: string;contextVersionId: string;data: BodyType<TenderNamedReviewRequest>;ifMatch: string}, TContext> => {
+
+const mutationKey = ['reviewTenderContextVersion'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewTenderContextVersion>>, {id: string;contextVersionId: string;data: BodyType<TenderNamedReviewRequest>;ifMatch: string}> = (props) => {
+          const {id,contextVersionId,data,ifMatch} = props ?? {};
+
+          return  reviewTenderContextVersion(id,contextVersionId,data,ifMatch,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewTenderContextVersionMutationResult = NonNullable<Awaited<ReturnType<typeof reviewTenderContextVersion>>>
+    export type ReviewTenderContextVersionMutationBody = BodyType<TenderNamedReviewRequest>
+    export type ReviewTenderContextVersionMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Record a named review of one exact Tender Context version
+ */
+export const useReviewTenderContextVersion = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewTenderContextVersion>>, TError,{id: string;contextVersionId: string;data: BodyType<TenderNamedReviewRequest>;ifMatch: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewTenderContextVersion>>,
+        TError,
+        {id: string;contextVersionId: string;data: BodyType<TenderNamedReviewRequest>;ifMatch: string},
+        TContext
+      > => {
+      return useMutation(getReviewTenderContextVersionMutationOptions(options));
+    }
+
+export const getCreateTenderEligibilityPassportUrl = (id: string,
+    contextVersionId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/tender-context/versions/${contextVersionId}/eligibility-passports`
+}
+
+/**
+ * Deterministically evaluates only the accepted requirements and evidence selected for this tender. Current source, vault and rule-pack authority are rechecked; no client decision fields are accepted. The result is never submission approval or universal qualification.
+ * @summary Generate a tender-specific Eligibility Passport for review
+ */
+export const createTenderEligibilityPassport = async (id: string,
+    contextVersionId: string, options?: RequestInit): Promise<TenderEligibilityPassport> => {
+
+  return customFetch<TenderEligibilityPassport>(getCreateTenderEligibilityPassportUrl(id,contextVersionId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getCreateTenderEligibilityPassportMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTenderEligibilityPassport>>, TError,{id: string;contextVersionId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTenderEligibilityPassport>>, TError,{id: string;contextVersionId: string}, TContext> => {
+
+const mutationKey = ['createTenderEligibilityPassport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTenderEligibilityPassport>>, {id: string;contextVersionId: string}> = (props) => {
+          const {id,contextVersionId} = props ?? {};
+
+          return  createTenderEligibilityPassport(id,contextVersionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTenderEligibilityPassportMutationResult = NonNullable<Awaited<ReturnType<typeof createTenderEligibilityPassport>>>
+
+    export type CreateTenderEligibilityPassportMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Generate a tender-specific Eligibility Passport for review
+ */
+export const useCreateTenderEligibilityPassport = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTenderEligibilityPassport>>, TError,{id: string;contextVersionId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTenderEligibilityPassport>>,
+        TError,
+        {id: string;contextVersionId: string},
+        TContext
+      > => {
+      return useMutation(getCreateTenderEligibilityPassportMutationOptions(options));
+    }
+
+export const getReviewTenderEligibilityPassportUrl = (id: string,
+    passportRecordId: string,) => {
+
+
+
+
+  return `/api/projects/${id}/tender-context/eligibility-passports/${passportRecordId}/review`
+}
+
+/**
+ * Acceptance reloads the accepted context, source versions, current vault authority and approved rule material, then recomputes the deterministic result byte-for-byte. The reviewer must differ from the generator.
+ * @summary Record a named review of one exact Eligibility Passport
+ */
+export const reviewTenderEligibilityPassport = async (id: string,
+    passportRecordId: string,
+    tenderNamedReviewRequest: TenderNamedReviewRequest, ifMatch: string, options?: RequestInit): Promise<TenderEligibilityPassport> => {
+
+  return customFetch<TenderEligibilityPassport>(getReviewTenderEligibilityPassportUrl(id,passportRecordId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'If-Match': ifMatch, ...options?.headers },
+    body: JSON.stringify(tenderNamedReviewRequest)
+  }
+);}
+
+
+
+
+export const getReviewTenderEligibilityPassportMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewTenderEligibilityPassport>>, TError,{id: string;passportRecordId: string;data: BodyType<TenderNamedReviewRequest>;ifMatch: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewTenderEligibilityPassport>>, TError,{id: string;passportRecordId: string;data: BodyType<TenderNamedReviewRequest>;ifMatch: string}, TContext> => {
+
+const mutationKey = ['reviewTenderEligibilityPassport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewTenderEligibilityPassport>>, {id: string;passportRecordId: string;data: BodyType<TenderNamedReviewRequest>;ifMatch: string}> = (props) => {
+          const {id,passportRecordId,data,ifMatch} = props ?? {};
+
+          return  reviewTenderEligibilityPassport(id,passportRecordId,data,ifMatch,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewTenderEligibilityPassportMutationResult = NonNullable<Awaited<ReturnType<typeof reviewTenderEligibilityPassport>>>
+    export type ReviewTenderEligibilityPassportMutationBody = BodyType<TenderNamedReviewRequest>
+    export type ReviewTenderEligibilityPassportMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Record a named review of one exact Eligibility Passport
+ */
+export const useReviewTenderEligibilityPassport = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewTenderEligibilityPassport>>, TError,{id: string;passportRecordId: string;data: BodyType<TenderNamedReviewRequest>;ifMatch: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewTenderEligibilityPassport>>,
+        TError,
+        {id: string;passportRecordId: string;data: BodyType<TenderNamedReviewRequest>;ifMatch: string},
+        TContext
+      > => {
+      return useMutation(getReviewTenderEligibilityPassportMutationOptions(options));
+    }
+
+export const getGetAddendumImpactCentreUrl = (id: string,
+    params?: GetAddendumImpactCentreParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/projects/${id}/addendum-impact?${stringifiedParams}` : `/api/projects/${id}/addendum-impact`
+}
+
+/**
+ * Resolves the verified v2 same-series predecessor chain and returns a deterministic, read-only comparison of the selected addendum with the effective state immediately before it. Inherited values retain their original exact citations, while removals require an exact instruction citation from the selected revision. It never reopens or invalidates work. Supplying version IDs selects that exact tenant-scoped predecessor and revision.
+ * @summary Compare an addendum with its exact effective predecessor
+ */
+export const getAddendumImpactCentre = async (id: string,
+    params?: GetAddendumImpactCentreParams, options?: RequestInit): Promise<AddendumImpactCentreSnapshot> => {
+
+  return customFetch<AddendumImpactCentreSnapshot>(getGetAddendumImpactCentreUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAddendumImpactCentreQueryKey = (id: string,
+    params?: GetAddendumImpactCentreParams,) => {
+    return [
+    `/api/projects/${id}/addendum-impact`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAddendumImpactCentreQueryOptions = <TData = Awaited<ReturnType<typeof getAddendumImpactCentre>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(id: string,
+    params?: GetAddendumImpactCentreParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAddendumImpactCentre>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAddendumImpactCentreQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAddendumImpactCentre>>> = ({ signal }) => getAddendumImpactCentre(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAddendumImpactCentre>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAddendumImpactCentreQueryResult = NonNullable<Awaited<ReturnType<typeof getAddendumImpactCentre>>>
+export type GetAddendumImpactCentreQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+
+/**
+ * @summary Compare an addendum with its exact effective predecessor
+ */
+
+export function useGetAddendumImpactCentre<TData = Awaited<ReturnType<typeof getAddendumImpactCentre>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>>(
+ id: string,
+    params?: GetAddendumImpactCentreParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAddendumImpactCentre>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAddendumImpactCentreQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReviewAddendumImpactUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/addendum-impact/review`
+}
+
+/**
+ * Records review only. It does not reopen or invalidate any downstream object. Current direct membership and Intelligence review authority are revalidated in the tenant transaction, and the response is exposed only after COMMIT.
+ * @summary Record a named review of one exact addendum impact plan
+ */
+export const reviewAddendumImpact = async (id: string,
+    addendumImpactReviewRequest: AddendumImpactReviewRequest, options?: RequestInit): Promise<AddendumImpactCentreSnapshot> => {
+
+  return customFetch<AddendumImpactCentreSnapshot>(getReviewAddendumImpactUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(addendumImpactReviewRequest)
+  }
+);}
+
+
+
+
+export const getReviewAddendumImpactMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewAddendumImpact>>, TError,{id: string;data: BodyType<AddendumImpactReviewRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewAddendumImpact>>, TError,{id: string;data: BodyType<AddendumImpactReviewRequest>}, TContext> => {
+
+const mutationKey = ['reviewAddendumImpact'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewAddendumImpact>>, {id: string;data: BodyType<AddendumImpactReviewRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  reviewAddendumImpact(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewAddendumImpactMutationResult = NonNullable<Awaited<ReturnType<typeof reviewAddendumImpact>>>
+    export type ReviewAddendumImpactMutationBody = BodyType<AddendumImpactReviewRequest>
+    export type ReviewAddendumImpactMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Record a named review of one exact addendum impact plan
+ */
+export const useReviewAddendumImpact = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewAddendumImpact>>, TError,{id: string;data: BodyType<AddendumImpactReviewRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewAddendumImpact>>,
+        TError,
+        {id: string;data: BodyType<AddendumImpactReviewRequest>},
+        TContext
+      > => {
+      return useMutation(getReviewAddendumImpactMutationOptions(options));
+    }
+
+export const getApplyAddendumImpactUrl = (id: string,) => {
+
+
+
+
+  return `/api/projects/${id}/addendum-impact/apply`
+}
+
+/**
+ * Applies only the exact accepted version-bound plan after typed confirmation. The applying direct member must be different from the named reviewer. Every target uses optimistic compare-and-swap and all target changes plus immutable audit evidence commit atomically before the receipt is returned. Historical approval and report authority stamps are preserved when current validity is changed.
+ * @summary Apply a separately reviewed controlled reopening plan
+ */
+export const applyAddendumImpact = async (id: string,
+    addendumImpactApplyRequest: AddendumImpactApplyRequest, options?: RequestInit): Promise<AddendumImpactApplyResponse> => {
+
+  return customFetch<AddendumImpactApplyResponse>(getApplyAddendumImpactUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(addendumImpactApplyRequest)
+  }
+);}
+
+
+
+
+export const getApplyAddendumImpactMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyAddendumImpact>>, TError,{id: string;data: BodyType<AddendumImpactApplyRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof applyAddendumImpact>>, TError,{id: string;data: BodyType<AddendumImpactApplyRequest>}, TContext> => {
+
+const mutationKey = ['applyAddendumImpact'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof applyAddendumImpact>>, {id: string;data: BodyType<AddendumImpactApplyRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  applyAddendumImpact(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApplyAddendumImpactMutationResult = NonNullable<Awaited<ReturnType<typeof applyAddendumImpact>>>
+    export type ApplyAddendumImpactMutationBody = BodyType<AddendumImpactApplyRequest>
+    export type ApplyAddendumImpactMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>
+
+    /**
+ * @summary Apply a separately reviewed controlled reopening plan
+ */
+export const useApplyAddendumImpact = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | InternalServerErrorResponse | RoadmapRepositoryUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyAddendumImpact>>, TError,{id: string;data: BodyType<AddendumImpactApplyRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof applyAddendumImpact>>,
+        TError,
+        {id: string;data: BodyType<AddendumImpactApplyRequest>},
+        TContext
+      > => {
+      return useMutation(getApplyAddendumImpactMutationOptions(options));
+    }
 
 export const getSearchProjectIntelligenceEvidenceUrl = (id: string,) => {
 

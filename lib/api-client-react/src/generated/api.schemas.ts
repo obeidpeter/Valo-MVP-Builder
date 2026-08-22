@@ -7845,6 +7845,1118 @@ export interface IntelligenceCentreSnapshot {
   reviewInbox: IntelligenceReviewInbox;
 }
 
+export type DocumentSnapshotFieldCategory = typeof DocumentSnapshotFieldCategory[keyof typeof DocumentSnapshotFieldCategory];
+
+
+export const DocumentSnapshotFieldCategory = {
+  deadline: 'deadline',
+  opening: 'opening',
+  eligibility: 'eligibility',
+  requirement: 'requirement',
+  boq: 'boq',
+  submission_instruction: 'submission_instruction',
+  contact: 'contact',
+  other: 'other',
+} as const;
+
+export interface DocumentSnapshotField {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     * @pattern ^[A-Za-z0-9._:-]+$
+     */
+  externalId: string;
+  category: DocumentSnapshotFieldCategory;
+  /**
+     * @minLength 1
+     * @maxLength 20000
+     */
+  value: string;
+  /** @minimum 0 */
+  startOffset: number;
+  /** @minimum 1 */
+  endOffset: number;
+  /** @minimum 1 */
+  page?: number;
+  /** @maxLength 2000 */
+  section?: string;
+}
+
+export type DocumentSnapshotSetOperationCategory = typeof DocumentSnapshotSetOperationCategory[keyof typeof DocumentSnapshotSetOperationCategory];
+
+
+export const DocumentSnapshotSetOperationCategory = {
+  deadline: 'deadline',
+  opening: 'opening',
+  eligibility: 'eligibility',
+  requirement: 'requirement',
+  boq: 'boq',
+  submission_instruction: 'submission_instruction',
+  contact: 'contact',
+  other: 'other',
+} as const;
+
+export interface DocumentSnapshotSetOperation {
+  operation: 'set';
+  /**
+     * @minLength 1
+     * @maxLength 128
+     * @pattern ^[A-Za-z0-9._:-]+$
+     */
+  externalId: string;
+  category: DocumentSnapshotSetOperationCategory;
+  /**
+     * @minLength 1
+     * @maxLength 20000
+     */
+  value: string;
+  /** @minimum 0 */
+  startOffset: number;
+  /** @minimum 1 */
+  endOffset: number;
+  /** @minimum 1 */
+  page?: number;
+  /** @maxLength 2000 */
+  section?: string;
+}
+
+export type DocumentSnapshotRemoveOperationCategory = typeof DocumentSnapshotRemoveOperationCategory[keyof typeof DocumentSnapshotRemoveOperationCategory];
+
+
+export const DocumentSnapshotRemoveOperationCategory = {
+  deadline: 'deadline',
+  opening: 'opening',
+  eligibility: 'eligibility',
+  requirement: 'requirement',
+  boq: 'boq',
+  submission_instruction: 'submission_instruction',
+  contact: 'contact',
+  other: 'other',
+} as const;
+
+export interface DocumentSnapshotRemoveOperation {
+  operation: 'remove';
+  /**
+     * @minLength 1
+     * @maxLength 128
+     * @pattern ^[A-Za-z0-9._:-]+$
+     */
+  externalId: string;
+  category: DocumentSnapshotRemoveOperationCategory;
+  /**
+     * @minLength 1
+     * @maxLength 20000
+     */
+  instruction: string;
+  /** @minimum 0 */
+  startOffset: number;
+  /** @minimum 1 */
+  endOffset: number;
+  /** @minimum 1 */
+  page?: number;
+  /** @maxLength 2000 */
+  section?: string;
+}
+
+export type DocumentStructuredSnapshotV2SourceKind = typeof DocumentStructuredSnapshotV2SourceKind[keyof typeof DocumentStructuredSnapshotV2SourceKind];
+
+
+export const DocumentStructuredSnapshotV2SourceKind = {
+  solicitation: 'solicitation',
+  addendum: 'addendum',
+} as const;
+
+export type DocumentStructuredSnapshotV2Mode = typeof DocumentStructuredSnapshotV2Mode[keyof typeof DocumentStructuredSnapshotV2Mode];
+
+
+export const DocumentStructuredSnapshotV2Mode = {
+  full: 'full',
+  delta: 'delta',
+} as const;
+
+export interface DocumentStructuredSnapshotV2 {
+  schema: 'valo.addendum-structured-snapshot/v2';
+  /** Stable solicitation-series document UUID, not a filename or addendum UUID. */
+  sourceId: string;
+  sourceKind: DocumentStructuredSnapshotV2SourceKind;
+  mode: DocumentStructuredSnapshotV2Mode;
+  /** @nullable */
+  baseVersionId: string | null;
+  authority: 'authoritative';
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  origin: string;
+  /** @maxItems 512 */
+  fields: DocumentSnapshotField[];
+  /** @maxItems 512 */
+  operations: (DocumentSnapshotSetOperation | DocumentSnapshotRemoveOperation)[];
+}
+
+export type DocumentVersionSnapshotCapturedRedactionStatus = typeof DocumentVersionSnapshotCapturedRedactionStatus[keyof typeof DocumentVersionSnapshotCapturedRedactionStatus];
+
+
+export const DocumentVersionSnapshotCapturedRedactionStatus = {
+  included: 'included',
+  redacted: 'redacted',
+} as const;
+
+export type DocumentVersionSnapshotStatus = typeof DocumentVersionSnapshotStatus[keyof typeof DocumentVersionSnapshotStatus];
+
+
+export const DocumentVersionSnapshotStatus = {
+  captured: 'captured',
+  verified: 'verified',
+  rejected: 'rejected',
+} as const;
+
+/**
+ * Captured records have no verification stamp. Verified or rejected records have a complete named verification stamp from a different user than the capturer.
+ */
+export type DocumentVersionSnapshot = unknown & ({
+  id: string;
+  documentId: string;
+  documentVersionId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  documentVersionSha256: string;
+  capturedRedactionStatus: DocumentVersionSnapshotCapturedRedactionStatus;
+  /**
+     * @minLength 1
+     * @maxLength 2000000
+     */
+  canonicalText: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  canonicalTextSha256: string;
+  structuredSnapshot: DocumentStructuredSnapshotV2 | null;
+  /**
+     * @nullable
+     * @pattern ^[a-f0-9]{64}$
+     */
+  structuredSnapshotSha256: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  extractionMethod: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  parserVersion: string;
+  status: DocumentVersionSnapshotStatus;
+  capturedByUserId: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  capturedByName: string;
+  /** @nullable */
+  verifiedByUserId: string | null;
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  verifiedByName: string | null;
+  /** @nullable */
+  verifiedAt: string | null;
+  /** @minimum 1 */
+  version: number;
+  createdAt: string;
+});
+
+export type CurrentDocumentVersionSnapshotRedactionStatus = typeof CurrentDocumentVersionSnapshotRedactionStatus[keyof typeof CurrentDocumentVersionSnapshotRedactionStatus];
+
+
+export const CurrentDocumentVersionSnapshotRedactionStatus = {
+  included: 'included',
+  redacted: 'redacted',
+} as const;
+
+export interface CurrentDocumentVersionSnapshot {
+  documentId: string;
+  projectId: string;
+  documentVersionId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  documentVersionSha256: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  filename: string;
+  redactionStatus: CurrentDocumentVersionSnapshotRedactionStatus;
+  extractionStatus: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000000
+     */
+  canonicalText: string;
+  snapshot: DocumentVersionSnapshot | null;
+}
+
+export interface DocumentVersionSnapshotCaptureRequest {
+  documentVersionId: string;
+  structuredSnapshot: DocumentStructuredSnapshotV2 | null;
+}
+
+export type DocumentVersionSnapshotReviewRequestDecision = typeof DocumentVersionSnapshotReviewRequestDecision[keyof typeof DocumentVersionSnapshotReviewRequestDecision];
+
+
+export const DocumentVersionSnapshotReviewRequestDecision = {
+  verified: 'verified',
+  rejected: 'rejected',
+} as const;
+
+export interface DocumentVersionSnapshotReviewRequest {
+  decision: DocumentVersionSnapshotReviewRequestDecision;
+}
+
+export interface TenderRequirementBindingCreate {
+  requirementId: string;
+  requirementCitationId: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  evidenceKind: string;
+  mandatory: boolean;
+  requiresCurrentOnSubmissionDate: boolean;
+  requiresExactLegalEntityMatch: boolean;
+}
+
+export type TenderArtifactBindingCreateCitation = {
+  /** @minimum 0 */
+  startOffset: number;
+  /** @minimum 1 */
+  endOffset: number;
+  /**
+     * @minLength 1
+     * @maxLength 20000
+     */
+  quote: string;
+};
+
+export interface TenderArtifactBindingCreate {
+  vaultItemVersionId: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  evidenceKind: string;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  legalEntityName?: string;
+  citation: TenderArtifactBindingCreateCitation;
+}
+
+export interface TenderContextVersionCreateRequest {
+  primaryDocumentVersionId: string;
+  jurisdictionRulePackId: string;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  legalEntityName: string;
+  submissionDate: string;
+  /** @pattern ^NG(?:-[A-Z0-9]{1,12})?$ */
+  jurisdiction: string;
+  /**
+     * @minItems 1
+     * @maxItems 100
+     * @items.minLength 1
+     * @items.maxLength 120
+     */
+  entityScopes: string[];
+  /**
+     * @minItems 1
+     * @maxItems 100
+     * @items.minLength 1
+     * @items.maxLength 120
+     */
+  categoryScopes: string[];
+  /**
+     * @minItems 1
+     * @maxItems 500
+     */
+  requirements: TenderRequirementBindingCreate[];
+  /** @maxItems 500 */
+  artifacts: TenderArtifactBindingCreate[];
+}
+
+export type TenderNamedReviewRequestDecision = typeof TenderNamedReviewRequestDecision[keyof typeof TenderNamedReviewRequestDecision];
+
+
+export const TenderNamedReviewRequestDecision = {
+  accepted: 'accepted',
+  needs_changes: 'needs_changes',
+  rejected: 'rejected',
+} as const;
+
+export interface TenderNamedReviewRequest {
+  decision: TenderNamedReviewRequestDecision;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  note: string;
+}
+
+export type TenderNamedReviewState = typeof TenderNamedReviewState[keyof typeof TenderNamedReviewState];
+
+
+export const TenderNamedReviewState = {
+  pending_review: 'pending_review',
+  accepted: 'accepted',
+  needs_changes: 'needs_changes',
+  rejected: 'rejected',
+} as const;
+
+/**
+ * Pending reviews have no reviewer stamp. Every recorded decision has a complete named reviewer stamp.
+ */
+export type TenderNamedReview = unknown & ({
+  state: TenderNamedReviewState;
+  /** @nullable */
+  reviewedByUserId: string | null;
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  reviewedByName: string | null;
+  /** @nullable */
+  reviewedAt: string | null;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  note: string | null;
+});
+
+export interface TenderRuleAdvisory {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  ruleId: string;
+  applicable: boolean;
+  enabled: boolean;
+  manualReviewRequired: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  message: string;
+  /**
+     * @maxItems 100
+     * @items.maxLength 2000
+     */
+  sourceUrls: string[];
+}
+
+export interface TenderContextRequirement {
+  requirementId: string;
+  requirementCitationId: string;
+  /**
+     * @minLength 1
+     * @maxLength 20000
+     */
+  description: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  evidenceKind: string;
+  mandatory: boolean;
+  requiresCurrentOnSubmissionDate: boolean;
+  requiresExactLegalEntityMatch: boolean;
+}
+
+export interface TenderContextArtifactCitation {
+  sourceVersionId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  contentSha256: string;
+  /** @minimum 0 */
+  startOffset: number;
+  /** @minimum 1 */
+  endOffset: number;
+  /**
+     * @minLength 1
+     * @maxLength 20000
+     */
+  quote: string;
+}
+
+export interface TenderContextArtifact {
+  vaultItemVersionId: string;
+  documentVersionId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  documentVersionSha256: string;
+  label: string;
+  issuer: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  evidenceKind: string;
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  legalEntityName: string | null;
+  /** @nullable */
+  validFrom: string | null;
+  /** @nullable */
+  validUntil: string | null;
+  citation: TenderContextArtifactCitation;
+}
+
+export type TenderContextVersionStatus = typeof TenderContextVersionStatus[keyof typeof TenderContextVersionStatus];
+
+
+export const TenderContextVersionStatus = {
+  pending_review: 'pending_review',
+  accepted: 'accepted',
+  needs_changes: 'needs_changes',
+  rejected: 'rejected',
+  superseded: 'superseded',
+} as const;
+
+export interface TenderContextVersion {
+  id: string;
+  projectId: string;
+  /** @minimum 1 */
+  versionNumber: number;
+  /** @nullable */
+  supersedesContextVersionId: string | null;
+  primaryDocumentVersionId: string;
+  jurisdictionRulePackId: string;
+  rulePackLabel: string;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  legalEntityName: string;
+  submissionDate: string;
+  jurisdiction: string;
+  entityScopes: string[];
+  categoryScopes: string[];
+  /** @pattern ^[a-f0-9]{64}$ */
+  sourceManifestSha256: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  contextSha256: string;
+  status: TenderContextVersionStatus;
+  review: TenderNamedReview;
+  ruleAdvisories: TenderRuleAdvisory[];
+  /** @maxItems 500 */
+  requirements: TenderContextRequirement[];
+  /** @maxItems 500 */
+  artifacts: TenderContextArtifact[];
+  createdAt: string;
+  /** @minimum 1 */
+  version: number;
+}
+
+export type TenderHumanReviewState = typeof TenderHumanReviewState[keyof typeof TenderHumanReviewState];
+
+
+export const TenderHumanReviewState = {
+  unreviewed: 'unreviewed',
+  accepted: 'accepted',
+  rejected: 'rejected',
+  needs_changes: 'needs_changes',
+} as const;
+
+/**
+ * A recorded decision always identifies its reviewer and review time; only an unreviewed item may omit them.
+ */
+export type TenderHumanReview = unknown & {
+  state: TenderHumanReviewState;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     * @pattern ^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$
+     */
+  reviewerId?: string;
+  reviewedAt?: string;
+  /** @maxLength 5000 */
+  note?: string;
+};
+
+export type TenderGroundedCitationSourceAuthority = typeof TenderGroundedCitationSourceAuthority[keyof typeof TenderGroundedCitationSourceAuthority];
+
+
+export const TenderGroundedCitationSourceAuthority = {
+  authoritative: 'authoritative',
+  corroborating: 'corroborating',
+  unverified: 'unverified',
+} as const;
+
+export type TenderGroundedCitationSourceKind = typeof TenderGroundedCitationSourceKind[keyof typeof TenderGroundedCitationSourceKind];
+
+
+export const TenderGroundedCitationSourceKind = {
+  solicitation: 'solicitation',
+  addendum: 'addendum',
+  company_evidence: 'company_evidence',
+  official_opportunity: 'official_opportunity',
+  other: 'other',
+} as const;
+
+export interface TenderGroundedCitation {
+  /** @maxLength 128 */
+  sourceId: string;
+  /** @maxLength 128 */
+  sourceVersionId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  contentSha256: string;
+  /** @minimum 0 */
+  startOffset: number;
+  /** @minimum 1 */
+  endOffset: number;
+  /**
+     * @minLength 1
+     * @maxLength 20000
+     */
+  quote: string;
+  /** @minimum 1 */
+  page?: number;
+  /** @maxLength 2000 */
+  section?: string;
+  /** @maxLength 128 */
+  citationId: string;
+  offsetUnit: 'utf16_code_unit';
+  sourceTitle: string;
+  sourceCapturedAt: string;
+  sourceAuthority: TenderGroundedCitationSourceAuthority;
+  sourceKind: TenderGroundedCitationSourceKind;
+  sourceOrigin: string;
+}
+
+export interface TenderEligibilityRequirementResult {
+  externalId: string;
+  description: string;
+  evidenceKind: string;
+  mandatory: boolean;
+  requiresCurrentOnSubmissionDate: boolean;
+  requiresExactLegalEntityMatch: boolean;
+  citations: TenderGroundedCitation[];
+  review: TenderHumanReview;
+  requirementId: string;
+}
+
+export type TenderEligibilityArtifactResultValidity = typeof TenderEligibilityArtifactResultValidity[keyof typeof TenderEligibilityArtifactResultValidity];
+
+
+export const TenderEligibilityArtifactResultValidity = {
+  current: 'current',
+  expired: 'expired',
+  not_yet_valid: 'not_yet_valid',
+  undated: 'undated',
+} as const;
+
+export interface TenderEligibilityArtifactResult {
+  externalId: string;
+  evidenceKind: string;
+  label: string;
+  issuer: string;
+  legalEntityName?: string;
+  validFrom?: string;
+  validUntil?: string;
+  citations: TenderGroundedCitation[];
+  review: TenderHumanReview;
+  artifactId: string;
+  validity: TenderEligibilityArtifactResultValidity;
+}
+
+export type TenderEligibilityCriterionStatus = typeof TenderEligibilityCriterionStatus[keyof typeof TenderEligibilityCriterionStatus];
+
+
+export const TenderEligibilityCriterionStatus = {
+  met: 'met',
+  missing: 'missing',
+  pending_review: 'pending_review',
+  expired: 'expired',
+  not_yet_valid: 'not_yet_valid',
+  validity_unknown: 'validity_unknown',
+  identity_mismatch: 'identity_mismatch',
+} as const;
+
+export interface TenderEligibilityCriterion {
+  requirementId: string;
+  status: TenderEligibilityCriterionStatus;
+  selectedArtifactId?: string;
+  candidateArtifactIds: string[];
+}
+
+export type TenderDomainIssueSeverity = typeof TenderDomainIssueSeverity[keyof typeof TenderDomainIssueSeverity];
+
+
+export const TenderDomainIssueSeverity = {
+  blocker: 'blocker',
+  warning: 'warning',
+} as const;
+
+export interface TenderDomainIssue {
+  code: string;
+  severity: TenderDomainIssueSeverity;
+  path: string;
+  message: string;
+}
+
+export type TenderEligibilityResultStatus = typeof TenderEligibilityResultStatus[keyof typeof TenderEligibilityResultStatus];
+
+
+export const TenderEligibilityResultStatus = {
+  blocked: 'blocked',
+  incomplete: 'incomplete',
+  review_required: 'review_required',
+  ready: 'ready',
+} as const;
+
+export interface TenderEligibilityResult {
+  passportId: string;
+  status: TenderEligibilityResultStatus;
+  requirements: TenderEligibilityRequirementResult[];
+  artifacts: TenderEligibilityArtifactResult[];
+  criteria: TenderEligibilityCriterion[];
+  review: TenderHumanReview;
+  issues: TenderDomainIssue[];
+}
+
+export type TenderEligibilityPassportResultStatus = typeof TenderEligibilityPassportResultStatus[keyof typeof TenderEligibilityPassportResultStatus];
+
+
+export const TenderEligibilityPassportResultStatus = {
+  blocked: 'blocked',
+  incomplete: 'incomplete',
+  review_required: 'review_required',
+  ready_for_human_tender_review: 'ready_for_human_tender_review',
+} as const;
+
+export interface TenderEligibilityPassport {
+  id: string;
+  projectId: string;
+  tenderContextVersionId: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  passportId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  sourceManifestSha256: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  resultSnapshotSha256: string;
+  resultStatus: TenderEligibilityPassportResultStatus;
+  eligibleForNamedTenderReview: boolean;
+  result: TenderEligibilityResult;
+  review: TenderNamedReview;
+  createdAt: string;
+  /** @minimum 1 */
+  version: number;
+}
+
+export type TenderContextCentreProject = {
+  id: string;
+  title: string;
+};
+
+export interface TenderContextCentre {
+  policyVersion: 'valo.tender-context/v1';
+  eligibilityPolicyVersion: 'valo.tender-eligibility-passport/v1';
+  authorityNote: string;
+  project: TenderContextCentreProject;
+  /** @maxItems 50 */
+  contexts: TenderContextVersion[];
+  /** @maxItems 100 */
+  passports: TenderEligibilityPassport[];
+}
+
+export interface AddendumSourceVersion {
+  documentId: string;
+  documentVersionId: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  filename: string;
+  /** @minimum 1 */
+  versionNumber: number;
+  /** @pattern ^[a-f0-9]{64}$ */
+  sha256: string;
+  capturedAt: string;
+}
+
+export interface AddendumImpactCitation {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  citationId: string;
+  sourceVersionId: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  sourceTitle: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  contentSha256: string;
+  /**
+     * @minLength 1
+     * @maxLength 20000
+     */
+  quote: string;
+  /** @minimum 0 */
+  startOffset: number;
+  /** @minimum 1 */
+  endOffset: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  page: number | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  section: string | null;
+}
+
+export type AddendumImpactChangeCategory = typeof AddendumImpactChangeCategory[keyof typeof AddendumImpactChangeCategory];
+
+
+export const AddendumImpactChangeCategory = {
+  deadline: 'deadline',
+  opening: 'opening',
+  eligibility: 'eligibility',
+  requirement: 'requirement',
+  boq: 'boq',
+  submission_instruction: 'submission_instruction',
+  contact: 'contact',
+  other: 'other',
+} as const;
+
+export type AddendumImpactChangeKind = typeof AddendumImpactChangeKind[keyof typeof AddendumImpactChangeKind];
+
+
+export const AddendumImpactChangeKind = {
+  added: 'added',
+  changed: 'changed',
+  removed: 'removed',
+} as const;
+
+export type AddendumImpactChangeReviewState = typeof AddendumImpactChangeReviewState[keyof typeof AddendumImpactChangeReviewState];
+
+
+export const AddendumImpactChangeReviewState = {
+  unreviewed: 'unreviewed',
+  accepted: 'accepted',
+  rejected: 'rejected',
+  needs_changes: 'needs_changes',
+} as const;
+
+export interface AddendumImpactChange {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  fieldExternalId: string;
+  category: AddendumImpactChangeCategory;
+  kind: AddendumImpactChangeKind;
+  /**
+     * @maxLength 20000
+     * @nullable
+     */
+  beforeValue: string | null;
+  /**
+     * @maxLength 20000
+     * @nullable
+     */
+  afterValue: string | null;
+  beforeCitation: AddendumImpactCitation | null;
+  afterCitation: AddendumImpactCitation | null;
+  reviewState: AddendumImpactChangeReviewState;
+}
+
+export type AddendumDownstreamImpactObjectType = typeof AddendumDownstreamImpactObjectType[keyof typeof AddendumDownstreamImpactObjectType];
+
+
+export const AddendumDownstreamImpactObjectType = {
+  project: 'project',
+  requirement: 'requirement',
+  work_task: 'work_task',
+  draft: 'draft',
+  boq_check: 'boq_check',
+  approval: 'approval',
+  package: 'package',
+  report: 'report',
+} as const;
+
+export type AddendumDownstreamImpactProposedAction = typeof AddendumDownstreamImpactProposedAction[keyof typeof AddendumDownstreamImpactProposedAction];
+
+
+export const AddendumDownstreamImpactProposedAction = {
+  reopen: 'reopen',
+  invalidate: 'invalidate',
+  recheck: 'recheck',
+} as const;
+
+export interface AddendumDownstreamImpact {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  targetId: string;
+  objectType: AddendumDownstreamImpactObjectType;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  label: string;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  currentState: string;
+  /** @minimum 1 */
+  currentVersion: number;
+  proposedAction: AddendumDownstreamImpactProposedAction;
+  /**
+     * @maxItems 512
+     * @items.minLength 1
+     * @items.maxLength 128
+     */
+  changeIds: string[];
+  /**
+     * @maxItems 512
+     * @items.minLength 1
+     * @items.maxLength 128
+     */
+  fieldExternalIds: string[];
+}
+
+export type AddendumImpactIssueSeverity = typeof AddendumImpactIssueSeverity[keyof typeof AddendumImpactIssueSeverity];
+
+
+export const AddendumImpactIssueSeverity = {
+  blocker: 'blocker',
+  warning: 'warning',
+} as const;
+
+export interface AddendumImpactIssue {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  code: string;
+  severity: AddendumImpactIssueSeverity;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  message: string;
+}
+
+export type AddendumImpactAssessmentStatus = typeof AddendumImpactAssessmentStatus[keyof typeof AddendumImpactAssessmentStatus];
+
+
+export const AddendumImpactAssessmentStatus = {
+  blocked: 'blocked',
+  no_changes: 'no_changes',
+  review_required: 'review_required',
+  ready_to_reopen: 'ready_to_reopen',
+  reviewed_no_affected_work: 'reviewed_no_affected_work',
+} as const;
+
+export interface AddendumImpactAssessment {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  id: string;
+  /** @minimum 0 */
+  version: number;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  radarId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  sourceManifestSha256: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  impactManifestSha256: string;
+  status: AddendumImpactAssessmentStatus;
+  readyForReopening: boolean;
+  /** @maxItems 512 */
+  changes: AddendumImpactChange[];
+  /** @maxItems 2048 */
+  impacts: AddendumDownstreamImpact[];
+  /** @maxItems 4096 */
+  issues: AddendumImpactIssue[];
+}
+
+export type AddendumImpactReviewDecision = typeof AddendumImpactReviewDecision[keyof typeof AddendumImpactReviewDecision];
+
+
+export const AddendumImpactReviewDecision = {
+  accepted: 'accepted',
+  changes_requested: 'changes_requested',
+  rejected: 'rejected',
+} as const;
+
+export interface AddendumImpactReview {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  assessmentId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  impactManifestSha256: string;
+  decision: AddendumImpactReviewDecision;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  reason: string;
+  reviewerUserId: string;
+  /**
+     * @minLength 2
+     * @maxLength 200
+     */
+  reviewerName: string;
+  reviewedAt: string;
+  /** @minimum 1 */
+  version: number;
+}
+
+export interface AddendumImpactApplication {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  assessmentId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  impactManifestSha256: string;
+  appliedByUserId: string;
+  /**
+     * @minLength 2
+     * @maxLength 200
+     */
+  appliedByName: string;
+  appliedAt: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  reason: string;
+  /**
+     * @minimum 1
+     * @maximum 2048
+     */
+  mutationCount: number;
+}
+
+export type AddendumImpactCentreSnapshotProject = {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  title: string;
+};
+
+export interface AddendumImpactCentreSnapshot {
+  policyVersion: 'valo.addendum-impact/v1';
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  authorityNote: string;
+  project: AddendumImpactCentreSnapshotProject;
+  baseline: AddendumSourceVersion;
+  revision: AddendumSourceVersion;
+  assessment: AddendumImpactAssessment;
+  review: AddendumImpactReview | null;
+  reviewStale: boolean;
+  application: AddendumImpactApplication | null;
+  requiredConfirmation: 'REOPEN AFFECTED WORK';
+}
+
+export type AddendumImpactReviewRequestDecision = typeof AddendumImpactReviewRequestDecision[keyof typeof AddendumImpactReviewRequestDecision];
+
+
+export const AddendumImpactReviewRequestDecision = {
+  accepted: 'accepted',
+  changes_requested: 'changes_requested',
+  rejected: 'rejected',
+} as const;
+
+export interface AddendumImpactReviewRequest {
+  baselineVersionId: string;
+  revisionVersionId: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  assessmentId: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  radarId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  expectedImpactManifestSha256: string;
+  /** @minimum 0 */
+  expectedAssessmentVersion: number;
+  decision: AddendumImpactReviewRequestDecision;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  reason: string;
+}
+
+export interface AddendumImpactApplyRequest {
+  baselineVersionId: string;
+  revisionVersionId: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  assessmentId: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  radarId: string;
+  /** @pattern ^[a-f0-9]{64}$ */
+  expectedImpactManifestSha256: string;
+  /** @minimum 0 */
+  expectedAssessmentVersion: number;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  reason: string;
+  confirmation: 'REOPEN AFFECTED WORK';
+}
+
+export interface AddendumImpactApplyResponse {
+  replayed: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  authorityNote: string;
+  application: AddendumImpactApplication;
+}
+
 export interface IntelligenceEvidenceSearchRequest {
   /**
      * @minLength 1
@@ -10489,7 +11601,7 @@ export type OrganisationContextHeaderParameter = string;
 export type BreakGlassSessionHeaderParameter = string;
 
 /**
- * Current positive integer resource version, optionally quoted or weakly prefixed.
+ * Current positive safe-integer resource version, optionally quoted or weakly prefixed.
  */
 export type IfMatchVersionParameter = string;
 
@@ -10537,6 +11649,11 @@ limit?: number;
  * @pattern ^[A-Za-z0-9_-]+$
  */
 cursor?: string;
+};
+
+export type GetAddendumImpactCentreParams = {
+baselineVersionId?: string;
+revisionVersionId?: string;
 };
 
 export type GetMonthlyCostReportParams = {

@@ -28,6 +28,41 @@ const SPECIAL_TENANT_TRIGGERS = [
     "",
   ],
   [
+    "addendum_impact_assessments.addendum_impact_assessment_content_immutable:reject_versioned_record_content_mutation",
+    19,
+    "id,organisation_id,project_id,baseline_document_version_id,revision_document_version_id,radar_id,assessment_id,source_manifest_sha256,impact_manifest_sha256,assessment_snapshot,created_at",
+  ],
+  [
+    "addendum_impact_assessments.addendum_impact_assessment_state_transition:enforce_governed_state_transition",
+    23,
+    "",
+  ],
+  [
+    "addendum_impact_items.addendum_impact_item_content_immutable:reject_versioned_record_content_mutation",
+    19,
+    "id,organisation_id,assessment_id,change_id,category,kind,before_text,after_text,citation_data,field_external_id,affected_object_type,affected_object_id,affected_object_version,proposed_action,created_at",
+  ],
+  [
+    "addendum_impact_items.addendum_impact_item_state_transition:enforce_governed_state_transition",
+    23,
+    "",
+  ],
+  [
+    "document_versions.document_version_content_immutable:reject_versioned_record_content_mutation",
+    19,
+    "id,organisation_id,document_id,version_number,supersedes_version_id,object_path,sha256,detected_mime,detected_format,size_bytes,integrity_manifest,uploaded_by,created_at",
+  ],
+  [
+    "document_version_snapshots.document_version_snapshot_content_immutable:reject_versioned_record_content_mutation",
+    19,
+    "id,organisation_id,document_version_id,document_version_sha256,captured_redaction_status,canonical_text,canonical_text_sha256,structured_snapshot,structured_snapshot_sha256,extraction_method,parser_version,captured_by_user_id,captured_by_name,created_at",
+  ],
+  [
+    "document_version_snapshots.document_version_snapshot_state_transition:enforce_governed_state_transition",
+    23,
+    "",
+  ],
+  [
     "invoice_lines.tenant_derived_invoice_order:enforce_derived_tenant_relationship",
     23,
     "invoice_id,order_id",
@@ -102,6 +137,36 @@ const SPECIAL_TENANT_TRIGGERS = [
     23,
     "organisation_id,price_book_entry_id",
   ],
+  [
+    "tender_context_artifacts.tender_context_artifact_immutable:reject_versioned_record_content_mutation",
+    19,
+    "",
+  ],
+  [
+    "tender_context_requirements.tender_context_requirement_immutable:reject_versioned_record_content_mutation",
+    19,
+    "",
+  ],
+  [
+    "tender_context_versions.tender_context_version_content_immutable:reject_versioned_record_content_mutation",
+    19,
+    "id,organisation_id,project_id,version_number,supersedes_context_version_id,primary_document_version_id,jurisdiction_rule_pack_id,legal_entity_name,submission_date,jurisdiction,entity_scopes,category_scopes,source_manifest,source_manifest_sha256,context_snapshot,context_sha256,rule_advisories,created_by_user_id,created_at",
+  ],
+  [
+    "tender_context_versions.tender_context_version_state_transition:enforce_governed_state_transition",
+    23,
+    "",
+  ],
+  [
+    "tender_eligibility_passports.tender_eligibility_passport_content_immutable:reject_versioned_record_content_mutation",
+    19,
+    "id,organisation_id,project_id,tender_context_version_id,passport_id,source_manifest_sha256,result_snapshot,result_snapshot_sha256,result_status,created_by_user_id,created_at",
+  ],
+  [
+    "tender_eligibility_passports.tender_eligibility_passport_state_transition:enforce_governed_state_transition",
+    23,
+    "",
+  ],
 ].map(([trigger_contract, trigger_type, update_columns]) => ({
   trigger_contract: String(trigger_contract),
   enabled: true,
@@ -136,6 +201,13 @@ const intakeOperationsMigration = readFileSync(
 );
 const productionAssuranceMigration = readFileSync(
   new URL("../migrations/0008_production_assurance.sql", import.meta.url),
+  "utf8",
+);
+const tenderContextMigration = readFileSync(
+  new URL(
+    "../migrations/0010_tender_context_and_addendum.sql",
+    import.meta.url,
+  ),
   "utf8",
 );
 
@@ -266,9 +338,20 @@ function migrationTenantEdges() {
   );
   const end = migration.indexOf("$function$;", start);
   assert(start >= 0 && end > start);
+  const extensionStart = tenderContextMigration.indexOf(
+    "CREATE FUNCTION valo_security.expected_tenant_parent_edges()",
+  );
+  const extensionEnd = tenderContextMigration.indexOf(
+    "$function$;",
+    extensionStart,
+  );
+  assert(extensionStart >= 0 && extensionEnd > extensionStart);
   return [
     ...migration
       .slice(start, end)
+      .matchAll(/\('([^']+)','([^']+)','([^']+)','([^']+)',(true|false)\)/g),
+    ...tenderContextMigration
+      .slice(extensionStart, extensionEnd)
       .matchAll(/\('([^']+)','([^']+)','([^']+)','([^']+)',(true|false)\)/g),
   ].map((match) => ({
     child_table: match[1]!,
@@ -311,8 +394,38 @@ function migrationTenantGuardFunctions() {
       "",
       "trigger",
     ],
+    [
+      "enforce_governed_state_transition",
+      "plpgsql",
+      "v",
+      "u",
+      true,
+      0,
+      "",
+      "trigger",
+    ],
     ["enforce_tenant_parent", "plpgsql", "v", "u", true, 0, "", "trigger"],
     ["expected_tenant_parent_edges", "sql", "i", "u", false, 0, "", "record"],
+    [
+      "expected_tenant_parent_edges_v25",
+      "sql",
+      "i",
+      "u",
+      false,
+      0,
+      "",
+      "record",
+    ],
+    [
+      "reject_versioned_record_content_mutation",
+      "plpgsql",
+      "v",
+      "u",
+      true,
+      0,
+      "",
+      "trigger",
+    ],
     [
       "reject_tenant_identity_reassignment",
       "plpgsql",
@@ -367,15 +480,28 @@ function migrationTenantGuardFunctions() {
     ]) => {
       const sourceMigration = function_name.endsWith("organisation_id")
         ? tenantRlsMigration
-        : migration;
+        : function_name === "expected_tenant_parent_edges" ||
+            function_name === "enforce_governed_state_transition" ||
+            function_name === "reject_versioned_record_content_mutation"
+          ? tenderContextMigration
+          : migration;
+      const sourceFunctionName =
+        function_name === "expected_tenant_parent_edges_v25"
+          ? "expected_tenant_parent_edges"
+          : function_name;
       const start = sourceMigration.indexOf(
-        `CREATE OR REPLACE FUNCTION valo_security.${function_name}()`,
+        `CREATE OR REPLACE FUNCTION valo_security.${sourceFunctionName}()`,
       );
       const signatureStart =
         start >= 0
           ? start
-          : sourceMigration.indexOf(
-              `CREATE OR REPLACE FUNCTION valo_security.${function_name}(`,
+          : Math.max(
+              sourceMigration.indexOf(
+                `CREATE OR REPLACE FUNCTION valo_security.${sourceFunctionName}(`,
+              ),
+              sourceMigration.indexOf(
+                `CREATE FUNCTION valo_security.${sourceFunctionName}(`,
+              ),
             );
       const sourceStart = sourceMigration.indexOf(
         "AS $function$",
@@ -405,11 +531,12 @@ function migrationTenantGuardFunctions() {
             ? "p_organisation_id uuid"
             : "",
         return_type,
-        function_result:
-          function_name === "expected_tenant_parent_edges"
-            ? "TABLE(child_table text, child_column text, parent_table text, parent_column text, allow_global_parent boolean)"
-            : return_type,
-        returns_set: function_name === "expected_tenant_parent_edges",
+        function_result: function_name.startsWith(
+          "expected_tenant_parent_edges",
+        )
+          ? "TABLE(child_table text, child_column text, parent_table text, parent_column text, allow_global_parent boolean)"
+          : return_type,
+        returns_set: function_name.startsWith("expected_tenant_parent_edges"),
         owner_name: "synthetic_migration_owner",
         runtime_can_execute: [
           "current_organisation_id",
@@ -533,7 +660,7 @@ describe("production database selection", () => {
 });
 
 describe("production tenant graph attestation", () => {
-  test("accepts only the pinned 98-edge and special-trigger contract", () => {
+  test("accepts only the pinned 116-edge and special-trigger contract", () => {
     assert.doesNotThrow(() =>
       assertTenantGraphAttestation({
         directEdges: migrationTenantEdges(),
@@ -541,7 +668,7 @@ describe("production tenant graph attestation", () => {
         functionProofs: migrationTenantGuardFunctions(),
         compositeTenantEdges: 0,
         immutableArchiveExceptions: 1,
-        tenantParentTriggerCount: 98,
+        tenantParentTriggerCount: 116,
       }),
     );
   });
@@ -557,7 +684,7 @@ describe("production tenant graph attestation", () => {
           functionProofs: migrationTenantGuardFunctions(),
           compositeTenantEdges: 0,
           immutableArchiveExceptions: 1,
-          tenantParentTriggerCount: 98,
+          tenantParentTriggerCount: 116,
         }),
       /tenant-parent graph|derived tenant guards/,
     );
@@ -576,7 +703,7 @@ describe("production tenant graph attestation", () => {
           functionProofs: migrationTenantGuardFunctions(),
           compositeTenantEdges: 0,
           immutableArchiveExceptions: 1,
-          tenantParentTriggerCount: 98,
+          tenantParentTriggerCount: 116,
         }),
       /tenant-parent graph/,
     );
@@ -593,7 +720,7 @@ describe("production tenant graph attestation", () => {
           functionProofs: migrationTenantGuardFunctions(),
           compositeTenantEdges: 0,
           immutableArchiveExceptions: 1,
-          tenantParentTriggerCount: 98,
+          tenantParentTriggerCount: 116,
         }),
       /derived tenant guards/,
     );
@@ -612,7 +739,7 @@ describe("production tenant graph attestation", () => {
           functionProofs,
           compositeTenantEdges: 0,
           immutableArchiveExceptions: 1,
-          tenantParentTriggerCount: 98,
+          tenantParentTriggerCount: 116,
         }),
       /guard functions are semantically drifted/,
     );
@@ -631,7 +758,7 @@ describe("production tenant graph attestation", () => {
           functionProofs,
           compositeTenantEdges: 0,
           immutableArchiveExceptions: 1,
-          tenantParentTriggerCount: 98,
+          tenantParentTriggerCount: 116,
         }),
       /guard functions are semantically drifted/,
     );
@@ -648,7 +775,7 @@ describe("production tenant graph attestation", () => {
           functionProofs: strictSetterProofs,
           compositeTenantEdges: 0,
           immutableArchiveExceptions: 1,
-          tenantParentTriggerCount: 98,
+          tenantParentTriggerCount: 116,
         }),
       /guard functions are semantically drifted/,
     );
@@ -659,11 +786,11 @@ describe("production RLS policy attestation", () => {
   test("fails closed outside the pinned PG16 104-policy catalog", () => {
     assert.throws(
       () => assertRuntimePolicyAttestation([], 160_004),
-      /RLS policy catalog is drifted|rate-limit RLS policy is drifted/,
+      /RLS policy is drifted|RLS policy catalog is drifted/,
     );
     assert.throws(
       () => assertRuntimePolicyAttestation([], 170_001),
-      /RLS policy catalog is drifted|rate-limit RLS policy is drifted/,
+      /RLS policy is drifted|RLS policy catalog is drifted/,
     );
   });
 });

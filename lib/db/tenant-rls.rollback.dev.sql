@@ -48,6 +48,8 @@ DECLARE
   tenant_table text;
   policy_name text;
   protected_tables constant text[] := ARRAY[
+    'addendum_impact_assessments',
+    'addendum_impact_items',
     'approvals',
     'authenticated_rate_limit_buckets',
     'audit_anchors',
@@ -70,6 +72,7 @@ DECLARE
     'defect_decisions',
     'defects',
     'deletion_certificates',
+    'document_version_snapshots',
     'document_versions',
     'documents',
     'draft_claims',
@@ -127,6 +130,10 @@ DECLARE
     'sbd_templates',
     'subprocessors',
     'subscriptions',
+    'tender_context_artifacts',
+    'tender_context_requirements',
+    'tender_context_versions',
+    'tender_eligibility_passports',
     'tender_lots',
     'tenders',
     'upload_sessions',

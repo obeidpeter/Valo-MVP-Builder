@@ -2975,6 +2975,521 @@ export const jurisdictionRules = pgTable(
   ],
 );
 
+/**
+ * Immutable, version-bound extraction material. `documents.content_text` is a
+ * convenient current projection and can change after reprocessing; grounded
+ * tender and addendum decisions must instead cite this exact snapshot.
+ */
+export const documentVersionSnapshots = pgTable(
+  "document_version_snapshots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organisationId: uuid("organisation_id")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "restrict" }),
+    documentVersionId: uuid("document_version_id")
+      .notNull()
+      .references(() => documentVersions.id, { onDelete: "restrict" }),
+    documentVersionSha256: text("document_version_sha256").notNull(),
+    capturedRedactionStatus: text("captured_redaction_status").notNull(),
+    canonicalText: text("canonical_text").notNull(),
+    canonicalTextSha256: text("canonical_text_sha256").notNull(),
+    structuredSnapshot: text("structured_snapshot"),
+    structuredSnapshotSha256: text("structured_snapshot_sha256"),
+    extractionMethod: text("extraction_method").notNull(),
+    parserVersion: text("parser_version").notNull(),
+    status: text("status").notNull().default("captured"),
+    capturedByUserId: uuid("captured_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    capturedByName: text("captured_by_name").notNull(),
+    verifiedByUserId: uuid("verified_by_user_id").references(() => users.id, {
+      onDelete: "restrict",
+    }),
+    verifiedByName: text("verified_by_name"),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    version: optimisticVersion(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("document_version_snapshots_version_unique").on(
+      t.documentVersionId,
+    ),
+    index("document_version_snapshots_org_created_idx").on(
+      t.organisationId,
+      t.createdAt,
+      t.id,
+    ),
+    check(
+      "document_version_snapshots_version_sha256_check",
+      sql`${t.documentVersionSha256} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "document_version_snapshots_text_sha256_check",
+      sql`${t.canonicalTextSha256} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "document_version_snapshots_structured_pair_check",
+      sql`(${t.structuredSnapshot} IS NULL) = (${t.structuredSnapshotSha256} IS NULL)`,
+    ),
+    check(
+      "document_version_snapshots_structured_sha256_check",
+      sql`${t.structuredSnapshotSha256} IS NULL OR ${t.structuredSnapshotSha256} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "document_version_snapshots_status_check",
+      sql`${t.status} IN ('captured', 'verified', 'rejected')`,
+    ),
+    check(
+      "document_version_snapshots_redaction_status_check",
+      sql`${t.capturedRedactionStatus} IN ('included', 'redacted')`,
+    ),
+    check(
+      "document_version_snapshots_review_stamp_check",
+      sql`(${t.status} = 'captured' AND ${t.verifiedByUserId} IS NULL AND ${t.verifiedByName} IS NULL AND ${t.verifiedAt} IS NULL) OR (${t.status} IN ('verified', 'rejected') AND ${t.verifiedByUserId} IS NOT NULL AND ${t.verifiedByUserId} <> ${t.capturedByUserId} AND ${t.verifiedByName} IS NOT NULL AND ${t.verifiedAt} IS NOT NULL)`,
+    ),
+    check(
+      "document_version_snapshots_content_bounds_check",
+      sql`char_length(${t.canonicalText}) BETWEEN 1 AND 2000000 AND (${t.structuredSnapshot} IS NULL OR char_length(${t.structuredSnapshot}) BETWEEN 1 AND 256000) AND char_length(${t.extractionMethod}) BETWEEN 1 AND 120 AND char_length(${t.parserVersion}) BETWEEN 1 AND 120`,
+    ),
+    check(
+      "document_version_snapshots_reviewer_name_bounds_check",
+      sql`char_length(${t.capturedByName}) BETWEEN 1 AND 200 AND (${t.verifiedByName} IS NULL OR char_length(${t.verifiedByName}) BETWEEN 1 AND 200)`,
+    ),
+  ],
+);
+
+/**
+ * A tender context is a versioned, project-specific interpretation of exact
+ * tender material. It is never a universal Nigeria eligibility checklist and
+ * remains advisory until a named reviewer decides this exact version.
+ */
+export const tenderContextVersions = pgTable(
+  "tender_context_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organisationId: uuid("organisation_id")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "restrict" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    versionNumber: integer("version_number").notNull(),
+    supersedesContextVersionId: uuid("supersedes_context_version_id"),
+    primaryDocumentVersionId: uuid("primary_document_version_id")
+      .notNull()
+      .references(() => documentVersions.id, { onDelete: "restrict" }),
+    jurisdictionRulePackId: uuid("jurisdiction_rule_pack_id")
+      .notNull()
+      .references(() => jurisdictionRulePacks.id, { onDelete: "restrict" }),
+    legalEntityName: text("legal_entity_name").notNull(),
+    submissionDate: date("submission_date").notNull(),
+    jurisdiction: text("jurisdiction").notNull(),
+    entityScopes: text("entity_scopes").notNull(),
+    categoryScopes: text("category_scopes").notNull(),
+    sourceManifest: text("source_manifest").notNull(),
+    sourceManifestSha256: text("source_manifest_sha256").notNull(),
+    contextSnapshot: text("context_snapshot").notNull(),
+    contextSha256: text("context_sha256").notNull(),
+    ruleAdvisories: text("rule_advisories").notNull(),
+    status: text("status").notNull().default("pending_review"),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reviewedByName: text("reviewed_by_name"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewNote: text("review_note"),
+    version: optimisticVersion(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    foreignKey({
+      columns: [t.supersedesContextVersionId],
+      foreignColumns: [t.id],
+      name: "tender_context_versions_supersedes_fk",
+    }).onDelete("restrict"),
+    uniqueIndex("tender_context_versions_project_number_unique").on(
+      t.projectId,
+      t.versionNumber,
+    ),
+    uniqueIndex("tender_context_versions_org_project_hash_unique").on(
+      t.organisationId,
+      t.projectId,
+      t.contextSha256,
+    ),
+    index("tender_context_versions_org_project_created_idx").on(
+      t.organisationId,
+      t.projectId,
+      t.createdAt,
+      t.id,
+    ),
+    check(
+      "tender_context_versions_source_sha256_check",
+      sql`${t.sourceManifestSha256} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "tender_context_versions_context_sha256_check",
+      sql`${t.contextSha256} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "tender_context_versions_status_check",
+      sql`${t.status} IN ('pending_review', 'accepted', 'needs_changes', 'rejected', 'superseded')`,
+    ),
+    check(
+      "tender_context_versions_review_stamp_check",
+      sql`(${t.status} = 'pending_review' AND ${t.reviewedByUserId} IS NULL AND ${t.reviewedByName} IS NULL AND ${t.reviewedAt} IS NULL) OR (${t.status} IN ('accepted', 'needs_changes', 'rejected') AND ${t.reviewedByUserId} IS NOT NULL AND ${t.reviewedByName} IS NOT NULL AND ${t.reviewedAt} IS NOT NULL) OR (${t.status} = 'superseded')`,
+    ),
+    check(
+      "tender_context_versions_bounds_check",
+      sql`${t.versionNumber} > 0 AND char_length(${t.legalEntityName}) BETWEEN 1 AND 300 AND char_length(${t.jurisdiction}) BETWEEN 2 AND 32 AND char_length(${t.entityScopes}) BETWEEN 2 AND 10000 AND char_length(${t.categoryScopes}) BETWEEN 2 AND 10000 AND char_length(${t.sourceManifest}) BETWEEN 2 AND 200000 AND char_length(${t.contextSnapshot}) BETWEEN 2 AND 500000 AND char_length(${t.ruleAdvisories}) BETWEEN 2 AND 200000 AND (${t.reviewedByName} IS NULL OR char_length(${t.reviewedByName}) BETWEEN 1 AND 200) AND (${t.reviewNote} IS NULL OR char_length(${t.reviewNote}) BETWEEN 1 AND 5000)`,
+    ),
+  ],
+);
+
+export const tenderContextRequirements = pgTable(
+  "tender_context_requirements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organisationId: uuid("organisation_id")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "restrict" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    tenderContextVersionId: uuid("tender_context_version_id")
+      .notNull()
+      .references(() => tenderContextVersions.id, { onDelete: "cascade" }),
+    requirementId: uuid("requirement_id")
+      .notNull()
+      .references(() => requirements.id, { onDelete: "restrict" }),
+    requirementCitationId: uuid("requirement_citation_id")
+      .notNull()
+      .references(() => requirementCitations.id, { onDelete: "restrict" }),
+    evidenceKind: text("evidence_kind").notNull(),
+    mandatory: boolean("mandatory").notNull(),
+    requiresCurrentOnSubmissionDate: boolean(
+      "requires_current_on_submission_date",
+    ).notNull(),
+    requiresExactLegalEntityMatch: boolean(
+      "requires_exact_legal_entity_match",
+    ).notNull(),
+    bindingSha256: text("binding_sha256").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("tender_context_requirements_context_requirement_unique").on(
+      t.tenderContextVersionId,
+      t.requirementId,
+    ),
+    index("tender_context_requirements_org_project_idx").on(
+      t.organisationId,
+      t.projectId,
+      t.tenderContextVersionId,
+    ),
+    check(
+      "tender_context_requirements_binding_sha256_check",
+      sql`${t.bindingSha256} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "tender_context_requirements_evidence_kind_bounds_check",
+      sql`char_length(${t.evidenceKind}) BETWEEN 1 AND 120`,
+    ),
+  ],
+);
+
+export const tenderContextArtifacts = pgTable(
+  "tender_context_artifacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organisationId: uuid("organisation_id")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "restrict" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    tenderContextVersionId: uuid("tender_context_version_id")
+      .notNull()
+      .references(() => tenderContextVersions.id, { onDelete: "cascade" }),
+    vaultItemVersionId: uuid("vault_item_version_id")
+      .notNull()
+      .references(() => vaultItemVersions.id, { onDelete: "restrict" }),
+    documentVersionId: uuid("document_version_id")
+      .notNull()
+      .references(() => documentVersions.id, { onDelete: "restrict" }),
+    evidenceKind: text("evidence_kind").notNull(),
+    legalEntityName: text("legal_entity_name"),
+    citationStartOffset: integer("citation_start_offset").notNull(),
+    citationEndOffset: integer("citation_end_offset").notNull(),
+    citationQuote: text("citation_quote").notNull(),
+    citationQuoteSha256: text("citation_quote_sha256").notNull(),
+    bindingSha256: text("binding_sha256").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("tender_context_artifacts_context_vault_kind_unique").on(
+      t.tenderContextVersionId,
+      t.vaultItemVersionId,
+      t.evidenceKind,
+    ),
+    index("tender_context_artifacts_org_project_idx").on(
+      t.organisationId,
+      t.projectId,
+      t.tenderContextVersionId,
+    ),
+    check(
+      "tender_context_artifacts_offsets_check",
+      sql`${t.citationStartOffset} >= 0 AND ${t.citationEndOffset} > ${t.citationStartOffset}`,
+    ),
+    check(
+      "tender_context_artifacts_quote_sha256_check",
+      sql`${t.citationQuoteSha256} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "tender_context_artifacts_binding_sha256_check",
+      sql`${t.bindingSha256} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "tender_context_artifacts_bounds_check",
+      sql`char_length(${t.evidenceKind}) BETWEEN 1 AND 120 AND (${t.legalEntityName} IS NULL OR char_length(${t.legalEntityName}) BETWEEN 1 AND 300) AND char_length(${t.citationQuote}) BETWEEN 1 AND 20000 AND ${t.citationEndOffset} <= 5000000`,
+    ),
+  ],
+);
+
+/** A content-addressed, tender-specific eligibility decision-support record. */
+export const tenderEligibilityPassports = pgTable(
+  "tender_eligibility_passports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organisationId: uuid("organisation_id")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "restrict" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    tenderContextVersionId: uuid("tender_context_version_id")
+      .notNull()
+      .references(() => tenderContextVersions.id, { onDelete: "restrict" }),
+    passportId: text("passport_id").notNull(),
+    sourceManifestSha256: text("source_manifest_sha256").notNull(),
+    resultSnapshot: text("result_snapshot").notNull(),
+    resultSnapshotSha256: text("result_snapshot_sha256").notNull(),
+    resultStatus: text("result_status").notNull(),
+    reviewState: text("review_state").notNull().default("pending_review"),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reviewedByName: text("reviewed_by_name"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewNote: text("review_note"),
+    version: optimisticVersion(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("tender_eligibility_passports_org_project_passport_unique").on(
+      t.organisationId,
+      t.projectId,
+      t.passportId,
+    ),
+    index("tender_eligibility_passports_org_project_created_idx").on(
+      t.organisationId,
+      t.projectId,
+      t.createdAt,
+      t.id,
+    ),
+    check(
+      "tender_eligibility_passports_source_sha256_check",
+      sql`${t.sourceManifestSha256} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "tender_eligibility_passports_result_sha256_check",
+      sql`${t.resultSnapshotSha256} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "tender_eligibility_passports_result_status_check",
+      sql`${t.resultStatus} IN ('blocked', 'incomplete', 'review_required', 'ready_for_human_tender_review')`,
+    ),
+    check(
+      "tender_eligibility_passports_review_state_check",
+      sql`${t.reviewState} IN ('pending_review', 'accepted', 'needs_changes', 'rejected')`,
+    ),
+    check(
+      "tender_eligibility_passports_review_stamp_check",
+      sql`(${t.reviewState} = 'pending_review' AND ${t.reviewedByUserId} IS NULL AND ${t.reviewedByName} IS NULL AND ${t.reviewedAt} IS NULL) OR (${t.reviewState} IN ('accepted', 'needs_changes', 'rejected') AND ${t.reviewedByUserId} IS NOT NULL AND ${t.reviewedByName} IS NOT NULL AND ${t.reviewedAt} IS NOT NULL)`,
+    ),
+    check(
+      "tender_eligibility_passports_bounds_check",
+      sql`char_length(${t.passportId}) BETWEEN 1 AND 128 AND ${t.passportId} ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' AND char_length(${t.resultSnapshot}) BETWEEN 2 AND 1000000 AND (${t.reviewedByName} IS NULL OR char_length(${t.reviewedByName}) BETWEEN 1 AND 200) AND (${t.reviewNote} IS NULL OR char_length(${t.reviewNote}) BETWEEN 1 AND 5000)`,
+    ),
+  ],
+);
+
+/** Exact addendum-to-baseline comparison, pending named-human disposition. */
+export const addendumImpactAssessments = pgTable(
+  "addendum_impact_assessments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organisationId: uuid("organisation_id")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "restrict" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    baselineDocumentVersionId: uuid("baseline_document_version_id")
+      .notNull()
+      .references(() => documentVersions.id, { onDelete: "restrict" }),
+    revisionDocumentVersionId: uuid("revision_document_version_id")
+      .notNull()
+      .references(() => documentVersions.id, { onDelete: "restrict" }),
+    radarId: text("radar_id").notNull(),
+    assessmentId: text("assessment_id").notNull(),
+    sourceManifestSha256: text("source_manifest_sha256").notNull(),
+    impactManifestSha256: text("impact_manifest_sha256").notNull(),
+    assessmentSnapshot: text("assessment_snapshot").notNull(),
+    reviewState: text("review_state").notNull().default("pending_review"),
+    reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reviewedByName: text("reviewed_by_name"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewNote: text("review_note"),
+    appliedState: text("applied_state").notNull().default("not_applied"),
+    appliedByUserId: uuid("applied_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    appliedByName: text("applied_by_name"),
+    appliedAt: timestamp("applied_at", { withTimezone: true }),
+    applyNote: text("apply_note"),
+    version: optimisticVersion(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("addendum_impact_assessments_revision_unique").on(
+      t.organisationId,
+      t.projectId,
+      t.baselineDocumentVersionId,
+      t.revisionDocumentVersionId,
+      t.assessmentId,
+    ),
+    index("addendum_impact_assessments_org_project_radar_history_idx").on(
+      t.organisationId,
+      t.projectId,
+      t.radarId,
+      t.createdAt,
+      t.id,
+    ),
+    check(
+      "addendum_impact_assessments_distinct_versions_check",
+      sql`${t.baselineDocumentVersionId} <> ${t.revisionDocumentVersionId}`,
+    ),
+    check(
+      "addendum_impact_assessments_source_sha256_check",
+      sql`${t.sourceManifestSha256} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "addendum_impact_assessments_impact_sha256_check",
+      sql`${t.impactManifestSha256} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "addendum_impact_assessments_review_state_check",
+      sql`${t.reviewState} IN ('pending_review', 'accepted', 'needs_changes', 'rejected')`,
+    ),
+    check(
+      "addendum_impact_assessments_review_stamp_check",
+      sql`(${t.reviewState} = 'pending_review' AND ${t.reviewedByUserId} IS NULL AND ${t.reviewedByName} IS NULL AND ${t.reviewedAt} IS NULL) OR (${t.reviewState} IN ('accepted', 'needs_changes', 'rejected') AND ${t.reviewedByUserId} IS NOT NULL AND ${t.reviewedByName} IS NOT NULL AND ${t.reviewedAt} IS NOT NULL)`,
+    ),
+    check(
+      "addendum_impact_assessments_applied_state_check",
+      sql`${t.appliedState} IN ('not_applied', 'applied', 'application_rejected')`,
+    ),
+    check(
+      "addendum_impact_assessments_applied_stamp_check",
+      sql`(${t.appliedState} = 'not_applied' AND ${t.appliedByUserId} IS NULL AND ${t.appliedByName} IS NULL AND ${t.appliedAt} IS NULL) OR (${t.appliedState} IN ('applied', 'application_rejected') AND ${t.appliedByUserId} IS NOT NULL AND ${t.appliedByName} IS NOT NULL AND ${t.appliedAt} IS NOT NULL)`,
+    ),
+    check(
+      "addendum_impact_assessments_bounds_check",
+      sql`char_length(${t.radarId}) BETWEEN 1 AND 128 AND ${t.radarId} ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' AND char_length(${t.assessmentId}) BETWEEN 1 AND 128 AND ${t.assessmentId} ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' AND char_length(${t.assessmentSnapshot}) BETWEEN 2 AND 1000000 AND (${t.reviewedByName} IS NULL OR char_length(${t.reviewedByName}) BETWEEN 1 AND 200) AND (${t.appliedByName} IS NULL OR char_length(${t.appliedByName}) BETWEEN 1 AND 200) AND (${t.reviewNote} IS NULL OR char_length(${t.reviewNote}) BETWEEN 1 AND 5000) AND (${t.applyNote} IS NULL OR char_length(${t.applyNote}) BETWEEN 1 AND 5000)`,
+    ),
+  ],
+);
+
+export const addendumImpactItems = pgTable(
+  "addendum_impact_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organisationId: uuid("organisation_id")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "restrict" }),
+    assessmentId: uuid("assessment_id")
+      .notNull()
+      .references(() => addendumImpactAssessments.id, { onDelete: "cascade" }),
+    changeId: text("change_id").notNull(),
+    category: text("category").notNull(),
+    kind: text("kind").notNull(),
+    beforeText: text("before_text"),
+    afterText: text("after_text"),
+    citationData: text("citation_data").notNull(),
+    fieldExternalId: text("field_external_id"),
+    affectedObjectType: text("affected_object_type"),
+    affectedObjectId: text("affected_object_id"),
+    affectedObjectVersion: integer("affected_object_version"),
+    proposedAction: text("proposed_action").notNull(),
+    reviewState: text("review_state").notNull().default("pending_review"),
+    reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reviewedByName: text("reviewed_by_name"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewNote: text("review_note"),
+    version: optimisticVersion(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("addendum_impact_items_target_unique")
+      .on(t.assessmentId, t.changeId, t.affectedObjectType, t.affectedObjectId)
+      .where(sql`${t.affectedObjectType} IS NOT NULL`),
+    uniqueIndex("addendum_impact_items_no_target_unique")
+      .on(t.assessmentId, t.changeId)
+      .where(sql`${t.affectedObjectType} IS NULL`),
+    index("addendum_impact_items_org_assessment_idx").on(
+      t.organisationId,
+      t.assessmentId,
+      t.createdAt,
+      t.id,
+    ),
+    check(
+      "addendum_impact_items_text_bounds_check",
+      sql`coalesce(char_length(${t.beforeText}), 0) <= 20000 AND coalesce(char_length(${t.afterText}), 0) <= 20000 AND char_length(${t.citationData}) <= 40000 AND char_length(${t.proposedAction}) <= 5000`,
+    ),
+    check(
+      "addendum_impact_items_affected_object_tuple_check",
+      sql`(${t.affectedObjectType} IS NULL AND ${t.affectedObjectId} IS NULL AND ${t.affectedObjectVersion} IS NULL) OR (${t.affectedObjectType} IS NOT NULL AND ${t.affectedObjectId} IS NOT NULL AND ${t.affectedObjectVersion} IS NOT NULL AND ${t.affectedObjectVersion} > 0)`,
+    ),
+    check(
+      "addendum_impact_items_review_state_check",
+      sql`${t.reviewState} IN ('pending_review', 'accepted', 'needs_changes', 'rejected')`,
+    ),
+    check(
+      "addendum_impact_items_review_stamp_check",
+      sql`(${t.reviewState} = 'pending_review' AND ${t.reviewedByUserId} IS NULL AND ${t.reviewedByName} IS NULL AND ${t.reviewedAt} IS NULL) OR (${t.reviewState} IN ('accepted', 'needs_changes', 'rejected') AND ${t.reviewedByUserId} IS NOT NULL AND ${t.reviewedByName} IS NOT NULL AND ${t.reviewedAt} IS NOT NULL)`,
+    ),
+    check(
+      "addendum_impact_items_identifier_bounds_check",
+      sql`char_length(${t.changeId}) BETWEEN 1 AND 128 AND char_length(${t.category}) BETWEEN 1 AND 120 AND char_length(${t.kind}) BETWEEN 1 AND 120 AND (${t.fieldExternalId} IS NULL OR char_length(${t.fieldExternalId}) BETWEEN 1 AND 128) AND (${t.affectedObjectType} IS NULL OR char_length(${t.affectedObjectType}) BETWEEN 1 AND 120) AND (${t.affectedObjectId} IS NULL OR char_length(${t.affectedObjectId}) BETWEEN 1 AND 128) AND char_length(${t.citationData}) BETWEEN 2 AND 40000 AND char_length(${t.proposedAction}) BETWEEN 1 AND 5000 AND (coalesce(char_length(${t.beforeText}), 0) > 0 OR coalesce(char_length(${t.afterText}), 0) > 0) AND (${t.reviewedByName} IS NULL OR char_length(${t.reviewedByName}) BETWEEN 1 AND 200) AND (${t.reviewNote} IS NULL OR char_length(${t.reviewNote}) BETWEEN 1 AND 5000)`,
+    ),
+  ],
+);
+
 export const ruleEvaluations = pgTable(
   "rule_evaluations",
   {

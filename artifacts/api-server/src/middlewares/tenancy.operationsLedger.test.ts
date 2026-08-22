@@ -1,6 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canMutateReleasedOperationsLedger } from "./tenancy";
+import {
+  canMutateReleasedGovernedAddendumImpact,
+  canMutateReleasedOperationsLedger,
+} from "./tenancy";
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
 const RECORD_ID = "22222222-2222-4222-8222-222222222222";
@@ -77,6 +80,40 @@ test("archived projects and non-ledger source/content routes remain immutable", 
       canMutateReleasedOperationsLedger("exported", method, path),
       false,
       `${method} ${path}`,
+    );
+  }
+});
+
+test("only exact governed addendum review and apply paths bypass release immutability", () => {
+  const paths = [
+    `/projects/${PROJECT_ID}/addendum-impact/review`,
+    `/projects/${PROJECT_ID}/addendum-impact/apply`,
+  ];
+  for (const status of ["signed_off", "exported"]) {
+    for (const path of paths) {
+      assert.equal(
+        canMutateReleasedGovernedAddendumImpact(status, "POST", path),
+        true,
+      );
+    }
+  }
+
+  for (const path of paths) {
+    assert.equal(
+      canMutateReleasedGovernedAddendumImpact("archived", "POST", path),
+      false,
+    );
+    assert.equal(
+      canMutateReleasedGovernedAddendumImpact("exported", "PATCH", path),
+      false,
+    );
+    assert.equal(
+      canMutateReleasedGovernedAddendumImpact(
+        "exported",
+        "POST",
+        `${path}/extra`,
+      ),
+      false,
     );
   }
 });

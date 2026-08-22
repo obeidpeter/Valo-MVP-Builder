@@ -50,10 +50,16 @@ Audit of the codebase against the Valo Business Plan v1.1/v1.2, the Replit Build
 - **Assembly Engine v1** (FR-ASM-02) — full package to tender spec (pagination, tabbing, TOC, cross-refs, copies manifest, signature/seal checklist) with golden-file tests; the DOCX report already carries the manifest/checklist annexes to grow from.
 - Supporting: extraction recall ≥95% on a ≥25-doc harness, BPP SBD format detection (FR-EXT-06), cross-document BOQ consistency (FR-BOQ-03), anonymised defect dataset with the k≥8 gate (FR-ANL-02), runbooks (NFR-OPS-01).
 
-## Remaining — Phase 2+ (explicitly out of scope until gates pass)
+## Guarded product surfaces delivered after the original audit
 
-Client portal (v1.5), self-serve tier + billing/entitlements (v2.0), automation graduation via confidence scores, Restricted Mode in-country inference, white-label channel, flagship defect report, GCC localisation. Per the roadmap's own rule: none of this is entitled to exist before its commercial gate.
+The client action portal, quote-to-cash and entitlements ledger, retainer service desk, partner and consortium room, claims desk, privacy operations centre, controlled AI shadow programme, opportunity-source pilot, reconciled communications ledger, and encrypted field-draft companion now have guarded application surfaces. Their exact delivered state and deliberate limits are recorded in `docs/roadmap-waves/IMPLEMENTATION_MATRIX.md`.
+
+These surfaces must not be described as connected external services where their providers remain disconnected. In particular, they do not imply autonomous client or partner action, live message delivery, automatic pricing or payment, production AI activation, destructive privacy completion, external opportunity acquisition, or server-authoritative offline approval.
+
+## Remaining — later product and commercial gates
+
+The remaining expansion work includes approved provider connections, a reviewed price book and payment integration, governed enterprise identity and connector administration, production-grade portfolio reporting, an authorised AI evaluation corpus and execution plane, white-label channel operations, flagship defect reporting, and GCC localisation. Each item remains subject to its own commercial, privacy, security, operational, and named-human approval gates.
 
 ## Deploy note
 
-Schema changes require `pnpm --filter @workspace/db run push` in the deploy environment. Latest additions: the six `payment_*` identity columns on `projects`, `prompt_tokens`/`completion_tokens` on `llm_runs`, `extraction_method`/`extraction_confidence`/`extraction_notes` on `documents`, and `taxonomy_version` on `reports`. The DB-dependent test suites pass only where `DATABASE_URL` exists; CI provisions a throwaway Postgres for them.
+Production schema changes use the checked-in, hash-pinned migration journal and the Replit intake migration runner. Do not use schema push. Legacy cutovers must first pass the bridge artifact check and disposable PostgreSQL 16 rehearsal. Database-dependent suites run only where `DATABASE_URL` is available; CI provides an isolated PostgreSQL instance for those proofs.

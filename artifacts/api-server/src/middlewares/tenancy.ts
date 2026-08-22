@@ -113,6 +113,28 @@ export function canMutateReleasedOperationsLedger(
   );
 }
 
+const GOVERNED_ADDENDUM_IMPACT_MUTATIONS = Object.freeze([
+  /^\/projects\/[^/]+\/addendum-impact\/review$/u,
+  /^\/projects\/[^/]+\/addendum-impact\/apply$/u,
+]);
+
+/**
+ * The append-only review and the separately authorised apply command are the
+ * only addendum mutations admitted for a released project. Archived projects
+ * remain terminal, and near-match or nested paths never receive an exception.
+ */
+export function canMutateReleasedGovernedAddendumImpact(
+  projectStatus: string,
+  method: string,
+  path: string,
+): boolean {
+  return (
+    (projectStatus === "signed_off" || projectStatus === "exported") &&
+    method.toUpperCase() === "POST" &&
+    GOVERNED_ADDENDUM_IMPACT_MUTATIONS.some((route) => route.test(path))
+  );
+}
+
 export interface AccessContext {
   organisationId: string;
   membershipId: string | null;
@@ -664,6 +686,11 @@ export async function enforceTenantResourceBoundary(
           project &&
           isProjectContentImmutable(project.status) &&
           !canMutateReleasedOperationsLedger(
+            project.status,
+            req.method,
+            req.path,
+          ) &&
+          !canMutateReleasedGovernedAddendumImpact(
             project.status,
             req.method,
             req.path,

@@ -5,11 +5,13 @@ import { INTAKE_FUNCTION_MANIFEST } from "./intakeFunctionManifest";
 type RuntimeEnvironment = Record<string, string | undefined>;
 
 export const TENANT_PARENT_EDGE_MANIFEST_SHA256 =
-  "0240790c357b1461feb2f48d1a1930750e4a09dbaf2502b1260b35c4fe706172";
+  "dd59282e6bc150c791a36e96188d767871580a3b5d2ad02074c7b68eec323430";
 const EXPECTED_POLICY_CATALOG_SHA256 =
   "92235aeea371cae756f06c6b9c6ec79f51515ea60825d2a3268129691950308c";
 
 const EXPECTED_FORCE_RLS_TABLES = [
+  "addendum_impact_assessments",
+  "addendum_impact_items",
   "approvals",
   "audit_anchors",
   "audit_events",
@@ -33,6 +35,7 @@ const EXPECTED_FORCE_RLS_TABLES = [
   "defects",
   "deletion_certificates",
   "document_versions",
+  "document_version_snapshots",
   "documents",
   "draft_claims",
   "draft_versions",
@@ -89,6 +92,10 @@ const EXPECTED_FORCE_RLS_TABLES = [
   "sbd_templates",
   "subprocessors",
   "subscriptions",
+  "tender_context_artifacts",
+  "tender_context_requirements",
+  "tender_context_versions",
+  "tender_eligibility_passports",
   "tender_lots",
   "tenders",
   "upload_sessions",
@@ -306,27 +313,43 @@ const AUDIT_INSERT_COLUMNS = new Set([
 
 const NO_TABLE_INSERT = new Set([
   "audit_events",
+  "jurisdiction_rule_packs",
+  "jurisdiction_rules",
   "legacy_audit_events",
   "legacy_audit_integrity_assessments",
 ]);
 const NO_TABLE_UPDATE = new Set([
   "audit_events",
+  "document_versions",
+  "jurisdiction_rule_packs",
+  "jurisdiction_rules",
   "legacy_audit_events",
   "legacy_audit_integrity_assessments",
   "organisations",
   "role_grants",
+  "tender_context_artifacts",
+  "tender_context_requirements",
 ]);
 const NO_TABLE_DELETE = new Set([
+  "addendum_impact_assessments",
+  "addendum_impact_items",
   "ai_retrieval_registry",
   "audit_events",
   "authenticated_rate_limit_buckets",
   "break_glass_sessions",
+  "document_version_snapshots",
+  "jurisdiction_rule_packs",
+  "jurisdiction_rules",
   "legacy_audit_events",
   "legacy_audit_integrity_assessments",
   "organisation_memberships",
   "organisations",
   "partner_relationships",
   "role_grants",
+  "tender_context_artifacts",
+  "tender_context_requirements",
+  "tender_context_versions",
+  "tender_eligibility_passports",
   "users",
 ]);
 
@@ -341,6 +364,46 @@ const EXPECTED_SPECIAL_TENANT_TRIGGERS = new Map<string, [number, string]>([
   ],
   [
     "break_glass_sessions.tenant_control_break_glass_context:enforce_control_plane_tenant_context",
+    [23, ""],
+  ],
+  [
+    "addendum_impact_assessments.addendum_impact_assessment_content_immutable:reject_versioned_record_content_mutation",
+    [
+      19,
+      "id,organisation_id,project_id,baseline_document_version_id,revision_document_version_id,radar_id,assessment_id,source_manifest_sha256,impact_manifest_sha256,assessment_snapshot,created_at",
+    ],
+  ],
+  [
+    "addendum_impact_assessments.addendum_impact_assessment_state_transition:enforce_governed_state_transition",
+    [23, ""],
+  ],
+  [
+    "addendum_impact_items.addendum_impact_item_content_immutable:reject_versioned_record_content_mutation",
+    [
+      19,
+      "id,organisation_id,assessment_id,change_id,category,kind,before_text,after_text,citation_data,field_external_id,affected_object_type,affected_object_id,affected_object_version,proposed_action,created_at",
+    ],
+  ],
+  [
+    "addendum_impact_items.addendum_impact_item_state_transition:enforce_governed_state_transition",
+    [23, ""],
+  ],
+  [
+    "document_versions.document_version_content_immutable:reject_versioned_record_content_mutation",
+    [
+      19,
+      "id,organisation_id,document_id,version_number,supersedes_version_id,object_path,sha256,detected_mime,detected_format,size_bytes,integrity_manifest,uploaded_by,created_at",
+    ],
+  ],
+  [
+    "document_version_snapshots.document_version_snapshot_content_immutable:reject_versioned_record_content_mutation",
+    [
+      19,
+      "id,organisation_id,document_version_id,document_version_sha256,captured_redaction_status,canonical_text,canonical_text_sha256,structured_snapshot,structured_snapshot_sha256,extraction_method,parser_version,captured_by_user_id,captured_by_name,created_at",
+    ],
+  ],
+  [
+    "document_version_snapshots.document_version_snapshot_state_transition:enforce_governed_state_transition",
     [23, ""],
   ],
   [
@@ -402,6 +465,36 @@ const EXPECTED_SPECIAL_TENANT_TRIGGERS = new Map<string, [number, string]>([
   [
     "subscriptions.tenant_derived_price_book_entry:enforce_derived_tenant_relationship",
     [23, "organisation_id,price_book_entry_id"],
+  ],
+  [
+    "tender_context_artifacts.tender_context_artifact_immutable:reject_versioned_record_content_mutation",
+    [19, ""],
+  ],
+  [
+    "tender_context_requirements.tender_context_requirement_immutable:reject_versioned_record_content_mutation",
+    [19, ""],
+  ],
+  [
+    "tender_context_versions.tender_context_version_content_immutable:reject_versioned_record_content_mutation",
+    [
+      19,
+      "id,organisation_id,project_id,version_number,supersedes_context_version_id,primary_document_version_id,jurisdiction_rule_pack_id,legal_entity_name,submission_date,jurisdiction,entity_scopes,category_scopes,source_manifest,source_manifest_sha256,context_snapshot,context_sha256,rule_advisories,created_by_user_id,created_at",
+    ],
+  ],
+  [
+    "tender_context_versions.tender_context_version_state_transition:enforce_governed_state_transition",
+    [23, ""],
+  ],
+  [
+    "tender_eligibility_passports.tender_eligibility_passport_content_immutable:reject_versioned_record_content_mutation",
+    [
+      19,
+      "id,organisation_id,project_id,tender_context_version_id,passport_id,source_manifest_sha256,result_snapshot,result_snapshot_sha256,result_status,created_by_user_id,created_at",
+    ],
+  ],
+  [
+    "tender_eligibility_passports.tender_eligibility_passport_state_transition:enforce_governed_state_transition",
+    [23, ""],
   ],
 ]);
 
@@ -477,6 +570,24 @@ const EXPECTED_TENANT_GUARD_FUNCTIONS = new Map<
     },
   ],
   [
+    "enforce_governed_state_transition",
+    {
+      language: "plpgsql",
+      volatility: "v",
+      parallelSafety: "u",
+      returnsTrigger: true,
+      argumentCount: 0,
+      argumentTypes: "",
+      identityArguments: "",
+      returnType: "trigger",
+      functionResult: "trigger",
+      returnsSet: false,
+      runtimeCanExecute: false,
+      sourceSha256:
+        "fc3ca21f64494b959a808a781d490d04306c9acb6fcb7604692c4f3418848ce2",
+    },
+  ],
+  [
     "enforce_tenant_parent",
     {
       language: "plpgsql",
@@ -510,7 +621,44 @@ const EXPECTED_TENANT_GUARD_FUNCTIONS = new Map<
       returnsSet: true,
       runtimeCanExecute: false,
       sourceSha256:
+        "9a7fe7e15ae45587b7326d1d648585714ee690da0f860816da1dece2201b5768",
+    },
+  ],
+  [
+    "expected_tenant_parent_edges_v25",
+    {
+      language: "sql",
+      volatility: "i",
+      parallelSafety: "u",
+      returnsTrigger: false,
+      argumentCount: 0,
+      argumentTypes: "",
+      identityArguments: "",
+      returnType: "record",
+      functionResult:
+        "TABLE(child_table text, child_column text, parent_table text, parent_column text, allow_global_parent boolean)",
+      returnsSet: true,
+      runtimeCanExecute: false,
+      sourceSha256:
         "bdc81a7d7148b2c016226525c3907ab30c975c59cea4e51839dad4baff842f70",
+    },
+  ],
+  [
+    "reject_versioned_record_content_mutation",
+    {
+      language: "plpgsql",
+      volatility: "v",
+      parallelSafety: "u",
+      returnsTrigger: true,
+      argumentCount: 0,
+      argumentTypes: "",
+      identityArguments: "",
+      returnType: "trigger",
+      functionResult: "trigger",
+      returnsSet: false,
+      runtimeCanExecute: false,
+      sourceSha256:
+        "ef751ed465bb43c61792f37d58ba9f4c8eb60f7bdbb33d1c7f5d4bec72bf028e",
     },
   ],
   [
@@ -676,30 +824,40 @@ export function assertRuntimePolicyAttestation(
   policies: RuntimePolicyProof[],
   serverVersionNumber: number,
 ): void {
-  const rateLimitPolicy = policies.filter(
-    (policy) => policy.table_name === "authenticated_rate_limit_buckets",
-  );
-  if (
-    rateLimitPolicy.length !== 1 ||
-    rateLimitPolicy[0]?.policy_name !== "tenant_isolation" ||
-    !rateLimitPolicy[0]?.permissive ||
-    rateLimitPolicy[0]?.command !== "*" ||
-    JSON.stringify(rateLimitPolicy[0]?.role_names) !==
-      JSON.stringify(["PUBLIC"]) ||
-    rateLimitPolicy[0]?.using_expression !==
-      "(organisation_id = valo_security.current_organisation_id())" ||
-    rateLimitPolicy[0]?.check_expression !==
-      "(organisation_id = valo_security.current_organisation_id())"
-  ) {
-    throw new Error("authenticated rate-limit RLS policy is drifted");
+  const independentlyAttestedTables = new Set([
+    "addendum_impact_assessments",
+    "addendum_impact_items",
+    "authenticated_rate_limit_buckets",
+    "document_version_snapshots",
+    "tender_context_artifacts",
+    "tender_context_requirements",
+    "tender_context_versions",
+    "tender_eligibility_passports",
+  ]);
+  for (const tableName of independentlyAttestedTables) {
+    const tablePolicies = policies.filter(
+      (policy) => policy.table_name === tableName,
+    );
+    if (
+      tablePolicies.length !== 1 ||
+      tablePolicies[0]?.policy_name !== "tenant_isolation" ||
+      !tablePolicies[0]?.permissive ||
+      tablePolicies[0]?.command !== "*" ||
+      JSON.stringify(tablePolicies[0]?.role_names) !==
+        JSON.stringify(["PUBLIC"]) ||
+      tablePolicies[0]?.using_expression !==
+        "(organisation_id = valo_security.current_organisation_id())" ||
+      tablePolicies[0]?.check_expression !==
+        "(organisation_id = valo_security.current_organisation_id())"
+    ) {
+      throw new Error(`${tableName} RLS policy is drifted`);
+    }
   }
   // Preserve the pinned v2.5 catalog proof and attest the newly introduced
   // tenant table independently. This avoids weakening the existing 104-policy
   // digest into an unpinned shape-only assertion.
   const policyLines = policies
-    .filter(
-      (policy) => policy.table_name !== "authenticated_rate_limit_buckets",
-    )
+    .filter((policy) => !independentlyAttestedTables.has(policy.table_name))
     .map((policy) =>
       JSON.stringify([
         policy.table_name,
@@ -754,15 +912,15 @@ export function assertTenantGraphAttestation(input: {
     );
   });
   if (
-    lines.length !== 98 ||
+    lines.length !== 116 ||
     digest !== TENANT_PARENT_EDGE_MANIFEST_SHA256 ||
     malformedDirectGuard ||
     input.compositeTenantEdges !== 0 ||
     input.immutableArchiveExceptions !== 1 ||
-    input.tenantParentTriggerCount !== 98
+    input.tenantParentTriggerCount !== 116
   ) {
     throw new Error(
-      "production database tenant-parent graph is not the pinned 98-edge boundary",
+      "production database tenant-parent graph is not the pinned 116-edge boundary",
     );
   }
 
@@ -1468,11 +1626,11 @@ export async function assertProductionRuntimeDatabaseSafety(
       );
     }
     if (
-      Number(proof.forced_rls_tables) !== 86 ||
-      Number(proof.policies) !== 105
+      Number(proof.forced_rls_tables) !== 93 ||
+      Number(proof.policies) !== 112
     ) {
       throw new Error(
-        "production database RLS catalog is not the production-assurance boundary (86/105)",
+        "production database RLS catalog is not the tender-context boundary (93/112)",
       );
     }
     if (
@@ -1822,8 +1980,10 @@ export async function assertProductionRuntimeDatabaseSafety(
         AND guard_function.proname IN (
           'enforce_control_plane_tenant_context',
           'enforce_derived_tenant_relationship',
+          'enforce_governed_state_transition',
           'reject_active_audit_mutation',
           'reject_legacy_audit_mutation',
+          'reject_versioned_record_content_mutation',
           'reject_tenant_identity_reassignment'
         )
         AND NOT guard.tgisinternal
@@ -1873,6 +2033,8 @@ export async function assertProductionRuntimeDatabaseSafety(
           'enforce_derived_tenant_relationship',
           'enforce_tenant_parent',
           'expected_tenant_parent_edges',
+          'expected_tenant_parent_edges_v25',
+          'reject_versioned_record_content_mutation',
           'reject_active_audit_mutation',
           'reject_legacy_audit_mutation',
           'reject_tenant_identity_reassignment',
@@ -1991,8 +2153,8 @@ export async function assertProductionRuntimeDatabaseSafety(
       authenticatedRateLimitFunctionProofs.rows,
     );
     if (
-      graph?.public_security_trigger_count !== 116 ||
-      graph.valo_security_function_count !== 11
+      graph?.public_security_trigger_count !== 147 ||
+      graph.valo_security_function_count !== 14
     ) {
       throw new Error(
         "production database security routine/trigger inventory is drifted",

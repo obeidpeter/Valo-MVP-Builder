@@ -83,7 +83,8 @@ CREATE TEMPORARY TABLE _valo_bridge_state (
   is_legacy boolean NOT NULL,
   is_complete boolean NOT NULL,
   production_assurance_expected boolean NOT NULL,
-  retrieval_registry_expected boolean NOT NULL
+  retrieval_registry_expected boolean NOT NULL,
+  tender_context_expected boolean NOT NULL
 ) ON COMMIT DROP;
 
 CREATE TEMPORARY TABLE _valo_expected_legacy_columns (
@@ -173,6 +174,12 @@ DECLARE
     'subscriptions','tender_lots','tenders','upload_sessions',
     'vault_item_versions','vault_items','vault_usage','work_tasks'
   ];
+  tender_context_tables constant text[] := ARRAY[
+    'addendum_impact_assessments','addendum_impact_items',
+    'document_version_snapshots','tender_context_artifacts',
+    'tender_context_requirements','tender_context_versions',
+    'tender_eligibility_passports'
+  ];
   actual_tables text[];
   actual_rls_tables text[];
   any_rls_table_count integer;
@@ -187,6 +194,8 @@ DECLARE
   complete_match boolean;
   production_assurance_match boolean;
   retrieval_registry_match boolean;
+  tender_context_match boolean;
+  tender_context_policy_matches boolean;
 BEGIN
   SELECT * INTO STRICT inputs FROM _valo_bridge_inputs;
   IF inputs.acknowledgement <> 'RESTORE_VERIFIED_AND_APPLICATION_QUIESCED' THEN
@@ -314,6 +323,26 @@ BEGIN
       ON namespace.oid=relation.relnamespace
     WHERE namespace.nspname='public'
       AND relation.relname='authenticated_rate_limit_buckets';
+  SELECT count(*) = cardinality(tender_context_tables)
+      AND COALESCE(bool_and(
+        policy.polname = 'tenant_isolation'
+        AND policy.polpermissive
+        AND policy.polcmd = '*'
+        AND policy.polroles = ARRAY[0::oid]
+        AND pg_catalog.pg_get_expr(
+          policy.polqual, policy.polrelid, false
+        ) = '(organisation_id = valo_security.current_organisation_id())'
+        AND pg_catalog.pg_get_expr(
+          policy.polwithcheck, policy.polrelid, false
+        ) = '(organisation_id = valo_security.current_organisation_id())'
+      ), false)
+    INTO tender_context_policy_matches
+    FROM pg_catalog.pg_policy AS policy
+    JOIN pg_catalog.pg_class AS relation ON relation.oid=policy.polrelid
+    JOIN pg_catalog.pg_namespace AS namespace
+      ON namespace.oid=relation.relnamespace
+    WHERE namespace.nspname='public'
+      AND relation.relname = ANY(tender_context_tables);
   SELECT count(*) INTO any_rls_table_count
     FROM pg_class AS c
     JOIN pg_namespace AS n ON n.oid=c.relnamespace
@@ -354,18 +383,28 @@ BEGIN
     'ai_retrieval_registry' = ANY(actual_tables),
     false
   );
+  tender_context_match := COALESCE(
+    actual_tables @> tender_context_tables
+      AND actual_rls_tables @> tender_context_tables
+      AND retrieval_registry_match
+      AND tender_context_policy_matches,
+    false
+  );
   IF has_hash_version
      AND to_regnamespace('valo_legacy_bridge_archive') IS NULL THEN
     production_assurance_match := COALESCE(
       cardinality(actual_tables) = cardinality(target_tables) + 1
         + retrieval_registry_match::integer
+        + (tender_context_match::integer * cardinality(tender_context_tables))
       AND actual_tables @> target_tables
       AND 'authenticated_rate_limit_buckets' = ANY(actual_tables)
       AND NOT ('ai_retrieval_registry' = ANY(actual_rls_tables))
       AND cardinality(actual_rls_tables) = cardinality(rls_tables) + 1
+        + (tender_context_match::integer * cardinality(tender_context_tables))
       AND actual_rls_tables @> rls_tables
       AND 'authenticated_rate_limit_buckets' = ANY(actual_rls_tables)
       AND policy_count = 105
+        + (tender_context_match::integer * cardinality(tender_context_tables))
       AND authenticated_rate_limit_policy_matches,
       false
     );
@@ -388,14 +427,15 @@ BEGIN
   END IF;
 
   IF legacy_match THEN
-    INSERT INTO _valo_bridge_state VALUES (true, false, false, false);
+    INSERT INTO _valo_bridge_state VALUES (true, false, false, false, false);
   ELSIF complete_match THEN
     INSERT INTO _valo_bridge_state
       VALUES (
         false,
         true,
         production_assurance_match,
-        production_assurance_match AND retrieval_registry_match
+        production_assurance_match AND retrieval_registry_match,
+        production_assurance_match AND tender_context_match
       );
   ELSE
     RAISE EXCEPTION
@@ -7515,6 +7555,56 @@ CREATE TRIGGER legacy_audit_assessments_immutable
   FOR EACH ROW EXECUTE FUNCTION valo_security.reject_legacy_audit_mutation();
 -- END EMBEDDED IDEMPOTENT 0002 SECURITY.
 
+-- A completed 0010 target retains the source-pinned 116-edge wrapper. The
+-- embedded v2.5 refresh above repairs the preserved base function, while this
+-- exact definition restores the additive wrapper before catalog validation.
+DO $restore_tender_context_edges$
+BEGIN
+  IF (SELECT tender_context_expected FROM _valo_bridge_state) THEN
+    EXECUTE $sql$
+      CREATE OR REPLACE FUNCTION valo_security.expected_tenant_parent_edges()
+      RETURNS TABLE (
+        child_table text,
+        child_column text,
+        parent_table text,
+        parent_column text,
+        allow_global_parent boolean
+      )
+      LANGUAGE sql
+      IMMUTABLE
+      SET search_path = pg_catalog
+      AS $function$
+  SELECT *
+  FROM valo_security.expected_tenant_parent_edges_v25()
+  UNION ALL
+  SELECT *
+  FROM (VALUES
+    ('addendum_impact_assessments','baseline_document_version_id','document_versions','id',false),
+    ('addendum_impact_assessments','project_id','projects','id',false),
+    ('addendum_impact_assessments','revision_document_version_id','document_versions','id',false),
+    ('addendum_impact_items','assessment_id','addendum_impact_assessments','id',false),
+    ('document_version_snapshots','document_version_id','document_versions','id',false),
+    ('tender_context_artifacts','document_version_id','document_versions','id',false),
+    ('tender_context_artifacts','project_id','projects','id',false),
+    ('tender_context_artifacts','tender_context_version_id','tender_context_versions','id',false),
+    ('tender_context_artifacts','vault_item_version_id','vault_item_versions','id',false),
+    ('tender_context_requirements','project_id','projects','id',false),
+    ('tender_context_requirements','requirement_citation_id','requirement_citations','id',false),
+    ('tender_context_requirements','requirement_id','requirements','id',false),
+    ('tender_context_requirements','tender_context_version_id','tender_context_versions','id',false),
+    ('tender_context_versions','primary_document_version_id','document_versions','id',false),
+    ('tender_context_versions','project_id','projects','id',false),
+    ('tender_context_versions','supersedes_context_version_id','tender_context_versions','id',false),
+    ('tender_eligibility_passports','project_id','projects','id',false),
+    ('tender_eligibility_passports','tender_context_version_id','tender_context_versions','id',false)
+  ) AS edge(child_table, child_column, parent_table, parent_column, allow_global_parent);
+      $function$
+    $sql$;
+  END IF;
+END;
+$restore_tender_context_edges$;
+--> statement-breakpoint
+
 DO $post_rls_validation$
 DECLARE
   expected_rls_tables constant text[] := ARRAY[
@@ -7541,6 +7631,12 @@ DECLARE
     'subscriptions','tender_lots','tenders','upload_sessions',
     'vault_item_versions','vault_items','vault_usage','work_tasks'
   ];
+  tender_context_tables constant text[] := ARRAY[
+    'addendum_impact_assessments','addendum_impact_items',
+    'document_version_snapshots','tender_context_artifacts',
+    'tender_context_requirements','tender_context_versions',
+    'tender_eligibility_passports'
+  ];
   actual_tables text[];
   actual_rls_tables text[];
   required_rls_tables text[];
@@ -7548,11 +7644,14 @@ DECLARE
   expected_policy_count integer;
   assurance_expected boolean;
   registry_expected boolean;
+  tender_expected boolean;
   policy_count integer;
   authenticated_rate_limit_policy_matches boolean;
+  tender_context_policy_matches boolean;
 BEGIN
-  SELECT state.production_assurance_expected, state.retrieval_registry_expected
-    INTO STRICT assurance_expected, registry_expected
+  SELECT state.production_assurance_expected, state.retrieval_registry_expected,
+      state.tender_context_expected
+    INTO STRICT assurance_expected, registry_expected, tender_expected
     FROM _valo_bridge_state AS state;
   IF assurance_expected THEN
     expected_table_count := 97;
@@ -7569,6 +7668,12 @@ BEGIN
   IF registry_expected THEN
     expected_table_count := expected_table_count + 1;
   END IF;
+  IF tender_expected THEN
+    expected_table_count := expected_table_count + cardinality(tender_context_tables);
+    expected_policy_count := expected_policy_count
+      + cardinality(tender_context_tables);
+    required_rls_tables := required_rls_tables || tender_context_tables;
+  END IF;
 
   SELECT array_agg(c.relname ORDER BY c.relname)
     INTO actual_tables
@@ -7578,7 +7683,11 @@ BEGIN
      OR assurance_expected IS DISTINCT FROM
        ('authenticated_rate_limit_buckets' = ANY(actual_tables))
      OR registry_expected IS DISTINCT FROM
-       ('ai_retrieval_registry' = ANY(actual_tables)) THEN
+       ('ai_retrieval_registry' = ANY(actual_tables))
+     OR tender_expected IS DISTINCT FROM COALESCE(
+       actual_tables @> tender_context_tables,
+       false
+     ) THEN
     RAISE EXCEPTION 'target table inventory is not the exact expected % table variant',
       expected_table_count;
   END IF;
@@ -7609,6 +7718,26 @@ BEGIN
       ON namespace.oid=relation.relnamespace
     WHERE namespace.nspname='public'
       AND relation.relname='authenticated_rate_limit_buckets';
+  SELECT count(*) = cardinality(tender_context_tables)
+      AND COALESCE(bool_and(
+        policy.polname = 'tenant_isolation'
+        AND policy.polpermissive
+        AND policy.polcmd = '*'
+        AND policy.polroles = ARRAY[0::oid]
+        AND pg_catalog.pg_get_expr(
+          policy.polqual, policy.polrelid, false
+        ) = '(organisation_id = valo_security.current_organisation_id())'
+        AND pg_catalog.pg_get_expr(
+          policy.polwithcheck, policy.polrelid, false
+        ) = '(organisation_id = valo_security.current_organisation_id())'
+      ), false)
+    INTO tender_context_policy_matches
+    FROM pg_catalog.pg_policy AS policy
+    JOIN pg_catalog.pg_class AS relation ON relation.oid=policy.polrelid
+    JOIN pg_catalog.pg_namespace AS namespace
+      ON namespace.oid=relation.relnamespace
+    WHERE namespace.nspname='public'
+      AND relation.relname = ANY(tender_context_tables);
   IF cardinality(actual_rls_tables) IS DISTINCT FROM
        cardinality(required_rls_tables)
      OR NOT COALESCE(
@@ -7618,7 +7747,8 @@ BEGIN
      )
      OR policy_count <> expected_policy_count
      OR assurance_expected IS DISTINCT FROM
-       authenticated_rate_limit_policy_matches THEN
+       authenticated_rate_limit_policy_matches
+     OR tender_expected IS DISTINCT FROM tender_context_policy_matches THEN
     RAISE EXCEPTION 'RLS reconciliation failed: tables %, policies %',
       cardinality(actual_rls_tables), policy_count;
   END IF;
@@ -7777,6 +7907,16 @@ BEGIN
       role_name
     );
   END IF;
+  IF (SELECT tender_context_expected FROM _valo_bridge_state) THEN
+    EXECUTE format(
+      'REVOKE DELETE ON TABLE public.addendum_impact_assessments, public.addendum_impact_items, public.document_version_snapshots, public.tender_context_artifacts, public.tender_context_requirements, public.tender_context_versions, public.tender_eligibility_passports FROM %I',
+      role_name
+    );
+    EXECUTE format(
+      'REVOKE UPDATE ON TABLE public.document_versions, public.tender_context_artifacts, public.tender_context_requirements FROM %I',
+      role_name
+    );
+  END IF;
   EXECUTE format('GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO %I', role_name);
   EXECUTE format('REVOKE UPDATE ON ALL SEQUENCES IN SCHEMA public FROM %I', role_name);
   EXECUTE format('REVOKE INSERT, UPDATE, DELETE ON TABLE public.audit_events FROM %I', role_name);
@@ -7895,16 +8035,21 @@ BEGIN
             OR has_table_privilege(role_name, relation.oid, 'UPDATE') IS DISTINCT FROM
               (relation.relname NOT IN (
                 'audit_events','legacy_audit_events',
-                'legacy_audit_integrity_assessments','organisations','role_grants'
+                'legacy_audit_integrity_assessments','organisations','role_grants',
+                'tender_context_artifacts','tender_context_requirements'
               ))
             OR has_table_privilege(role_name, relation.oid, 'DELETE') IS DISTINCT FROM
               (relation.relname NOT IN (
                 'ai_retrieval_registry','audit_events',
                 'authenticated_rate_limit_buckets',
+                'addendum_impact_assessments','addendum_impact_items',
                 'break_glass_sessions','legacy_audit_events',
+                'document_version_snapshots',
                 'legacy_audit_integrity_assessments',
                 'organisation_memberships','organisations',
-                'partner_relationships','role_grants','users'
+                'partner_relationships','role_grants',
+                'tender_context_artifacts','tender_context_requirements',
+                'tender_context_versions','tender_eligibility_passports','users'
               ))
             OR has_table_privilege(role_name, relation.oid, 'TRUNCATE')
             OR has_table_privilege(role_name, relation.oid, 'REFERENCES')

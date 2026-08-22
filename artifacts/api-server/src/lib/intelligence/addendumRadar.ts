@@ -36,10 +36,18 @@ export interface AddendumFieldInput {
   readonly citation: ExactCitation;
 }
 
+export interface AddendumRemovalInput {
+  readonly externalId: string;
+  readonly category: AddendumFieldCategory;
+  /** Exact text in the selected revision that explicitly removes the field. */
+  readonly citation: ExactCitation;
+}
+
 export interface AddendumSnapshotInput {
   readonly sourceId: string;
   readonly sourceVersionId: string;
   readonly fields: readonly AddendumFieldInput[];
+  readonly removals?: readonly AddendumRemovalInput[];
 }
 
 export interface AddendumTrackedArtifactInput {
@@ -93,6 +101,21 @@ interface GroundedField extends AddendumFieldInput {
   readonly citation: GroundedCitation;
 }
 
+interface GroundedRemoval extends AddendumRemovalInput {
+  readonly citation: GroundedCitation;
+}
+
+const FIELD_CATEGORIES: readonly AddendumFieldCategory[] = [
+  "deadline",
+  "opening",
+  "eligibility",
+  "requirement",
+  "boq",
+  "submission_instruction",
+  "contact",
+  "other",
+];
+
 function validateSnapshot(
   snapshot: AddendumSnapshotInput,
   path: string,
@@ -118,15 +141,21 @@ function validateSnapshot(
           "A field value must exactly equal its isolated source quotation.",
       });
     }
-    if (
-      field.citation.sourceId !== snapshot.sourceId ||
-      field.citation.sourceVersionId !== snapshot.sourceVersionId
-    ) {
+    if (field.citation.sourceId !== snapshot.sourceId) {
       issues.push({
         code: "addendum_field_wrong_snapshot",
         severity: "blocker",
         path: `${fieldPath}.citation`,
-        message: "Every field citation must point to its containing snapshot.",
+        message:
+          "Every effective field citation must belong to the same solicitation series.",
+      });
+    }
+    if (!FIELD_CATEGORIES.includes(field.category)) {
+      issues.push({
+        code: "addendum_field_category_invalid",
+        severity: "blocker",
+        path: `${fieldPath}.category`,
+        message: "Every field requires a recognized semantic category.",
       });
     }
     if (
@@ -135,9 +164,61 @@ function validateSnapshot(
       field.citation.quote === field.value &&
       isValidId(field.externalId) &&
       field.citation.sourceId === snapshot.sourceId &&
-      field.citation.sourceVersionId === snapshot.sourceVersionId
+      FIELD_CATEGORIES.includes(field.category)
     ) {
       grounded.push({ ...field, citation: result.citation });
+    }
+  });
+  return grounded;
+}
+
+function validateRemovals(
+  snapshot: AddendumSnapshotInput,
+  path: string,
+  sourceSet: ReturnType<typeof validateSources>,
+  issues: DomainIssue[],
+): GroundedRemoval[] {
+  const removals = snapshot.removals ?? [];
+  issues.push(...uniqueIds(removals, `${path}.removals`));
+  const grounded: GroundedRemoval[] = [];
+  removals.forEach((removal, index) => {
+    const removalPath = `${path}.removals[${index}]`;
+    const result = validateCitation(
+      removal.citation,
+      sourceSet.byKey,
+      `${removalPath}.citation`,
+    );
+    if (
+      !isValidId(removal.externalId) ||
+      !FIELD_CATEGORIES.includes(removal.category)
+    ) {
+      issues.push({
+        code: "addendum_removal_invalid",
+        severity: "blocker",
+        path: removalPath,
+        message: "Every removal requires a stable field ID and category.",
+      });
+    }
+    if (
+      removal.citation.sourceId !== snapshot.sourceId ||
+      removal.citation.sourceVersionId !== snapshot.sourceVersionId
+    ) {
+      issues.push({
+        code: "addendum_removal_wrong_revision",
+        severity: "blocker",
+        path: `${removalPath}.citation`,
+        message: "A removal instruction must cite the exact selected revision.",
+      });
+    }
+    issues.push(...result.issues);
+    if (
+      result.citation &&
+      isValidId(removal.externalId) &&
+      FIELD_CATEGORIES.includes(removal.category) &&
+      removal.citation.sourceId === snapshot.sourceId &&
+      removal.citation.sourceVersionId === snapshot.sourceVersionId
+    ) {
+      grounded.push({ ...removal, citation: result.citation });
     }
   });
   return grounded;
@@ -240,6 +321,26 @@ export function detectAddendumChanges(
     sourceSet,
     issues,
   );
+  const baselineRemovals = validateRemovals(
+    input.baseline,
+    "baseline",
+    sourceSet,
+    issues,
+  );
+  if (baselineRemovals.length > 0) {
+    issues.push({
+      code: "baseline_removal_instruction_invalid",
+      severity: "blocker",
+      path: "baseline.removals",
+      message: "Only the selected revision may carry removal instructions.",
+    });
+  }
+  const revisionRemovals = validateRemovals(
+    input.revision,
+    "revision",
+    sourceSet,
+    issues,
+  );
 
   const baselineById = new Map(
     baselineFields.map((field) => [field.externalId, field]),
@@ -250,6 +351,9 @@ export function detectAddendumChanges(
   const fieldIds = [
     ...new Set([...baselineById.keys(), ...revisionById.keys()]),
   ].sort();
+  const removalById = new Map(
+    revisionRemovals.map((removal) => [removal.externalId, removal]),
+  );
   const changes: AddendumChange[] = [];
   if (!hasBlockers(issues)) {
     for (const fieldExternalId of fieldIds) {
@@ -262,6 +366,30 @@ export function detectAddendumChanges(
           path: `fields.${fieldExternalId}`,
           message:
             "A stable field cannot change semantic category between snapshots.",
+        });
+        continue;
+      }
+      const removal = removalById.get(fieldExternalId);
+      if (before && !after && !removal) {
+        issues.push({
+          code: "implicit_addendum_deletion",
+          severity: "blocker",
+          path: `revision.fields.${fieldExternalId}`,
+          message:
+            "A field may be removed only by an exact instruction in the selected revision.",
+        });
+        continue;
+      }
+      if (
+        removal &&
+        (!before || after || removal.category !== before.category)
+      ) {
+        issues.push({
+          code: "invalid_addendum_removal",
+          severity: "blocker",
+          path: `revision.removals.${fieldExternalId}`,
+          message:
+            "A removal must name an existing field of the same category and remove it from the effective state.",
         });
         continue;
       }
@@ -280,7 +408,8 @@ export function detectAddendumChanges(
         beforeValue: before?.value,
         afterValue: after?.value,
         beforeCitationId: before?.citation.citationId,
-        afterCitationId: after?.citation.citationId,
+        afterCitationId:
+          after?.citation.citationId ?? removal?.citation.citationId,
       });
       const review = input.changeReviews?.[changeId] ?? UNREVIEWED;
       issues.push(...validateHumanReview(review, `changeReviews.${changeId}`));
@@ -292,7 +421,7 @@ export function detectAddendumChanges(
         beforeValue: before?.value,
         afterValue: after?.value,
         beforeCitation: before?.citation,
-        afterCitation: after?.citation,
+        afterCitation: after?.citation ?? removal?.citation,
         affectedArtifactIds: input.trackedArtifacts
           .filter((artifact) =>
             artifact.dependsOnFieldExternalIds.includes(fieldExternalId),
@@ -303,6 +432,17 @@ export function detectAddendumChanges(
       });
     }
   }
+  revisionRemovals.forEach((removal) => {
+    if (!fieldIds.includes(removal.externalId)) {
+      issues.push({
+        code: "orphan_addendum_removal",
+        severity: "blocker",
+        path: `revision.removals.${removal.externalId}`,
+        message:
+          "A removal may target only a field in the effective comparison.",
+      });
+    }
+  });
   const generatedChangeIds = new Set(changes.map((change) => change.changeId));
   Object.keys(input.changeReviews ?? {}).forEach((changeId) => {
     if (!generatedChangeIds.has(changeId)) {
@@ -319,7 +459,10 @@ export function detectAddendumChanges(
   const radarId = deterministicId("addradar", {
     baseline: [input.baseline.sourceId, input.baseline.sourceVersionId],
     revision: [input.revision.sourceId, input.revision.sourceVersionId],
-    changes: changes.map((change) => [change.changeId, change.review.state]),
+    // Review is mutable governance state, not source identity. Keeping it out
+    // of the radar identifier lets a review bind to the same exact comparison
+    // without manufacturing a second source artefact.
+    changes: changes.map((change) => change.changeId),
   });
   const radarReviewResult = resolveSubjectReview(
     radarId,

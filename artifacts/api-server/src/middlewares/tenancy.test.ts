@@ -7,6 +7,10 @@ describe("optimistic concurrency token parsing", () => {
     assert.equal(parseExpectedVersion("3"), 3);
     assert.equal(parseExpectedVersion('"4"'), 4);
     assert.equal(parseExpectedVersion('W/"5"'), 5);
+    assert.equal(
+      parseExpectedVersion('W/"9007199254740991"'),
+      Number.MAX_SAFE_INTEGER,
+    );
   });
 
   test("fails closed on missing, zero, negative and non-integer versions", () => {
@@ -14,6 +18,7 @@ describe("optimistic concurrency token parsing", () => {
     assert.equal(parseExpectedVersion("0"), null);
     assert.equal(parseExpectedVersion("-1"), null);
     assert.equal(parseExpectedVersion("1.5"), null);
+    assert.equal(parseExpectedVersion("9007199254740992"), null);
     assert.equal(parseExpectedVersion("anything"), null);
   });
 });

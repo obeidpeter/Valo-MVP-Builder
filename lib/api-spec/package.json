@@ -5,7 +5,7 @@
   "scripts": {
     "codegen": "orval --config ./orval.config.ts && node ./patch-generated-client.mjs && pnpm -w run typecheck:libs",
     "codegen:check": "node ./check-generated.mjs",
-    "test": "node --test ./check-generated.test.mjs ./roadmap-api-parity.test.mjs"
+    "test": "node --test ./check-generated.test.mjs ./roadmap-api-parity.test.mjs ./addendum-impact-contract.test.mjs"
   },
   "devDependencies": {
     "orval": "^8.18.0"

@@ -1,0 +1,214 @@
+{
+  "schemaVersion": 1,
+  "registryId": "valo-product-capabilities/v1",
+  "authority": "checked_in_source_and_runtime_gates_are_authoritative",
+  "capabilities": [
+    {
+      "id": "pursuit_control_tower",
+      "title": "Pursuit Control Tower",
+      "wave": "first",
+      "deliveryState": "integrated",
+      "availability": "role_and_tenant_guarded",
+      "externalEffects": "none",
+      "automaticMutation": false,
+      "namedHumanAuthority": true,
+      "authorityBoundary": "The queue is a read-only projection; it never approves readiness, signs work, releases a package, or submits a pursuit.",
+      "evidence": [
+        "artifacts/valo-workbench/src/pages/dashboard.tsx",
+        "artifacts/valo-workbench/src/components/pursuit-control-tower.tsx",
+        "artifacts/valo-workbench/src/lib/pursuit-control-tower.ts"
+      ],
+      "sourceAssertions": [
+        {
+          "path": "artifacts/valo-workbench/src/pages/dashboard.tsx",
+          "includes": "<PursuitControlTower"
+        },
+        {
+          "path": "artifacts/valo-workbench/src/components/pursuit-control-tower.tsx",
+          "includes": "export function PursuitControlTower"
+        },
+        {
+          "path": "artifacts/valo-workbench/src/lib/pursuit-control-tower.ts",
+          "includes": "export function buildPursuitControlTower"
+        }
+      ]
+    },
+    {
+      "id": "tender_context_wizard",
+      "title": "Tender Context",
+      "wave": "first",
+      "deliveryState": "integrated",
+      "availability": "role_and_tenant_guarded",
+      "externalEffects": "none",
+      "automaticMutation": false,
+      "namedHumanAuthority": true,
+      "authorityBoundary": "A context remains advisory until a different named, currently authorised person reviews the exact version-bound sources and records a decision.",
+      "evidence": [
+        "artifacts/api-server/src/routes/documentVersionSnapshots.ts",
+        "artifacts/api-server/src/routes/tenderContext.ts",
+        "artifacts/api-server/src/lib/intelligence/tenderContextDrizzleRepository.ts",
+        "artifacts/api-server/src/routes/index.ts",
+        "artifacts/valo-workbench/src/pages/tender-context-route.tsx",
+        "artifacts/valo-workbench/src/protected-routes.tsx",
+        "artifacts/valo-workbench/src/pages/project-details.tsx"
+      ],
+      "sourceAssertions": [
+        {
+          "path": "artifacts/api-server/src/routes/documentVersionSnapshots.ts",
+          "includes": "commitTenantDatabaseBeforeResponse"
+        },
+        {
+          "path": "artifacts/api-server/src/routes/tenderContext.ts",
+          "includes": "router.use(\"/projects/:id/tender-context\", privateResponse)"
+        },
+        {
+          "path": "artifacts/api-server/src/lib/intelligence/tenderContextDrizzleRepository.ts",
+          "includes": "validateStoredContextForAcceptance"
+        },
+        {
+          "path": "artifacts/api-server/src/routes/index.ts",
+          "includes": "router.use(documentVersionSnapshotRouter);"
+        },
+        {
+          "path": "artifacts/api-server/src/routes/index.ts",
+          "includes": "router.use(tenderContextRouter);"
+        },
+        {
+          "path": "artifacts/valo-workbench/src/pages/tender-context-route.tsx",
+          "includes": "export default function TenderContextRoute()"
+        },
+        {
+          "path": "artifacts/valo-workbench/src/protected-routes.tsx",
+          "includes": "<Route path=\"/projects/:id/tender-context\">"
+        },
+        {
+          "path": "artifacts/valo-workbench/src/pages/project-details.tsx",
+          "includes": "`/projects/${id}/tender-context`"
+        }
+      ]
+    },
+    {
+      "id": "eligibility_passport",
+      "title": "Eligibility Passport",
+      "wave": "first",
+      "deliveryState": "integrated",
+      "availability": "role_and_tenant_guarded",
+      "externalEffects": "none",
+      "automaticMutation": false,
+      "namedHumanAuthority": true,
+      "authorityBoundary": "The passport reports deterministic checks and gaps only; it cannot qualify a pursuit or replace a named eligibility, readiness, or release decision.",
+      "evidence": [
+        "artifacts/api-server/src/routes/tenderContext.ts",
+        "artifacts/api-server/src/lib/intelligence/tenderContextDrizzleRepository.ts",
+        "artifacts/api-server/src/lib/intelligence/tenderContext.ts",
+        "artifacts/api-server/src/lib/intelligence/tenderContextContracts.ts",
+        "artifacts/api-server/src/routes/index.ts",
+        "artifacts/valo-workbench/src/pages/tender-context-route.tsx",
+        "artifacts/valo-workbench/src/protected-routes.tsx",
+        "artifacts/valo-workbench/src/pages/project-details.tsx"
+      ],
+      "sourceAssertions": [
+        {
+          "path": "artifacts/api-server/src/routes/tenderContext.ts",
+          "includes": "eligibility-passports/:passportRecordId/review"
+        },
+        {
+          "path": "artifacts/api-server/src/lib/intelligence/tenderContextDrizzleRepository.ts",
+          "includes": "evaluatePassportFromAcceptedSnapshot"
+        },
+        {
+          "path": "artifacts/api-server/src/lib/intelligence/tenderContextContracts.ts",
+          "includes": "TENDER_CONTEXT_AUTHORITY_NOTE"
+        },
+        {
+          "path": "artifacts/api-server/src/routes/index.ts",
+          "includes": "router.use(tenderContextRouter);"
+        },
+        {
+          "path": "artifacts/valo-workbench/src/pages/tender-context-route.tsx",
+          "includes": "createTenderEligibilityPassport"
+        },
+        {
+          "path": "artifacts/valo-workbench/src/protected-routes.tsx",
+          "includes": "<Route path=\"/projects/:id/tender-context\">"
+        },
+        {
+          "path": "artifacts/valo-workbench/src/pages/project-details.tsx",
+          "includes": "Open Tender Context &amp; Eligibility Passport"
+        }
+      ]
+    },
+    {
+      "id": "addendum_impact_centre",
+      "title": "Addendum Impact Centre",
+      "wave": "first",
+      "deliveryState": "integrated",
+      "availability": "role_and_tenant_guarded",
+      "externalEffects": "none",
+      "automaticMutation": false,
+      "namedHumanAuthority": true,
+      "authorityBoundary": "Detection never changes work; a named review and a separate explicit application by another currently authorised person are required for controlled reopening.",
+      "evidence": [
+        "artifacts/api-server/src/routes/addendumImpact.ts",
+        "artifacts/api-server/src/lib/intelligence/addendumImpactService.ts",
+        "artifacts/api-server/src/routes/index.ts",
+        "artifacts/valo-workbench/src/components/intelligence/addendum-impact-centre.tsx",
+        "artifacts/valo-workbench/src/components/intelligence/addendum-impact-contract.ts",
+        "artifacts/valo-workbench/src/pages/intelligence-centre-route.tsx"
+      ],
+      "sourceAssertions": [
+        {
+          "path": "artifacts/api-server/src/routes/addendumImpact.ts",
+          "includes": "commitTenantDatabaseBeforeResponse"
+        },
+        {
+          "path": "artifacts/api-server/src/lib/intelligence/addendumImpactService.ts",
+          "includes": "ADDENDUM_REOPEN_CONFIRMATION"
+        },
+        {
+          "path": "artifacts/api-server/src/routes/index.ts",
+          "includes": "router.use(addendumImpactRouter);"
+        },
+        {
+          "path": "artifacts/valo-workbench/src/components/intelligence/addendum-impact-contract.ts",
+          "includes": "REOPEN AFFECTED WORK"
+        },
+        {
+          "path": "artifacts/valo-workbench/src/pages/intelligence-centre-route.tsx",
+          "includes": "<AddendumImpactCentre projectId={selectedProjectId} />"
+        }
+      ]
+    },
+    {
+      "id": "durable_worker_foundation",
+      "title": "Durable worker foundation",
+      "wave": "first",
+      "deliveryState": "foundation_only",
+      "availability": "internal_unmounted",
+      "externalEffects": "provider_disconnected",
+      "automaticMutation": false,
+      "namedHumanAuthority": true,
+      "authorityBoundary": "The control router remains unmounted and provider effects remain disconnected until every checked activation precondition has reviewed evidence.",
+      "evidence": [
+        "config/operations/worker-activation.v1.json",
+        "artifacts/api-server/src/lib/durableWorkerFoundation.ts",
+        "artifacts/api-server/src/routes/index.ts",
+        "lib/api-spec/openapi.yaml"
+      ],
+      "sourceAssertions": [
+        {
+          "path": "config/operations/worker-activation.v1.json",
+          "includes": "preconditions_open_control_router_unmounted"
+        },
+        {
+          "path": "config/operations/worker-activation.v1.json",
+          "includes": "\"controlRouterMounted\": false"
+        },
+        {
+          "path": "artifacts/api-server/src/lib/durableWorkerFoundation.ts",
+          "includes": "throw new DurableWorkerError(\"provider_disconnected\")"
+        }
+      ]
+    }
+  ]
+}

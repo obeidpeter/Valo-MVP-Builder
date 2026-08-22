@@ -23,8 +23,10 @@ import {
   type SurfaceState,
 } from "@/components/platform-states";
 import { MyWorkInbox } from "@/components/my-work-inbox";
+import { PursuitControlTower } from "@/components/pursuit-control-tower";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
 import { formatWatInstant } from "@/lib/format";
+import { platformRoleLabel } from "@/lib/platform-access";
 
 const TERMINAL_STATUSES = new Set(["signed_off", "exported", "archived"]);
 const LOADING_VALUE = "\u2026";
@@ -39,12 +41,6 @@ function parseRecordedDate(value: string): Date {
   const hasTime = value.includes("T");
   const hasExplicitZone = /(?:z|[+-]\d{2}:?\d{2})$/i.test(value);
   return new Date(hasTime && !hasExplicitZone ? `${value}+01:00` : value);
-}
-
-function formatWatDateTime(value: string): string {
-  const parsed = parseRecordedDate(value);
-  if (Number.isNaN(parsed.getTime())) return "Invalid recorded date";
-  return formatWatInstant(parsed, { suffix: " WAT" });
 }
 
 function formatWatDate(value: string): string {
@@ -63,73 +59,6 @@ function formatGate0Value(value: number, unit: Gate0Metric["unit"]): string {
   return unit === "ratio"
     ? `${(value * 100).toFixed(0)}%`
     : countFormatter.format(value);
-}
-
-function projectDecisionReasons(
-  project: ProjectSummary,
-  slaProjectIds: Set<string>,
-  redTeamProjectIds: Set<string>,
-): Array<{ label: string; state: SurfaceState }> {
-  const reasons: Array<{ label: string; state: SurfaceState }> = [];
-
-  if (slaProjectIds.has(project.id)) {
-    reasons.push({ label: "Review deadline missed", state: "blocked" });
-  }
-  if (redTeamProjectIds.has(project.id)) {
-    reasons.push({ label: "Independent review due", state: "pending" });
-  }
-  if (
-    project.conflictStatus === "blocked" ||
-    project.conflictStatus === "declined"
-  ) {
-    reasons.push({
-      label: "Conflict decision blocks intake",
-      state: "blocked",
-    });
-  }
-  if ((project.fatalDefectCount ?? 0) > 0) {
-    reasons.push({
-      label: `${countFormatter.format(project.fatalDefectCount ?? 0)} fatal or likely-fatal finding${project.fatalDefectCount === 1 ? "" : "s"} recorded`,
-      state: "pending",
-    });
-  }
-  if (project.paymentStatus === "pending") {
-    reasons.push({ label: "Payment confirmation pending", state: "pending" });
-  }
-  if (project.riskBand === "critical" || project.riskBand === "high") {
-    reasons.push({
-      label: `${project.riskBand === "critical" ? "Critical" : "High"} recorded risk`,
-      state: "pending",
-    });
-  }
-
-  return reasons;
-}
-
-function projectPriority(
-  project: ProjectSummary,
-  slaProjectIds: Set<string>,
-  redTeamProjectIds: Set<string>,
-): number {
-  let score = 0;
-  if (slaProjectIds.has(project.id)) score += 100;
-  if (
-    project.conflictStatus === "blocked" ||
-    project.conflictStatus === "declined"
-  ) {
-    score += 90;
-  }
-  if ((project.fatalDefectCount ?? 0) > 0) score += 80;
-  if (redTeamProjectIds.has(project.id)) score += 70;
-  if (project.riskBand === "critical") score += 60;
-  else if (project.riskBand === "high") score += 50;
-  if (project.paymentStatus === "pending") score += 40;
-
-  const deadline = deadlineTime(project);
-  if (deadline !== null) {
-    score += deadline < Date.now() ? 30 : 10;
-  }
-  return score;
 }
 
 function vaultState(item: VaultExpiringItem): SurfaceState {
@@ -219,6 +148,7 @@ function SectionHeading({
 export default function Dashboard() {
   const access = useOrganisationAccess();
   const permissions = access?.effectivePermissions ?? [];
+  const effectiveRoles = access?.effectiveRoles ?? [];
   const canReadProjects = permissions.includes("project:read");
   const canReadEvidence = permissions.includes("evidence:read");
   const metricsQuery = useGetDashboardMetrics();
@@ -254,16 +184,16 @@ export default function Dashboard() {
   const redTeamProjectIds = new Set(
     workflowAlerts?.redTeamDue.map((alert) => alert.projectId) ?? [],
   );
-
-  const decisionProjects = [...activeProjects]
-    .sort(
-      (left, right) =>
-        projectPriority(right, slaProjectIds, redTeamProjectIds) -
-          projectPriority(left, slaProjectIds, redTeamProjectIds) ||
-        new Date(right.createdAt).getTime() -
-          new Date(left.createdAt).getTime(),
-    )
-    .slice(0, 6);
+  const controlTowerSignals = {
+    slaProjectIds,
+    independentReviewProjectIds: redTeamProjectIds,
+  };
+  const roleLabel =
+    effectiveRoles.length === 1
+      ? platformRoleLabel(effectiveRoles[0])
+      : effectiveRoles.length > 1
+        ? effectiveRoles.map(platformRoleLabel).join(" and ")
+        : "your current access";
 
   const activeDeadlineProjects = activeProjects
     .filter((project) => deadlineTime(project) !== null)
@@ -272,8 +202,6 @@ export default function Dashboard() {
         (deadlineTime(left) ?? Number.POSITIVE_INFINITY) -
         (deadlineTime(right) ?? Number.POSITIVE_INFINITY),
     );
-  const deadlineProjects = activeDeadlineProjects.slice(0, 6);
-
   const now = Date.now();
   const recordedDeadlinesPassed = activeDeadlineProjects.filter(
     (project) => (deadlineTime(project) ?? Number.POSITIVE_INFINITY) < now,
@@ -354,7 +282,7 @@ export default function Dashboard() {
     <main className="mx-auto w-full max-w-7xl space-y-8 p-5 sm:p-8">
       <PageHeader
         title="Dashboard"
-        description="See deadlines, decisions and problems that need attention before you open a pursuit. Dates and times use West Africa Time (WAT)."
+        description="Start with your work, then open the pursuit that needs attention. Dates and times use West Africa Time (WAT)."
         state={pageState}
         actions={
           canReadProjects ? (
@@ -364,8 +292,6 @@ export default function Dashboard() {
           ) : undefined
         }
       />
-
-      <MyWorkInbox />
 
       {allLoading ? <LoadingPanel label="Loading dashboard data" /> : null}
 
@@ -396,6 +322,31 @@ export default function Dashboard() {
           description={`Your current role cannot read ${restrictedSources.join(" and ")}. These records were not requested, and hidden counts are not shown as zero.`}
         />
       ) : null}
+
+      {!allLoading && !allUnavailable && canReadProjects ? (
+        <PursuitControlTower
+          projects={projects}
+          projectState={
+            projectsPending
+              ? "loading"
+              : projectsUnavailable
+                ? "unavailable"
+                : "ready"
+          }
+          signals={controlTowerSignals}
+          signalState={
+            alertsPending
+              ? "loading"
+              : alertsUnavailable
+                ? "unavailable"
+                : "ready"
+          }
+          roleLabel={roleLabel}
+          now={now}
+        />
+      ) : null}
+
+      <MyWorkInbox />
 
       {!allLoading && !allUnavailable ? (
         <section
@@ -498,230 +449,6 @@ export default function Dashboard() {
             />
           )}
         </section>
-      ) : null}
-
-      {!allLoading && !allUnavailable && canReadProjects ? (
-        <section aria-labelledby="decisions-heading" className="space-y-4">
-          <SectionHeading
-            id="decisions-heading"
-            title="Pursuit decisions and next actions"
-            description="Prioritised from current workflow alerts and project summaries. Valo does not infer clearance from a missing or failed source."
-            action={
-              <Link
-                href="/projects"
-                className="inline-flex items-center gap-2 rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                View pursuit register
-                <ArrowRight aria-hidden="true" className="size-4" />
-              </Link>
-            }
-          />
-
-          {projectsPending ? (
-            <LoadingPanel label="Loading pursuit decisions" />
-          ) : projectsUnavailable ? (
-            <StatusPanel
-              state="error"
-              title="Pursuit decisions are unavailable"
-              description="The project register did not load, so no project-level exception or next action can be verified."
-            />
-          ) : decisionProjects.length === 0 ? (
-            <StatusPanel
-              state="empty"
-              title="No active pursuits returned"
-              description="The selected organisation has no active pursuit summaries. This is an empty register, not a readiness verdict."
-            />
-          ) : (
-            <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-              {decisionProjects.map((project) => {
-                const reasons = projectDecisionReasons(
-                  project,
-                  slaProjectIds,
-                  redTeamProjectIds,
-                );
-                return (
-                  <Link
-                    key={project.id}
-                    href={`/projects/${project.id}?tab=overview`}
-                    aria-label={`Open pursuit next actions: ${project.tenderTitle}`}
-                    className="flex min-h-24 items-center justify-between gap-4 px-4 py-4 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-5"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-semibold text-foreground">
-                          {project.tenderTitle}
-                        </h3>
-                        <StateBadge
-                          state={
-                            reasons.some((reason) => reason.state === "blocked")
-                              ? "blocked"
-                              : reasons.length > 0
-                                ? "pending"
-                                : "active"
-                          }
-                          label={
-                            reasons.length > 0
-                              ? `${reasons.length} item${reasons.length === 1 ? "" : "s"} needing attention`
-                              : "No summary issues"
-                          }
-                        />
-                      </div>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {project.clientName ?? "Client name unavailable"}
-                        {project.reviewerName
-                          ? ` · Reviewer: ${project.reviewerName}`
-                          : " · Reviewer not recorded"}
-                      </p>
-                      <p className="mt-2 text-sm font-medium">
-                        Next action:{" "}
-                        {project.nextAction ?? "Review pursuit state"}
-                      </p>
-                      {reasons.length > 0 ? (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {reasons.map((reason) => (
-                            <StateBadge
-                              key={reason.label}
-                              state={reason.state}
-                              label={reason.label}
-                            />
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                    <ArrowRight
-                      aria-hidden="true"
-                      className="size-5 shrink-0 text-muted-foreground"
-                    />
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </section>
-      ) : null}
-
-      {!allLoading && !allUnavailable && canReadProjects ? (
-        <div className="grid gap-8 xl:grid-cols-2">
-          <section
-            aria-labelledby="deadline-register-heading"
-            className="space-y-4"
-          >
-            <SectionHeading
-              id="deadline-register-heading"
-              title="Submission deadline register"
-              description="Recorded tender deadlines for active pursuits, ordered by timestamp in WAT."
-            />
-            {projectsPending ? (
-              <LoadingPanel label="Loading recorded deadlines" />
-            ) : projectsUnavailable ? (
-              <StatusPanel
-                state="error"
-                title="Deadlines are unavailable"
-                description="The project register did not load. Do not treat the deadline queue as clear."
-              />
-            ) : deadlineProjects.length === 0 ? (
-              <StatusPanel
-                state="empty"
-                title="No active pursuit deadlines recorded"
-                description="Active pursuits were returned, but none contains a valid recorded deadline."
-              />
-            ) : (
-              <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-                {deadlineProjects.map((project) => {
-                  const timestamp = deadlineTime(project);
-                  const passed = timestamp !== null && timestamp < now;
-                  return (
-                    <Link
-                      key={project.id}
-                      href={`/projects/${project.id}?tab=overview`}
-                      aria-label={`Open deadline details: ${project.tenderTitle}`}
-                      className="flex min-h-20 items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                    >
-                      <div className="min-w-0">
-                        <p className="font-medium">{project.tenderTitle}</p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {formatWatDateTime(project.deadline ?? "")}
-                        </p>
-                      </div>
-                      <StateBadge
-                        state="pending"
-                        label={passed ? "Recorded time passed" : "Upcoming"}
-                      />
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          <section
-            aria-labelledby="workflow-exceptions-heading"
-            className="space-y-4"
-          >
-            <SectionHeading
-              id="workflow-exceptions-heading"
-              title="Workflow issues"
-              description="Missed review deadlines and independent reviews that are due."
-            />
-            {alertsPending ? (
-              <LoadingPanel label="Loading workflow issues" />
-            ) : alertsUnavailable || !workflowAlerts ? (
-              <StatusPanel
-                state="error"
-                title="Workflow issues are unavailable"
-                description="The workflow-alert endpoint did not return a verified queue."
-              />
-            ) : workflowAlerts.slaBreaches.length === 0 &&
-              workflowAlerts.redTeamDue.length === 0 ? (
-              <StatusPanel
-                state="empty"
-                title="No workflow issues reported"
-                description="No missed review deadline or due independent review was returned. Pursuit readiness checks still apply."
-              />
-            ) : (
-              <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-                {workflowAlerts.slaBreaches.slice(0, 4).map((alert) => (
-                  <Link
-                    key={`sla-${alert.projectId}`}
-                    href={`/projects/${alert.projectId}?tab=overview`}
-                    aria-label={`Open missed review deadline: ${alert.tenderTitle}`}
-                    className="flex min-h-20 items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-medium">{alert.tenderTitle}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Review due {formatWatDateTime(alert.dueAt)}
-                      </p>
-                    </div>
-                    <StateBadge
-                      state="blocked"
-                      label="Review deadline missed"
-                    />
-                  </Link>
-                ))}
-                {workflowAlerts.redTeamDue.slice(0, 4).map((alert) => (
-                  <Link
-                    key={`red-team-${alert.projectId}`}
-                    href={`/projects/${alert.projectId}?tab=defects`}
-                    aria-label={`Open independent review: ${alert.tenderTitle}`}
-                    className="flex min-h-20 items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-medium">{alert.tenderTitle}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Review window opened {formatWatDateTime(alert.dueAt)}
-                      </p>
-                    </div>
-                    <StateBadge
-                      state="pending"
-                      label="Independent review due"
-                    />
-                  </Link>
-                ))}
-              </div>
-            )}
-          </section>
-        </div>
       ) : null}
 
       {!allLoading && !allUnavailable && canReadEvidence ? (
