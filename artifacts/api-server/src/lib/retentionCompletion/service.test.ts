@@ -130,7 +130,7 @@ test("default service exposes readiness but fails every mutation closed", async 
   await assert.rejects(
     service.detach(scope, id("4"), {
       expectedVersion: 1,
-      idempotencyKey: "1234567890abcdef",
+      idempotencyKey: "testtesttesttest",
       attestation: "I confirm this governed detach action.",
     }),
     (error: unknown) =>
@@ -149,7 +149,7 @@ test("activated service hashes controls and delegates all three CAS transitions"
   });
   const input = {
     expectedVersion: 2,
-    idempotencyKey: "1234567890abcdef",
+    idempotencyKey: "testtesttesttest",
     attestation: "I confirm the exact governed evidence manifest.",
   };
   await service.detach(scope, id("4"), input);
