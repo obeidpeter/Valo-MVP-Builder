@@ -75,6 +75,22 @@ let packagePdfBlobPath: string;
 let packageZipBlobPath: string;
 const deletedBlobs: string[] = [];
 
+async function deleteRetentionRequestFixture(projectId: string): Promise<void> {
+  // Protocol-zero and protocol-one retention evidence is deliberately
+  // immutable. This test-only owner DDL runs inside withTenantDatabase's
+  // transaction, disables only the completion guard (not FK/cascade
+  // triggers), and is rolled back automatically if cleanup cannot finish.
+  await db.execute(
+    sql`ALTER TABLE public.retention_requests DISABLE TRIGGER retention_request_completion_guard`,
+  );
+  await db
+    .delete(retentionRequests)
+    .where(eq(retentionRequests.subjectProjectId, projectId));
+  await db.execute(
+    sql`ALTER TABLE public.retention_requests ENABLE TRIGGER retention_request_completion_guard`,
+  );
+}
+
 before(async () => {
   const stamp = new Date().toISOString();
 
@@ -411,6 +427,7 @@ after(async () => {
     await db.execute(
       sql`SELECT set_config('valo.audit_test_cleanup', 'approved', true)`,
     );
+    await deleteRetentionRequestFixture(projectId);
     await db.delete(auditEvents).where(eq(auditEvents.projectId, projectId));
     await db.delete(projects).where(eq(projects.id, projectId));
     await db.delete(clients).where(eq(clients.id, clientId));

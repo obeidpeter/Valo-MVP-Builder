@@ -31,6 +31,22 @@ let liveOldId: string;
 const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
 const MAX_VALID_RETENTION_DAYS = 36_500;
 
+async function deleteRetentionRequestFixture(projectId: string): Promise<void> {
+  // Protocol-zero and protocol-one retention evidence is deliberately
+  // immutable. This test-only owner DDL runs inside withTenantDatabase's
+  // transaction, disables only the completion guard (not FK/cascade
+  // triggers), and is rolled back automatically if cleanup cannot finish.
+  await db.execute(
+    sql`ALTER TABLE public.retention_requests DISABLE TRIGGER retention_request_completion_guard`,
+  );
+  await db
+    .delete(retentionRequests)
+    .where(eq(retentionRequests.subjectProjectId, projectId));
+  await db.execute(
+    sql`ALTER TABLE public.retention_requests ENABLE TRIGGER retention_request_completion_guard`,
+  );
+}
+
 before(async () => {
   const stamp = new Date().toISOString();
 
@@ -108,9 +124,7 @@ after(async () => {
     await db.execute(
       sql`SELECT set_config('valo.audit_test_cleanup', 'approved', true)`,
     );
-    await db
-      .delete(retentionRequests)
-      .where(eq(retentionRequests.projectId, concludedOldId));
+    await deleteRetentionRequestFixture(concludedOldId);
     await db
       .delete(auditEvents)
       .where(eq(auditEvents.organisationId, organisationId));

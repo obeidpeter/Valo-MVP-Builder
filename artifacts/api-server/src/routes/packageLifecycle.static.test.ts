@@ -20,7 +20,15 @@ const durableStore = readFileSync(
   "utf8",
 );
 const retentionRoute = readFileSync(
-  new URL("./operations.ts", import.meta.url),
+  new URL("./retentionCompletion.ts", import.meta.url),
+  "utf8",
+);
+const retentionService = readFileSync(
+  new URL("../lib/retentionCompletion/service.ts", import.meta.url),
+  "utf8",
+);
+const retentionRepository = readFileSync(
+  new URL("../lib/retentionCompletion/drizzleRepository.ts", import.meta.url),
   "utf8",
 );
 const tenancy = readFileSync(
@@ -183,8 +191,17 @@ test("released content immutability admits only exact package/post-award ledger 
 
 test("retention completion cannot synchronously remove package rows or blobs", () => {
   assert.match(retentionRoute, /RETENTION_COMPLETION_NOT_ACTIVATED/u);
-  assert.match(retentionRoute, /"storage_lifecycle_control_rows"/u);
+  assert.match(retentionRoute, /sideEffectsApplied: false/u);
+  assert.match(
+    retentionService,
+    /async detach\([\s\S]*?this\.#assertActivated\(\);[\s\S]*?this\.#repository\.detach\(/u,
+  );
+  assert.match(retentionRepository, /enqueueStorageDeletionIntentTx/u);
   assert.doesNotMatch(retentionRoute, /\.delete\(package/u);
   assert.doesNotMatch(retentionRoute, /planProjectBlobPurge|purgeBlobs/u);
+  assert.doesNotMatch(
+    retentionRepository,
+    /ObjectStorageService|deleteObjectEntity|planProjectBlobPurge|purgeBlobs/u,
+  );
   assert.doesNotMatch(retentionRoute, /package_versions=/u);
 });

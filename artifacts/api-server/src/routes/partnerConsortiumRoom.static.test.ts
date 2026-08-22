@@ -8,7 +8,15 @@ const source = readFileSync(
 );
 const routeIndex = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
 const retentionRoute = readFileSync(
-  new URL("./operations.ts", import.meta.url),
+  new URL("./retentionCompletion.ts", import.meta.url),
+  "utf8",
+);
+const retentionService = readFileSync(
+  new URL("../lib/retentionCompletion/service.ts", import.meta.url),
+  "utf8",
+);
+const retentionActivation = readFileSync(
+  new URL("../lib/retentionCompletion/activation.ts", import.meta.url),
   "utf8",
 );
 
@@ -48,7 +56,15 @@ test("consortium route has no external, legal, commercial, or destructive action
 
 test("retention completion leaves consortium envelopes untouched while activation is gated", () => {
   assert.match(retentionRoute, /RETENTION_COMPLETION_NOT_ACTIVATED/u);
-  assert.match(retentionRoute, /durable_two_phase_detach_reconcile_certify/u);
+  assert.match(retentionRoute, /sideEffectsApplied: false/u);
+  assert.match(
+    retentionActivation,
+    /durable_two_phase_detach_reconcile_certify/u,
+  );
+  assert.match(
+    retentionService,
+    /async detach\([\s\S]*?this\.#assertActivated\(\);[\s\S]*?this\.#repository\.detach\(/u,
+  );
   assert.doesNotMatch(retentionRoute, /CONSORTIUM_ROOM_TASK_PREFIX/u);
   assert.doesNotMatch(retentionRoute, /consortium_rooms=/u);
 });

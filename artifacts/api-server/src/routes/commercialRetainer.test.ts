@@ -83,17 +83,24 @@ test("commercial routes are mounted only after authenticated tenant database sco
 });
 
 test("retention completion leaves retainer and financial rows untouched while activation is gated", async () => {
-  const source = await readFile(
-    new URL("./operations.ts", import.meta.url),
-    "utf8",
-  );
+  const [routeSource, serviceSource] = await Promise.all([
+    readFile(new URL("./retentionCompletion.ts", import.meta.url), "utf8"),
+    readFile(
+      new URL("../lib/retentionCompletion/service.ts", import.meta.url),
+      "utf8",
+    ),
+  ]);
   assert.equal(RETAINER_TASK_PREFIX, "[RETAINER-DESK:v1:");
-  assert.match(source, /RETENTION_COMPLETION_NOT_ACTIVATED/u);
-  assert.match(source, /sideEffectsApplied: false/u);
-  assert.doesNotMatch(source, /RETAINER_TASK_PREFIX/u);
-  assert.doesNotMatch(source, /retainer_service_requests=/u);
-  assert.doesNotMatch(source, /commercialFinancialRetentionBlockers/u);
-  assert.doesNotMatch(source, /planProjectBlobPurge|purgeBlobs/u);
+  assert.match(routeSource, /RETENTION_COMPLETION_NOT_ACTIVATED/u);
+  assert.match(routeSource, /sideEffectsApplied: false/u);
+  assert.match(
+    serviceSource,
+    /async detach\([\s\S]*?this\.#assertActivated\(\);[\s\S]*?this\.#repository\.detach\(/u,
+  );
+  assert.doesNotMatch(routeSource, /RETAINER_TASK_PREFIX/u);
+  assert.doesNotMatch(routeSource, /retainer_service_requests=/u);
+  assert.doesNotMatch(routeSource, /commercialFinancialRetentionBlockers/u);
+  assert.doesNotMatch(routeSource, /planProjectBlobPurge|purgeBlobs/u);
 });
 
 test("private manifest response is no-store and advertises blocked integrations", async () => {
