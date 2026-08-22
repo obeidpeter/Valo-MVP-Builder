@@ -2031,6 +2031,7 @@ export async function assertProductionRuntimeDatabaseSafety(
           'current_organisation_id',
           'enforce_control_plane_tenant_context',
           'enforce_derived_tenant_relationship',
+          'enforce_governed_state_transition',
           'enforce_tenant_parent',
           'expected_tenant_parent_edges',
           'expected_tenant_parent_edges_v25',
