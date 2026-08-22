@@ -6,27 +6,27 @@ ALTER TABLE public.retention_requests
   ADD COLUMN subject_project_id uuid,
   ADD COLUMN requested_by_name text;
 --> statement-breakpoint
+-- FORCE RLS also applies to the table owner. The bounded migration path owns
+-- this relation, so retain ENABLED RLS for runtime roles while temporarily
+-- restoring owner bypass to backfill every tenant and requester snapshot.
+ALTER TABLE public.retention_requests NO FORCE ROW LEVEL SECURITY;
+--> statement-breakpoint
 UPDATE public.retention_requests AS request
 SET subject_project_id = request.project_id,
     requested_by_name = COALESCE(
       NULLIF(pg_catalog.btrim(requester.name), ''),
       requester.email,
-      'Valo retention scheduler'
+      'Legacy retention requester unavailable'
     )
 FROM public.users AS requester
 WHERE requester.id = request.requested_by;
 --> statement-breakpoint
 UPDATE public.retention_requests
 SET subject_project_id = project_id,
-    requested_by_name = 'Valo retention scheduler'
+    requested_by_name = 'Legacy retention requester unavailable'
 WHERE subject_project_id IS NULL OR requested_by_name IS NULL;
 --> statement-breakpoint
-UPDATE public.retention_requests
-SET completion_protocol_version = 1
-WHERE organisation_id IS NOT NULL
-  AND status = 'pending'
-  AND completed_at IS NULL
-  AND certificate_text IS NULL;
+ALTER TABLE public.retention_requests FORCE ROW LEVEL SECURITY;
 --> statement-breakpoint
 ALTER TABLE public.retention_requests
   ALTER COLUMN subject_project_id SET NOT NULL,
@@ -97,6 +97,12 @@ ALTER TABLE public.retention_actions
   ADD COLUMN checked_by_name text,
   ADD COLUMN checked_at timestamp with time zone;
 --> statement-breakpoint
+-- Both sides of the legacy action/request join are FORCE-RLS tables. Preserve
+-- runtime isolation while allowing the owner-only migration to see all rows.
+ALTER TABLE public.retention_actions NO FORCE ROW LEVEL SECURITY;
+--> statement-breakpoint
+ALTER TABLE public.retention_requests NO FORCE ROW LEVEL SECURITY;
+--> statement-breakpoint
 UPDATE public.retention_actions AS action
 SET subject_project_id = COALESCE(
   request.subject_project_id,
@@ -108,6 +114,24 @@ WHERE request.id = action.retention_request_id;
 UPDATE public.retention_actions
 SET subject_project_id = object_id
 WHERE subject_project_id IS NULL AND object_type = 'project';
+--> statement-breakpoint
+UPDATE public.retention_actions AS action
+SET executed_by_name = COALESCE(
+  NULLIF(pg_catalog.btrim(executor.name), ''),
+  executor.email,
+  'Legacy retention executor unavailable'
+)
+FROM public.users AS executor
+WHERE executor.id = action.executed_by_user_id
+  AND action.executed_at IS NOT NULL;
+--> statement-breakpoint
+UPDATE public.retention_actions
+SET executed_by_name = 'Legacy retention executor unavailable'
+WHERE executed_at IS NOT NULL AND executed_by_name IS NULL;
+--> statement-breakpoint
+ALTER TABLE public.retention_requests FORCE ROW LEVEL SECURITY;
+--> statement-breakpoint
+ALTER TABLE public.retention_actions FORCE ROW LEVEL SECURITY;
 --> statement-breakpoint
 ALTER TABLE public.retention_actions
   ADD CONSTRAINT retention_actions_prepared_by_user_id_users_id_fk
@@ -227,6 +251,9 @@ ALTER TABLE public.deletion_certificates
   ADD COLUMN certificate_manifest_sha256 text,
   ADD COLUMN signed_by_name text;
 --> statement-breakpoint
+-- Snapshot every legacy signer before signed_by_name becomes mandatory.
+ALTER TABLE public.deletion_certificates NO FORCE ROW LEVEL SECURITY;
+--> statement-breakpoint
 UPDATE public.deletion_certificates AS certificate
 SET signed_by_name = COALESCE(
   NULLIF(pg_catalog.btrim(signer.name), ''),
@@ -234,6 +261,8 @@ SET signed_by_name = COALESCE(
 )
 FROM public.users AS signer
 WHERE signer.id = certificate.signed_by_user_id;
+--> statement-breakpoint
+ALTER TABLE public.deletion_certificates FORCE ROW LEVEL SECURITY;
 --> statement-breakpoint
 ALTER TABLE public.deletion_certificates
   ALTER COLUMN signed_by_name SET NOT NULL,
@@ -373,7 +402,8 @@ BEGIN
         RAISE EXCEPTION 'retention completion protocol cannot be downgraded'
           USING ERRCODE = '55000';
       END IF;
-      RETURN NEW;
+      RAISE EXCEPTION 'legacy retention request evidence is read-only'
+        USING ERRCODE = '55000';
     END IF;
 
     IF NEW.completion_protocol_version <> 1
@@ -560,19 +590,21 @@ BEGIN
 
   IF TG_TABLE_NAME = 'retention_actions' THEN
     IF TG_OP = 'DELETE' THEN
-      IF OLD.completion_protocol_version = 1 THEN
-        RAISE EXCEPTION 'retention completion evidence is immutable'
-          USING ERRCODE = '55000';
-      END IF;
-      RETURN OLD;
+      RAISE EXCEPTION 'retention action evidence is immutable'
+        USING ERRCODE = '55000';
     END IF;
 
     IF NEW.completion_protocol_version = 0 THEN
+      IF TG_OP = 'INSERT' THEN
+        RAISE EXCEPTION 'new retention actions must use completion protocol one'
+          USING ERRCODE = '55000';
+      END IF;
       IF TG_OP = 'UPDATE' AND OLD.completion_protocol_version <> 0 THEN
         RAISE EXCEPTION 'retention completion protocol cannot be downgraded'
           USING ERRCODE = '55000';
       END IF;
-      RETURN NEW;
+      RAISE EXCEPTION 'legacy retention action evidence is read-only'
+        USING ERRCODE = '55000';
     END IF;
 
     IF NEW.completion_protocol_version <> 1

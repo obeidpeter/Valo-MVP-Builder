@@ -53,7 +53,8 @@ CREATE TEMPORARY TABLE _valo_bridge_inputs (
   rehearsal_evidence_sha256 text NOT NULL,
   migration_0000_hash text NOT NULL,
   migration_0001_hash text NOT NULL,
-  migration_0002_hash text NOT NULL
+  migration_0002_hash text NOT NULL,
+  migration_0011_hash text NOT NULL
 ) ON COMMIT DROP;
 
 INSERT INTO _valo_bridge_inputs VALUES (
@@ -76,7 +77,8 @@ INSERT INTO _valo_bridge_inputs VALUES (
   '__VALO_BRIDGE_REHEARSAL_EVIDENCE_SHA256__',
   '__VALO_BRIDGE_MIGRATION_0000_HASH__',
   '__VALO_BRIDGE_MIGRATION_0001_HASH__',
-  '__VALO_BRIDGE_MIGRATION_0002_HASH__'
+  '__VALO_BRIDGE_MIGRATION_0002_HASH__',
+  '__VALO_BRIDGE_MIGRATION_0011_HASH__'
 );
 
 CREATE TEMPORARY TABLE _valo_bridge_state (
@@ -84,7 +86,8 @@ CREATE TEMPORARY TABLE _valo_bridge_state (
   is_complete boolean NOT NULL,
   production_assurance_expected boolean NOT NULL,
   retrieval_registry_expected boolean NOT NULL,
-  tender_context_expected boolean NOT NULL
+  tender_context_expected boolean NOT NULL,
+  retention_completion_expected boolean NOT NULL
 ) ON COMMIT DROP;
 
 CREATE TEMPORARY TABLE _valo_expected_legacy_columns (
@@ -180,6 +183,9 @@ DECLARE
     'tender_context_requirements','tender_context_versions',
     'tender_eligibility_passports'
   ];
+  retention_completion_tables constant text[] := ARRAY[
+    'retention_action_storage_events'
+  ];
   actual_tables text[];
   actual_rls_tables text[];
   any_rls_table_count integer;
@@ -195,7 +201,9 @@ DECLARE
   production_assurance_match boolean;
   retrieval_registry_match boolean;
   tender_context_match boolean;
+  retention_completion_match boolean;
   tender_context_policy_matches boolean;
+  retention_completion_policy_matches boolean;
 BEGIN
   SELECT * INTO STRICT inputs FROM _valo_bridge_inputs;
   IF inputs.acknowledgement <> 'RESTORE_VERIFIED_AND_APPLICATION_QUIESCED' THEN
@@ -241,7 +249,8 @@ BEGIN
   END IF;
   IF inputs.migration_0000_hash !~ '^[0-9a-f]{64}$'
      OR inputs.migration_0001_hash !~ '^[0-9a-f]{64}$'
-     OR inputs.migration_0002_hash !~ '^[0-9a-f]{64}$' THEN
+     OR inputs.migration_0002_hash !~ '^[0-9a-f]{64}$'
+     OR inputs.migration_0011_hash !~ '^[0-9a-f]{64}$' THEN
     RAISE EXCEPTION 'migration hashes must be lower-case SHA-256 values';
   END IF;
   IF inputs.archive_digest !~ '^[0-9a-f]{64}$'
@@ -343,6 +352,26 @@ BEGIN
       ON namespace.oid=relation.relnamespace
     WHERE namespace.nspname='public'
       AND relation.relname = ANY(tender_context_tables);
+  SELECT count(*) = cardinality(retention_completion_tables)
+      AND COALESCE(bool_and(
+        policy.polname = 'tenant_isolation'
+        AND policy.polpermissive
+        AND policy.polcmd = '*'
+        AND policy.polroles = ARRAY[0::oid]
+        AND pg_catalog.pg_get_expr(
+          policy.polqual, policy.polrelid, false
+        ) = '(organisation_id = valo_security.current_organisation_id())'
+        AND pg_catalog.pg_get_expr(
+          policy.polwithcheck, policy.polrelid, false
+        ) = '(organisation_id = valo_security.current_organisation_id())'
+      ), false)
+    INTO retention_completion_policy_matches
+    FROM pg_catalog.pg_policy AS policy
+    JOIN pg_catalog.pg_class AS relation ON relation.oid=policy.polrelid
+    JOIN pg_catalog.pg_namespace AS namespace
+      ON namespace.oid=relation.relnamespace
+    WHERE namespace.nspname='public'
+      AND relation.relname = ANY(retention_completion_tables);
   SELECT count(*) INTO any_rls_table_count
     FROM pg_class AS c
     JOIN pg_namespace AS n ON n.oid=c.relnamespace
@@ -390,21 +419,34 @@ BEGIN
       AND tender_context_policy_matches,
     false
   );
+  retention_completion_match := COALESCE(
+    tender_context_match
+      AND actual_tables @> retention_completion_tables
+      AND actual_rls_tables @> retention_completion_tables
+      AND retention_completion_policy_matches,
+    false
+  );
   IF has_hash_version
      AND to_regnamespace('valo_legacy_bridge_archive') IS NULL THEN
     production_assurance_match := COALESCE(
       cardinality(actual_tables) = cardinality(target_tables) + 1
         + retrieval_registry_match::integer
         + (tender_context_match::integer * cardinality(tender_context_tables))
+        + (retention_completion_match::integer
+          * cardinality(retention_completion_tables))
       AND actual_tables @> target_tables
       AND 'authenticated_rate_limit_buckets' = ANY(actual_tables)
       AND NOT ('ai_retrieval_registry' = ANY(actual_rls_tables))
       AND cardinality(actual_rls_tables) = cardinality(rls_tables) + 1
         + (tender_context_match::integer * cardinality(tender_context_tables))
+        + (retention_completion_match::integer
+          * cardinality(retention_completion_tables))
       AND actual_rls_tables @> rls_tables
       AND 'authenticated_rate_limit_buckets' = ANY(actual_rls_tables)
       AND policy_count = 105
         + (tender_context_match::integer * cardinality(tender_context_tables))
+        + (retention_completion_match::integer
+          * cardinality(retention_completion_tables))
       AND authenticated_rate_limit_policy_matches,
       false
     );
@@ -427,7 +469,8 @@ BEGIN
   END IF;
 
   IF legacy_match THEN
-    INSERT INTO _valo_bridge_state VALUES (true, false, false, false, false);
+    INSERT INTO _valo_bridge_state
+      VALUES (true, false, false, false, false, false);
   ELSIF complete_match THEN
     INSERT INTO _valo_bridge_state
       VALUES (
@@ -435,14 +478,36 @@ BEGIN
         true,
         production_assurance_match,
         production_assurance_match AND retrieval_registry_match,
-        production_assurance_match AND tender_context_match
+        production_assurance_match AND tender_context_match,
+        production_assurance_match AND retention_completion_match
       );
   ELSE
     RAISE EXCEPTION
-      'schema is neither the exact unjournalled legacy baseline nor the fully reconciled v2.5 target';
+      'schema is neither the exact unjournalled legacy baseline nor a fully reconciled v2.5/retention-completion target';
   END IF;
 END;
 $preflight$;
+
+-- Completed targets carry evidence outside the 19 legacy-named relations.
+-- Freeze those rows before validating or replaying any idempotent catalog SQL;
+-- 0011's binding table is locked only for the exact retention variant.
+DO $completed_evidence_locks$
+BEGIN
+  IF (SELECT is_complete FROM _valo_bridge_state) THEN
+    LOCK TABLE
+      public.organisations, public.organisation_memberships, public.role_grants,
+      public.retention_actions, public.deletion_certificates,
+      public.legacy_audit_events,
+      public.legacy_audit_integrity_assessments,
+      drizzle.__drizzle_migrations
+    IN ACCESS EXCLUSIVE MODE NOWAIT;
+    IF (SELECT retention_completion_expected FROM _valo_bridge_state) THEN
+      LOCK TABLE public.retention_action_storage_events
+        IN ACCESS EXCLUSIVE MODE NOWAIT;
+    END IF;
+  END IF;
+END;
+$completed_evidence_locks$;
 
 CREATE TEMPORARY TABLE _valo_effective_legacy_columns (
   table_name text PRIMARY KEY,
@@ -6783,6 +6848,15 @@ BEGIN
       WHERE (SELECT tender_context_expected FROM _valo_bridge_state)
       UNION ALL
       -- END BRIDGE-ONLY 0010 TENANT-PARENT PREFLIGHT EXTENSION.
+      -- BEGIN BRIDGE-ONLY 0011 TENANT-PARENT PREFLIGHT EXTENSION.
+      SELECT *
+      FROM (VALUES
+        ('retention_action_storage_events','retention_action_id','retention_actions','id',false),
+        ('retention_action_storage_events','storage_event_id','notification_events','id',false)
+      ) AS retention_edge(child_table, child_column, parent_table, parent_column, allow_global_parent)
+      WHERE (SELECT retention_completion_expected FROM _valo_bridge_state)
+      UNION ALL
+      -- END BRIDGE-ONLY 0011 TENANT-PARENT PREFLIGHT EXTENSION.
       SELECT
         'legacy_audit_events',
         'assessment_id',
@@ -7580,12 +7654,37 @@ CREATE TRIGGER legacy_audit_assessments_immutable
   FOR EACH ROW EXECUTE FUNCTION valo_security.reject_legacy_audit_mutation();
 -- END EMBEDDED IDEMPOTENT 0002 SECURITY.
 
--- A completed 0010 target retains the source-pinned 116-edge wrapper. The
--- embedded v2.5 refresh above repairs the preserved base function, while this
--- exact definition restores the additive wrapper before catalog validation.
-DO $restore_tender_context_edges$
+-- A completed additive target retains a source-pinned wrapper hierarchy:
+-- v25 (98 edges) -> v10 (+18) -> current 0011 (+2). The embedded v2.5
+-- refresh repairs the current name, so restore the exact outer source for the
+-- detected variant without collapsing either historical boundary.
+DO $restore_additive_tenant_parent_edges$
 BEGIN
-  IF (SELECT tender_context_expected FROM _valo_bridge_state) THEN
+  IF (SELECT retention_completion_expected FROM _valo_bridge_state) THEN
+    EXECUTE $sql$
+      CREATE OR REPLACE FUNCTION valo_security.expected_tenant_parent_edges()
+      RETURNS TABLE (
+        child_table text,
+        child_column text,
+        parent_table text,
+        parent_column text,
+        allow_global_parent boolean
+      )
+      LANGUAGE sql
+      IMMUTABLE
+      SET search_path = pg_catalog
+      AS $function$
+  SELECT *
+  FROM valo_security.expected_tenant_parent_edges_v10()
+  UNION ALL
+  SELECT *
+  FROM (VALUES
+    ('retention_action_storage_events','retention_action_id','retention_actions','id',false),
+    ('retention_action_storage_events','storage_event_id','notification_events','id',false)
+  ) AS edge(child_table, child_column, parent_table, parent_column, allow_global_parent);
+$function$
+    $sql$;
+  ELSIF (SELECT tender_context_expected FROM _valo_bridge_state) THEN
     EXECUTE $sql$
       CREATE OR REPLACE FUNCTION valo_security.expected_tenant_parent_edges()
       RETURNS TABLE (
@@ -7627,7 +7726,7 @@ $function$
     $sql$;
   END IF;
 END;
-$restore_tender_context_edges$;
+$restore_additive_tenant_parent_edges$;
 --> statement-breakpoint
 
 DO $post_rls_validation$
@@ -7662,6 +7761,9 @@ DECLARE
     'tender_context_requirements','tender_context_versions',
     'tender_eligibility_passports'
   ];
+  retention_completion_tables constant text[] := ARRAY[
+    'retention_action_storage_events'
+  ];
   actual_tables text[];
   actual_rls_tables text[];
   required_rls_tables text[];
@@ -7670,13 +7772,16 @@ DECLARE
   assurance_expected boolean;
   registry_expected boolean;
   tender_expected boolean;
+  retention_expected boolean;
   policy_count integer;
   authenticated_rate_limit_policy_matches boolean;
   tender_context_policy_matches boolean;
+  retention_completion_policy_matches boolean;
 BEGIN
   SELECT state.production_assurance_expected, state.retrieval_registry_expected,
-      state.tender_context_expected
-    INTO STRICT assurance_expected, registry_expected, tender_expected
+      state.tender_context_expected, state.retention_completion_expected
+    INTO STRICT assurance_expected, registry_expected, tender_expected,
+      retention_expected
     FROM _valo_bridge_state AS state;
   IF assurance_expected THEN
     expected_table_count := 97;
@@ -7699,6 +7804,13 @@ BEGIN
       + cardinality(tender_context_tables);
     required_rls_tables := required_rls_tables || tender_context_tables;
   END IF;
+  IF retention_expected THEN
+    expected_table_count := expected_table_count
+      + cardinality(retention_completion_tables);
+    expected_policy_count := expected_policy_count
+      + cardinality(retention_completion_tables);
+    required_rls_tables := required_rls_tables || retention_completion_tables;
+  END IF;
 
   SELECT array_agg(c.relname ORDER BY c.relname)
     INTO actual_tables
@@ -7711,6 +7823,10 @@ BEGIN
        ('ai_retrieval_registry' = ANY(actual_tables))
      OR tender_expected IS DISTINCT FROM COALESCE(
        actual_tables @> tender_context_tables,
+       false
+     )
+     OR retention_expected IS DISTINCT FROM COALESCE(
+       actual_tables @> retention_completion_tables,
        false
      ) THEN
     RAISE EXCEPTION 'target table inventory is not the exact expected % table variant',
@@ -7763,6 +7879,26 @@ BEGIN
       ON namespace.oid=relation.relnamespace
     WHERE namespace.nspname='public'
       AND relation.relname = ANY(tender_context_tables);
+  SELECT count(*) = cardinality(retention_completion_tables)
+      AND COALESCE(bool_and(
+        policy.polname = 'tenant_isolation'
+        AND policy.polpermissive
+        AND policy.polcmd = '*'
+        AND policy.polroles = ARRAY[0::oid]
+        AND pg_catalog.pg_get_expr(
+          policy.polqual, policy.polrelid, false
+        ) = '(organisation_id = valo_security.current_organisation_id())'
+        AND pg_catalog.pg_get_expr(
+          policy.polwithcheck, policy.polrelid, false
+        ) = '(organisation_id = valo_security.current_organisation_id())'
+      ), false)
+    INTO retention_completion_policy_matches
+    FROM pg_catalog.pg_policy AS policy
+    JOIN pg_catalog.pg_class AS relation ON relation.oid=policy.polrelid
+    JOIN pg_catalog.pg_namespace AS namespace
+      ON namespace.oid=relation.relnamespace
+    WHERE namespace.nspname='public'
+      AND relation.relname = ANY(retention_completion_tables);
   IF cardinality(actual_rls_tables) IS DISTINCT FROM
        cardinality(required_rls_tables)
      OR NOT COALESCE(
@@ -7773,7 +7909,9 @@ BEGIN
      OR policy_count <> expected_policy_count
      OR assurance_expected IS DISTINCT FROM
        authenticated_rate_limit_policy_matches
-     OR tender_expected IS DISTINCT FROM tender_context_policy_matches THEN
+     OR tender_expected IS DISTINCT FROM tender_context_policy_matches
+     OR retention_expected IS DISTINCT FROM
+       retention_completion_policy_matches THEN
     RAISE EXCEPTION 'RLS reconciliation failed: tables %, policies %',
       cardinality(actual_rls_tables), policy_count;
   END IF;
@@ -7944,6 +8082,20 @@ BEGIN
       role_name
     );
   END IF;
+  IF (SELECT retention_completion_expected FROM _valo_bridge_state) THEN
+    EXECUTE format(
+      'REVOKE DELETE ON TABLE public.retention_actions, public.retention_requests, public.retention_action_storage_events, public.deletion_certificates, public.projects FROM %I',
+      role_name
+    );
+    EXECUTE format(
+      'REVOKE UPDATE ON TABLE public.deletion_certificates FROM %I',
+      role_name
+    );
+    EXECUTE format(
+      'REVOKE EXECUTE ON FUNCTION valo_security.purge_retention_project(uuid,uuid,uuid,uuid,text,integer) FROM %I',
+      role_name
+    );
+  END IF;
   EXECUTE format('GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO %I', role_name);
   EXECUTE format('REVOKE UPDATE ON ALL SEQUENCES IN SCHEMA public FROM %I', role_name);
   EXECUTE format('REVOKE INSERT, UPDATE, DELETE ON TABLE public.audit_events FROM %I', role_name);
@@ -8067,6 +8219,10 @@ BEGIN
                 'jurisdiction_rule_packs','jurisdiction_rules',
                 'organisations','role_grants',
                 'tender_context_artifacts','tender_context_requirements'
+              ) AND NOT (
+                (SELECT retention_completion_expected
+                 FROM _valo_bridge_state)
+                AND relation.relname='deletion_certificates'
               ))
             OR has_table_privilege(role_name, relation.oid, 'DELETE') IS DISTINCT FROM
               (relation.relname NOT IN (
@@ -8081,6 +8237,13 @@ BEGIN
                 'partner_relationships','role_grants',
                 'tender_context_artifacts','tender_context_requirements',
                 'tender_context_versions','tender_eligibility_passports','users'
+              ) AND NOT (
+                (SELECT retention_completion_expected
+                 FROM _valo_bridge_state)
+                AND relation.relname IN (
+                  'deletion_certificates','projects','retention_actions',
+                  'retention_action_storage_events','retention_requests'
+                )
               ))
             OR has_table_privilege(role_name, relation.oid, 'TRUNCATE')
             OR has_table_privilege(role_name, relation.oid, 'REFERENCES')
@@ -8123,6 +8286,9 @@ BEGIN
               'jurisdiction_rule_packs','jurisdiction_rules',
               'organisations','role_grants',
               'tender_context_artifacts','tender_context_requirements'
+            ) AND NOT (
+              (SELECT retention_completion_expected FROM _valo_bridge_state)
+              AND relation.relname='deletion_certificates'
             ))
             OR has_column_privilege(
               role_name, relation.oid, attribute.attnum, 'REFERENCES'
@@ -8185,6 +8351,24 @@ BEGIN
       1786221409612,1786221441937,1786251600000
     )) <> 3 THEN
     RAISE EXCEPTION 'migration journal reconciliation failed';
+  END IF;
+  IF (SELECT retention_completion_expected FROM _valo_bridge_state)
+     AND (
+       (SELECT count(*) FROM drizzle.__drizzle_migrations
+        WHERE created_at=1787472000000) <> 1
+       OR
+       (SELECT count(*) FROM drizzle.__drizzle_migrations
+        WHERE created_at=1787472000000
+          AND hash=inputs.migration_0011_hash) <> 1
+  ) THEN
+    RAISE EXCEPTION '0011 retention-completion journal evidence is absent or drifted';
+  END IF;
+  IF NOT (SELECT retention_completion_expected FROM _valo_bridge_state)
+     AND EXISTS (
+       SELECT 1 FROM drizzle.__drizzle_migrations
+       WHERE created_at=1787472000000
+     ) THEN
+    RAISE EXCEPTION '0011 retention-completion journal evidence exists without its catalog';
   END IF;
 END;
 $migration_journal$;

@@ -27,6 +27,17 @@ export type RetentionReconciliationProgress =
   | "wait_for_terminal_evidence"
   | "block_untrusted_terminal_evidence";
 
+export function hasMutableCompletionProtocol(input: {
+  requestProtocolVersion: number;
+  actionProtocolVersion?: number;
+}): boolean {
+  return (
+    input.requestProtocolVersion === 1 &&
+    (input.actionProtocolVersion === undefined ||
+      input.actionProtocolVersion === 1)
+  );
+}
+
 /**
  * Dead letters remain recoverable through the governed storage replay path.
  * Only an immutable terminal outcome that cannot prove deletion closes the
@@ -83,12 +94,13 @@ export function decideStorageTerminalEvidence(
 
 export function permissionsForSnapshot(input: {
   authorised: boolean;
+  completionProtocolVersion: number;
   requestStatus: string;
   actionStatus: RetentionActionStatus | null;
   actorUserId: string;
   preparedByUserId: string | null;
 }): RetentionCompletionPermissions {
-  if (!input.authorised) {
+  if (!input.authorised || input.completionProtocolVersion !== 1) {
     return { canStart: false, canReconcile: false, canCertify: false };
   }
   return {

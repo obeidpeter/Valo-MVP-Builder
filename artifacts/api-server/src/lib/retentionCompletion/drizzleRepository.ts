@@ -116,6 +116,7 @@ import {
 import {
   decideRetentionReconciliationProgress,
   decideStorageTerminalEvidence,
+  hasMutableCompletionProtocol,
   permissionsForSnapshot,
 } from "./policy";
 
@@ -340,6 +341,26 @@ function requestView(row: RequestRow): RetentionRequestView {
     createdAt: instant(row.createdAt)!,
     updatedAt: instant(row.updatedAt)!,
   };
+}
+
+function assertMutableCompletionProtocol(
+  request: RequestRow,
+  action?: ActionRow,
+): void {
+  const mutable = action
+    ? hasMutableCompletionProtocol({
+        requestProtocolVersion: request.completionProtocolVersion,
+        actionProtocolVersion: action.completionProtocolVersion,
+      })
+    : hasMutableCompletionProtocol({
+        requestProtocolVersion: request.completionProtocolVersion,
+      });
+  if (!mutable) {
+    throw new RetentionCompletionError(
+      "state_conflict",
+      "Legacy retention evidence is read-only and cannot enter the completion workflow.",
+    );
+  }
 }
 
 function actionView(row: ActionRow): RetentionActionView {
@@ -887,6 +908,7 @@ async function buildSnapshot(
     certificate,
     permissions: permissionsForSnapshot({
       authorised: true,
+      completionProtocolVersion: request.completionProtocolVersion,
       requestStatus: request.status,
       actionStatus: action ? (action.status as RetentionActionStatus) : null,
       actorUserId,
@@ -2310,6 +2332,7 @@ export class DrizzleRetentionCompletionRepository implements RetentionCompletion
         const now = await databaseTime(tx);
         const authority = await assertCurrentAuthority(tx, scope, now, true);
         const request = await lockRequest(tx, scope, requestId);
+        assertMutableCompletionProtocol(request);
         const existingActions = await tx
           .select()
           .from(retentionActions)
@@ -2675,6 +2698,7 @@ export class DrizzleRetentionCompletionRepository implements RetentionCompletion
           scope,
           actionId,
         );
+        assertMutableCompletionProtocol(request, action);
         if (
           action.reconciliationManifest &&
           action.reconciliationManifestSha256
@@ -3042,6 +3066,7 @@ export class DrizzleRetentionCompletionRepository implements RetentionCompletion
           scope,
           actionId,
         );
+        assertMutableCompletionProtocol(request, action);
         const existingCertificates = await tx
           .select()
           .from(deletionCertificates)

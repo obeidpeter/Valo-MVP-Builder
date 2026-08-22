@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   decideRetentionReconciliationProgress,
   decideStorageTerminalEvidence,
+  hasMutableCompletionProtocol,
   permissionsForSnapshot,
 } from "./policy";
 
@@ -77,6 +78,7 @@ test("only exact completed provider receipts are trustworthy", () => {
 test("snapshot capabilities follow state and maker-checker authority", () => {
   const common = {
     authorised: true,
+    completionProtocolVersion: 1,
     actorUserId: "checker",
     preparedByUserId: "maker",
   };
@@ -103,6 +105,40 @@ test("snapshot capabilities follow state and maker-checker authority", () => {
       requestStatus: "reconciling",
       actionStatus: "reconciled",
     }).canCertify,
+    false,
+  );
+  assert.deepEqual(
+    permissionsForSnapshot({
+      ...common,
+      completionProtocolVersion: 0,
+      requestStatus: "pending",
+      actionStatus: null,
+    }),
+    { canStart: false, canReconcile: false, canCertify: false },
+  );
+});
+
+test("only protocol-one request and action evidence is mutable", () => {
+  assert.equal(
+    hasMutableCompletionProtocol({ requestProtocolVersion: 1 }),
+    true,
+  );
+  assert.equal(
+    hasMutableCompletionProtocol({ requestProtocolVersion: 0 }),
+    false,
+  );
+  assert.equal(
+    hasMutableCompletionProtocol({
+      requestProtocolVersion: 1,
+      actionProtocolVersion: 1,
+    }),
+    true,
+  );
+  assert.equal(
+    hasMutableCompletionProtocol({
+      requestProtocolVersion: 1,
+      actionProtocolVersion: 0,
+    }),
     false,
   );
 });
