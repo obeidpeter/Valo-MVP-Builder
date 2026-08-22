@@ -17,6 +17,6 @@
  */
 
 /**
- * Current positive integer resource version, optionally quoted or weakly prefixed.
+ * Current positive safe-integer resource version, optionally quoted or weakly prefixed.
  */
 export type IfMatchVersionParameter = string;

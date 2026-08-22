@@ -20,8 +20,9 @@
     "release:provenance": "node ./scripts/release-provenance.mjs",
     "verify:governance": "node --test ./scripts/repository-governance.test.mjs && node ./scripts/verify-repository-governance.mjs",
     "verify:release-provenance": "node --test ./scripts/release-provenance.test.mjs",
+    "verify:product-capabilities": "node --test ./scripts/verify-product-capabilities.test.mjs && node ./scripts/verify-product-capabilities.mjs",
     "verify:operational-controls": "node --test ./scripts/verify-operational-evidence.test.mjs && node ./scripts/verify-operational-controls.mjs",
-    "verify:release-config": "node --test ./scripts/start-replit-production.test.mjs && node ./scripts/verify-release-config.mjs && pnpm run verify:operational-controls",
+    "verify:release-config": "node --test ./scripts/start-replit-production.test.mjs && node ./scripts/verify-release-config.mjs && pnpm run verify:operational-controls && pnpm run verify:product-capabilities",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },

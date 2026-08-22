@@ -150,6 +150,16 @@ export default function ProjectDetails() {
   const { toast } = useToast();
   const canUpdateProject = useOrganisationPermission("project:update");
   const canManageRetention = useOrganisationPermission("retention:manage");
+  const canReadTenderDocuments = useOrganisationPermission("document:read");
+  const canReadTenderRequirements =
+    useOrganisationPermission("requirement:read");
+  const canReadTenderEvidence = useOrganisationPermission("evidence:read");
+  const canReadTenderRules = useOrganisationPermission("rule_pack:read");
+  const canOpenTenderContext =
+    canReadTenderDocuments &&
+    canReadTenderRequirements &&
+    canReadTenderEvidence &&
+    canReadTenderRules;
   const { data: notifications } = useListProjectNotifications(id ?? "", {
     query: {
       enabled: Boolean(id),
@@ -485,6 +495,14 @@ export default function ProjectDetails() {
               </>
             )}
           </p>
+          {canOpenTenderContext ? (
+            <Button asChild variant="outline" className="mt-4">
+              <Link href={`/projects/${id}/tender-context`}>
+                <UserCheck className="mr-2 h-4 w-4" aria-hidden="true" />
+                Open Tender Context &amp; Eligibility Passport
+              </Link>
+            </Button>
+          ) : null}
         </div>
         <div className="shrink-0 space-y-1.5">
           <Label

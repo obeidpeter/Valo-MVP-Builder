@@ -18,10 +18,28 @@ const customFetchPath = configuredOutputRoot
       "src",
       "custom-fetch.ts",
     );
+const configuredMutatorPath = configuredOutputRoot
+  ? path.relative(apiClientReactSrc, customFetchPath).split(path.sep).join("/")
+  : customFetchPath;
+const mutatorPath =
+  configuredOutputRoot && !configuredMutatorPath.startsWith(".")
+    ? `./${configuredMutatorPath}`
+    : configuredMutatorPath;
 
 const strictRoadmapOperationIds = [
   "readinessCheck",
   "getWorkInbox",
+  "getCurrentDocumentVersionSnapshot",
+  "captureDocumentVersionSnapshot",
+  "reviewDocumentVersionSnapshot",
+  "getTenderContextCentre",
+  "createTenderContextVersion",
+  "reviewTenderContextVersion",
+  "createTenderEligibilityPassport",
+  "reviewTenderEligibilityPassport",
+  "getAddendumImpactCentre",
+  "reviewAddendumImpact",
+  "applyAddendumImpact",
   "listCanonicalEvidenceOptions",
   "getProductionAcceptanceSnapshot",
   "listProductionAcceptanceAuthorities",
@@ -194,12 +212,7 @@ export default defineConfig({
           includeHttpResponseReturnType: false,
         },
         mutator: {
-          path: configuredOutputRoot
-            ? path
-                .relative(apiClientReactSrc, customFetchPath)
-                .split(path.sep)
-                .join("/")
-            : customFetchPath,
+          path: mutatorPath,
           name: "customFetch",
         },
       },

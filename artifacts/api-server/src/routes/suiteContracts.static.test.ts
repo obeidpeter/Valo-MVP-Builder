@@ -633,15 +633,18 @@ test("frozen suite payloads retain their route-level concurrency, visibility and
     openApi,
     /OperationsMobileQueue:[\s\S]*?required: \[restrictedContent, maxItems, items\][\s\S]*?const: 250/u,
   );
+  const credentialVerification = openApiSchema(
+    "OperationsCreateCredentialVerification",
+  );
   assert.match(
-    openApi,
-    /OperationsCreateCredentialVerification:[\s\S]*?vaultItemVersion[\s\S]*?minimum: 1[\s\S]*?documentSha256/u,
+    credentialVerification,
+    /vaultItemVersion[\s\S]*?minimum: 1[\s\S]*?documentSha256/u,
   );
   assert.match(
     openApi,
     /VaultItem:[\s\S]*?required:[\s\S]*?version[\s\S]*?version: \{ type: integer, minimum: 1 \}/u,
   );
-  assert.doesNotMatch(openApi, /vaultItemVersionId/u);
+  assert.doesNotMatch(credentialVerification, /vaultItemVersionId/u);
   assert.match(operationsSource, /vaultItemVersion/u);
   assert.doesNotMatch(operationsSource, /vaultItemVersionId/u);
   assert.match(

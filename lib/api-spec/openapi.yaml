@@ -2208,6 +2208,7 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
         "503": { $ref: "#/components/responses/RoadmapRepositoryUnavailable" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
   /projects/{projectId}/boq-verification/runs:
     post:
       tags: [BOQ]
@@ -2275,6 +2276,7 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
         "503": { $ref: "#/components/responses/RoadmapRepositoryUnavailable" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
   /projects/{projectId}/boq-verification/exceptions/{exceptionId}/resolution:
     post:
       tags: [BOQ]
@@ -2421,6 +2423,426 @@ paths:
           $ref: "#/components/responses/Conflict"
         "500":
           $ref: "#/components/responses/InternalServerError"
+  /documents/{id}/version-snapshot:
+    get:
+      operationId: getCurrentDocumentVersionSnapshot
+      tags: [Intelligence]
+      summary: Inspect the exact current document version and its immutable snapshot
+      description: >-
+        Returns only the uniquely matched current document version. A snapshot
+        remains usable only while its uploaded-byte hash and captured redaction
+        state still match the current document. This endpoint does not infer
+        authoritative fields or verify a proposal.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Current exact version and optional immutable snapshot
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentDocumentVersionSnapshot"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+  /documents/{id}/version-snapshots:
+    post:
+      operationId: captureDocumentVersionSnapshot
+      tags: [Intelligence]
+      summary: Capture one explicit immutable proposal for the exact current version
+      description: >-
+        A current direct member submits the complete canonical proposal. Tender
+        and addendum sources require the closed v2 full/delta structure; current
+        approved company evidence may intentionally use null structure. Capture
+        never verifies the proposal, and the response is exposed only after COMMIT.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentVersionSnapshotCaptureRequest"
+      responses:
+        "200":
+          description: Exact idempotent replay of the existing captured snapshot
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentVersionSnapshot"
+        "201":
+          description: Newly committed captured snapshot awaiting a different reviewer
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentVersionSnapshot"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+  /documents/{id}/version-snapshots/{snapshotId}/review:
+    post:
+      operationId: reviewDocumentVersionSnapshot
+      tags: [Intelligence]
+      summary: Verify or reject an exact captured document-version snapshot
+      description: >-
+        A different current direct member with Intelligence review authority
+        reviews the exact immutable bytes, captured redaction state and complete
+        v2 predecessor chain. Verification is a named evidence decision, not
+        legal or compliance clearance, and returns only after COMMIT.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+        - name: snapshotId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/IfMatchVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentVersionSnapshotReviewRequest"
+      responses:
+        "200":
+          description: Committed terminal snapshot review
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentVersionSnapshot"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+  /projects/{id}/tender-context:
+    get:
+      operationId: getTenderContextCentre
+      tags: [Intelligence]
+      summary: View tender-specific context versions and Eligibility Passports
+      description: >-
+        Returns immutable decision records as they were recorded at named
+        review. Historical accepted or ready states do not assert current
+        usability: every new review or generation action rechecks the current
+        source, vault and approved Nigeria rule-pack authority and fails on
+        drift. This is not a universal eligibility checklist, legal advice,
+        compliance clearance, submission approval or award prediction.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Tender Context centre for the selected project
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenderContextCentre"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/RoadmapRepositoryUnavailable" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+  /projects/{id}/tender-context/versions:
+    post:
+      operationId: createTenderContextVersion
+      tags: [Intelligence]
+      summary: Propose a tender-specific context version for named review
+      description: >-
+        A current direct member proposes exact verified sources, requirements
+        and company evidence. Every citation must match one unique UTF-16 span.
+        The proposer cannot accept the same version, and the response is
+        exposed only after COMMIT.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TenderContextVersionCreateRequest"
+      responses:
+        "201":
+          description: Committed pending Tender Context version
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenderContextVersion"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/RoadmapRepositoryUnavailable" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+  /projects/{id}/tender-context/versions/{contextVersionId}/review:
+    post:
+      operationId: reviewTenderContextVersion
+      tags: [Intelligence]
+      summary: Record a named review of one exact Tender Context version
+      description: >-
+        Acceptance rechecks the immutable context, current source eligibility,
+        live vault evidence and exact approved rule material in the tenant
+        transaction. The reviewer must differ from the proposer.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+        - name: contextVersionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/IfMatchVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TenderNamedReviewRequest"
+      responses:
+        "200":
+          description: Committed Tender Context review
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenderContextVersion"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/RoadmapRepositoryUnavailable" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+  /projects/{id}/tender-context/versions/{contextVersionId}/eligibility-passports:
+    post:
+      operationId: createTenderEligibilityPassport
+      tags: [Intelligence]
+      summary: Generate a tender-specific Eligibility Passport for review
+      description: >-
+        Deterministically evaluates only the accepted requirements and evidence
+        selected for this tender. Current source, vault and rule-pack authority
+        are rechecked; no client decision fields are accepted. The result is
+        never submission approval or universal qualification.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+        - name: contextVersionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "201":
+          description: Committed pending Eligibility Passport
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenderEligibilityPassport"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/RoadmapRepositoryUnavailable" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+  /projects/{id}/tender-context/eligibility-passports/{passportRecordId}/review:
+    post:
+      operationId: reviewTenderEligibilityPassport
+      tags: [Intelligence]
+      summary: Record a named review of one exact Eligibility Passport
+      description: >-
+        Acceptance reloads the accepted context, source versions, current vault
+        authority and approved rule material, then recomputes the deterministic
+        result byte-for-byte. The reviewer must differ from the generator.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+        - name: passportRecordId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/IfMatchVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TenderNamedReviewRequest"
+      responses:
+        "200":
+          description: Committed Eligibility Passport review
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenderEligibilityPassport"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/RoadmapRepositoryUnavailable" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+  /projects/{id}/addendum-impact:
+    get:
+      operationId: getAddendumImpactCentre
+      tags: [Intelligence]
+      summary: Compare an addendum with its exact effective predecessor
+      description: >-
+        Resolves the verified v2 same-series predecessor chain and returns a
+        deterministic, read-only comparison of the selected addendum with the
+        effective state immediately before it. Inherited values retain their
+        original exact citations, while removals require an exact instruction
+        citation from the selected revision. It never reopens or invalidates
+        work. Supplying version IDs selects that exact tenant-scoped predecessor
+        and revision.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+        - name: baselineVersionId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: revisionVersionId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Exact-version addendum comparison and impact plan
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddendumImpactCentreSnapshot"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/RoadmapRepositoryUnavailable" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+  /projects/{id}/addendum-impact/review:
+    post:
+      operationId: reviewAddendumImpact
+      tags: [Intelligence]
+      summary: Record a named review of one exact addendum impact plan
+      description: >-
+        Records review only. It does not reopen or invalidate any downstream
+        object. Current direct membership and Intelligence review authority are
+        revalidated in the tenant transaction, and the response is exposed only
+        after COMMIT.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddendumImpactReviewRequest"
+      responses:
+        "200":
+          description: Current comparison with the committed named review
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddendumImpactCentreSnapshot"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/RoadmapRepositoryUnavailable" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+  /projects/{id}/addendum-impact/apply:
+    post:
+      operationId: applyAddendumImpact
+      tags: [Intelligence]
+      summary: Apply a separately reviewed controlled reopening plan
+      description: >-
+        Applies only the exact accepted version-bound plan after typed
+        confirmation. The applying direct member must be different from the
+        named reviewer. Every target uses optimistic compare-and-swap and all
+        target changes plus immutable audit evidence commit atomically before
+        the receipt is returned. Historical approval and report authority
+        stamps are preserved when current validity is changed.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddendumImpactApplyRequest"
+      responses:
+        "200":
+          description: Committed controlled-reopening result or exact replay
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddendumImpactApplyResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/RoadmapRepositoryUnavailable" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
   /projects/{id}/intelligence/evidence-search:
     post:
       operationId: searchProjectIntelligenceEvidence
@@ -6122,10 +6544,11 @@ components:
       name: If-Match
       in: header
       required: true
-      description: Current positive integer resource version, optionally quoted or weakly prefixed.
+      description: Current positive safe-integer resource version, optionally quoted or weakly prefixed.
       schema:
         type: string
-        pattern: '^(?:W/)?"?[1-9][0-9]*"?$'
+        maxLength: 21
+        pattern: '^(?:W/)?"?(?:[1-9][0-9]{0,14}|[1-8][0-9]{15}|900[0-6][0-9]{12}|90070[0-9]{11}|90071[0-8][0-9]{10}|900719[0-8][0-9]{9}|9007199[01][0-9]{8}|90071992[0-4][0-9]{7}|900719925[0-3][0-9]{6}|9007199254[0-6][0-9]{5}|90071992547[0-3][0-9]{4}|9007199254740[0-8][0-9]{2}|90071992547409[0-8][0-9]|900719925474099[01])"?$'
       example: '"3"'
     IfMatchVersionOptional:
       name: If-Match
@@ -6134,7 +6557,8 @@ components:
       description: Required when updating an existing row; omitted when creating the first tenant override.
       schema:
         type: string
-        pattern: '^(?:W/)?"?[1-9][0-9]*"?$'
+        maxLength: 21
+        pattern: '^(?:W/)?"?(?:[1-9][0-9]{0,14}|[1-8][0-9]{15}|900[0-6][0-9]{12}|90070[0-9]{11}|90071[0-8][0-9]{10}|900719[0-8][0-9]{9}|9007199[01][0-9]{8}|90071992[0-4][0-9]{7}|900719925[0-3][0-9]{6}|9007199254[0-6][0-9]{5}|90071992547[0-3][0-9]{4}|9007199254740[0-8][0-9]{2}|90071992547409[0-8][0-9]|900719925474099[01])"?$'
       example: '"3"'
   headers:
     ReleaseSha256:
@@ -13764,6 +14188,1113 @@ components:
           $ref: "#/components/schemas/IntelligenceEvidenceLayerSummary"
         reviewInbox:
           $ref: "#/components/schemas/IntelligenceReviewInbox"
+    DocumentSnapshotField:
+      type: object
+      additionalProperties: false
+      required: [externalId, category, value, startOffset, endOffset]
+      properties:
+        externalId:
+          {
+            type: string,
+            minLength: 1,
+            maxLength: 128,
+            pattern: "^[A-Za-z0-9._:-]+$",
+          }
+        category:
+          type: string
+          enum:
+            [
+              deadline,
+              opening,
+              eligibility,
+              requirement,
+              boq,
+              submission_instruction,
+              contact,
+              other,
+            ]
+        value: { type: string, minLength: 1, maxLength: 20000 }
+        startOffset: { type: integer, minimum: 0 }
+        endOffset: { type: integer, minimum: 1 }
+        page: { type: integer, minimum: 1 }
+        section: { type: string, maxLength: 2000 }
+    DocumentSnapshotSetOperation:
+      type: object
+      additionalProperties: false
+      required: [operation, externalId, category, value, startOffset, endOffset]
+      properties:
+        operation: { type: string, const: set }
+        externalId:
+          {
+            type: string,
+            minLength: 1,
+            maxLength: 128,
+            pattern: "^[A-Za-z0-9._:-]+$",
+          }
+        category:
+          type: string
+          enum:
+            [
+              deadline,
+              opening,
+              eligibility,
+              requirement,
+              boq,
+              submission_instruction,
+              contact,
+              other,
+            ]
+        value: { type: string, minLength: 1, maxLength: 20000 }
+        startOffset: { type: integer, minimum: 0 }
+        endOffset: { type: integer, minimum: 1 }
+        page: { type: integer, minimum: 1 }
+        section: { type: string, maxLength: 2000 }
+    DocumentSnapshotRemoveOperation:
+      type: object
+      additionalProperties: false
+      required:
+        [operation, externalId, category, instruction, startOffset, endOffset]
+      properties:
+        operation: { type: string, const: remove }
+        externalId:
+          {
+            type: string,
+            minLength: 1,
+            maxLength: 128,
+            pattern: "^[A-Za-z0-9._:-]+$",
+          }
+        category:
+          type: string
+          enum:
+            [
+              deadline,
+              opening,
+              eligibility,
+              requirement,
+              boq,
+              submission_instruction,
+              contact,
+              other,
+            ]
+        instruction: { type: string, minLength: 1, maxLength: 20000 }
+        startOffset: { type: integer, minimum: 0 }
+        endOffset: { type: integer, minimum: 1 }
+        page: { type: integer, minimum: 1 }
+        section: { type: string, maxLength: 2000 }
+    DocumentStructuredSnapshotV2:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          schema,
+          sourceId,
+          sourceKind,
+          mode,
+          baseVersionId,
+          authority,
+          origin,
+          fields,
+          operations,
+        ]
+      properties:
+        schema: { type: string, const: valo.addendum-structured-snapshot/v2 }
+        sourceId:
+          type: string
+          format: uuid
+          description: Stable solicitation-series document UUID, not a filename or addendum UUID.
+        sourceKind: { type: string, enum: [solicitation, addendum] }
+        mode: { type: string, enum: [full, delta] }
+        baseVersionId: { type: [string, "null"], format: uuid }
+        authority: { type: string, const: authoritative }
+        origin: { type: string, minLength: 1, maxLength: 1000 }
+        fields:
+          type: array
+          maxItems: 512
+          items:
+            $ref: "#/components/schemas/DocumentSnapshotField"
+        operations:
+          type: array
+          maxItems: 512
+          items:
+            oneOf:
+              - $ref: "#/components/schemas/DocumentSnapshotSetOperation"
+              - $ref: "#/components/schemas/DocumentSnapshotRemoveOperation"
+    DocumentVersionSnapshot:
+      type: object
+      additionalProperties: false
+      description: Captured records have no verification stamp. Verified or rejected records have a complete named verification stamp from a different user than the capturer.
+      required:
+        [
+          id,
+          documentId,
+          documentVersionId,
+          documentVersionSha256,
+          capturedRedactionStatus,
+          canonicalText,
+          canonicalTextSha256,
+          structuredSnapshot,
+          structuredSnapshotSha256,
+          extractionMethod,
+          parserVersion,
+          status,
+          capturedByUserId,
+          capturedByName,
+          verifiedByUserId,
+          verifiedByName,
+          verifiedAt,
+          version,
+          createdAt,
+        ]
+      allOf:
+        - if:
+            properties:
+              status: { const: captured }
+          then:
+            properties:
+              verifiedByUserId: { type: "null" }
+              verifiedByName: { type: "null" }
+              verifiedAt: { type: "null" }
+          else:
+            properties:
+              verifiedByUserId: { type: string, format: uuid }
+              verifiedByName: { type: string, minLength: 1, maxLength: 200 }
+              verifiedAt: { type: string, format: date-time }
+      properties:
+        id: { type: string, format: uuid }
+        documentId: { type: string, format: uuid }
+        documentVersionId: { type: string, format: uuid }
+        documentVersionSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        capturedRedactionStatus: { type: string, enum: [included, redacted] }
+        canonicalText: { type: string, minLength: 1, maxLength: 2000000 }
+        canonicalTextSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        structuredSnapshot:
+          oneOf:
+            - $ref: "#/components/schemas/DocumentStructuredSnapshotV2"
+            - type: "null"
+        structuredSnapshotSha256:
+          { type: [string, "null"], pattern: "^[a-f0-9]{64}$" }
+        extractionMethod: { type: string, minLength: 1, maxLength: 120 }
+        parserVersion: { type: string, minLength: 1, maxLength: 120 }
+        status: { type: string, enum: [captured, verified, rejected] }
+        capturedByUserId: { type: string, format: uuid }
+        capturedByName: { type: string, minLength: 1, maxLength: 200 }
+        verifiedByUserId: { type: [string, "null"], format: uuid }
+        verifiedByName: { type: [string, "null"], maxLength: 200 }
+        verifiedAt: { type: [string, "null"], format: date-time }
+        version: { type: integer, minimum: 1 }
+        createdAt: { type: string, format: date-time }
+    CurrentDocumentVersionSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          documentId,
+          projectId,
+          documentVersionId,
+          documentVersionSha256,
+          filename,
+          redactionStatus,
+          extractionStatus,
+          canonicalText,
+          snapshot,
+        ]
+      properties:
+        documentId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        documentVersionId: { type: string, format: uuid }
+        documentVersionSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        filename: { type: string, minLength: 1, maxLength: 1000 }
+        redactionStatus: { type: string, enum: [included, redacted] }
+        extractionStatus: { type: string }
+        canonicalText: { type: string, minLength: 1, maxLength: 2000000 }
+        snapshot:
+          oneOf:
+            - $ref: "#/components/schemas/DocumentVersionSnapshot"
+            - type: "null"
+    DocumentVersionSnapshotCaptureRequest:
+      type: object
+      additionalProperties: false
+      required: [documentVersionId, structuredSnapshot]
+      properties:
+        documentVersionId: { type: string, format: uuid }
+        structuredSnapshot:
+          oneOf:
+            - $ref: "#/components/schemas/DocumentStructuredSnapshotV2"
+            - type: "null"
+    DocumentVersionSnapshotReviewRequest:
+      type: object
+      additionalProperties: false
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [verified, rejected] }
+    TenderRequirementBindingCreate:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          requirementId,
+          requirementCitationId,
+          evidenceKind,
+          mandatory,
+          requiresCurrentOnSubmissionDate,
+          requiresExactLegalEntityMatch,
+        ]
+      properties:
+        requirementId: { type: string, format: uuid }
+        requirementCitationId: { type: string, format: uuid }
+        evidenceKind: { type: string, minLength: 1, maxLength: 120 }
+        mandatory: { type: boolean }
+        requiresCurrentOnSubmissionDate: { type: boolean }
+        requiresExactLegalEntityMatch: { type: boolean }
+    TenderArtifactBindingCreate:
+      type: object
+      additionalProperties: false
+      required: [vaultItemVersionId, evidenceKind, citation]
+      properties:
+        vaultItemVersionId: { type: string, format: uuid }
+        evidenceKind: { type: string, minLength: 1, maxLength: 120 }
+        legalEntityName: { type: string, minLength: 1, maxLength: 300 }
+        citation:
+          type: object
+          additionalProperties: false
+          required: [startOffset, endOffset, quote]
+          properties:
+            startOffset: { type: integer, minimum: 0 }
+            endOffset: { type: integer, minimum: 1 }
+            quote: { type: string, minLength: 1, maxLength: 20000 }
+    TenderContextVersionCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          primaryDocumentVersionId,
+          jurisdictionRulePackId,
+          legalEntityName,
+          submissionDate,
+          jurisdiction,
+          entityScopes,
+          categoryScopes,
+          requirements,
+          artifacts,
+        ]
+      properties:
+        primaryDocumentVersionId: { type: string, format: uuid }
+        jurisdictionRulePackId: { type: string, format: uuid }
+        legalEntityName: { type: string, minLength: 1, maxLength: 300 }
+        submissionDate: { type: string, format: date }
+        jurisdiction: { type: string, pattern: "^NG(?:-[A-Z0-9]{1,12})?$" }
+        entityScopes:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 120 }
+        categoryScopes:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 120 }
+        requirements:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/TenderRequirementBindingCreate"
+        artifacts:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/TenderArtifactBindingCreate"
+    TenderNamedReviewRequest:
+      type: object
+      additionalProperties: false
+      required: [decision, note]
+      properties:
+        decision: { type: string, enum: [accepted, needs_changes, rejected] }
+        note: { type: string, minLength: 1, maxLength: 5000 }
+    TenderNamedReview:
+      type: object
+      additionalProperties: false
+      description: Pending reviews have no reviewer stamp. Every recorded decision has a complete named reviewer stamp.
+      required: [state, reviewedByUserId, reviewedByName, reviewedAt, note]
+      allOf:
+        - if:
+            properties:
+              state: { const: pending_review }
+          then:
+            properties:
+              reviewedByUserId: { type: "null" }
+              reviewedByName: { type: "null" }
+              reviewedAt: { type: "null" }
+          else:
+            properties:
+              reviewedByUserId: { type: string, format: uuid }
+              reviewedByName: { type: string, minLength: 1, maxLength: 200 }
+              reviewedAt: { type: string, format: date-time }
+      properties:
+        state:
+          {
+            type: string,
+            enum: [pending_review, accepted, needs_changes, rejected],
+          }
+        reviewedByUserId: { type: [string, "null"], format: uuid }
+        reviewedByName: { type: [string, "null"], maxLength: 200 }
+        reviewedAt: { type: [string, "null"], format: date-time }
+        note: { type: [string, "null"], maxLength: 5000 }
+    TenderRuleAdvisory:
+      type: object
+      additionalProperties: false
+      required:
+        [ruleId, applicable, enabled, manualReviewRequired, message, sourceUrls]
+      properties:
+        ruleId: { type: string, minLength: 1, maxLength: 128 }
+        applicable: { type: boolean }
+        enabled: { type: boolean }
+        manualReviewRequired: { type: boolean }
+        message: { type: string, minLength: 1, maxLength: 1000 }
+        sourceUrls:
+          type: array
+          maxItems: 100
+          items: { type: string, maxLength: 2000 }
+    TenderContextRequirement:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          requirementId,
+          requirementCitationId,
+          description,
+          evidenceKind,
+          mandatory,
+          requiresCurrentOnSubmissionDate,
+          requiresExactLegalEntityMatch,
+        ]
+      properties:
+        requirementId: { type: string, format: uuid }
+        requirementCitationId: { type: string, format: uuid }
+        description: { type: string, minLength: 1, maxLength: 20000 }
+        evidenceKind: { type: string, minLength: 1, maxLength: 120 }
+        mandatory: { type: boolean }
+        requiresCurrentOnSubmissionDate: { type: boolean }
+        requiresExactLegalEntityMatch: { type: boolean }
+    TenderContextArtifactCitation:
+      type: object
+      additionalProperties: false
+      required: [sourceVersionId, contentSha256, startOffset, endOffset, quote]
+      properties:
+        sourceVersionId: { type: string, format: uuid }
+        contentSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        startOffset: { type: integer, minimum: 0 }
+        endOffset: { type: integer, minimum: 1 }
+        quote: { type: string, minLength: 1, maxLength: 20000 }
+    TenderContextArtifact:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          vaultItemVersionId,
+          documentVersionId,
+          documentVersionSha256,
+          label,
+          issuer,
+          evidenceKind,
+          legalEntityName,
+          validFrom,
+          validUntil,
+          citation,
+        ]
+      properties:
+        vaultItemVersionId: { type: string, format: uuid }
+        documentVersionId: { type: string, format: uuid }
+        documentVersionSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        label: { type: string }
+        issuer: { type: string }
+        evidenceKind: { type: string, minLength: 1, maxLength: 120 }
+        legalEntityName: { type: [string, "null"], maxLength: 300 }
+        validFrom: { type: [string, "null"], format: date }
+        validUntil: { type: [string, "null"], format: date }
+        citation:
+          $ref: "#/components/schemas/TenderContextArtifactCitation"
+    TenderContextVersion:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          projectId,
+          versionNumber,
+          supersedesContextVersionId,
+          primaryDocumentVersionId,
+          jurisdictionRulePackId,
+          rulePackLabel,
+          legalEntityName,
+          submissionDate,
+          jurisdiction,
+          entityScopes,
+          categoryScopes,
+          sourceManifestSha256,
+          contextSha256,
+          status,
+          review,
+          ruleAdvisories,
+          requirements,
+          artifacts,
+          createdAt,
+          version,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        versionNumber: { type: integer, minimum: 1 }
+        supersedesContextVersionId: { type: [string, "null"], format: uuid }
+        primaryDocumentVersionId: { type: string, format: uuid }
+        jurisdictionRulePackId: { type: string, format: uuid }
+        rulePackLabel: { type: string }
+        legalEntityName: { type: string, minLength: 1, maxLength: 300 }
+        submissionDate: { type: string, format: date }
+        jurisdiction: { type: string }
+        entityScopes:
+          type: array
+          items: { type: string }
+        categoryScopes:
+          type: array
+          items: { type: string }
+        sourceManifestSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        contextSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        status:
+          {
+            type: string,
+            enum:
+              [pending_review, accepted, needs_changes, rejected, superseded],
+          }
+        review:
+          $ref: "#/components/schemas/TenderNamedReview"
+        ruleAdvisories:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenderRuleAdvisory"
+        requirements:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/TenderContextRequirement"
+        artifacts:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/TenderContextArtifact"
+        createdAt: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
+    TenderHumanReview:
+      type: object
+      additionalProperties: false
+      description: A recorded decision always identifies its reviewer and review time; only an unreviewed item may omit them.
+      required: [state]
+      allOf:
+        - if:
+            properties:
+              state: { const: unreviewed }
+          else:
+            required: [reviewerId, reviewedAt]
+      properties:
+        state:
+          {
+            type: string,
+            enum: [unreviewed, accepted, rejected, needs_changes],
+          }
+        reviewerId:
+          {
+            type: string,
+            minLength: 1,
+            maxLength: 128,
+            pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          }
+        reviewedAt: { type: string, format: date-time }
+        note: { type: string, maxLength: 5000 }
+    TenderGroundedCitation:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          sourceId,
+          sourceVersionId,
+          contentSha256,
+          startOffset,
+          endOffset,
+          quote,
+          citationId,
+          offsetUnit,
+          sourceTitle,
+          sourceCapturedAt,
+          sourceAuthority,
+          sourceKind,
+          sourceOrigin,
+        ]
+      properties:
+        sourceId: { type: string, maxLength: 128 }
+        sourceVersionId: { type: string, maxLength: 128 }
+        contentSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        startOffset: { type: integer, minimum: 0 }
+        endOffset: { type: integer, minimum: 1 }
+        quote: { type: string, minLength: 1, maxLength: 20000 }
+        page: { type: integer, minimum: 1 }
+        section: { type: string, maxLength: 2000 }
+        citationId: { type: string, maxLength: 128 }
+        offsetUnit: { type: string, const: utf16_code_unit }
+        sourceTitle: { type: string }
+        sourceCapturedAt: { type: string, format: date-time }
+        sourceAuthority:
+          { type: string, enum: [authoritative, corroborating, unverified] }
+        sourceKind:
+          {
+            type: string,
+            enum:
+              [
+                solicitation,
+                addendum,
+                company_evidence,
+                official_opportunity,
+                other,
+              ],
+          }
+        sourceOrigin: { type: string }
+    TenderEligibilityRequirementResult:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          externalId,
+          description,
+          evidenceKind,
+          mandatory,
+          requiresCurrentOnSubmissionDate,
+          requiresExactLegalEntityMatch,
+          citations,
+          review,
+          requirementId,
+        ]
+      properties:
+        externalId: { type: string }
+        description: { type: string }
+        evidenceKind: { type: string }
+        mandatory: { type: boolean }
+        requiresCurrentOnSubmissionDate: { type: boolean }
+        requiresExactLegalEntityMatch: { type: boolean }
+        citations:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenderGroundedCitation"
+        review:
+          $ref: "#/components/schemas/TenderHumanReview"
+        requirementId: { type: string }
+    TenderEligibilityArtifactResult:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          externalId,
+          evidenceKind,
+          label,
+          issuer,
+          citations,
+          review,
+          artifactId,
+          validity,
+        ]
+      properties:
+        externalId: { type: string }
+        evidenceKind: { type: string }
+        label: { type: string }
+        issuer: { type: string }
+        legalEntityName: { type: string }
+        validFrom: { type: string, format: date }
+        validUntil: { type: string, format: date }
+        citations:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenderGroundedCitation"
+        review:
+          $ref: "#/components/schemas/TenderHumanReview"
+        artifactId: { type: string }
+        validity:
+          { type: string, enum: [current, expired, not_yet_valid, undated] }
+    TenderEligibilityCriterion:
+      type: object
+      additionalProperties: false
+      required: [requirementId, status, candidateArtifactIds]
+      properties:
+        requirementId: { type: string }
+        status:
+          {
+            type: string,
+            enum:
+              [
+                met,
+                missing,
+                pending_review,
+                expired,
+                not_yet_valid,
+                validity_unknown,
+                identity_mismatch,
+              ],
+          }
+        selectedArtifactId: { type: string }
+        candidateArtifactIds:
+          type: array
+          items: { type: string }
+    TenderDomainIssue:
+      type: object
+      additionalProperties: false
+      required: [code, severity, path, message]
+      properties:
+        code: { type: string }
+        severity: { type: string, enum: [blocker, warning] }
+        path: { type: string }
+        message: { type: string }
+    TenderEligibilityResult:
+      type: object
+      additionalProperties: false
+      required:
+        [passportId, status, requirements, artifacts, criteria, review, issues]
+      properties:
+        passportId: { type: string }
+        status:
+          { type: string, enum: [blocked, incomplete, review_required, ready] }
+        requirements:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenderEligibilityRequirementResult"
+        artifacts:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenderEligibilityArtifactResult"
+        criteria:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenderEligibilityCriterion"
+        review:
+          $ref: "#/components/schemas/TenderHumanReview"
+        issues:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenderDomainIssue"
+    TenderEligibilityPassport:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          projectId,
+          tenderContextVersionId,
+          passportId,
+          sourceManifestSha256,
+          resultSnapshotSha256,
+          resultStatus,
+          eligibleForNamedTenderReview,
+          result,
+          review,
+          createdAt,
+          version,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        tenderContextVersionId: { type: string, format: uuid }
+        passportId: { type: string, minLength: 1, maxLength: 128 }
+        sourceManifestSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        resultSnapshotSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        resultStatus:
+          {
+            type: string,
+            enum:
+              [
+                blocked,
+                incomplete,
+                review_required,
+                ready_for_human_tender_review,
+              ],
+          }
+        eligibleForNamedTenderReview: { type: boolean }
+        result:
+          $ref: "#/components/schemas/TenderEligibilityResult"
+        review:
+          $ref: "#/components/schemas/TenderNamedReview"
+        createdAt: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
+    TenderContextCentre:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          policyVersion,
+          eligibilityPolicyVersion,
+          authorityNote,
+          project,
+          contexts,
+          passports,
+        ]
+      properties:
+        policyVersion: { type: string, const: valo.tender-context/v1 }
+        eligibilityPolicyVersion:
+          { type: string, const: valo.tender-eligibility-passport/v1 }
+        authorityNote: { type: string }
+        project:
+          type: object
+          additionalProperties: false
+          required: [id, title]
+          properties:
+            id: { type: string, format: uuid }
+            title: { type: string }
+        contexts:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/TenderContextVersion"
+        passports:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/TenderEligibilityPassport"
+    AddendumSourceVersion:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          documentId,
+          documentVersionId,
+          filename,
+          versionNumber,
+          sha256,
+          capturedAt,
+        ]
+      properties:
+        documentId: { type: string, format: uuid }
+        documentVersionId: { type: string, format: uuid }
+        filename: { type: string, minLength: 1, maxLength: 1000 }
+        versionNumber: { type: integer, minimum: 1 }
+        sha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        capturedAt: { type: string, format: date-time }
+    AddendumImpactCitation:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          citationId,
+          sourceVersionId,
+          sourceTitle,
+          contentSha256,
+          quote,
+          startOffset,
+          endOffset,
+          page,
+          section,
+        ]
+      properties:
+        citationId: { type: string, minLength: 1, maxLength: 128 }
+        sourceVersionId: { type: string, format: uuid }
+        sourceTitle: { type: string, minLength: 1, maxLength: 1000 }
+        contentSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        quote: { type: string, minLength: 1, maxLength: 20000 }
+        startOffset: { type: integer, minimum: 0 }
+        endOffset: { type: integer, minimum: 1 }
+        page: { type: [integer, "null"], minimum: 1 }
+        section: { type: [string, "null"], maxLength: 2000 }
+    AddendumImpactChange:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          fieldExternalId,
+          category,
+          kind,
+          beforeValue,
+          afterValue,
+          beforeCitation,
+          afterCitation,
+          reviewState,
+        ]
+      properties:
+        id: { type: string, minLength: 1, maxLength: 128 }
+        fieldExternalId: { type: string, minLength: 1, maxLength: 128 }
+        category:
+          type: string
+          enum:
+            [
+              deadline,
+              opening,
+              eligibility,
+              requirement,
+              boq,
+              submission_instruction,
+              contact,
+              other,
+            ]
+        kind: { type: string, enum: [added, changed, removed] }
+        beforeValue: { type: [string, "null"], maxLength: 20000 }
+        afterValue: { type: [string, "null"], maxLength: 20000 }
+        beforeCitation:
+          oneOf:
+            - $ref: "#/components/schemas/AddendumImpactCitation"
+            - type: "null"
+        afterCitation:
+          oneOf:
+            - $ref: "#/components/schemas/AddendumImpactCitation"
+            - type: "null"
+        reviewState:
+          type: string
+          enum: [unreviewed, accepted, rejected, needs_changes]
+    AddendumDownstreamImpact:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          targetId,
+          objectType,
+          label,
+          currentState,
+          currentVersion,
+          proposedAction,
+          changeIds,
+          fieldExternalIds,
+        ]
+      properties:
+        targetId: { type: string, minLength: 1, maxLength: 128 }
+        objectType:
+          type: string
+          enum:
+            [
+              project,
+              requirement,
+              work_task,
+              draft,
+              boq_check,
+              approval,
+              package,
+              report,
+            ]
+        label: { type: string, minLength: 1, maxLength: 1000 }
+        currentState: { type: string, minLength: 1, maxLength: 160 }
+        currentVersion: { type: integer, minimum: 1 }
+        proposedAction: { type: string, enum: [reopen, invalidate, recheck] }
+        changeIds:
+          type: array
+          uniqueItems: true
+          maxItems: 512
+          items: { type: string, minLength: 1, maxLength: 128 }
+        fieldExternalIds:
+          type: array
+          uniqueItems: true
+          maxItems: 512
+          items: { type: string, minLength: 1, maxLength: 128 }
+    AddendumImpactIssue:
+      type: object
+      additionalProperties: false
+      required: [code, severity, message]
+      properties:
+        code: { type: string, minLength: 1, maxLength: 160 }
+        severity: { type: string, enum: [blocker, warning] }
+        message: { type: string, minLength: 1, maxLength: 2000 }
+    AddendumImpactAssessment:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          version,
+          radarId,
+          sourceManifestSha256,
+          impactManifestSha256,
+          status,
+          readyForReopening,
+          changes,
+          impacts,
+          issues,
+        ]
+      properties:
+        id: { type: string, minLength: 1, maxLength: 128 }
+        version: { type: integer, minimum: 0 }
+        radarId: { type: string, minLength: 1, maxLength: 128 }
+        sourceManifestSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        impactManifestSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        status:
+          type: string
+          enum:
+            [
+              blocked,
+              no_changes,
+              review_required,
+              ready_to_reopen,
+              reviewed_no_affected_work,
+            ]
+        readyForReopening: { type: boolean }
+        changes:
+          type: array
+          maxItems: 512
+          items:
+            $ref: "#/components/schemas/AddendumImpactChange"
+        impacts:
+          type: array
+          maxItems: 2048
+          items:
+            $ref: "#/components/schemas/AddendumDownstreamImpact"
+        issues:
+          type: array
+          maxItems: 4096
+          items:
+            $ref: "#/components/schemas/AddendumImpactIssue"
+    AddendumImpactReview:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          assessmentId,
+          impactManifestSha256,
+          decision,
+          reason,
+          reviewerUserId,
+          reviewerName,
+          reviewedAt,
+          version,
+        ]
+      properties:
+        assessmentId: { type: string, minLength: 1, maxLength: 128 }
+        impactManifestSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        decision:
+          type: string
+          enum: [accepted, changes_requested, rejected]
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+        reviewerUserId: { type: string, format: uuid }
+        reviewerName: { type: string, minLength: 2, maxLength: 200 }
+        reviewedAt: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
+    AddendumImpactApplication:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          assessmentId,
+          impactManifestSha256,
+          appliedByUserId,
+          appliedByName,
+          appliedAt,
+          reason,
+          mutationCount,
+        ]
+      properties:
+        assessmentId: { type: string, minLength: 1, maxLength: 128 }
+        impactManifestSha256: { type: string, pattern: "^[a-f0-9]{64}$" }
+        appliedByUserId: { type: string, format: uuid }
+        appliedByName: { type: string, minLength: 2, maxLength: 200 }
+        appliedAt: { type: string, format: date-time }
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+        mutationCount: { type: integer, minimum: 1, maximum: 2048 }
+    AddendumImpactCentreSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          policyVersion,
+          authorityNote,
+          project,
+          baseline,
+          revision,
+          assessment,
+          review,
+          reviewStale,
+          application,
+          requiredConfirmation,
+        ]
+      properties:
+        policyVersion: { type: string, const: valo.addendum-impact/v1 }
+        authorityNote: { type: string, minLength: 1, maxLength: 2000 }
+        project:
+          type: object
+          additionalProperties: false
+          required: [id, title]
+          properties:
+            id: { type: string, format: uuid }
+            title: { type: string, minLength: 1, maxLength: 1000 }
+        baseline:
+          $ref: "#/components/schemas/AddendumSourceVersion"
+        revision:
+          $ref: "#/components/schemas/AddendumSourceVersion"
+        assessment:
+          $ref: "#/components/schemas/AddendumImpactAssessment"
+        review:
+          oneOf:
+            - $ref: "#/components/schemas/AddendumImpactReview"
+            - type: "null"
+        reviewStale: { type: boolean }
+        application:
+          oneOf:
+            - $ref: "#/components/schemas/AddendumImpactApplication"
+            - type: "null"
+        requiredConfirmation:
+          type: string
+          const: REOPEN AFFECTED WORK
+    AddendumImpactReviewRequest:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          baselineVersionId,
+          revisionVersionId,
+          assessmentId,
+          radarId,
+          expectedImpactManifestSha256,
+          expectedAssessmentVersion,
+          decision,
+          reason,
+        ]
+      properties:
+        baselineVersionId: { type: string, format: uuid }
+        revisionVersionId: { type: string, format: uuid }
+        assessmentId: { type: string, minLength: 1, maxLength: 128 }
+        radarId: { type: string, minLength: 1, maxLength: 128 }
+        expectedImpactManifestSha256:
+          { type: string, pattern: "^[a-f0-9]{64}$" }
+        expectedAssessmentVersion: { type: integer, minimum: 0 }
+        decision:
+          type: string
+          enum: [accepted, changes_requested, rejected]
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+    AddendumImpactApplyRequest:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          baselineVersionId,
+          revisionVersionId,
+          assessmentId,
+          radarId,
+          expectedImpactManifestSha256,
+          expectedAssessmentVersion,
+          reason,
+          confirmation,
+        ]
+      properties:
+        baselineVersionId: { type: string, format: uuid }
+        revisionVersionId: { type: string, format: uuid }
+        assessmentId: { type: string, minLength: 1, maxLength: 128 }
+        radarId: { type: string, minLength: 1, maxLength: 128 }
+        expectedImpactManifestSha256:
+          { type: string, pattern: "^[a-f0-9]{64}$" }
+        expectedAssessmentVersion: { type: integer, minimum: 0 }
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+        confirmation:
+          type: string
+          const: REOPEN AFFECTED WORK
+    AddendumImpactApplyResponse:
+      type: object
+      additionalProperties: false
+      required: [replayed, authorityNote, application]
+      properties:
+        replayed: { type: boolean }
+        authorityNote: { type: string, minLength: 1, maxLength: 2000 }
+        application:
+          $ref: "#/components/schemas/AddendumImpactApplication"
     IntelligenceProjectSummary:
       type: object
       additionalProperties: false

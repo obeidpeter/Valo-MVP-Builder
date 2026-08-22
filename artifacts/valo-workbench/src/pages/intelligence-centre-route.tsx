@@ -16,6 +16,7 @@ import { useOrganisationAccess } from "@/contexts/organisation-context";
 import { useToast } from "@/hooks/use-toast";
 import { INTELLIGENCE_READ_PERMISSIONS } from "@/lib/platform-access";
 import type { IntelligenceReviewDecision } from "@/components/intelligence/intelligence-review-inbox";
+import AddendumImpactCentre from "@/components/intelligence/addendum-impact-centre";
 
 function disconnectedSnapshot(): IntelligenceCentreSnapshot {
   return {
@@ -258,6 +259,9 @@ export default function IntelligenceCentreRoute() {
         onReviewClaim={hasReviewAccess ? claimReviewItem : undefined}
         onReviewDecision={hasReviewAccess ? decideReviewItem : undefined}
       />
+      {selectedProjectId ? (
+        <AddendumImpactCentre projectId={selectedProjectId} />
+      ) : null}
     </div>
   );
 }

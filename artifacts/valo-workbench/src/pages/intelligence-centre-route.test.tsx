@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
@@ -12,6 +13,8 @@ const getIntelligence = vi.fn();
 const claimReview = vi.fn();
 const decideReview = vi.fn();
 const toast = vi.fn();
+const customFetch = vi.fn();
+const beginCriticalWorkflow = vi.fn(() => vi.fn());
 
 const state = {
   projectsError: false,
@@ -42,6 +45,7 @@ const state = {
 };
 
 vi.mock("@workspace/api-client-react", () => ({
+  customFetch: (path: string, options?: unknown) => customFetch(path, options),
   getGetProjectIntelligenceQueryKey: (projectId: string) => [
     "/api/projects/intelligence",
     projectId,
@@ -67,6 +71,12 @@ vi.mock("@workspace/api-client-react", () => ({
     mutate: decideReview,
     isPending: false,
   }),
+  useGetMe: () => ({
+    data: { id: "actor-1" },
+    isLoading: false,
+    isPending: false,
+    isError: false,
+  }),
 }));
 
 vi.mock("@/hooks/use-toast", () => ({
@@ -75,8 +85,14 @@ vi.mock("@/hooks/use-toast", () => ({
 
 vi.mock("@/contexts/organisation-context", () => ({
   useOrganisationAccess: () => ({
-    activeOrganisation: { id: "org-1" },
+    activeOrganisation: {
+      id: "org-1",
+      membershipId: "membership-1",
+      membershipOrganisationId: "org-1",
+      accessSource: "membership",
+    },
     effectivePermissions: state.permissions,
+    beginCriticalWorkflow,
   }),
 }));
 
@@ -159,12 +175,58 @@ function reviewSnapshot(projectId: string) {
   };
 }
 
+function addendumSnapshot(projectId: string) {
+  return {
+    policyVersion: "valo.addendum-impact/v1",
+    authorityNote:
+      "Review records scrutiny only. Applying the plan is a separate controlled action.",
+    project: { id: projectId, title: "Road rehabilitation" },
+    baseline: {
+      documentId: "document-1",
+      documentVersionId: "version-1",
+      filename: "invitation.pdf",
+      versionNumber: 1,
+      sha256: "a".repeat(64),
+      capturedAt: "2026-08-01T08:00:00.000Z",
+    },
+    revision: {
+      documentId: "document-2",
+      documentVersionId: "version-2",
+      filename: "addendum-1.pdf",
+      versionNumber: 1,
+      sha256: "b".repeat(64),
+      capturedAt: "2026-08-18T08:00:00.000Z",
+    },
+    assessment: {
+      id: "assessment-1",
+      version: 0,
+      radarId: "radar-1",
+      sourceManifestSha256: "c".repeat(64),
+      impactManifestSha256: "d".repeat(64),
+      status: "reviewed_no_affected_work",
+      readyForReopening: false,
+      changes: [],
+      impacts: [],
+      issues: [],
+    },
+    review: null,
+    reviewStale: false,
+    application: null,
+    requiredConfirmation: "REOPEN AFFECTED WORK",
+  };
+}
+
 function renderAt(path: string) {
   const location = memoryLocation({ path });
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   render(
-    <Router hook={location.hook}>
-      <IntelligenceCentreRoute />
-    </Router>,
+    <QueryClientProvider client={queryClient}>
+      <Router hook={location.hook}>
+        <IntelligenceCentreRoute />
+      </Router>
+    </QueryClientProvider>,
   );
 }
 
@@ -196,6 +258,13 @@ describe("Intelligence Centre route", () => {
     claimReview.mockReset();
     decideReview.mockReset();
     toast.mockReset();
+    customFetch.mockReset();
+    beginCriticalWorkflow.mockClear();
+    customFetch.mockImplementation((path: string) => {
+      const match = /^\/api\/projects\/([^/]+)\/addendum-impact$/u.exec(path);
+      if (match?.[1]) return Promise.resolve(addendumSnapshot(match[1]));
+      return Promise.reject(new Error(`Unexpected request: ${path}`));
+    });
     getIntelligence.mockImplementation((projectId: string) => ({
       data: snapshot(projectId),
       isLoading: false,
@@ -355,6 +424,20 @@ describe("Intelligence Centre route", () => {
         decision: "approved",
       },
     });
+  });
+
+  it("mounts the Addendum Impact Centre for the selected pursuit", async () => {
+    renderAt("/intelligence?project=project-1");
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "See what changed before reopening work",
+      }),
+    ).toBeInTheDocument();
+    expect(customFetch).toHaveBeenCalledWith(
+      "/api/projects/project-1/addendum-impact",
+      expect.objectContaining({ cache: "no-store" }),
+    );
   });
 
   it("allows a stale review projection to be reclaimed against the current source binding", async () => {

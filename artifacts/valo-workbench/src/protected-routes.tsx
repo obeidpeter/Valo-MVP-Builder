@@ -11,6 +11,7 @@ const Clients = lazy(() => import("@/pages/clients"));
 const ClientDetails = lazy(() => import("@/pages/client-details"));
 const Projects = lazy(() => import("@/pages/projects"));
 const ProjectDetails = lazy(() => import("@/pages/project-details"));
+const TenderContext = lazy(() => import("@/pages/tender-context-route"));
 const SbdCorpus = lazy(() => import("@/pages/sbd"));
 const SbdDetails = lazy(() => import("@/pages/sbd-details"));
 const Settings = lazy(() => import("@/pages/settings"));
@@ -85,6 +86,11 @@ export default function ProtectedRoutes() {
         <Route path="/projects">
           <RequireArea area="pursuit_workbench">
             <Projects />
+          </RequireArea>
+        </Route>
+        <Route path="/projects/:id/tender-context">
+          <RequireArea area="pursuit_workbench">
+            <TenderContext />
           </RequireArea>
         </Route>
         <Route path="/projects/:id">
