@@ -170,7 +170,10 @@ export async function runRetentionScan(
                     .from(retentionRequests)
                     .where(
                       and(
-                        eq(retentionRequests.projectId, candidate.projectId),
+                        eq(
+                          retentionRequests.subjectProjectId,
+                          candidate.projectId,
+                        ),
                         eq(retentionRequests.status, "pending"),
                       ),
                     );
@@ -180,7 +183,9 @@ export async function runRetentionScan(
                     .values({
                       organisationId: organisation.id,
                       projectId: candidate.projectId,
+                      subjectProjectId: candidate.projectId,
                       requestedBy: null,
+                      requestedByName: "Valo retention scheduler",
                       reason:
                         "Auto-opened by the retention scheduler: the configured window after the evidenced conclusion elapsed.",
                       dueAt: candidate.dueAt,

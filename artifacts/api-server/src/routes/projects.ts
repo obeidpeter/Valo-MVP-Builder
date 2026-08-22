@@ -24,8 +24,6 @@ import {
 import { serializeProject } from "../lib/serializers";
 import { writeAudit, writeAuditTx } from "../lib/audit";
 import { responsivenessReview } from "../lib/llm";
-import { ObjectStorageService } from "../lib/objectStorage";
-import { planProjectBlobPurge, purgeBlobs } from "../lib/purge";
 import { isSystemManagedProjectStatus } from "../lib/reportPolicy";
 import {
   validateProjectTransition,
@@ -50,9 +48,7 @@ import {
   isUuid,
 } from "../lib/projectMutationPolicy";
 
-const objectStorage = new ObjectStorageService();
 const PAYMENT_CONFIRMATION_ROLE_BINDING_ENABLED = false;
-const DIRECT_PROJECT_DELETE_ENABLED = false;
 
 const router: IRouter = Router();
 function nextActionFor(status: string): string {
@@ -977,79 +973,11 @@ router.post(
 router.delete(
   "/projects/:id",
   requirePermissionOrLegacy("project:delete"),
-  async (req: Request, res: Response) => {
-    if (!DIRECT_PROJECT_DELETE_ENABLED) {
-      res.status(409).json({
-        error:
-          "Direct deletion is disabled; use the governed retention and legal-hold workflow.",
-      });
-      return;
-    }
-    const projectId = String(req.params.id);
-    const user = getLocalUser(req);
-    const organisationId = getOrganisationId(req);
-
-    const [project] = await db
-      .select()
-      .from(projects)
-      .where(
-        and(
-          eq(projects.id, projectId),
-          organisationId
-            ? eq(projects.organisationId, organisationId)
-            : undefined,
-        ),
-      );
-    if (!project) {
-      res.status(404).json({ error: "Not found" });
-      return;
-    }
-
-    // Collect every engagement-owned blob before removing DB rows; blobs a
-    // Certificate Vault item points at belong to the client and survive.
-    const plan = await planProjectBlobPurge(projectId);
-    const blobResult = await purgeBlobs(
-      objectStorage,
-      plan.paths,
-      (objectPath, error) => {
-        req.log.error(
-          { err: error, objectPath },
-          "failed to purge project blob",
-        );
-      },
-    );
-
-    // Cascade-deletes documents/reports/requirements/etc. via FK onDelete.
-    await db.transaction(
-      async (tx) => {
-        const [deleted] = await tx
-          .delete(projects)
-          .where(
-            and(
-              eq(projects.id, projectId),
-              organisationId
-                ? eq(projects.organisationId, organisationId)
-                : undefined,
-            ),
-          )
-          .returning();
-        if (!deleted) throw new Error("Project disappeared during deletion");
-        await writeAuditTx(tx, {
-          user,
-          organisationId,
-          eventType: "project.deleted",
-          objectType: "project",
-          objectId: projectId,
-          details:
-            `${deleted.tenderTitle} — purged ${blobResult.purged}/${plan.paths.length} stored file(s).` +
-            (plan.vaultRetained.length > 0
-              ? ` ${plan.vaultRetained.length} file(s) retained as client vault artefacts.`
-              : ""),
-        });
-      },
-      { isolationLevel: "read committed" },
-    );
-    res.status(204).end();
+  (_req: Request, res: Response) => {
+    res.status(409).json({
+      error:
+        "Direct deletion is disabled; use the governed retention detach, reconcile and certify workflow.",
+    });
   },
 );
 

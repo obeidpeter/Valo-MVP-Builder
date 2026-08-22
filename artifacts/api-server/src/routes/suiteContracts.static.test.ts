@@ -14,8 +14,8 @@ const reportsSource = readFileSync(
   new URL("./reports.ts", import.meta.url),
   "utf8",
 );
-const legacyOperationsSource = readFileSync(
-  new URL("./operations.ts", import.meta.url),
+const retentionCompletionSource = readFileSync(
+  new URL("./retentionCompletion.ts", import.meta.url),
   "utf8",
 );
 const clientUploadSource = readFileSync(
@@ -536,25 +536,78 @@ test("documented errors come from the mounted authentication and suite policies"
     clientUploadSource,
     /code: error\.code,[\s\S]*?\.\.\.\(error\.details \?\? \{\}\)/u,
   );
-  const retentionOperation: ContractEntry = {
-    suite: "operations",
-    method: "post",
-    expressPath: "/retention-requests/:id/complete",
-    openApiPath: "/retention-requests/{id}/complete",
-    operationId: "completeRetentionRequest",
-    statuses: [401, 403, 503],
-  };
-  const retentionOpenApi = openApiOperation(retentionOperation);
-  assert.match(retentionOpenApi, /RetentionCompletionUnavailable/u);
-  assert.match(retentionOpenApi, /components\/headers\/PrivateNoStore/u);
-  assert.doesNotMatch(retentionOpenApi, /^        "(?:200|404|409|502)":/mu);
+  const releasedRetentionOperations = [
+    {
+      suite: "operations",
+      method: "post",
+      expressPath: "/retention-requests/:id/complete",
+      openApiPath: "/retention-requests/{id}/complete",
+      operationId: "completeRetentionRequest",
+      statuses: [202, 400, 401, 403, 404, 409, 412, 413, 428, 500, 503],
+    },
+    {
+      suite: "operations",
+      method: "post",
+      expressPath: "/retention-actions/:id/reconcile",
+      openApiPath: "/retention-actions/{id}/reconcile",
+      operationId: "reconcileRetentionAction",
+      statuses: [200, 400, 401, 403, 404, 409, 412, 413, 428, 500, 503],
+    },
+    {
+      suite: "operations",
+      method: "post",
+      expressPath: "/retention-actions/:id/certify",
+      openApiPath: "/retention-actions/{id}/certify",
+      operationId: "certifyRetentionAction",
+      statuses: [200, 400, 401, 403, 404, 409, 412, 413, 428, 500, 503],
+    },
+  ] as const satisfies readonly ContractEntry[];
+  for (const entry of releasedRetentionOperations) {
+    const operation = openApiOperation(entry);
+    assert.match(
+      operation,
+      new RegExp(`operationId: ${entry.operationId}\\b`, "u"),
+    );
+    assert.deepEqual(
+      [...operation.matchAll(/^        "(\d{3})":/gmu)]
+        .map((match) => Number(match[1]))
+        .sort((left, right) => left - right),
+      [...entry.statuses].sort((left, right) => left - right),
+      `${entry.operationId} released response contract drifted`,
+    );
+    assert.match(operation, /RetentionCompletionSnapshot/u);
+    assert.match(operation, /RetentionCompletionConflict/u);
+    assert.match(operation, /RetentionCompletionStaleVersion/u);
+    assert.match(operation, /RetentionCompletionUnavailable/u);
+    assert.match(operation, /components\/headers\/PrivateNoStore/u);
+  }
+  assert.ok(
+    routeIndexSource.indexOf("router.use(attachTenantDatabase)") <
+      routeIndexSource.indexOf("router.use(retentionCompletionRouter)"),
+  );
   assert.match(
-    legacyOperationsSource,
-    /"\/retention-requests\/:id\/complete"[\s\S]*?res\.status\(503\)\.json/u,
+    retentionCompletionSource,
+    /router\.post\(\s*"\/retention-requests\/:id\/complete",[\s\S]*?requirePermissionOrLegacy\("retention:manage"\),[\s\S]*?mutation\("detach"\)/u,
+  );
+  assert.match(
+    retentionCompletionSource,
+    /router\.post\(\s*"\/retention-actions\/:id\/reconcile",[\s\S]*?requirePermissionOrLegacy\("retention:manage"\),[\s\S]*?mutation\("reconcile"\)/u,
+  );
+  assert.match(
+    retentionCompletionSource,
+    /router\.post\(\s*"\/retention-actions\/:id\/certify",[\s\S]*?requirePermissionOrLegacy\("retention:manage"\),[\s\S]*?mutation\("certify"\)/u,
   );
   assert.match(
     openApiSchema("RetentionCompletionUnavailable"),
-    /additionalProperties: false[\s\S]*?RETENTION_COMPLETION_NOT_ACTIVATED[\s\S]*?sideEffectsApplied: \{ type: boolean, const: false \}[\s\S]*?durable_two_phase_detach_reconcile_certify[\s\S]*?project_content_rows[\s\S]*?object_storage[\s\S]*?upload_sessions[\s\S]*?storage_lifecycle_control_rows/u,
+    /RetentionCompletionNotActivated[\s\S]*?RetentionCompletionControlPlaneUnavailable/u,
+  );
+  assert.match(
+    openApiSchema("RetentionCompletionNotActivated"),
+    /additionalProperties: false[\s\S]*?RETENTION_COMPLETION_NOT_ACTIVATED[\s\S]*?sideEffectsApplied: \{ type: boolean, const: false \}[\s\S]*?RetentionCompletionReadiness/u,
+  );
+  assert.match(
+    openApiSchema("RetentionCompletionReadiness"),
+    /durable_two_phase_detach_reconcile_certify[\s\S]*?activationBlockers[\s\S]*?evidenceBlockers/u,
   );
 });
 

@@ -37,6 +37,12 @@ import {
   withTenantDatabase,
 } from "@workspace/db";
 import operationsRouter from "./operations";
+import { createRetentionCompletionRouter } from "./retentionCompletion";
+import {
+  DrizzleRetentionCompletionRepository,
+  RetentionCompletionService,
+  loadCheckedRetentionCompletionActivationManifest,
+} from "../lib/retentionCompletion";
 import type { LocalUser } from "../middlewares/auth";
 import { ObjectStorageService } from "../lib/objectStorage";
 import {
@@ -49,7 +55,7 @@ import { writeAuditTx } from "../lib/audit";
 
 /**
  * End-to-end proof that retention request creation/listing remains available
- * while completion fails closed without touching relational content, upload
+ * while the dedicated completion workflow fails closed without touching relational content, upload
  * lifecycle control rows, object storage, project state or the audit chain.
  */
 
@@ -68,6 +74,22 @@ let reportBlobPath: string;
 let packagePdfBlobPath: string;
 let packageZipBlobPath: string;
 const deletedBlobs: string[] = [];
+
+async function deleteRetentionRequestFixture(projectId: string): Promise<void> {
+  // Protocol-zero and protocol-one retention evidence is deliberately
+  // immutable. This test-only owner DDL runs inside withTenantDatabase's
+  // transaction, disables only the completion guard (not FK/cascade
+  // triggers), and is rolled back automatically if cleanup cannot finish.
+  await db.execute(
+    sql`ALTER TABLE public.retention_requests DISABLE TRIGGER retention_request_completion_guard`,
+  );
+  await db
+    .delete(retentionRequests)
+    .where(eq(retentionRequests.subjectProjectId, projectId));
+  await db.execute(
+    sql`ALTER TABLE public.retention_requests ENABLE TRIGGER retention_request_completion_guard`,
+  );
+}
 
 before(async () => {
   const stamp = new Date().toISOString();
@@ -380,6 +402,14 @@ before(async () => {
   app.use(attachTenantContext);
   app.use(attachTenantDatabase);
   app.use(enforceTenantResourceBoundary);
+  app.use(
+    createRetentionCompletionRouter({
+      service: new RetentionCompletionService({
+        repository: new DrizzleRetentionCompletionRepository(),
+        activationManifest: loadCheckedRetentionCompletionActivationManifest(),
+      }),
+    }),
+  );
   app.use(operationsRouter);
 
   server = createServer(app);
@@ -397,6 +427,7 @@ after(async () => {
     await db.execute(
       sql`SELECT set_config('valo.audit_test_cleanup', 'approved', true)`,
     );
+    await deleteRetentionRequestFixture(projectId);
     await db.delete(auditEvents).where(eq(auditEvents.projectId, projectId));
     await db.delete(projects).where(eq(projects.id, projectId));
     await db.delete(clients).where(eq(clients.id, clientId));
@@ -407,13 +438,22 @@ after(async () => {
 
 interface RetentionBody {
   id: string;
+  projectId?: string | null;
+  subjectProjectId?: string;
+  completionProtocolVersion?: 0 | 1;
+  requestedByUserId?: string | null;
+  requestedByName?: string | null;
+  reason?: string | null;
+  dueAt?: string;
+  completedAt?: string | null;
   status: string;
-  certificateText?: string | null;
+  version?: number;
+  createdAt?: string;
+  updatedAt?: string;
   error: string;
   code?: string;
   sideEffectsApplied?: boolean;
-  requiredWorkflow?: string;
-  requiredCoverage?: string[];
+  readiness?: unknown;
 }
 
 async function json(res: globalThis.Response): Promise<RetentionBody> {
@@ -459,7 +499,36 @@ describe("retention request lifecycle", () => {
     assert.equal(res.status, 201);
     const body = await json(res);
     requestId = body.id;
+    assert.deepEqual(
+      Object.keys(body).sort(),
+      [
+        "completedAt",
+        "completionProtocolVersion",
+        "createdAt",
+        "dueAt",
+        "id",
+        "projectId",
+        "reason",
+        "requestedByName",
+        "requestedByUserId",
+        "status",
+        "subjectProjectId",
+        "updatedAt",
+        "version",
+      ].sort(),
+    );
+    assert.equal(body.projectId, projectId);
+    assert.equal(body.subjectProjectId, projectId);
+    assert.equal(body.completionProtocolVersion, 1);
+    assert.equal(body.requestedByUserId, adminId);
+    assert.equal(body.requestedByName, adminUser.name);
+    assert.equal(body.reason, "Client requested deletion");
+    assert.equal(body.completedAt, null);
     assert.equal(body.status, "pending");
+    assert.equal(body.version, 1);
+    assert.equal(Number.isFinite(Date.parse(body.dueAt ?? "")), true);
+    assert.equal(Number.isFinite(Date.parse(body.createdAt ?? "")), true);
+    assert.equal(Number.isFinite(Date.parse(body.updatedAt ?? "")), true);
   });
 
   test("rejects a duplicate open request for the same engagement", async () => {
@@ -492,24 +561,29 @@ describe("retention request lifecycle", () => {
       `${baseUrl}/retention-requests/${requestId}/complete`,
       {
         method: "POST",
-        headers: headers(),
+        headers: {
+          ...headers(true),
+          "If-Match": '"1"',
+          "Idempotency-Key": "retention-inactive-integration-0001",
+        },
+        body: JSON.stringify({
+          attestation:
+            "I attest that this exact governed retention subject may be detached.",
+        }),
       },
     );
     assert.equal(res.status, 503);
     assert.equal(res.headers.get("cache-control"), "private, no-store");
     const body = await json(res);
+    assert.deepEqual(Object.keys(body).sort(), [
+      "code",
+      "error",
+      "readiness",
+      "sideEffectsApplied",
+    ]);
     assert.equal(body.code, "RETENTION_COMPLETION_NOT_ACTIVATED");
     assert.equal(body.sideEffectsApplied, false);
-    assert.equal(
-      body.requiredWorkflow,
-      "durable_two_phase_detach_reconcile_certify",
-    );
-    assert.deepEqual(body.requiredCoverage, [
-      "project_content_rows",
-      "object_storage",
-      "upload_sessions",
-      "storage_lifecycle_control_rows",
-    ]);
+    assert.equal((body.readiness as { activated: boolean }).activated, false);
     assert.match(body.error, /not activated/i);
     assert.match(body.error, /no data was deleted/i);
     assert.match(body.error, /no deletion certificate was issued/i);

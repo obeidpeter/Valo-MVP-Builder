@@ -1275,7 +1275,9 @@ export const UpdateProjectResponse = zod.object({
 
 
 /**
- * @summary Delete a project and its documents (admin only)
+ * This compatibility endpoint always fails closed. Create a governed retention request and use the detach, reconcile, and certify workflow; no project or document is deleted by this operation.
+ * @deprecated
+ * @summary Direct project deletion is disabled
  */
 export const DeleteProjectParams = zod.object({
   "id": zod.coerce.string().uuid()
@@ -1482,40 +1484,274 @@ export const CreateProjectNotificationResponse = zod.object({
  * @summary Start a deletion/retention workflow for an engagement
  */
 export const CreateRetentionRequestParams = zod.object({
-  "id": zod.coerce.string().uuid()
+  "id": zod.string().uuid()
 })
+
+export const createRetentionRequestBodyReasonMax = 2000;
+
+
 
 export const CreateRetentionRequestBody = zod.object({
-  "reason": zod.string().optional(),
-  "dueAt": zod.string().optional()
-})
+  "reason": zod.string().min(1).max(createRetentionRequestBodyReasonMax).optional(),
+  "dueAt": zod.date().optional()
+}).strict()
+
+export const createRetentionRequestResponseRequestedByNameOneMax = 256;
+
+export const createRetentionRequestResponseReasonOneMax = 2000;
+
+export const createRetentionRequestResponseVersionMax = 9007199254740991;
+
+
 
 export const CreateRetentionRequestResponse = zod.object({
-  "id": zod.string(),
-  "projectId": zod.string(),
-  "reason": zod.string().nullish(),
-  "dueAt": zod.string(),
-  "completedAt": zod.string().nullish(),
-  "certificateText": zod.string().nullish(),
-  "status": zod.enum(['pending', 'completed', 'cancelled']),
-  "createdAt": zod.string()
-})
+  "id": zod.string().uuid(),
+  "projectId": zod.union([zod.string().uuid(),zod.null()]),
+  "subjectProjectId": zod.string().uuid(),
+  "requestedByUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "requestedByName": zod.union([zod.string().min(1).max(createRetentionRequestResponseRequestedByNameOneMax),zod.null()]),
+  "reason": zod.union([zod.string().min(1).max(createRetentionRequestResponseReasonOneMax),zod.null()]),
+  "dueAt": zod.date(),
+  "completedAt": zod.union([zod.date(),zod.null()]),
+  "status": zod.enum(['pending', 'reconciling', 'completed', 'blocked']),
+  "completionProtocolVersion": zod.union([zod.literal(0),zod.literal(1)]).describe('Zero identifies a read-only historical record that predates the detach\/reconcile\/certify evidence protocol. Only protocol one may expose completion actions.'),
+  "version": zod.number().min(1).max(createRetentionRequestResponseVersionMax),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date()
+}).strict()
 
 
 /**
+ * Lists up to 100 bounded governed retention-request summaries for the selected organisation. Detailed object reconciliation and retained category evidence is available only from the per-request completion endpoint. A completed status is returned only after independent certification evidence exists.
  * @summary List deletion/retention workflows
  */
+export const listRetentionRequestsResponseRequestedByNameOneMax = 256;
+
+export const listRetentionRequestsResponseReasonOneMax = 2000;
+
+export const listRetentionRequestsResponseVersionMax = 9007199254740991;
+
+
+
 export const ListRetentionRequestsResponseItem = zod.object({
-  "id": zod.string(),
-  "projectId": zod.string(),
-  "reason": zod.string().nullish(),
-  "dueAt": zod.string(),
-  "completedAt": zod.string().nullish(),
-  "certificateText": zod.string().nullish(),
-  "status": zod.enum(['pending', 'completed', 'cancelled']),
-  "createdAt": zod.string()
+  "id": zod.string().uuid(),
+  "projectId": zod.union([zod.string().uuid(),zod.null()]),
+  "subjectProjectId": zod.string().uuid(),
+  "requestedByUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "requestedByName": zod.union([zod.string().min(1).max(listRetentionRequestsResponseRequestedByNameOneMax),zod.null()]),
+  "reason": zod.union([zod.string().min(1).max(listRetentionRequestsResponseReasonOneMax),zod.null()]),
+  "dueAt": zod.date(),
+  "completedAt": zod.union([zod.date(),zod.null()]),
+  "status": zod.enum(['pending', 'reconciling', 'completed', 'blocked']),
+  "completionProtocolVersion": zod.union([zod.literal(0),zod.literal(1)]).describe('Zero identifies a read-only historical record that predates the detach\/reconcile\/certify evidence protocol. Only protocol one may expose completion actions.'),
+  "version": zod.number().min(1).max(listRetentionRequestsResponseVersionMax),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date()
+}).strict()
+export const ListRetentionRequestsResponse = zod.array(ListRetentionRequestsResponseItem).max(100)
+
+
+/**
+ * Returns the exact production activation and evidence blockers for the selected organisation and caller. Publishing this operation does not activate destructive work; clients must offer no completion, reconciliation or certification control unless activated is true and the corresponding permission is true.
+ * @summary Verify whether governed retention completion is activated
+ */
+export const getRetentionCompletionReadinessResponseActivationBlockersItemCodeMin = 3;
+export const getRetentionCompletionReadinessResponseActivationBlockersItemCodeMax = 80;
+
+
+export const getRetentionCompletionReadinessResponseActivationBlockersItemCodeRegExp = new RegExp('^[a-z][a-z0-9_]{2,79}$');
+export const getRetentionCompletionReadinessResponseActivationBlockersItemMessageMax = 512;
+
+export const getRetentionCompletionReadinessResponseActivationBlockersMax = 32;
+
+export const getRetentionCompletionReadinessResponseEvidenceBlockersItemCodeMin = 3;
+export const getRetentionCompletionReadinessResponseEvidenceBlockersItemCodeMax = 80;
+
+
+export const getRetentionCompletionReadinessResponseEvidenceBlockersItemCodeRegExp = new RegExp('^[a-z][a-z0-9_]{2,79}$');
+export const getRetentionCompletionReadinessResponseEvidenceBlockersItemMessageMax = 512;
+
+export const getRetentionCompletionReadinessResponseEvidenceBlockersMax = 32;
+
+
+
+export const GetRetentionCompletionReadinessResponse = zod.object({
+  "activated": zod.boolean(),
+  "manifestValid": zod.boolean(),
+  "environmentOptIn": zod.boolean(),
+  "workflow": zod.literal("durable_two_phase_detach_reconcile_certify"),
+  "activationBlockers": zod.array(zod.object({
+  "code": zod.string().min(getRetentionCompletionReadinessResponseActivationBlockersItemCodeMin).max(getRetentionCompletionReadinessResponseActivationBlockersItemCodeMax).regex(getRetentionCompletionReadinessResponseActivationBlockersItemCodeRegExp),
+  "message": zod.string().min(1).max(getRetentionCompletionReadinessResponseActivationBlockersItemMessageMax)
+}).strict()).max(getRetentionCompletionReadinessResponseActivationBlockersMax),
+  "evidenceBlockers": zod.array(zod.object({
+  "code": zod.string().min(getRetentionCompletionReadinessResponseEvidenceBlockersItemCodeMin).max(getRetentionCompletionReadinessResponseEvidenceBlockersItemCodeMax).regex(getRetentionCompletionReadinessResponseEvidenceBlockersItemCodeRegExp),
+  "message": zod.string().min(1).max(getRetentionCompletionReadinessResponseEvidenceBlockersItemMessageMax)
+}).strict()).max(getRetentionCompletionReadinessResponseEvidenceBlockersMax),
+  "permissions": zod.object({
+  "canStart": zod.boolean(),
+  "canReconcile": zod.boolean(),
+  "canCertify": zod.boolean()
+}).strict(),
+  "makerCheckerRequired": zod.literal(true),
+  "checkedAt": zod.date()
+}).strict()
+
+
+/**
+ * Returns the exact request, phase action, object reconciliation counts, path-free object bindings, deliberately retained legal or financial categories and certificate evidence. An absent certificate is never a successful deletion or certification claim.
+ * @summary Read one retention request's reconciliation and certificate evidence
+ */
+export const GetRetentionRequestCompletionParams = zod.object({
+  "id": zod.string().uuid()
 })
-export const ListRetentionRequestsResponse = zod.array(ListRetentionRequestsResponseItem)
+
+export const getRetentionRequestCompletionResponseRequestRequestedByNameOneMax = 256;
+
+export const getRetentionRequestCompletionResponseRequestReasonOneMax = 2000;
+
+export const getRetentionRequestCompletionResponseRequestVersionMax = 9007199254740991;
+
+export const getRetentionRequestCompletionResponseActionOneVersionMax = 9007199254740991;
+
+export const getRetentionRequestCompletionResponseActionOneSourceManifestSha256OneRegExp = new RegExp('^[0-9a-f]{64}$');
+export const getRetentionRequestCompletionResponseActionOnePurgeReceiptSha256OneRegExp = new RegExp('^[0-9a-f]{64}$');
+export const getRetentionRequestCompletionResponseActionOneReconciliationManifestSha256OneRegExp = new RegExp('^[0-9a-f]{64}$');
+export const getRetentionRequestCompletionResponseActionOnePreparedByNameOneMax = 256;
+
+export const getRetentionRequestCompletionResponseActionOneCheckedByNameOneMax = 256;
+
+export const getRetentionRequestCompletionResponseObjectReconciliationExpectedMin = 0;
+export const getRetentionRequestCompletionResponseObjectReconciliationExpectedMax = 1000000;
+
+export const getRetentionRequestCompletionResponseObjectReconciliationDetachedMin = 0;
+export const getRetentionRequestCompletionResponseObjectReconciliationDetachedMax = 1000000;
+
+export const getRetentionRequestCompletionResponseObjectReconciliationReconciledMin = 0;
+export const getRetentionRequestCompletionResponseObjectReconciliationReconciledMax = 1000000;
+
+export const getRetentionRequestCompletionResponseObjectReconciliationPendingMin = 0;
+export const getRetentionRequestCompletionResponseObjectReconciliationPendingMax = 1000000;
+
+export const getRetentionRequestCompletionResponseObjectReconciliationDeadLettersMin = 0;
+export const getRetentionRequestCompletionResponseObjectReconciliationDeadLettersMax = 1000000;
+
+export const getRetentionRequestCompletionResponseObjectBindingsMax = 1000;
+
+export const getRetentionRequestCompletionResponseRetainedCategoriesItemCategoryMin = 2;
+export const getRetentionRequestCompletionResponseRetainedCategoriesItemCategoryMax = 80;
+
+
+export const getRetentionRequestCompletionResponseRetainedCategoriesItemCategoryRegExp = new RegExp('^[a-z][a-z0-9_]{1,79}$');
+export const getRetentionRequestCompletionResponseRetainedCategoriesItemReasonMax = 512;
+
+export const getRetentionRequestCompletionResponseRetainedCategoriesItemCountMin = 0;
+export const getRetentionRequestCompletionResponseRetainedCategoriesItemCountMax = 1000000;
+
+export const getRetentionRequestCompletionResponseRetainedCategoriesMax = 64;
+
+export const getRetentionRequestCompletionResponseBlockersItemCodeMin = 3;
+export const getRetentionRequestCompletionResponseBlockersItemCodeMax = 80;
+
+
+export const getRetentionRequestCompletionResponseBlockersItemCodeRegExp = new RegExp('^[a-z][a-z0-9_]{2,79}$');
+export const getRetentionRequestCompletionResponseBlockersItemMessageMax = 512;
+
+export const getRetentionRequestCompletionResponseBlockersMax = 64;
+
+export const getRetentionRequestCompletionResponseCertificateOneCertificateNumberMax = 128;
+
+export const getRetentionRequestCompletionResponseCertificateOneScopeManifestHashRegExp = new RegExp('^[0-9a-f]{64}$');
+export const getRetentionRequestCompletionResponseCertificateOneCertificateManifestSha256RegExp = new RegExp('^[0-9a-f]{64}$');
+export const getRetentionRequestCompletionResponseCertificateOneMethodMax = 256;
+
+export const getRetentionRequestCompletionResponseCertificateOneSignedByNameMax = 256;
+
+export const getRetentionRequestCompletionResponseCertificateOneSignatureEvidenceMax = 2000;
+
+
+
+export const GetRetentionRequestCompletionResponse = zod.object({
+  "request": zod.object({
+  "id": zod.string().uuid(),
+  "projectId": zod.union([zod.string().uuid(),zod.null()]),
+  "subjectProjectId": zod.string().uuid(),
+  "requestedByUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "requestedByName": zod.union([zod.string().min(1).max(getRetentionRequestCompletionResponseRequestRequestedByNameOneMax),zod.null()]),
+  "reason": zod.union([zod.string().min(1).max(getRetentionRequestCompletionResponseRequestReasonOneMax),zod.null()]),
+  "dueAt": zod.date(),
+  "completedAt": zod.union([zod.date(),zod.null()]),
+  "status": zod.enum(['pending', 'reconciling', 'completed', 'blocked']),
+  "completionProtocolVersion": zod.union([zod.literal(0),zod.literal(1)]).describe('Zero identifies a read-only historical record that predates the detach\/reconcile\/certify evidence protocol. Only protocol one may expose completion actions.'),
+  "version": zod.number().min(1).max(getRetentionRequestCompletionResponseRequestVersionMax),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date()
+}).strict(),
+  "action": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "retentionRequestId": zod.string().uuid(),
+  "subjectProjectId": zod.string().uuid(),
+  "status": zod.enum(['pending', 'detached', 'reconciled', 'certified', 'blocked']),
+  "version": zod.number().min(1).max(getRetentionRequestCompletionResponseActionOneVersionMax).describe('Current action CAS version. The governed protocol returns version 3 after detached owner purge, version 4 after reconciliation and version 5 after independent certification.'),
+  "sourceManifest": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
+  "sourceManifestSha256": zod.union([zod.string().regex(getRetentionRequestCompletionResponseActionOneSourceManifestSha256OneRegExp),zod.null()]),
+  "purgeReceipt": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]).describe('Canonical parsed owner-purge receipt, or null for pending or legacy evidence. Successful phase-one completion returns a non-null value; clients must not infer purge from detached status alone.'),
+  "purgeReceiptSha256": zod.union([zod.string().regex(getRetentionRequestCompletionResponseActionOnePurgeReceiptSha256OneRegExp),zod.null()]),
+  "purgedAt": zod.union([zod.date(),zod.null()]),
+  "reconciliationManifest": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
+  "reconciliationManifestSha256": zod.union([zod.string().regex(getRetentionRequestCompletionResponseActionOneReconciliationManifestSha256OneRegExp),zod.null()]),
+  "preparedByUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "preparedByName": zod.union([zod.string().min(1).max(getRetentionRequestCompletionResponseActionOnePreparedByNameOneMax),zod.null()]),
+  "preparedAt": zod.union([zod.date(),zod.null()]),
+  "checkedByUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "checkedByName": zod.union([zod.string().min(1).max(getRetentionRequestCompletionResponseActionOneCheckedByNameOneMax),zod.null()]),
+  "checkedAt": zod.union([zod.date(),zod.null()]),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date()
+}).strict(),zod.null()]),
+  "objectReconciliation": zod.object({
+  "expected": zod.number().min(getRetentionRequestCompletionResponseObjectReconciliationExpectedMin).max(getRetentionRequestCompletionResponseObjectReconciliationExpectedMax),
+  "detached": zod.number().min(getRetentionRequestCompletionResponseObjectReconciliationDetachedMin).max(getRetentionRequestCompletionResponseObjectReconciliationDetachedMax),
+  "reconciled": zod.number().min(getRetentionRequestCompletionResponseObjectReconciliationReconciledMin).max(getRetentionRequestCompletionResponseObjectReconciliationReconciledMax),
+  "pending": zod.number().min(getRetentionRequestCompletionResponseObjectReconciliationPendingMin).max(getRetentionRequestCompletionResponseObjectReconciliationPendingMax),
+  "deadLetters": zod.number().min(getRetentionRequestCompletionResponseObjectReconciliationDeadLettersMin).max(getRetentionRequestCompletionResponseObjectReconciliationDeadLettersMax)
+}).strict(),
+  "objectBindings": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.literal("project_retention"),
+  "status": zod.enum(['queued', 'retry_wait', 'completed', 'cancelled', 'dead_letter', 'resolved']),
+  "terminalDisposition": zod.union([zod.enum(['deleted', 'already_absent', 'cancelled_referenced', 'accepted_unresolved']),zod.null()])
+}).strict()).max(getRetentionRequestCompletionResponseObjectBindingsMax),
+  "retainedCategories": zod.array(zod.object({
+  "category": zod.string().min(getRetentionRequestCompletionResponseRetainedCategoriesItemCategoryMin).max(getRetentionRequestCompletionResponseRetainedCategoriesItemCategoryMax).regex(getRetentionRequestCompletionResponseRetainedCategoriesItemCategoryRegExp),
+  "reason": zod.string().min(1).max(getRetentionRequestCompletionResponseRetainedCategoriesItemReasonMax),
+  "count": zod.number().min(getRetentionRequestCompletionResponseRetainedCategoriesItemCountMin).max(getRetentionRequestCompletionResponseRetainedCategoriesItemCountMax)
+}).strict()).max(getRetentionRequestCompletionResponseRetainedCategoriesMax),
+  "blockers": zod.array(zod.object({
+  "code": zod.string().min(getRetentionRequestCompletionResponseBlockersItemCodeMin).max(getRetentionRequestCompletionResponseBlockersItemCodeMax).regex(getRetentionRequestCompletionResponseBlockersItemCodeRegExp),
+  "message": zod.string().min(1).max(getRetentionRequestCompletionResponseBlockersItemMessageMax)
+}).strict()).max(getRetentionRequestCompletionResponseBlockersMax),
+  "certificate": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "retentionActionId": zod.string().uuid(),
+  "certificateNumber": zod.string().min(1).max(getRetentionRequestCompletionResponseCertificateOneCertificateNumberMax),
+  "scopeManifestHash": zod.string().regex(getRetentionRequestCompletionResponseCertificateOneScopeManifestHashRegExp),
+  "certificateManifest": zod.record(zod.string(), zod.unknown()),
+  "certificateManifestSha256": zod.string().regex(getRetentionRequestCompletionResponseCertificateOneCertificateManifestSha256RegExp),
+  "method": zod.string().min(1).max(getRetentionRequestCompletionResponseCertificateOneMethodMax),
+  "completedAt": zod.date(),
+  "signedByUserId": zod.string().uuid(),
+  "signedByName": zod.string().min(1).max(getRetentionRequestCompletionResponseCertificateOneSignedByNameMax),
+  "signatureEvidence": zod.string().min(1).max(getRetentionRequestCompletionResponseCertificateOneSignatureEvidenceMax),
+  "createdAt": zod.date()
+}).strict(),zod.null()]),
+  "permissions": zod.object({
+  "canStart": zod.boolean(),
+  "canReconcile": zod.boolean(),
+  "canCertify": zod.boolean()
+}).strict(),
+  "generatedAt": zod.date()
+}).strict()
 
 
 /**
@@ -1562,9 +1798,9 @@ export const ListStorageDeletionDeadLettersResponse = zod.object({
   "cycleAttempts": zod.number().min(listStorageDeletionDeadLettersResponseItemsItemCycleAttemptsMin).max(listStorageDeletionDeadLettersResponseItemsItemCycleAttemptsMax),
   "terminalAt": zod.union([zod.coerce.date(),zod.null()]),
   "projectId": zod.union([zod.string().uuid(),zod.null()]),
-  "aggregateType": zod.enum(['document', 'vault_item', 'upload_session']),
+  "aggregateType": zod.enum(['document', 'vault_item', 'upload_session', 'project_retention']),
   "aggregateId": zod.string().uuid(),
-  "reason": zod.enum(['record_deleted', 'reference_replaced', 'lease_expired']),
+  "reason": zod.enum(['record_deleted', 'reference_replaced', 'lease_expired', 'retention_completion']),
   "requestedAt": zod.coerce.date(),
   "requestSha256": zod.string().regex(listStorageDeletionDeadLettersResponseItemsItemRequestSha256RegExp)
 })).max(listStorageDeletionDeadLettersResponseItemsMax),
@@ -1618,9 +1854,9 @@ export const ReplayStorageDeletionDeadLetterResponse = zod.object({
   "cycleAttempts": zod.number().min(replayStorageDeletionDeadLetterResponseCycleAttemptsMin).max(replayStorageDeletionDeadLetterResponseCycleAttemptsMax),
   "terminalAt": zod.union([zod.coerce.date(),zod.null()]),
   "projectId": zod.union([zod.string().uuid(),zod.null()]),
-  "aggregateType": zod.enum(['document', 'vault_item', 'upload_session']),
+  "aggregateType": zod.enum(['document', 'vault_item', 'upload_session', 'project_retention']),
   "aggregateId": zod.string().uuid(),
-  "reason": zod.enum(['record_deleted', 'reference_replaced', 'lease_expired']),
+  "reason": zod.enum(['record_deleted', 'reference_replaced', 'lease_expired', 'retention_completion']),
   "requestedAt": zod.coerce.date(),
   "requestSha256": zod.string().regex(replayStorageDeletionDeadLetterResponseRequestSha256RegExp)
 })
@@ -1671,33 +1907,554 @@ export const ResolveStorageDeletionDeadLetterResponse = zod.object({
   "cycleAttempts": zod.number().min(resolveStorageDeletionDeadLetterResponseCycleAttemptsMin).max(resolveStorageDeletionDeadLetterResponseCycleAttemptsMax),
   "terminalAt": zod.union([zod.coerce.date(),zod.null()]),
   "projectId": zod.union([zod.string().uuid(),zod.null()]),
-  "aggregateType": zod.enum(['document', 'vault_item', 'upload_session']),
+  "aggregateType": zod.enum(['document', 'vault_item', 'upload_session', 'project_retention']),
   "aggregateId": zod.string().uuid(),
-  "reason": zod.enum(['record_deleted', 'reference_replaced', 'lease_expired']),
+  "reason": zod.enum(['record_deleted', 'reference_replaced', 'lease_expired', 'retention_completion']),
   "requestedAt": zod.coerce.date(),
   "requestSha256": zod.string().regex(resolveStorageDeletionDeadLetterResponseRequestSha256RegExp)
 })
 
 
 /**
- * This release fails closed because blob deletion and relational deletion cannot yet be certified as one durable two-phase detach/reconcile/certify outcome. After authentication and retention permission checks, this operation performs no ID lookup, deletion, database mutation, audit write or certificate issuance and returns only the strict 503 refusal envelope.
- * @summary Report that certified retention completion is not activated
+ * Under the current request version, activation gates, bounded named-human attestation and stable idempotency identity, irreversibly detaches the governed relational project graph, advances the owner-held purge from action version 2 to 3, and binds durable storage deletion intents. A 202 response must contain the canonical owner-purge receipt, its digest and timestamp; it is neither proof of terminal object reconciliation nor deletion certification.
+ * @summary Commit relational detachment, owner purge and storage disposition tracking
  */
 export const CompleteRetentionRequestParams = zod.object({
-  "id": zod.coerce.string().uuid()
+  "id": zod.string().uuid()
 })
 
+export const completeRetentionRequestHeaderIfMatchMax = 21;
+
+
+export const completeRetentionRequestHeaderIfMatchRegExp = new RegExp('^(?:W/)?"?(?:[1-9][0-9]{0,14}|[1-8][0-9]{15}|900[0-6][0-9]{12}|90070[0-9]{11}|90071[0-8][0-9]{10}|900719[0-8][0-9]{9}|9007199[01][0-9]{8}|90071992[0-4][0-9]{7}|900719925[0-3][0-9]{6}|9007199254[0-6][0-9]{5}|90071992547[0-3][0-9]{4}|9007199254740[0-8][0-9]{2}|90071992547409[0-8][0-9]|900719925474099[01])"?$');
+export const completeRetentionRequestHeaderIdempotencyKeyMin = 16;
+export const completeRetentionRequestHeaderIdempotencyKeyMax = 128;
+
+
+export const completeRetentionRequestHeaderIdempotencyKeyRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$');
+
+
+export const CompleteRetentionRequestHeader = zod.object({
+  "If-Match": zod.string().max(completeRetentionRequestHeaderIfMatchMax).regex(completeRetentionRequestHeaderIfMatchRegExp).describe('Current positive safe-integer resource version, optionally quoted or weakly prefixed.'),
+  "Idempotency-Key": zod.string().min(completeRetentionRequestHeaderIdempotencyKeyMin).max(completeRetentionRequestHeaderIdempotencyKeyMax).regex(completeRetentionRequestHeaderIdempotencyKeyRegExp).describe('Stable client-generated identity retained unchanged across retries of one phase transition. Reuse is accepted only for the exact tenant, actor, resource version and trimmed attestation.')
+})
+
+export const completeRetentionRequestBodyAttestationMin = 16;
+export const completeRetentionRequestBodyAttestationMax = 512;
+
+
+
+export const CompleteRetentionRequestBody = zod.object({
+  "attestation": zod.string().min(completeRetentionRequestBodyAttestationMin).max(completeRetentionRequestBodyAttestationMax)
+}).strict()
+
+export const completeRetentionRequestResponseRequestRequestedByNameOneMax = 256;
+
+export const completeRetentionRequestResponseRequestReasonOneMax = 2000;
+
+export const completeRetentionRequestResponseRequestVersionMax = 9007199254740991;
+
+export const completeRetentionRequestResponseActionOneVersionMax = 9007199254740991;
+
+export const completeRetentionRequestResponseActionOneSourceManifestSha256OneRegExp = new RegExp('^[0-9a-f]{64}$');
+export const completeRetentionRequestResponseActionOnePurgeReceiptSha256OneRegExp = new RegExp('^[0-9a-f]{64}$');
+export const completeRetentionRequestResponseActionOneReconciliationManifestSha256OneRegExp = new RegExp('^[0-9a-f]{64}$');
+export const completeRetentionRequestResponseActionOnePreparedByNameOneMax = 256;
+
+export const completeRetentionRequestResponseActionOneCheckedByNameOneMax = 256;
+
+export const completeRetentionRequestResponseObjectReconciliationExpectedMin = 0;
+export const completeRetentionRequestResponseObjectReconciliationExpectedMax = 1000000;
+
+export const completeRetentionRequestResponseObjectReconciliationDetachedMin = 0;
+export const completeRetentionRequestResponseObjectReconciliationDetachedMax = 1000000;
+
+export const completeRetentionRequestResponseObjectReconciliationReconciledMin = 0;
+export const completeRetentionRequestResponseObjectReconciliationReconciledMax = 1000000;
+
+export const completeRetentionRequestResponseObjectReconciliationPendingMin = 0;
+export const completeRetentionRequestResponseObjectReconciliationPendingMax = 1000000;
+
+export const completeRetentionRequestResponseObjectReconciliationDeadLettersMin = 0;
+export const completeRetentionRequestResponseObjectReconciliationDeadLettersMax = 1000000;
+
+export const completeRetentionRequestResponseObjectBindingsMax = 1000;
+
+export const completeRetentionRequestResponseRetainedCategoriesItemCategoryMin = 2;
+export const completeRetentionRequestResponseRetainedCategoriesItemCategoryMax = 80;
+
+
+export const completeRetentionRequestResponseRetainedCategoriesItemCategoryRegExp = new RegExp('^[a-z][a-z0-9_]{1,79}$');
+export const completeRetentionRequestResponseRetainedCategoriesItemReasonMax = 512;
+
+export const completeRetentionRequestResponseRetainedCategoriesItemCountMin = 0;
+export const completeRetentionRequestResponseRetainedCategoriesItemCountMax = 1000000;
+
+export const completeRetentionRequestResponseRetainedCategoriesMax = 64;
+
+export const completeRetentionRequestResponseBlockersItemCodeMin = 3;
+export const completeRetentionRequestResponseBlockersItemCodeMax = 80;
+
+
+export const completeRetentionRequestResponseBlockersItemCodeRegExp = new RegExp('^[a-z][a-z0-9_]{2,79}$');
+export const completeRetentionRequestResponseBlockersItemMessageMax = 512;
+
+export const completeRetentionRequestResponseBlockersMax = 64;
+
+export const completeRetentionRequestResponseCertificateOneCertificateNumberMax = 128;
+
+export const completeRetentionRequestResponseCertificateOneScopeManifestHashRegExp = new RegExp('^[0-9a-f]{64}$');
+export const completeRetentionRequestResponseCertificateOneCertificateManifestSha256RegExp = new RegExp('^[0-9a-f]{64}$');
+export const completeRetentionRequestResponseCertificateOneMethodMax = 256;
+
+export const completeRetentionRequestResponseCertificateOneSignedByNameMax = 256;
+
+export const completeRetentionRequestResponseCertificateOneSignatureEvidenceMax = 2000;
+
+
+
 export const CompleteRetentionRequestResponse = zod.object({
-  "error": zod.string().min(1),
-  "code": zod.literal("RETENTION_COMPLETION_NOT_ACTIVATED"),
-  "sideEffectsApplied": zod.literal(false),
-  "requiredWorkflow": zod.literal("durable_two_phase_detach_reconcile_certify"),
-  "requiredCoverage": zod.tuple([
-    zod.literal("project_content_rows"),
-    zod.literal("object_storage"),
-    zod.literal("upload_sessions"),
-    zod.literal("storage_lifecycle_control_rows")
-  ])
+  "request": zod.object({
+  "id": zod.string().uuid(),
+  "projectId": zod.union([zod.string().uuid(),zod.null()]),
+  "subjectProjectId": zod.string().uuid(),
+  "requestedByUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "requestedByName": zod.union([zod.string().min(1).max(completeRetentionRequestResponseRequestRequestedByNameOneMax),zod.null()]),
+  "reason": zod.union([zod.string().min(1).max(completeRetentionRequestResponseRequestReasonOneMax),zod.null()]),
+  "dueAt": zod.date(),
+  "completedAt": zod.union([zod.date(),zod.null()]),
+  "status": zod.enum(['pending', 'reconciling', 'completed', 'blocked']),
+  "completionProtocolVersion": zod.union([zod.literal(0),zod.literal(1)]).describe('Zero identifies a read-only historical record that predates the detach\/reconcile\/certify evidence protocol. Only protocol one may expose completion actions.'),
+  "version": zod.number().min(1).max(completeRetentionRequestResponseRequestVersionMax),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date()
+}).strict(),
+  "action": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "retentionRequestId": zod.string().uuid(),
+  "subjectProjectId": zod.string().uuid(),
+  "status": zod.enum(['pending', 'detached', 'reconciled', 'certified', 'blocked']),
+  "version": zod.number().min(1).max(completeRetentionRequestResponseActionOneVersionMax).describe('Current action CAS version. The governed protocol returns version 3 after detached owner purge, version 4 after reconciliation and version 5 after independent certification.'),
+  "sourceManifest": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
+  "sourceManifestSha256": zod.union([zod.string().regex(completeRetentionRequestResponseActionOneSourceManifestSha256OneRegExp),zod.null()]),
+  "purgeReceipt": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]).describe('Canonical parsed owner-purge receipt, or null for pending or legacy evidence. Successful phase-one completion returns a non-null value; clients must not infer purge from detached status alone.'),
+  "purgeReceiptSha256": zod.union([zod.string().regex(completeRetentionRequestResponseActionOnePurgeReceiptSha256OneRegExp),zod.null()]),
+  "purgedAt": zod.union([zod.date(),zod.null()]),
+  "reconciliationManifest": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
+  "reconciliationManifestSha256": zod.union([zod.string().regex(completeRetentionRequestResponseActionOneReconciliationManifestSha256OneRegExp),zod.null()]),
+  "preparedByUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "preparedByName": zod.union([zod.string().min(1).max(completeRetentionRequestResponseActionOnePreparedByNameOneMax),zod.null()]),
+  "preparedAt": zod.union([zod.date(),zod.null()]),
+  "checkedByUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "checkedByName": zod.union([zod.string().min(1).max(completeRetentionRequestResponseActionOneCheckedByNameOneMax),zod.null()]),
+  "checkedAt": zod.union([zod.date(),zod.null()]),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date()
+}).strict(),zod.null()]),
+  "objectReconciliation": zod.object({
+  "expected": zod.number().min(completeRetentionRequestResponseObjectReconciliationExpectedMin).max(completeRetentionRequestResponseObjectReconciliationExpectedMax),
+  "detached": zod.number().min(completeRetentionRequestResponseObjectReconciliationDetachedMin).max(completeRetentionRequestResponseObjectReconciliationDetachedMax),
+  "reconciled": zod.number().min(completeRetentionRequestResponseObjectReconciliationReconciledMin).max(completeRetentionRequestResponseObjectReconciliationReconciledMax),
+  "pending": zod.number().min(completeRetentionRequestResponseObjectReconciliationPendingMin).max(completeRetentionRequestResponseObjectReconciliationPendingMax),
+  "deadLetters": zod.number().min(completeRetentionRequestResponseObjectReconciliationDeadLettersMin).max(completeRetentionRequestResponseObjectReconciliationDeadLettersMax)
+}).strict(),
+  "objectBindings": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.literal("project_retention"),
+  "status": zod.enum(['queued', 'retry_wait', 'completed', 'cancelled', 'dead_letter', 'resolved']),
+  "terminalDisposition": zod.union([zod.enum(['deleted', 'already_absent', 'cancelled_referenced', 'accepted_unresolved']),zod.null()])
+}).strict()).max(completeRetentionRequestResponseObjectBindingsMax),
+  "retainedCategories": zod.array(zod.object({
+  "category": zod.string().min(completeRetentionRequestResponseRetainedCategoriesItemCategoryMin).max(completeRetentionRequestResponseRetainedCategoriesItemCategoryMax).regex(completeRetentionRequestResponseRetainedCategoriesItemCategoryRegExp),
+  "reason": zod.string().min(1).max(completeRetentionRequestResponseRetainedCategoriesItemReasonMax),
+  "count": zod.number().min(completeRetentionRequestResponseRetainedCategoriesItemCountMin).max(completeRetentionRequestResponseRetainedCategoriesItemCountMax)
+}).strict()).max(completeRetentionRequestResponseRetainedCategoriesMax),
+  "blockers": zod.array(zod.object({
+  "code": zod.string().min(completeRetentionRequestResponseBlockersItemCodeMin).max(completeRetentionRequestResponseBlockersItemCodeMax).regex(completeRetentionRequestResponseBlockersItemCodeRegExp),
+  "message": zod.string().min(1).max(completeRetentionRequestResponseBlockersItemMessageMax)
+}).strict()).max(completeRetentionRequestResponseBlockersMax),
+  "certificate": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "retentionActionId": zod.string().uuid(),
+  "certificateNumber": zod.string().min(1).max(completeRetentionRequestResponseCertificateOneCertificateNumberMax),
+  "scopeManifestHash": zod.string().regex(completeRetentionRequestResponseCertificateOneScopeManifestHashRegExp),
+  "certificateManifest": zod.record(zod.string(), zod.unknown()),
+  "certificateManifestSha256": zod.string().regex(completeRetentionRequestResponseCertificateOneCertificateManifestSha256RegExp),
+  "method": zod.string().min(1).max(completeRetentionRequestResponseCertificateOneMethodMax),
+  "completedAt": zod.date(),
+  "signedByUserId": zod.string().uuid(),
+  "signedByName": zod.string().min(1).max(completeRetentionRequestResponseCertificateOneSignedByNameMax),
+  "signatureEvidence": zod.string().min(1).max(completeRetentionRequestResponseCertificateOneSignatureEvidenceMax),
+  "createdAt": zod.date()
+}).strict(),zod.null()]),
+  "permissions": zod.object({
+  "canStart": zod.boolean(),
+  "canReconcile": zod.boolean(),
+  "canCertify": zod.boolean()
+}).strict(),
+  "generatedAt": zod.date()
+}).strict()
+
+
+/**
+ * Under detached action version 3 with verified owner-purge receipt, activation gates, bounded named-human attestation and stable idempotency identity, revalidates every bound storage intent and records action version 4, the canonical reconciliation manifest and preparer stamp. A response is not certification and does not authorise the same person to certify the action.
+ * @summary Record exact terminal object reconciliation evidence
+ */
+export const ReconcileRetentionActionParams = zod.object({
+  "id": zod.string().uuid()
+})
+
+export const reconcileRetentionActionHeaderIfMatchMax = 21;
+
+
+export const reconcileRetentionActionHeaderIfMatchRegExp = new RegExp('^(?:W/)?"?(?:[1-9][0-9]{0,14}|[1-8][0-9]{15}|900[0-6][0-9]{12}|90070[0-9]{11}|90071[0-8][0-9]{10}|900719[0-8][0-9]{9}|9007199[01][0-9]{8}|90071992[0-4][0-9]{7}|900719925[0-3][0-9]{6}|9007199254[0-6][0-9]{5}|90071992547[0-3][0-9]{4}|9007199254740[0-8][0-9]{2}|90071992547409[0-8][0-9]|900719925474099[01])"?$');
+export const reconcileRetentionActionHeaderIdempotencyKeyMin = 16;
+export const reconcileRetentionActionHeaderIdempotencyKeyMax = 128;
+
+
+export const reconcileRetentionActionHeaderIdempotencyKeyRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$');
+
+
+export const ReconcileRetentionActionHeader = zod.object({
+  "If-Match": zod.string().max(reconcileRetentionActionHeaderIfMatchMax).regex(reconcileRetentionActionHeaderIfMatchRegExp).describe('Current positive safe-integer resource version, optionally quoted or weakly prefixed.'),
+  "Idempotency-Key": zod.string().min(reconcileRetentionActionHeaderIdempotencyKeyMin).max(reconcileRetentionActionHeaderIdempotencyKeyMax).regex(reconcileRetentionActionHeaderIdempotencyKeyRegExp).describe('Stable client-generated identity retained unchanged across retries of one phase transition. Reuse is accepted only for the exact tenant, actor, resource version and trimmed attestation.')
+})
+
+export const reconcileRetentionActionBodyAttestationMin = 16;
+export const reconcileRetentionActionBodyAttestationMax = 512;
+
+
+
+export const ReconcileRetentionActionBody = zod.object({
+  "attestation": zod.string().min(reconcileRetentionActionBodyAttestationMin).max(reconcileRetentionActionBodyAttestationMax)
+}).strict()
+
+export const reconcileRetentionActionResponseRequestRequestedByNameOneMax = 256;
+
+export const reconcileRetentionActionResponseRequestReasonOneMax = 2000;
+
+export const reconcileRetentionActionResponseRequestVersionMax = 9007199254740991;
+
+export const reconcileRetentionActionResponseActionOneVersionMax = 9007199254740991;
+
+export const reconcileRetentionActionResponseActionOneSourceManifestSha256OneRegExp = new RegExp('^[0-9a-f]{64}$');
+export const reconcileRetentionActionResponseActionOnePurgeReceiptSha256OneRegExp = new RegExp('^[0-9a-f]{64}$');
+export const reconcileRetentionActionResponseActionOneReconciliationManifestSha256OneRegExp = new RegExp('^[0-9a-f]{64}$');
+export const reconcileRetentionActionResponseActionOnePreparedByNameOneMax = 256;
+
+export const reconcileRetentionActionResponseActionOneCheckedByNameOneMax = 256;
+
+export const reconcileRetentionActionResponseObjectReconciliationExpectedMin = 0;
+export const reconcileRetentionActionResponseObjectReconciliationExpectedMax = 1000000;
+
+export const reconcileRetentionActionResponseObjectReconciliationDetachedMin = 0;
+export const reconcileRetentionActionResponseObjectReconciliationDetachedMax = 1000000;
+
+export const reconcileRetentionActionResponseObjectReconciliationReconciledMin = 0;
+export const reconcileRetentionActionResponseObjectReconciliationReconciledMax = 1000000;
+
+export const reconcileRetentionActionResponseObjectReconciliationPendingMin = 0;
+export const reconcileRetentionActionResponseObjectReconciliationPendingMax = 1000000;
+
+export const reconcileRetentionActionResponseObjectReconciliationDeadLettersMin = 0;
+export const reconcileRetentionActionResponseObjectReconciliationDeadLettersMax = 1000000;
+
+export const reconcileRetentionActionResponseObjectBindingsMax = 1000;
+
+export const reconcileRetentionActionResponseRetainedCategoriesItemCategoryMin = 2;
+export const reconcileRetentionActionResponseRetainedCategoriesItemCategoryMax = 80;
+
+
+export const reconcileRetentionActionResponseRetainedCategoriesItemCategoryRegExp = new RegExp('^[a-z][a-z0-9_]{1,79}$');
+export const reconcileRetentionActionResponseRetainedCategoriesItemReasonMax = 512;
+
+export const reconcileRetentionActionResponseRetainedCategoriesItemCountMin = 0;
+export const reconcileRetentionActionResponseRetainedCategoriesItemCountMax = 1000000;
+
+export const reconcileRetentionActionResponseRetainedCategoriesMax = 64;
+
+export const reconcileRetentionActionResponseBlockersItemCodeMin = 3;
+export const reconcileRetentionActionResponseBlockersItemCodeMax = 80;
+
+
+export const reconcileRetentionActionResponseBlockersItemCodeRegExp = new RegExp('^[a-z][a-z0-9_]{2,79}$');
+export const reconcileRetentionActionResponseBlockersItemMessageMax = 512;
+
+export const reconcileRetentionActionResponseBlockersMax = 64;
+
+export const reconcileRetentionActionResponseCertificateOneCertificateNumberMax = 128;
+
+export const reconcileRetentionActionResponseCertificateOneScopeManifestHashRegExp = new RegExp('^[0-9a-f]{64}$');
+export const reconcileRetentionActionResponseCertificateOneCertificateManifestSha256RegExp = new RegExp('^[0-9a-f]{64}$');
+export const reconcileRetentionActionResponseCertificateOneMethodMax = 256;
+
+export const reconcileRetentionActionResponseCertificateOneSignedByNameMax = 256;
+
+export const reconcileRetentionActionResponseCertificateOneSignatureEvidenceMax = 2000;
+
+
+
+export const ReconcileRetentionActionResponse = zod.object({
+  "request": zod.object({
+  "id": zod.string().uuid(),
+  "projectId": zod.union([zod.string().uuid(),zod.null()]),
+  "subjectProjectId": zod.string().uuid(),
+  "requestedByUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "requestedByName": zod.union([zod.string().min(1).max(reconcileRetentionActionResponseRequestRequestedByNameOneMax),zod.null()]),
+  "reason": zod.union([zod.string().min(1).max(reconcileRetentionActionResponseRequestReasonOneMax),zod.null()]),
+  "dueAt": zod.date(),
+  "completedAt": zod.union([zod.date(),zod.null()]),
+  "status": zod.enum(['pending', 'reconciling', 'completed', 'blocked']),
+  "completionProtocolVersion": zod.union([zod.literal(0),zod.literal(1)]).describe('Zero identifies a read-only historical record that predates the detach\/reconcile\/certify evidence protocol. Only protocol one may expose completion actions.'),
+  "version": zod.number().min(1).max(reconcileRetentionActionResponseRequestVersionMax),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date()
+}).strict(),
+  "action": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "retentionRequestId": zod.string().uuid(),
+  "subjectProjectId": zod.string().uuid(),
+  "status": zod.enum(['pending', 'detached', 'reconciled', 'certified', 'blocked']),
+  "version": zod.number().min(1).max(reconcileRetentionActionResponseActionOneVersionMax).describe('Current action CAS version. The governed protocol returns version 3 after detached owner purge, version 4 after reconciliation and version 5 after independent certification.'),
+  "sourceManifest": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
+  "sourceManifestSha256": zod.union([zod.string().regex(reconcileRetentionActionResponseActionOneSourceManifestSha256OneRegExp),zod.null()]),
+  "purgeReceipt": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]).describe('Canonical parsed owner-purge receipt, or null for pending or legacy evidence. Successful phase-one completion returns a non-null value; clients must not infer purge from detached status alone.'),
+  "purgeReceiptSha256": zod.union([zod.string().regex(reconcileRetentionActionResponseActionOnePurgeReceiptSha256OneRegExp),zod.null()]),
+  "purgedAt": zod.union([zod.date(),zod.null()]),
+  "reconciliationManifest": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
+  "reconciliationManifestSha256": zod.union([zod.string().regex(reconcileRetentionActionResponseActionOneReconciliationManifestSha256OneRegExp),zod.null()]),
+  "preparedByUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "preparedByName": zod.union([zod.string().min(1).max(reconcileRetentionActionResponseActionOnePreparedByNameOneMax),zod.null()]),
+  "preparedAt": zod.union([zod.date(),zod.null()]),
+  "checkedByUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "checkedByName": zod.union([zod.string().min(1).max(reconcileRetentionActionResponseActionOneCheckedByNameOneMax),zod.null()]),
+  "checkedAt": zod.union([zod.date(),zod.null()]),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date()
+}).strict(),zod.null()]),
+  "objectReconciliation": zod.object({
+  "expected": zod.number().min(reconcileRetentionActionResponseObjectReconciliationExpectedMin).max(reconcileRetentionActionResponseObjectReconciliationExpectedMax),
+  "detached": zod.number().min(reconcileRetentionActionResponseObjectReconciliationDetachedMin).max(reconcileRetentionActionResponseObjectReconciliationDetachedMax),
+  "reconciled": zod.number().min(reconcileRetentionActionResponseObjectReconciliationReconciledMin).max(reconcileRetentionActionResponseObjectReconciliationReconciledMax),
+  "pending": zod.number().min(reconcileRetentionActionResponseObjectReconciliationPendingMin).max(reconcileRetentionActionResponseObjectReconciliationPendingMax),
+  "deadLetters": zod.number().min(reconcileRetentionActionResponseObjectReconciliationDeadLettersMin).max(reconcileRetentionActionResponseObjectReconciliationDeadLettersMax)
+}).strict(),
+  "objectBindings": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.literal("project_retention"),
+  "status": zod.enum(['queued', 'retry_wait', 'completed', 'cancelled', 'dead_letter', 'resolved']),
+  "terminalDisposition": zod.union([zod.enum(['deleted', 'already_absent', 'cancelled_referenced', 'accepted_unresolved']),zod.null()])
+}).strict()).max(reconcileRetentionActionResponseObjectBindingsMax),
+  "retainedCategories": zod.array(zod.object({
+  "category": zod.string().min(reconcileRetentionActionResponseRetainedCategoriesItemCategoryMin).max(reconcileRetentionActionResponseRetainedCategoriesItemCategoryMax).regex(reconcileRetentionActionResponseRetainedCategoriesItemCategoryRegExp),
+  "reason": zod.string().min(1).max(reconcileRetentionActionResponseRetainedCategoriesItemReasonMax),
+  "count": zod.number().min(reconcileRetentionActionResponseRetainedCategoriesItemCountMin).max(reconcileRetentionActionResponseRetainedCategoriesItemCountMax)
+}).strict()).max(reconcileRetentionActionResponseRetainedCategoriesMax),
+  "blockers": zod.array(zod.object({
+  "code": zod.string().min(reconcileRetentionActionResponseBlockersItemCodeMin).max(reconcileRetentionActionResponseBlockersItemCodeMax).regex(reconcileRetentionActionResponseBlockersItemCodeRegExp),
+  "message": zod.string().min(1).max(reconcileRetentionActionResponseBlockersItemMessageMax)
+}).strict()).max(reconcileRetentionActionResponseBlockersMax),
+  "certificate": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "retentionActionId": zod.string().uuid(),
+  "certificateNumber": zod.string().min(1).max(reconcileRetentionActionResponseCertificateOneCertificateNumberMax),
+  "scopeManifestHash": zod.string().regex(reconcileRetentionActionResponseCertificateOneScopeManifestHashRegExp),
+  "certificateManifest": zod.record(zod.string(), zod.unknown()),
+  "certificateManifestSha256": zod.string().regex(reconcileRetentionActionResponseCertificateOneCertificateManifestSha256RegExp),
+  "method": zod.string().min(1).max(reconcileRetentionActionResponseCertificateOneMethodMax),
+  "completedAt": zod.date(),
+  "signedByUserId": zod.string().uuid(),
+  "signedByName": zod.string().min(1).max(reconcileRetentionActionResponseCertificateOneSignedByNameMax),
+  "signatureEvidence": zod.string().min(1).max(reconcileRetentionActionResponseCertificateOneSignatureEvidenceMax),
+  "createdAt": zod.date()
+}).strict(),zod.null()]),
+  "permissions": zod.object({
+  "canStart": zod.boolean(),
+  "canReconcile": zod.boolean(),
+  "canCertify": zod.boolean()
+}).strict(),
+  "generatedAt": zod.date()
+}).strict()
+
+
+/**
+ * Requires a checker distinct from the reconciliation preparer, action version 4 with verified owner-purge receipt, bounded attestation and a stable idempotency identity. Certification records action version 5 and fails closed unless every bound storage intent has trusted terminal evidence and both manifests still match. Only the returned certificate is certification evidence.
+ * @summary Independently certify an exactly reconciled retention action
+ */
+export const CertifyRetentionActionParams = zod.object({
+  "id": zod.string().uuid()
+})
+
+export const certifyRetentionActionHeaderIfMatchMax = 21;
+
+
+export const certifyRetentionActionHeaderIfMatchRegExp = new RegExp('^(?:W/)?"?(?:[1-9][0-9]{0,14}|[1-8][0-9]{15}|900[0-6][0-9]{12}|90070[0-9]{11}|90071[0-8][0-9]{10}|900719[0-8][0-9]{9}|9007199[01][0-9]{8}|90071992[0-4][0-9]{7}|900719925[0-3][0-9]{6}|9007199254[0-6][0-9]{5}|90071992547[0-3][0-9]{4}|9007199254740[0-8][0-9]{2}|90071992547409[0-8][0-9]|900719925474099[01])"?$');
+export const certifyRetentionActionHeaderIdempotencyKeyMin = 16;
+export const certifyRetentionActionHeaderIdempotencyKeyMax = 128;
+
+
+export const certifyRetentionActionHeaderIdempotencyKeyRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$');
+
+
+export const CertifyRetentionActionHeader = zod.object({
+  "If-Match": zod.string().max(certifyRetentionActionHeaderIfMatchMax).regex(certifyRetentionActionHeaderIfMatchRegExp).describe('Current positive safe-integer resource version, optionally quoted or weakly prefixed.'),
+  "Idempotency-Key": zod.string().min(certifyRetentionActionHeaderIdempotencyKeyMin).max(certifyRetentionActionHeaderIdempotencyKeyMax).regex(certifyRetentionActionHeaderIdempotencyKeyRegExp).describe('Stable client-generated identity retained unchanged across retries of one phase transition. Reuse is accepted only for the exact tenant, actor, resource version and trimmed attestation.')
+})
+
+export const certifyRetentionActionBodyAttestationMin = 16;
+export const certifyRetentionActionBodyAttestationMax = 512;
+
+
+
+export const CertifyRetentionActionBody = zod.object({
+  "attestation": zod.string().min(certifyRetentionActionBodyAttestationMin).max(certifyRetentionActionBodyAttestationMax)
+}).strict()
+
+export const certifyRetentionActionResponseRequestRequestedByNameOneMax = 256;
+
+export const certifyRetentionActionResponseRequestReasonOneMax = 2000;
+
+export const certifyRetentionActionResponseRequestVersionMax = 9007199254740991;
+
+export const certifyRetentionActionResponseActionOneVersionMax = 9007199254740991;
+
+export const certifyRetentionActionResponseActionOneSourceManifestSha256OneRegExp = new RegExp('^[0-9a-f]{64}$');
+export const certifyRetentionActionResponseActionOnePurgeReceiptSha256OneRegExp = new RegExp('^[0-9a-f]{64}$');
+export const certifyRetentionActionResponseActionOneReconciliationManifestSha256OneRegExp = new RegExp('^[0-9a-f]{64}$');
+export const certifyRetentionActionResponseActionOnePreparedByNameOneMax = 256;
+
+export const certifyRetentionActionResponseActionOneCheckedByNameOneMax = 256;
+
+export const certifyRetentionActionResponseObjectReconciliationExpectedMin = 0;
+export const certifyRetentionActionResponseObjectReconciliationExpectedMax = 1000000;
+
+export const certifyRetentionActionResponseObjectReconciliationDetachedMin = 0;
+export const certifyRetentionActionResponseObjectReconciliationDetachedMax = 1000000;
+
+export const certifyRetentionActionResponseObjectReconciliationReconciledMin = 0;
+export const certifyRetentionActionResponseObjectReconciliationReconciledMax = 1000000;
+
+export const certifyRetentionActionResponseObjectReconciliationPendingMin = 0;
+export const certifyRetentionActionResponseObjectReconciliationPendingMax = 1000000;
+
+export const certifyRetentionActionResponseObjectReconciliationDeadLettersMin = 0;
+export const certifyRetentionActionResponseObjectReconciliationDeadLettersMax = 1000000;
+
+export const certifyRetentionActionResponseObjectBindingsMax = 1000;
+
+export const certifyRetentionActionResponseRetainedCategoriesItemCategoryMin = 2;
+export const certifyRetentionActionResponseRetainedCategoriesItemCategoryMax = 80;
+
+
+export const certifyRetentionActionResponseRetainedCategoriesItemCategoryRegExp = new RegExp('^[a-z][a-z0-9_]{1,79}$');
+export const certifyRetentionActionResponseRetainedCategoriesItemReasonMax = 512;
+
+export const certifyRetentionActionResponseRetainedCategoriesItemCountMin = 0;
+export const certifyRetentionActionResponseRetainedCategoriesItemCountMax = 1000000;
+
+export const certifyRetentionActionResponseRetainedCategoriesMax = 64;
+
+export const certifyRetentionActionResponseBlockersItemCodeMin = 3;
+export const certifyRetentionActionResponseBlockersItemCodeMax = 80;
+
+
+export const certifyRetentionActionResponseBlockersItemCodeRegExp = new RegExp('^[a-z][a-z0-9_]{2,79}$');
+export const certifyRetentionActionResponseBlockersItemMessageMax = 512;
+
+export const certifyRetentionActionResponseBlockersMax = 64;
+
+export const certifyRetentionActionResponseCertificateOneCertificateNumberMax = 128;
+
+export const certifyRetentionActionResponseCertificateOneScopeManifestHashRegExp = new RegExp('^[0-9a-f]{64}$');
+export const certifyRetentionActionResponseCertificateOneCertificateManifestSha256RegExp = new RegExp('^[0-9a-f]{64}$');
+export const certifyRetentionActionResponseCertificateOneMethodMax = 256;
+
+export const certifyRetentionActionResponseCertificateOneSignedByNameMax = 256;
+
+export const certifyRetentionActionResponseCertificateOneSignatureEvidenceMax = 2000;
+
+
+
+export const CertifyRetentionActionResponse = zod.object({
+  "request": zod.object({
+  "id": zod.string().uuid(),
+  "projectId": zod.union([zod.string().uuid(),zod.null()]),
+  "subjectProjectId": zod.string().uuid(),
+  "requestedByUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "requestedByName": zod.union([zod.string().min(1).max(certifyRetentionActionResponseRequestRequestedByNameOneMax),zod.null()]),
+  "reason": zod.union([zod.string().min(1).max(certifyRetentionActionResponseRequestReasonOneMax),zod.null()]),
+  "dueAt": zod.date(),
+  "completedAt": zod.union([zod.date(),zod.null()]),
+  "status": zod.enum(['pending', 'reconciling', 'completed', 'blocked']),
+  "completionProtocolVersion": zod.union([zod.literal(0),zod.literal(1)]).describe('Zero identifies a read-only historical record that predates the detach\/reconcile\/certify evidence protocol. Only protocol one may expose completion actions.'),
+  "version": zod.number().min(1).max(certifyRetentionActionResponseRequestVersionMax),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date()
+}).strict(),
+  "action": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "retentionRequestId": zod.string().uuid(),
+  "subjectProjectId": zod.string().uuid(),
+  "status": zod.enum(['pending', 'detached', 'reconciled', 'certified', 'blocked']),
+  "version": zod.number().min(1).max(certifyRetentionActionResponseActionOneVersionMax).describe('Current action CAS version. The governed protocol returns version 3 after detached owner purge, version 4 after reconciliation and version 5 after independent certification.'),
+  "sourceManifest": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
+  "sourceManifestSha256": zod.union([zod.string().regex(certifyRetentionActionResponseActionOneSourceManifestSha256OneRegExp),zod.null()]),
+  "purgeReceipt": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]).describe('Canonical parsed owner-purge receipt, or null for pending or legacy evidence. Successful phase-one completion returns a non-null value; clients must not infer purge from detached status alone.'),
+  "purgeReceiptSha256": zod.union([zod.string().regex(certifyRetentionActionResponseActionOnePurgeReceiptSha256OneRegExp),zod.null()]),
+  "purgedAt": zod.union([zod.date(),zod.null()]),
+  "reconciliationManifest": zod.union([zod.record(zod.string(), zod.unknown()),zod.null()]),
+  "reconciliationManifestSha256": zod.union([zod.string().regex(certifyRetentionActionResponseActionOneReconciliationManifestSha256OneRegExp),zod.null()]),
+  "preparedByUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "preparedByName": zod.union([zod.string().min(1).max(certifyRetentionActionResponseActionOnePreparedByNameOneMax),zod.null()]),
+  "preparedAt": zod.union([zod.date(),zod.null()]),
+  "checkedByUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "checkedByName": zod.union([zod.string().min(1).max(certifyRetentionActionResponseActionOneCheckedByNameOneMax),zod.null()]),
+  "checkedAt": zod.union([zod.date(),zod.null()]),
+  "createdAt": zod.date(),
+  "updatedAt": zod.date()
+}).strict(),zod.null()]),
+  "objectReconciliation": zod.object({
+  "expected": zod.number().min(certifyRetentionActionResponseObjectReconciliationExpectedMin).max(certifyRetentionActionResponseObjectReconciliationExpectedMax),
+  "detached": zod.number().min(certifyRetentionActionResponseObjectReconciliationDetachedMin).max(certifyRetentionActionResponseObjectReconciliationDetachedMax),
+  "reconciled": zod.number().min(certifyRetentionActionResponseObjectReconciliationReconciledMin).max(certifyRetentionActionResponseObjectReconciliationReconciledMax),
+  "pending": zod.number().min(certifyRetentionActionResponseObjectReconciliationPendingMin).max(certifyRetentionActionResponseObjectReconciliationPendingMax),
+  "deadLetters": zod.number().min(certifyRetentionActionResponseObjectReconciliationDeadLettersMin).max(certifyRetentionActionResponseObjectReconciliationDeadLettersMax)
+}).strict(),
+  "objectBindings": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.literal("project_retention"),
+  "status": zod.enum(['queued', 'retry_wait', 'completed', 'cancelled', 'dead_letter', 'resolved']),
+  "terminalDisposition": zod.union([zod.enum(['deleted', 'already_absent', 'cancelled_referenced', 'accepted_unresolved']),zod.null()])
+}).strict()).max(certifyRetentionActionResponseObjectBindingsMax),
+  "retainedCategories": zod.array(zod.object({
+  "category": zod.string().min(certifyRetentionActionResponseRetainedCategoriesItemCategoryMin).max(certifyRetentionActionResponseRetainedCategoriesItemCategoryMax).regex(certifyRetentionActionResponseRetainedCategoriesItemCategoryRegExp),
+  "reason": zod.string().min(1).max(certifyRetentionActionResponseRetainedCategoriesItemReasonMax),
+  "count": zod.number().min(certifyRetentionActionResponseRetainedCategoriesItemCountMin).max(certifyRetentionActionResponseRetainedCategoriesItemCountMax)
+}).strict()).max(certifyRetentionActionResponseRetainedCategoriesMax),
+  "blockers": zod.array(zod.object({
+  "code": zod.string().min(certifyRetentionActionResponseBlockersItemCodeMin).max(certifyRetentionActionResponseBlockersItemCodeMax).regex(certifyRetentionActionResponseBlockersItemCodeRegExp),
+  "message": zod.string().min(1).max(certifyRetentionActionResponseBlockersItemMessageMax)
+}).strict()).max(certifyRetentionActionResponseBlockersMax),
+  "certificate": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "retentionActionId": zod.string().uuid(),
+  "certificateNumber": zod.string().min(1).max(certifyRetentionActionResponseCertificateOneCertificateNumberMax),
+  "scopeManifestHash": zod.string().regex(certifyRetentionActionResponseCertificateOneScopeManifestHashRegExp),
+  "certificateManifest": zod.record(zod.string(), zod.unknown()),
+  "certificateManifestSha256": zod.string().regex(certifyRetentionActionResponseCertificateOneCertificateManifestSha256RegExp),
+  "method": zod.string().min(1).max(certifyRetentionActionResponseCertificateOneMethodMax),
+  "completedAt": zod.date(),
+  "signedByUserId": zod.string().uuid(),
+  "signedByName": zod.string().min(1).max(certifyRetentionActionResponseCertificateOneSignedByNameMax),
+  "signatureEvidence": zod.string().min(1).max(certifyRetentionActionResponseCertificateOneSignatureEvidenceMax),
+  "createdAt": zod.date()
+}).strict(),zod.null()]),
+  "permissions": zod.object({
+  "canStart": zod.boolean(),
+  "canReconcile": zod.boolean(),
+  "canCertify": zod.boolean()
+}).strict(),
+  "generatedAt": zod.date()
 }).strict()
 
 

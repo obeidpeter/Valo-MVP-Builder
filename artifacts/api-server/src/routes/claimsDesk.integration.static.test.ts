@@ -4,7 +4,15 @@ import { describe, test } from "node:test";
 
 const routesIndex = new URL("./index.ts", import.meta.url);
 const tenancy = new URL("../middlewares/tenancy.ts", import.meta.url);
-const retention = new URL("./operations.ts", import.meta.url);
+const retentionRoute = new URL("./retentionCompletion.ts", import.meta.url);
+const retentionService = new URL(
+  "../lib/retentionCompletion/service.ts",
+  import.meta.url,
+);
+const retentionActivation = new URL(
+  "../lib/retentionCompletion/activation.ts",
+  import.meta.url,
+);
 
 describe("Claims Desk shared integration", () => {
   test("mounts the real route factory only after tenant database and resource guards", async () => {
@@ -31,23 +39,35 @@ describe("Claims Desk shared integration", () => {
   });
 
   test("uses exported released-route exceptions and leaves claims content untouched while retention is gated", async () => {
-    const [tenancySource, retentionSource] = await Promise.all([
+    const [
+      tenancySource,
+      retentionRouteSource,
+      retentionServiceSource,
+      retentionActivationSource,
+    ] = await Promise.all([
       readFile(tenancy, "utf8"),
-      readFile(retention, "utf8"),
+      readFile(retentionRoute, "utf8"),
+      readFile(retentionService, "utf8"),
+      readFile(retentionActivation, "utf8"),
     ]);
     assert.match(
       tenancySource,
       /\.\.\.CLAIMS_DESK_RELEASED_LEDGER_ROUTE_EXCEPTIONS/u,
     );
-    assert.match(retentionSource, /RETENTION_COMPLETION_NOT_ACTIVATED/u);
+    assert.match(retentionRouteSource, /RETENTION_COMPLETION_NOT_ACTIVATED/u);
+    assert.match(retentionRouteSource, /sideEffectsApplied: false/u);
     assert.match(
-      retentionSource,
+      retentionActivationSource,
       /durable_two_phase_detach_reconcile_certify/u,
     );
+    assert.match(
+      retentionServiceSource,
+      /async detach\([\s\S]*?this\.#assertActivated\(\);[\s\S]*?this\.#repository\.detach\(/u,
+    );
     assert.doesNotMatch(
-      retentionSource,
+      retentionRouteSource,
       /CLAIMS_DESK_RETENTION_WORK_TASK_LIKE/u,
     );
-    assert.doesNotMatch(retentionSource, /claims_desk_events=/u);
+    assert.doesNotMatch(retentionRouteSource, /claims_desk_events=/u);
   });
 });

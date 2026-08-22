@@ -42,6 +42,7 @@ import { createPrivacyOperationsRouter } from "./privacyOperationsCentre";
 import { createCommercialRetainerRouter } from "./commercialRetainer";
 import { createDefaultPartnerConsortiumRoomRouter } from "./partnerConsortiumRoom";
 import { createClaimsDeskRouter } from "./claimsDesk";
+import { createRetentionCompletionRouter } from "./retentionCompletion";
 import canonicalEvidenceOptionsRouter from "./canonicalEvidenceOptions";
 import workInboxRouter from "./workInbox";
 import organisationsRouter from "./organisations";
@@ -69,6 +70,11 @@ import { createDrizzleCommercialRetainerRepository } from "../lib/commercialReta
 import { GovernedClientUploadService } from "../lib/storageLifecycle/clientUpload";
 import { DrizzleGovernedClientUploadRepository } from "../lib/storageLifecycle/clientUploadRepository";
 import { isGovernedClientUploadActivated } from "../lib/storageLifecycle/activation";
+import {
+  DrizzleRetentionCompletionRepository,
+  RetentionCompletionService,
+  loadCheckedRetentionCompletionActivationManifest,
+} from "../lib/retentionCompletion";
 import {
   authenticatedActorMutationRateLimiter,
   authenticatedRateLimiter,
@@ -113,6 +119,12 @@ const commercialRetainerRouter = createCommercialRetainerRouter({
 });
 const partnerConsortiumRoomRouter = createDefaultPartnerConsortiumRoomRouter();
 const claimsDeskRouter = createClaimsDeskRouter();
+const retentionCompletionRouter = createRetentionCompletionRouter({
+  service: new RetentionCompletionService({
+    repository: new DrizzleRetentionCompletionRepository(),
+    activationManifest: loadCheckedRetentionCompletionActivationManifest(),
+  }),
+});
 const boqVerificationRouter = createBoqVerificationRouter();
 const addendumImpactRouter = createAddendumImpactRouter();
 const tenderContextRouter = createTenderContextRouter();
@@ -165,6 +177,7 @@ router.use(auditRouter);
 router.use(vaultRouter);
 router.use(capabilityRouter);
 router.use(sbdRouter);
+router.use(retentionCompletionRouter);
 router.use(operationsRouter);
 router.use(operationsSuiteRouter);
 router.use(growthSuiteRouter);

@@ -122,8 +122,13 @@ export const PRODUCTION_CONTINUOUS_EVAL_PROFILE: AiContinuousEvalProfile =
     retrievalK: 10,
     minRetrievalRecallAtK: 0.9,
     minRetrievalNdcgAtK: 0.9,
-    minCitationPrecision: 0.95,
-    minCitationCoverage: 0.98,
+    // The authorised production profile is shared with the offline harness:
+    // at least 98% of independently evaluated citations must be correct and
+    // every material claim must be included in citation evaluation.  Keeping
+    // a weaker second threshold here would let the runtime evidence ledger
+    // describe a run as passing when the release harness correctly rejects it.
+    minCitationPrecision: 0.98,
+    minCitationCoverage: 1,
     maxUnsupportedClaimRate: 0,
     minExpectedDispositionAccuracy: 1,
     minInjectionContainment: 1,

@@ -285,6 +285,11 @@ import type {
   ResponsivenessResult,
   RetainerRequestAction,
   RetainerRequestMutationResponse,
+  RetentionCompletionAttestation,
+  RetentionCompletionConflict,
+  RetentionCompletionReadiness,
+  RetentionCompletionSnapshot,
+  RetentionCompletionStaleVersion,
   RetentionCompletionUnavailable,
   RetentionRequest,
   RetentionRequestCreate,
@@ -2731,11 +2736,13 @@ export const getDeleteProjectUrl = (id: string,) => {
 }
 
 /**
- * @summary Delete a project and its documents (admin only)
+ * This compatibility endpoint always fails closed. Create a governed retention request and use the detach, reconcile, and certify workflow; no project or document is deleted by this operation.
+ * @deprecated
+ * @summary Direct project deletion is disabled
  */
-export const deleteProject = async (id: string, options?: RequestInit): Promise<void> => {
+export const deleteProject = async (id: string, options?: RequestInit): Promise<unknown> => {
 
-  return customFetch<void>(getDeleteProjectUrl(id),
+  return customFetch<unknown>(getDeleteProjectUrl(id),
   {
     ...options,
     method: 'DELETE'
@@ -2747,7 +2754,7 @@ export const deleteProject = async (id: string, options?: RequestInit): Promise<
 
 
 
-export const getDeleteProjectMutationOptions = <TError = ErrorType<ForbiddenResponse>,
+export const getDeleteProjectMutationOptions = <TError = ErrorType<ForbiddenResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteProject>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof deleteProject>>, TError,{id: string}, TContext> => {
 
@@ -2776,12 +2783,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type DeleteProjectMutationResult = NonNullable<Awaited<ReturnType<typeof deleteProject>>>
 
-    export type DeleteProjectMutationError = ErrorType<ForbiddenResponse>
+    export type DeleteProjectMutationError = ErrorType<ForbiddenResponse | ConflictResponse>
 
     /**
- * @summary Delete a project and its documents (admin only)
+ * @deprecated
+ * @summary Direct project deletion is disabled
  */
-export const useDeleteProject = <TError = ErrorType<ForbiddenResponse>,
+export const useDeleteProject = <TError = ErrorType<ForbiddenResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteProject>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof deleteProject>>,
@@ -3169,6 +3177,7 @@ export const getListRetentionRequestsUrl = () => {
 }
 
 /**
+ * Lists up to 100 bounded governed retention-request summaries for the selected organisation. Detailed object reconciliation and retained category evidence is available only from the per-request completion endpoint. A completed status is returned only after independent certification evidence exists.
  * @summary List deletion/retention workflows
  */
 export const listRetentionRequests = async ( options?: RequestInit): Promise<RetentionRequest[]> => {
@@ -3193,7 +3202,7 @@ export const getListRetentionRequestsQueryKey = () => {
     }
 
 
-export const getListRetentionRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listRetentionRequests>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRetentionRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListRetentionRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listRetentionRequests>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRetentionRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -3212,19 +3221,175 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type ListRetentionRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof listRetentionRequests>>>
-export type ListRetentionRequestsQueryError = ErrorType<unknown>
+export type ListRetentionRequestsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse>
 
 
 /**
  * @summary List deletion/retention workflows
  */
 
-export function useListRetentionRequests<TData = Awaited<ReturnType<typeof listRetentionRequests>>, TError = ErrorType<unknown>>(
+export function useListRetentionRequests<TData = Awaited<ReturnType<typeof listRetentionRequests>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRetentionRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListRetentionRequestsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetRetentionCompletionReadinessUrl = () => {
+
+
+
+
+  return `/api/retention-completion/readiness`
+}
+
+/**
+ * Returns the exact production activation and evidence blockers for the selected organisation and caller. Publishing this operation does not activate destructive work; clients must offer no completion, reconciliation or certification control unless activated is true and the corresponding permission is true.
+ * @summary Verify whether governed retention completion is activated
+ */
+export const getRetentionCompletionReadiness = async ( options?: RequestInit): Promise<RetentionCompletionReadiness> => {
+
+  return customFetch<RetentionCompletionReadiness>(getGetRetentionCompletionReadinessUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRetentionCompletionReadinessQueryKey = () => {
+    return [
+    `/api/retention-completion/readiness`
+    ] as const;
+    }
+
+
+export const getGetRetentionCompletionReadinessQueryOptions = <TData = Awaited<ReturnType<typeof getRetentionCompletionReadiness>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse | StorageLifecycleUnavailableResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRetentionCompletionReadiness>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRetentionCompletionReadinessQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRetentionCompletionReadiness>>> = ({ signal }) => getRetentionCompletionReadiness({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRetentionCompletionReadiness>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRetentionCompletionReadinessQueryResult = NonNullable<Awaited<ReturnType<typeof getRetentionCompletionReadiness>>>
+export type GetRetentionCompletionReadinessQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse | StorageLifecycleUnavailableResponse>
+
+
+/**
+ * @summary Verify whether governed retention completion is activated
+ */
+
+export function useGetRetentionCompletionReadiness<TData = Awaited<ReturnType<typeof getRetentionCompletionReadiness>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | InternalServerErrorResponse | StorageLifecycleUnavailableResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRetentionCompletionReadiness>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRetentionCompletionReadinessQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetRetentionRequestCompletionUrl = (id: string,) => {
+
+
+
+
+  return `/api/retention-requests/${id}/completion`
+}
+
+/**
+ * Returns the exact request, phase action, object reconciliation counts, path-free object bindings, deliberately retained legal or financial categories and certificate evidence. An absent certificate is never a successful deletion or certification claim.
+ * @summary Read one retention request's reconciliation and certificate evidence
+ */
+export const getRetentionRequestCompletion = async (id: string, options?: RequestInit): Promise<RetentionCompletionSnapshot> => {
+
+  return customFetch<RetentionCompletionSnapshot>(getGetRetentionRequestCompletionUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRetentionRequestCompletionQueryKey = (id: string,) => {
+    return [
+    `/api/retention-requests/${id}/completion`
+    ] as const;
+    }
+
+
+export const getGetRetentionRequestCompletionQueryOptions = <TData = Awaited<ReturnType<typeof getRetentionRequestCompletion>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse | StorageLifecycleUnavailableResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRetentionRequestCompletion>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRetentionRequestCompletionQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRetentionRequestCompletion>>> = ({ signal }) => getRetentionRequestCompletion(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRetentionRequestCompletion>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRetentionRequestCompletionQueryResult = NonNullable<Awaited<ReturnType<typeof getRetentionRequestCompletion>>>
+export type GetRetentionRequestCompletionQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse | StorageLifecycleUnavailableResponse>
+
+
+/**
+ * @summary Read one retention request's reconciliation and certificate evidence
+ */
+
+export function useGetRetentionRequestCompletion<TData = Awaited<ReturnType<typeof getRetentionRequestCompletion>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | InternalServerErrorResponse | StorageLifecycleUnavailableResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRetentionRequestCompletion>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRetentionRequestCompletionQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -3473,26 +3638,27 @@ export const getCompleteRetentionRequestUrl = (id: string,) => {
 }
 
 /**
- * This release fails closed because blob deletion and relational deletion cannot yet be certified as one durable two-phase detach/reconcile/certify outcome. After authentication and retention permission checks, this operation performs no ID lookup, deletion, database mutation, audit write or certificate issuance and returns only the strict 503 refusal envelope.
- * @summary Report that certified retention completion is not activated
+ * Under the current request version, activation gates, bounded named-human attestation and stable idempotency identity, irreversibly detaches the governed relational project graph, advances the owner-held purge from action version 2 to 3, and binds durable storage deletion intents. A 202 response must contain the canonical owner-purge receipt, its digest and timestamp; it is neither proof of terminal object reconciliation nor deletion certification.
+ * @summary Commit relational detachment, owner purge and storage disposition tracking
  */
-export const completeRetentionRequest = async (id: string, options?: RequestInit): Promise<RetentionCompletionUnavailable> => {
+export const completeRetentionRequest = async (id: string,
+    retentionCompletionAttestation: RetentionCompletionAttestation, ifMatch: string, idempotencyKey: string, options?: RequestInit): Promise<RetentionCompletionSnapshot> => {
 
-  return customFetch<RetentionCompletionUnavailable>(getCompleteRetentionRequestUrl(id),
+  return customFetch<RetentionCompletionSnapshot>(getCompleteRetentionRequestUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'If-Match': ifMatch, 'Idempotency-Key': idempotencyKey, ...options?.headers },
+    body: JSON.stringify(retentionCompletionAttestation)
   }
 );}
 
 
 
 
-export const getCompleteRetentionRequestMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | RetentionCompletionUnavailable>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeRetentionRequest>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof completeRetentionRequest>>, TError,{id: string}, TContext> => {
+export const getCompleteRetentionRequestMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | RetentionCompletionConflict | RetentionCompletionStaleVersion | ErrorEnvelope | PreconditionRequiredResponse | InternalServerErrorResponse | RetentionCompletionUnavailable>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeRetentionRequest>>, TError,{id: string;data: BodyType<RetentionCompletionAttestation>;ifMatch: string;idempotencyKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeRetentionRequest>>, TError,{id: string;data: BodyType<RetentionCompletionAttestation>;ifMatch: string;idempotencyKey: string}, TContext> => {
 
 const mutationKey = ['completeRetentionRequest'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -3504,10 +3670,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeRetentionRequest>>, {id: string}> = (props) => {
-          const {id} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeRetentionRequest>>, {id: string;data: BodyType<RetentionCompletionAttestation>;ifMatch: string;idempotencyKey: string}> = (props) => {
+          const {id,data,ifMatch,idempotencyKey} = props ?? {};
 
-          return  completeRetentionRequest(id,requestOptions)
+          return  completeRetentionRequest(id,data,ifMatch,idempotencyKey,requestOptions)
         }
 
 
@@ -3518,21 +3684,165 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CompleteRetentionRequestMutationResult = NonNullable<Awaited<ReturnType<typeof completeRetentionRequest>>>
-
-    export type CompleteRetentionRequestMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | RetentionCompletionUnavailable>
+    export type CompleteRetentionRequestMutationBody = BodyType<RetentionCompletionAttestation>
+    export type CompleteRetentionRequestMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | RetentionCompletionConflict | RetentionCompletionStaleVersion | ErrorEnvelope | PreconditionRequiredResponse | InternalServerErrorResponse | RetentionCompletionUnavailable>
 
     /**
- * @summary Report that certified retention completion is not activated
+ * @summary Commit relational detachment, owner purge and storage disposition tracking
  */
-export const useCompleteRetentionRequest = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | RetentionCompletionUnavailable>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeRetentionRequest>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useCompleteRetentionRequest = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | RetentionCompletionConflict | RetentionCompletionStaleVersion | ErrorEnvelope | PreconditionRequiredResponse | InternalServerErrorResponse | RetentionCompletionUnavailable>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeRetentionRequest>>, TError,{id: string;data: BodyType<RetentionCompletionAttestation>;ifMatch: string;idempotencyKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof completeRetentionRequest>>,
         TError,
-        {id: string},
+        {id: string;data: BodyType<RetentionCompletionAttestation>;ifMatch: string;idempotencyKey: string},
         TContext
       > => {
       return useMutation(getCompleteRetentionRequestMutationOptions(options));
+    }
+
+export const getReconcileRetentionActionUrl = (id: string,) => {
+
+
+
+
+  return `/api/retention-actions/${id}/reconcile`
+}
+
+/**
+ * Under detached action version 3 with verified owner-purge receipt, activation gates, bounded named-human attestation and stable idempotency identity, revalidates every bound storage intent and records action version 4, the canonical reconciliation manifest and preparer stamp. A response is not certification and does not authorise the same person to certify the action.
+ * @summary Record exact terminal object reconciliation evidence
+ */
+export const reconcileRetentionAction = async (id: string,
+    retentionCompletionAttestation: RetentionCompletionAttestation, ifMatch: string, idempotencyKey: string, options?: RequestInit): Promise<RetentionCompletionSnapshot> => {
+
+  return customFetch<RetentionCompletionSnapshot>(getReconcileRetentionActionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'If-Match': ifMatch, 'Idempotency-Key': idempotencyKey, ...options?.headers },
+    body: JSON.stringify(retentionCompletionAttestation)
+  }
+);}
+
+
+
+
+export const getReconcileRetentionActionMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | RetentionCompletionConflict | RetentionCompletionStaleVersion | ErrorEnvelope | PreconditionRequiredResponse | InternalServerErrorResponse | RetentionCompletionUnavailable>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileRetentionAction>>, TError,{id: string;data: BodyType<RetentionCompletionAttestation>;ifMatch: string;idempotencyKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reconcileRetentionAction>>, TError,{id: string;data: BodyType<RetentionCompletionAttestation>;ifMatch: string;idempotencyKey: string}, TContext> => {
+
+const mutationKey = ['reconcileRetentionAction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reconcileRetentionAction>>, {id: string;data: BodyType<RetentionCompletionAttestation>;ifMatch: string;idempotencyKey: string}> = (props) => {
+          const {id,data,ifMatch,idempotencyKey} = props ?? {};
+
+          return  reconcileRetentionAction(id,data,ifMatch,idempotencyKey,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReconcileRetentionActionMutationResult = NonNullable<Awaited<ReturnType<typeof reconcileRetentionAction>>>
+    export type ReconcileRetentionActionMutationBody = BodyType<RetentionCompletionAttestation>
+    export type ReconcileRetentionActionMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | RetentionCompletionConflict | RetentionCompletionStaleVersion | ErrorEnvelope | PreconditionRequiredResponse | InternalServerErrorResponse | RetentionCompletionUnavailable>
+
+    /**
+ * @summary Record exact terminal object reconciliation evidence
+ */
+export const useReconcileRetentionAction = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | RetentionCompletionConflict | RetentionCompletionStaleVersion | ErrorEnvelope | PreconditionRequiredResponse | InternalServerErrorResponse | RetentionCompletionUnavailable>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconcileRetentionAction>>, TError,{id: string;data: BodyType<RetentionCompletionAttestation>;ifMatch: string;idempotencyKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reconcileRetentionAction>>,
+        TError,
+        {id: string;data: BodyType<RetentionCompletionAttestation>;ifMatch: string;idempotencyKey: string},
+        TContext
+      > => {
+      return useMutation(getReconcileRetentionActionMutationOptions(options));
+    }
+
+export const getCertifyRetentionActionUrl = (id: string,) => {
+
+
+
+
+  return `/api/retention-actions/${id}/certify`
+}
+
+/**
+ * Requires a checker distinct from the reconciliation preparer, action version 4 with verified owner-purge receipt, bounded attestation and a stable idempotency identity. Certification records action version 5 and fails closed unless every bound storage intent has trusted terminal evidence and both manifests still match. Only the returned certificate is certification evidence.
+ * @summary Independently certify an exactly reconciled retention action
+ */
+export const certifyRetentionAction = async (id: string,
+    retentionCompletionAttestation: RetentionCompletionAttestation, ifMatch: string, idempotencyKey: string, options?: RequestInit): Promise<RetentionCompletionSnapshot> => {
+
+  return customFetch<RetentionCompletionSnapshot>(getCertifyRetentionActionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'If-Match': ifMatch, 'Idempotency-Key': idempotencyKey, ...options?.headers },
+    body: JSON.stringify(retentionCompletionAttestation)
+  }
+);}
+
+
+
+
+export const getCertifyRetentionActionMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | RetentionCompletionConflict | RetentionCompletionStaleVersion | ErrorEnvelope | PreconditionRequiredResponse | InternalServerErrorResponse | RetentionCompletionUnavailable>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof certifyRetentionAction>>, TError,{id: string;data: BodyType<RetentionCompletionAttestation>;ifMatch: string;idempotencyKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof certifyRetentionAction>>, TError,{id: string;data: BodyType<RetentionCompletionAttestation>;ifMatch: string;idempotencyKey: string}, TContext> => {
+
+const mutationKey = ['certifyRetentionAction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof certifyRetentionAction>>, {id: string;data: BodyType<RetentionCompletionAttestation>;ifMatch: string;idempotencyKey: string}> = (props) => {
+          const {id,data,ifMatch,idempotencyKey} = props ?? {};
+
+          return  certifyRetentionAction(id,data,ifMatch,idempotencyKey,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CertifyRetentionActionMutationResult = NonNullable<Awaited<ReturnType<typeof certifyRetentionAction>>>
+    export type CertifyRetentionActionMutationBody = BodyType<RetentionCompletionAttestation>
+    export type CertifyRetentionActionMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | RetentionCompletionConflict | RetentionCompletionStaleVersion | ErrorEnvelope | PreconditionRequiredResponse | InternalServerErrorResponse | RetentionCompletionUnavailable>
+
+    /**
+ * @summary Independently certify an exactly reconciled retention action
+ */
+export const useCertifyRetentionAction = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | RetentionCompletionConflict | RetentionCompletionStaleVersion | ErrorEnvelope | PreconditionRequiredResponse | InternalServerErrorResponse | RetentionCompletionUnavailable>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof certifyRetentionAction>>, TError,{id: string;data: BodyType<RetentionCompletionAttestation>;ifMatch: string;idempotencyKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof certifyRetentionAction>>,
+        TError,
+        {id: string;data: BodyType<RetentionCompletionAttestation>;ifMatch: string;idempotencyKey: string},
+        TContext
+      > => {
+      return useMutation(getCertifyRetentionActionMutationOptions(options));
     }
 
 export const getGetAppConfigUrl = () => {

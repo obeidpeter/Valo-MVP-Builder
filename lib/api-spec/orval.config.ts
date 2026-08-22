@@ -29,6 +29,13 @@ const mutatorPath =
 const strictRoadmapOperationIds = [
   "readinessCheck",
   "getWorkInbox",
+  "createRetentionRequest",
+  "listRetentionRequests",
+  "getRetentionCompletionReadiness",
+  "getRetentionRequestCompletion",
+  "completeRetentionRequest",
+  "reconcileRetentionAction",
+  "certifyRetentionAction",
   "getCurrentDocumentVersionSnapshot",
   "captureDocumentVersionSnapshot",
   "reviewDocumentVersionSnapshot",

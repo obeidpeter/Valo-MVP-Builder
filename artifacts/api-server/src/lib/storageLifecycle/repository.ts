@@ -62,6 +62,12 @@ export interface StorageDeletionIntentInput {
   reason: StorageDeletionIntentEnvelope["reason"];
   requestedAt: Date;
   actor: LocalUser | null | undefined;
+  /**
+   * Optional audit-chain locator override. Retention capture binds the
+   * historical project in the closed queue envelope, but must not add new
+   * project-scoped audit rows after its exact source inventory was captured.
+   */
+  auditProjectId?: string | null;
 }
 
 export interface StoredStorageDeletionIntent {
@@ -263,6 +269,14 @@ export async function enqueueStorageDeletionIntentTx(
   if (!Number.isFinite(input.requestedAt.valueOf())) {
     throw new StorageLifecycleRepositoryError("persistence_unavailable");
   }
+  if (
+    input.auditProjectId !== undefined &&
+    (input.auditProjectId !== null ||
+      input.aggregateType !== "project_retention" ||
+      input.reason !== "retention_completion")
+  ) {
+    throw new StorageLifecycleRepositoryError("persistence_unavailable");
+  }
   let envelope: StorageDeletionIntentEnvelope;
   try {
     envelope = createStorageDeletionIntent({
@@ -304,7 +318,10 @@ export async function enqueueStorageDeletionIntentTx(
     await writeAuditTx(tx, {
       user: input.actor,
       organisationId: input.organisationId,
-      projectId: input.projectId,
+      projectId:
+        input.auditProjectId === undefined
+          ? input.projectId
+          : input.auditProjectId,
       eventType: "storage.deletion_queued",
       objectType: input.aggregateType,
       objectId: input.aggregateId,

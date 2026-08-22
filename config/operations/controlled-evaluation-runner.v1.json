@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "controlId": "valo-controlled-evaluation-runner/v1",
+  "deliveryState": "foundation_only",
+  "manifestBindingImplemented": true,
+  "tenantAndProjectBindingRequired": true,
+  "privateFixtureLoaderConnected": false,
+  "privateAuthorisationEvidenceConnected": false,
+  "centralGatewayConnected": false,
+  "continuousEvaluationWriterConnected": false,
+  "rawFixturePersistenceAllowed": false,
+  "rawOutputPersistenceAllowed": false,
+  "customerVisible": false,
+  "authorisedProductionCorpusAvailable": false,
+  "productionActivationGranted": false,
+  "activation": "blocked",
+  "blockers": [
+    "authorised_private_corpus_unavailable",
+    "independent_adjudication_evidence_unavailable",
+    "private_authorisation_evidence_disconnected",
+    "private_fixture_loader_disconnected",
+    "central_gateway_disconnected",
+    "continuous_evaluation_writer_disconnected",
+    "operations_activation_approval_unavailable"
+  ]
+}

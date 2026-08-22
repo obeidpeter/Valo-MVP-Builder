@@ -5,7 +5,7 @@ import { INTAKE_FUNCTION_MANIFEST } from "./intakeFunctionManifest";
 type RuntimeEnvironment = Record<string, string | undefined>;
 
 export const TENANT_PARENT_EDGE_MANIFEST_SHA256 =
-  "dd59282e6bc150c791a36e96188d767871580a3b5d2ad02074c7b68eec323430";
+  "620cbf5d64521211dd59e8bc19128d9661b67eec8eb497eb200c8695a693c2bd";
 const EXPECTED_POLICY_CATALOG_SHA256 =
   "92235aeea371cae756f06c6b9c6ec79f51515ea60825d2a3268129691950308c";
 
@@ -84,6 +84,7 @@ const EXPECTED_FORCE_RLS_TABLES = [
   "requirement_citations",
   "requirements",
   "retention_actions",
+  "retention_action_storage_events",
   "retention_requests",
   "reviews",
   "rule_evaluations",
@@ -170,6 +171,7 @@ export type TenantGuardFunctionProof = {
   owner_name: string;
   owner_is_schema_owner?: boolean;
   runtime_can_execute: boolean;
+  public_can_execute?: boolean;
   function_source: string;
 };
 
@@ -320,6 +322,7 @@ const NO_TABLE_INSERT = new Set([
 ]);
 const NO_TABLE_UPDATE = new Set([
   "audit_events",
+  "deletion_certificates",
   "document_versions",
   "jurisdiction_rule_packs",
   "jurisdiction_rules",
@@ -338,6 +341,7 @@ const NO_TABLE_DELETE = new Set([
   "authenticated_rate_limit_buckets",
   "break_glass_sessions",
   "document_version_snapshots",
+  "deletion_certificates",
   "jurisdiction_rule_packs",
   "jurisdiction_rules",
   "legacy_audit_events",
@@ -345,7 +349,11 @@ const NO_TABLE_DELETE = new Set([
   "organisation_memberships",
   "organisations",
   "partner_relationships",
+  "projects",
   "role_grants",
+  "retention_actions",
+  "retention_action_storage_events",
+  "retention_requests",
   "tender_context_artifacts",
   "tender_context_requirements",
   "tender_context_versions",
@@ -407,6 +415,10 @@ const EXPECTED_SPECIAL_TENANT_TRIGGERS = new Map<string, [number, string]>([
     [23, ""],
   ],
   [
+    "deletion_certificates.deletion_certificate_completion_guard:enforce_retention_completion_transition",
+    [31, ""],
+  ],
+  [
     "invoice_lines.tenant_derived_invoice_order:enforce_derived_tenant_relationship",
     [23, "invoice_id,order_id"],
   ],
@@ -463,6 +475,18 @@ const EXPECTED_SPECIAL_TENANT_TRIGGERS = new Map<string, [number, string]>([
     [23, ""],
   ],
   [
+    "retention_actions.retention_action_completion_guard:enforce_retention_completion_transition",
+    [31, ""],
+  ],
+  [
+    "retention_requests.retention_request_completion_guard:enforce_retention_completion_transition",
+    [31, ""],
+  ],
+  [
+    "retention_action_storage_events.retention_action_storage_event_completion_guard:enforce_retention_completion_transition",
+    [31, ""],
+  ],
+  [
     "subscriptions.tenant_derived_price_book_entry:enforce_derived_tenant_relationship",
     [23, "organisation_id,price_book_entry_id"],
   ],
@@ -511,6 +535,9 @@ const EXPECTED_TENANT_GUARD_FUNCTIONS = new Map<
     returnType: string;
     functionResult: string;
     returnsSet: boolean;
+    securityDefiner?: boolean;
+    ownerIsSchemaOwner?: boolean;
+    publicCanExecute?: boolean;
     runtimeCanExecute: boolean;
     sourceSha256: string;
   }
@@ -588,6 +615,47 @@ const EXPECTED_TENANT_GUARD_FUNCTIONS = new Map<
     },
   ],
   [
+    "enforce_retention_completion_transition",
+    {
+      language: "plpgsql",
+      volatility: "v",
+      parallelSafety: "u",
+      returnsTrigger: true,
+      argumentCount: 0,
+      argumentTypes: "",
+      identityArguments: "",
+      returnType: "trigger",
+      functionResult: "trigger",
+      returnsSet: false,
+      runtimeCanExecute: false,
+      sourceSha256:
+        "61009cea8a4bbbe066a3be5682fb1155503d11deff956bdb3691cac9ccb444c5",
+    },
+  ],
+  [
+    "purge_retention_project",
+    {
+      language: "plpgsql",
+      volatility: "v",
+      parallelSafety: "u",
+      returnsTrigger: false,
+      argumentCount: 6,
+      argumentTypes: "uuid,uuid,uuid,uuid,text,integer",
+      identityArguments:
+        "p_organisation_id uuid, p_retention_request_id uuid, p_retention_action_id uuid, p_subject_project_id uuid, p_source_manifest_sha256 text, p_expected_action_version integer",
+      returnType: "record",
+      functionResult:
+        "TABLE(deleted_project_rows integer, deleted_document_version_snapshot_rows integer, detached_legal_hold_rows integer, detached_order_rows integer, detached_entitlement_usage_rows integer, purge_receipt_sha256 text, post_purge_action_version integer)",
+      returnsSet: true,
+      securityDefiner: true,
+      ownerIsSchemaOwner: true,
+      publicCanExecute: false,
+      runtimeCanExecute: false,
+      sourceSha256:
+        "ccbb687b1cb2dd9472204fe61b7781eda749fa22671d6859963954c3ca85a8fa",
+    },
+  ],
+  [
     "enforce_tenant_parent",
     {
       language: "plpgsql",
@@ -607,6 +675,25 @@ const EXPECTED_TENANT_GUARD_FUNCTIONS = new Map<
   ],
   [
     "expected_tenant_parent_edges",
+    {
+      language: "sql",
+      volatility: "i",
+      parallelSafety: "u",
+      returnsTrigger: false,
+      argumentCount: 0,
+      argumentTypes: "",
+      identityArguments: "",
+      returnType: "record",
+      functionResult:
+        "TABLE(child_table text, child_column text, parent_table text, parent_column text, allow_global_parent boolean)",
+      returnsSet: true,
+      runtimeCanExecute: false,
+      sourceSha256:
+        "60114030c0143b63cdc870d34d2436f591d5f87a67a4d9dc1c810a2aa385b775",
+    },
+  ],
+  [
+    "expected_tenant_parent_edges_v10",
     {
       language: "sql",
       volatility: "i",
@@ -834,7 +921,14 @@ export function assertRuntimePolicyAttestation(
     "tender_context_versions",
     "tender_eligibility_passports",
   ]);
-  for (const tableName of independentlyAttestedTables) {
+  const retentionCompletionIndependentlyAttestedTables = new Set([
+    "retention_action_storage_events",
+  ]);
+  const allIndependentlyAttestedTables = new Set([
+    ...independentlyAttestedTables,
+    ...retentionCompletionIndependentlyAttestedTables,
+  ]);
+  for (const tableName of allIndependentlyAttestedTables) {
     const tablePolicies = policies.filter(
       (policy) => policy.table_name === tableName,
     );
@@ -857,7 +951,7 @@ export function assertRuntimePolicyAttestation(
   // tenant table independently. This avoids weakening the existing 104-policy
   // digest into an unpinned shape-only assertion.
   const policyLines = policies
-    .filter((policy) => !independentlyAttestedTables.has(policy.table_name))
+    .filter((policy) => !allIndependentlyAttestedTables.has(policy.table_name))
     .map((policy) =>
       JSON.stringify([
         policy.table_name,
@@ -912,15 +1006,15 @@ export function assertTenantGraphAttestation(input: {
     );
   });
   if (
-    lines.length !== 116 ||
+    lines.length !== 118 ||
     digest !== TENANT_PARENT_EDGE_MANIFEST_SHA256 ||
     malformedDirectGuard ||
     input.compositeTenantEdges !== 0 ||
     input.immutableArchiveExceptions !== 1 ||
-    input.tenantParentTriggerCount !== 116
+    input.tenantParentTriggerCount !== 118
   ) {
     throw new Error(
-      "production database tenant-parent graph is not the pinned 116-edge boundary",
+      "production database tenant-parent graph is not the pinned 118-edge boundary",
     );
   }
 
@@ -959,7 +1053,7 @@ export function assertTenantGraphAttestation(input: {
         !actual ||
         actual.language_name !== expected.language ||
         actual.function_kind !== "f" ||
-        actual.security_definer ||
+        actual.security_definer !== (expected.securityDefiner ?? false) ||
         actual.leakproof ||
         actual.strict ||
         actual.volatility !== expected.volatility ||
@@ -973,6 +1067,10 @@ export function assertTenantGraphAttestation(input: {
         actual.function_result !== expected.functionResult ||
         actual.returns_set !== expected.returnsSet ||
         actual.owner_name === "valo_app_runtime" ||
+        (expected.ownerIsSchemaOwner !== undefined &&
+          actual.owner_is_schema_owner !== expected.ownerIsSchemaOwner) ||
+        (expected.publicCanExecute !== undefined &&
+          actual.public_can_execute !== expected.publicCanExecute) ||
         actual.runtime_can_execute !== expected.runtimeCanExecute ||
         normalizedFunctionSourceSha256(actual.function_source) !==
           expected.sourceSha256
@@ -1626,11 +1724,11 @@ export async function assertProductionRuntimeDatabaseSafety(
       );
     }
     if (
-      Number(proof.forced_rls_tables) !== 93 ||
-      Number(proof.policies) !== 112
+      Number(proof.forced_rls_tables) !== 94 ||
+      Number(proof.policies) !== 113
     ) {
       throw new Error(
-        "production database RLS catalog is not the tender-context boundary (93/112)",
+        "production database RLS catalog is not the retention-completion boundary (94/113)",
       );
     }
     if (
@@ -1981,6 +2079,7 @@ export async function assertProductionRuntimeDatabaseSafety(
           'enforce_control_plane_tenant_context',
           'enforce_derived_tenant_relationship',
           'enforce_governed_state_transition',
+          'enforce_retention_completion_transition',
           'reject_active_audit_mutation',
           'reject_legacy_audit_mutation',
           'reject_versioned_record_content_mutation',
@@ -2017,9 +2116,22 @@ export async function assertProductionRuntimeDatabaseSafety(
         pg_catalog.pg_get_function_result(guard_function.oid) AS function_result,
         guard_function.proretset AS returns_set,
         pg_catalog.pg_get_userbyid(guard_function.proowner) AS owner_name,
+        guard_function.proowner=function_namespace.nspowner
+          AS owner_is_schema_owner,
         pg_catalog.has_function_privilege(
           current_user,guard_function.oid,'EXECUTE'
         ) AS runtime_can_execute,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.aclexplode(
+            COALESCE(
+              guard_function.proacl,
+              pg_catalog.acldefault('f',guard_function.proowner)
+            )
+          ) AS function_acl
+          WHERE function_acl.grantee=0
+            AND function_acl.privilege_type='EXECUTE'
+        ) AS public_can_execute,
         guard_function.prosrc AS function_source
       FROM pg_catalog.pg_proc AS guard_function
       JOIN pg_catalog.pg_namespace AS function_namespace
@@ -2032,9 +2144,12 @@ export async function assertProductionRuntimeDatabaseSafety(
           'enforce_control_plane_tenant_context',
           'enforce_derived_tenant_relationship',
           'enforce_governed_state_transition',
+          'enforce_retention_completion_transition',
           'enforce_tenant_parent',
           'expected_tenant_parent_edges',
+          'expected_tenant_parent_edges_v10',
           'expected_tenant_parent_edges_v25',
+          'purge_retention_project',
           'reject_versioned_record_content_mutation',
           'reject_active_audit_mutation',
           'reject_legacy_audit_mutation',
@@ -2154,8 +2269,8 @@ export async function assertProductionRuntimeDatabaseSafety(
       authenticatedRateLimitFunctionProofs.rows,
     );
     if (
-      graph?.public_security_trigger_count !== 147 ||
-      graph.valo_security_function_count !== 14
+      graph?.public_security_trigger_count !== 153 ||
+      graph.valo_security_function_count !== 17
     ) {
       throw new Error(
         "production database security routine/trigger inventory is drifted",

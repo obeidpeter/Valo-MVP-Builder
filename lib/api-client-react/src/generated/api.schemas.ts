@@ -9243,64 +9243,295 @@ export type RetentionRequestStatus = typeof RetentionRequestStatus[keyof typeof 
 
 export const RetentionRequestStatus = {
   pending: 'pending',
+  reconciling: 'reconciling',
   completed: 'completed',
-  cancelled: 'cancelled',
+  blocked: 'blocked',
+} as const;
+
+/**
+ * Zero identifies a read-only historical record that predates the detach/reconcile/certify evidence protocol. Only protocol one may expose completion actions.
+ */
+export type RetentionRequestCompletionProtocolVersion = typeof RetentionRequestCompletionProtocolVersion[keyof typeof RetentionRequestCompletionProtocolVersion];
+
+
+export const RetentionRequestCompletionProtocolVersion = {
+  NUMBER_0: 0,
+  NUMBER_1: 1,
 } as const;
 
 export interface RetentionRequest {
   id: string;
-  projectId: string;
-  reason?: string | null;
+  projectId: string | null;
+  subjectProjectId: string;
+  requestedByUserId: string | null;
+  requestedByName: string | null;
+  reason: string | null;
   dueAt: string;
-  completedAt?: string | null;
-  certificateText?: string | null;
+  completedAt: string | null;
   status: RetentionRequestStatus;
+  /** Zero identifies a read-only historical record that predates the detach/reconcile/certify evidence protocol. Only protocol one may expose completion actions. */
+  completionProtocolVersion: RetentionRequestCompletionProtocolVersion;
+  /**
+     * @minimum 1
+     * @maximum 9007199254740991
+     */
+  version: number;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface RetentionRequestCreate {
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
   reason?: string;
   dueAt?: string;
 }
 
-export type RetentionCompletionConflictCommercialFinancialBlockers = {
-  /** @minimum 0 */
-  orders: number;
-  /** @minimum 0 */
-  invoiceLines: number;
-  /** @minimum 0 */
-  invoices: number;
-  /** @minimum 0 */
-  payments: number;
-  /** @minimum 0 */
-  entitlements: number;
-  /** @minimum 0 */
-  subscriptions: number;
-  /** @minimum 0 */
-  entitlementUsage: number;
-};
-
-/**
- * Legacy generated type retained for source compatibility; the inactive completion operation does not emit this response.
- * @deprecated
- */
-export interface RetentionCompletionConflict {
-  error: string;
-  commercialFinancialBlockers?: RetentionCompletionConflictCommercialFinancialBlockers;
+export interface RetentionCompletionAttestation {
+  /**
+     * @minLength 16
+     * @maxLength 512
+     */
+  attestation: string;
 }
 
-export interface RetentionCompletionUnavailable {
+export interface RetentionReadinessBlocker {
+  /**
+     * @minLength 3
+     * @maxLength 80
+     * @pattern ^[a-z][a-z0-9_]{2,79}$
+     */
+  code: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  message: string;
+}
+
+export interface RetentionCompletionPermissions {
+  canStart: boolean;
+  canReconcile: boolean;
+  canCertify: boolean;
+}
+
+export interface RetentionCompletionReadiness {
+  activated: boolean;
+  manifestValid: boolean;
+  environmentOptIn: boolean;
+  workflow: 'durable_two_phase_detach_reconcile_certify';
+  /** @maxItems 32 */
+  activationBlockers: RetentionReadinessBlocker[];
+  /** @maxItems 32 */
+  evidenceBlockers: RetentionReadinessBlocker[];
+  permissions: RetentionCompletionPermissions;
+  makerCheckerRequired: true;
+  checkedAt: string;
+}
+
+export type RetentionActionStatus = typeof RetentionActionStatus[keyof typeof RetentionActionStatus];
+
+
+export const RetentionActionStatus = {
+  pending: 'pending',
+  detached: 'detached',
+  reconciled: 'reconciled',
+  certified: 'certified',
+  blocked: 'blocked',
+} as const;
+
+export type RetentionActionSourceManifest = { [key: string]: unknown } | null;
+
+/**
+ * Canonical parsed owner-purge receipt, or null for pending or legacy evidence. Successful phase-one completion returns a non-null value; clients must not infer purge from detached status alone.
+ */
+export type RetentionActionPurgeReceipt = { [key: string]: unknown } | null;
+
+export type RetentionActionReconciliationManifest = { [key: string]: unknown } | null;
+
+export interface RetentionAction {
+  id: string;
+  retentionRequestId: string;
+  subjectProjectId: string;
+  status: RetentionActionStatus;
+  /**
+     * Current action CAS version. The governed protocol returns version 3 after detached owner purge, version 4 after reconciliation and version 5 after independent certification.
+     * @minimum 1
+     * @maximum 9007199254740991
+     */
+  version: number;
+  sourceManifest: RetentionActionSourceManifest;
+  sourceManifestSha256: string | null;
+  /** Canonical parsed owner-purge receipt, or null for pending or legacy evidence. Successful phase-one completion returns a non-null value; clients must not infer purge from detached status alone. */
+  purgeReceipt: RetentionActionPurgeReceipt;
+  purgeReceiptSha256: string | null;
+  purgedAt: string | null;
+  reconciliationManifest: RetentionActionReconciliationManifest;
+  reconciliationManifestSha256: string | null;
+  preparedByUserId: string | null;
+  preparedByName: string | null;
+  preparedAt: string | null;
+  checkedByUserId: string | null;
+  checkedByName: string | null;
+  checkedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RetentionObjectReconciliationCounts {
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     */
+  expected: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     */
+  detached: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     */
+  reconciled: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     */
+  pending: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     */
+  deadLetters: number;
+}
+
+export type RetentionObjectBindingStatus = typeof RetentionObjectBindingStatus[keyof typeof RetentionObjectBindingStatus];
+
+
+export const RetentionObjectBindingStatus = {
+  queued: 'queued',
+  retry_wait: 'retry_wait',
+  completed: 'completed',
+  cancelled: 'cancelled',
+  dead_letter: 'dead_letter',
+  resolved: 'resolved',
+} as const;
+
+export type RetentionObjectBindingTerminalDisposition = typeof RetentionObjectBindingTerminalDisposition[keyof typeof RetentionObjectBindingTerminalDisposition] | null;
+
+
+export const RetentionObjectBindingTerminalDisposition = {
+  deleted: 'deleted',
+  already_absent: 'already_absent',
+  cancelled_referenced: 'cancelled_referenced',
+  accepted_unresolved: 'accepted_unresolved',
+} as const;
+
+export interface RetentionObjectBinding {
+  id: string;
+  kind: 'project_retention';
+  status: RetentionObjectBindingStatus;
+  terminalDisposition: RetentionObjectBindingTerminalDisposition;
+}
+
+export interface RetentionRetainedCategory {
+  /**
+     * @minLength 2
+     * @maxLength 80
+     * @pattern ^[a-z][a-z0-9_]{1,79}$
+     */
+  category: string;
+  /**
+     * @minLength 1
+     * @maxLength 512
+     */
+  reason: string;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     */
+  count: number;
+}
+
+export type RetentionDeletionCertificateCertificateManifest = { [key: string]: unknown };
+
+export interface RetentionDeletionCertificate {
+  id: string;
+  retentionActionId: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  certificateNumber: string;
+  /** @pattern ^[0-9a-f]{64}$ */
+  scopeManifestHash: string;
+  certificateManifest: RetentionDeletionCertificateCertificateManifest;
+  /** @pattern ^[0-9a-f]{64}$ */
+  certificateManifestSha256: string;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  method: string;
+  completedAt: string;
+  signedByUserId: string;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  signedByName: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  signatureEvidence: string;
+  createdAt: string;
+}
+
+export interface RetentionCompletionSnapshot {
+  request: RetentionRequest;
+  action: RetentionAction | null;
+  objectReconciliation: RetentionObjectReconciliationCounts;
+  /** @maxItems 1000 */
+  objectBindings: RetentionObjectBinding[];
+  /** @maxItems 64 */
+  retainedCategories: RetentionRetainedCategory[];
+  /** @maxItems 64 */
+  blockers: RetentionReadinessBlocker[];
+  certificate: RetentionDeletionCertificate | null;
+  permissions: RetentionCompletionPermissions;
+  generatedAt: string;
+}
+
+export type RetentionCompletionConflict = ErrorEnvelope | RetentionCompletionSnapshot;
+
+export interface RetentionCompletionStaleVersion {
+  /** @minLength 1 */
+  error: string;
+  code: 'stale_version';
+  sideEffectsApplied: false;
+  snapshot?: RetentionCompletionSnapshot;
+}
+
+export interface RetentionCompletionNotActivated {
   /** @minLength 1 */
   error: string;
   code: 'RETENTION_COMPLETION_NOT_ACTIVATED';
   sideEffectsApplied: false;
-  requiredWorkflow: 'durable_two_phase_detach_reconcile_certify';
-  /**
-     * @minItems 4
-     * @maxItems 4
-     */
-  requiredCoverage: ['project_content_rows', 'object_storage', 'upload_sessions', 'storage_lifecycle_control_rows'];
+  readiness: RetentionCompletionReadiness;
 }
+
+export interface RetentionCompletionControlPlaneUnavailable {
+  /** @minLength 1 */
+  error: string;
+  code: 'persistence_unavailable';
+  sideEffectsApplied: false;
+}
+
+export type RetentionCompletionUnavailable = RetentionCompletionNotActivated | RetentionCompletionControlPlaneUnavailable;
 
 export interface StorageDeletionOperatorReason {
   /**
@@ -9326,6 +9557,7 @@ export const StorageDeletionDeadLetterAggregateType = {
   document: 'document',
   vault_item: 'vault_item',
   upload_session: 'upload_session',
+  project_retention: 'project_retention',
 } as const;
 
 export type StorageDeletionDeadLetterReason = typeof StorageDeletionDeadLetterReason[keyof typeof StorageDeletionDeadLetterReason];
@@ -9335,6 +9567,7 @@ export const StorageDeletionDeadLetterReason = {
   record_deleted: 'record_deleted',
   reference_replaced: 'reference_replaced',
   lease_expired: 'lease_expired',
+  retention_completion: 'retention_completion',
 } as const;
 
 export interface StorageDeletionDeadLetter {
@@ -9374,12 +9607,11 @@ export interface StorageDeletionDeadLetterPage {
   nextCursor: string | null;
 }
 
-export const StorageLifecycleUnavailableErrorValue = {
-  error: 'Storage lifecycle persistence is unavailable',
-  code: 'STORAGE_LIFECYCLE_PERSISTENCE_UNAVAILABLE',
-  sideEffectsApplied: false,
-} as const;
-export type StorageLifecycleUnavailableError = typeof StorageLifecycleUnavailableErrorValue;
+export interface StorageLifecycleUnavailableError {
+  error: 'Storage lifecycle persistence is unavailable';
+  code: 'STORAGE_LIFECYCLE_PERSISTENCE_UNAVAILABLE';
+  sideEffectsApplied: false;
+}
 
 export interface SeverityWeights {
   /**
@@ -11609,6 +11841,11 @@ export type IfMatchVersionParameter = string;
  * Required when updating an existing row; omitted when creating the first tenant override.
  */
 export type IfMatchVersionOptionalParameter = string;
+
+/**
+ * Stable client-generated identity retained unchanged across retries of one phase transition. Reuse is accepted only for the exact tenant, actor, resource version and trimmed attestation.
+ */
+export type RetentionCompletionIdempotencyKeyParameter = string;
 
 export type GetWorkInboxParams = {
 /**

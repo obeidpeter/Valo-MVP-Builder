@@ -16,19 +16,30 @@
  * OpenAPI spec version: 2.5.0
  */
 
-export type RetentionCompletionConflictCommercialFinancialBlockers = {
-  /** @minimum 0 */
-  orders: number;
-  /** @minimum 0 */
-  invoiceLines: number;
-  /** @minimum 0 */
-  invoices: number;
-  /** @minimum 0 */
-  payments: number;
-  /** @minimum 0 */
-  entitlements: number;
-  /** @minimum 0 */
-  subscriptions: number;
-  /** @minimum 0 */
-  entitlementUsage: number;
-};
+export interface RetentionObjectReconciliationCounts {
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     */
+  expected: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     */
+  detached: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     */
+  reconciled: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     */
+  pending: number;
+  /**
+     * @minimum 0
+     * @maximum 1000000
+     */
+  deadLetters: number;
+}

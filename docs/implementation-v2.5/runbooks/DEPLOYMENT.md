@@ -83,16 +83,17 @@ lineage and has completed the reviewed bridge, adopting the exact
 `0000`-`0002` journal. Do not replay the bridge or baseline, run
 `drizzle-kit push`, or accept a publish schema diff. The only automated
 production DDL path is the source-controlled `migration:replit:intake` launcher:
-it is restricted to Replit production, pins all nine migration files, and
+it is restricted to Replit production, pins all twelve migration files, and
 accepts only exact `0000`-`0002`, `0000`-`0005`, `0000`-`0006`,
-`0000`-`0007`, or `0000`-`0008` journal prefixes. The three-row baseline
-requires the intake schema to be absent and applies `0003`-`0008`; the six-row
-upgrade applies `0006`-`0008`; the seven-row upgrade applies `0007`-`0008`;
-the eight-row upgrade applies only `0008`; and the nine-row state is current.
+`0000`-`0007`, `0000`-`0008`, `0000`-`0009`, `0000`-`0010`, or
+`0000`-`0011` journal prefixes. The three-row baseline requires the intake
+schema to be absent and applies `0003`-`0011`; the six- through eleven-row
+upgrade states apply only their respective missing suffix (`0006`-`0011`
+through `0011`); and the twelve-row state is current.
 Every upgrade state requires the intake schema to be present.
 The
 launcher validates separate same-target owner/runtime URLs, holds a fixed
-advisory lock across migration, and verifies the exact nine-row journal and
+advisory lock across migration, and verifies the exact twelve-row journal and
 intake object catalog before allowing API startup. The effective API
 artifact and legacy `.replit` run path both invoke
 `scripts/start-replit-production.mjs`; this same-process wrapper awaits that
@@ -246,9 +247,10 @@ environment erasure does not make an RCE/native-process boundary.
 The production attestation is a PostgreSQL-16 contract, not a count-only smoke
 test. In a repeatable-read, read-only snapshot it first requires the ambient
 runtime path to resolve exactly to `pg_catalog, public`, then deparses under a
-transaction-local `search_path=pg_catalog`. It pins all 97 public-table RLS
-flags, the exact 86 FORCE-RLS identities, all 105 policy definitions, all 116
-security triggers, all 11 `valo_security` routine signatures and bodies, and
+transaction-local `search_path=pg_catalog`. It pins all 106 public-table RLS
+flags, the exact 94 FORCE-RLS identities, all 113 policy definitions, the
+118-edge tenant-parent trigger graph, all 35 special trigger contracts, all 15
+`valo_security` routine signatures and bodies, and
 all seven `valo_intake` routine signatures, bodies and execution boundaries, as
 well as the complete effective table/column/sequence privilege matrix. It also
 requires `row_security=on`, `session_replication_role=origin`, the fixed runtime
@@ -337,10 +339,11 @@ the source backup and audit export as private evidence.
 3. Record current deployment/config/schema/flags/rule packs and the exact
    candidate workflow, manifest, SBOM, artifact and source digests.
 4. For an unbridged legacy target, execute only the approved legacy bridge
-   procedure above. For the current already-bridged Replit target, require the
-   exact adopted `0000`-`0002` journal, verify both checked-in production run
+   procedure above. For the current already-bridged Replit target, require one
+   exact approved journal prefix through `0011`, verify both checked-in production run
    paths name `scripts/start-replit-production.mjs`, and let its bounded
-   `migration:replit:intake` implementation apply `0003`-`0008`. Never
+   `migration:replit:intake` implementation apply the missing suffix from
+   `0003`-`0011`. Never
    substitute the unrestricted migration command or a publish schema diff.
    Halt on any journal, source-hash, catalog, reconciliation, or RLS error.
 5. Deploy workers/API/web in compatible order; keep new commercial flags off.

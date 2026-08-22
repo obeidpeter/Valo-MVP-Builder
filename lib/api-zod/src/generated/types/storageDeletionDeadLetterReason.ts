@@ -23,4 +23,5 @@ export const StorageDeletionDeadLetterReason = {
   record_deleted: 'record_deleted',
   reference_replaced: 'reference_replaced',
   lease_expired: 'lease_expired',
+  retention_completion: 'retention_completion',
 } as const;

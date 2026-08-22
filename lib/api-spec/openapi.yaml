@@ -1005,14 +1005,19 @@ paths:
     delete:
       operationId: deleteProject
       tags: [Projects]
-      summary: Delete a project and its documents (admin only)
+      deprecated: true
+      summary: Direct project deletion is disabled
+      description: >-
+        This compatibility endpoint always fails closed. Create a governed
+        retention request and use the detach, reconcile, and certify workflow;
+        no project or document is deleted by this operation.
       parameters:
         - $ref: "#/components/parameters/IdParam"
       responses:
-        "204":
-          description: Deleted
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /workflow/alerts:
     get:
       operationId: getWorkflowAlerts
@@ -1121,15 +1126,86 @@ paths:
       operationId: listRetentionRequests
       tags: [Operations]
       summary: List deletion/retention workflows
+      description: >-
+        Lists up to 100 bounded governed retention-request summaries for the
+        selected organisation. Detailed object reconciliation and retained
+        category evidence is available only from the per-request completion
+        endpoint. A completed status is returned only after independent
+        certification evidence exists.
       responses:
         "200":
           description: Retention requests
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
           content:
             application/json:
               schema:
                 type: array
+                maxItems: 100
                 items:
                   $ref: "#/components/schemas/RetentionRequest"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+  /retention-completion/readiness:
+    get:
+      operationId: getRetentionCompletionReadiness
+      tags: [Operations]
+      summary: Verify whether governed retention completion is activated
+      description: >-
+        Returns the exact production activation and evidence blockers for the
+        selected organisation and caller. Publishing this operation does not
+        activate destructive work; clients must offer no completion,
+        reconciliation or certification control unless activated is true and
+        the corresponding permission is true.
+      responses:
+        "200":
+          description: Current fail-closed retention-completion readiness.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetentionCompletionReadiness"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+        "503": { $ref: "#/components/responses/StorageLifecycleUnavailable" }
+  /retention-requests/{id}/completion:
+    get:
+      operationId: getRetentionRequestCompletion
+      tags: [Operations]
+      summary: Read one retention request's reconciliation and certificate evidence
+      description: >-
+        Returns the exact request, phase action, object reconciliation counts,
+        path-free object bindings, deliberately retained legal or financial
+        categories and certificate evidence. An absent certificate is never a
+        successful deletion or certification claim.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Current governed completion snapshot.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetentionCompletionSnapshot"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+        "503": { $ref: "#/components/responses/StorageLifecycleUnavailable" }
   /storage-lifecycle/dead-letters:
     get:
       operationId: listStorageDeletionDeadLetters
@@ -1244,24 +1320,212 @@ paths:
     post:
       operationId: completeRetentionRequest
       tags: [Operations]
-      summary: Report that certified retention completion is not activated
+      summary: Commit relational detachment, owner purge and storage disposition tracking
       description: >-
-        This release fails closed because blob deletion and relational deletion
-        cannot yet be certified as one durable two-phase
-        detach/reconcile/certify outcome. After authentication and retention
-        permission checks, this operation performs no ID lookup, deletion,
-        database mutation, audit write or certificate issuance and returns only
-        the strict 503 refusal envelope.
+        Under the current request version, activation gates, bounded named-human
+        attestation and stable idempotency identity, irreversibly detaches the
+        governed relational project graph, advances the owner-held purge from
+        action version 2 to 3, and binds durable storage deletion intents. A 202
+        response must contain the canonical owner-purge receipt, its digest and
+        timestamp; it is neither proof of terminal object reconciliation nor
+        deletion certification.
       parameters:
         - $ref: "#/components/parameters/IdParam"
+        - $ref: "#/components/parameters/IfMatchVersion"
+        - $ref: "#/components/parameters/RetentionCompletionIdempotencyKey"
+      requestBody:
+        required: true
+        x-valo-request-body-max-bytes: 2048
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RetentionCompletionAttestation"
       responses:
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "503":
-          description: Certified retention completion is unavailable and no side effect was applied.
+        "202":
+          description: Relational detachment and owner purge committed at action version 3 with canonical receipt proof and path-free object bindings, or the exact command safely replayed.
           headers:
             Cache-Control:
               $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+            ETag:
+              $ref: "#/components/headers/VersionETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetentionCompletionSnapshot"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The version, lifecycle state, relational trust or current blockers prevent phase one; a blocked snapshot may be returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetentionCompletionConflict"
+        "412":
+          description: The If-Match version is stale; no new side effect was applied and a current snapshot may be returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetentionCompletionStaleVersion"
+        "413":
+          description: The bounded retention operator body exceeds 2 KiB.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+        "503":
+          description: Governed retention completion is not activated or its durable control plane is unavailable; no new side effect was applied.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetentionCompletionUnavailable"
+  /retention-actions/{id}/reconcile:
+    post:
+      operationId: reconcileRetentionAction
+      tags: [Operations]
+      summary: Record exact terminal object reconciliation evidence
+      description: >-
+        Under detached action version 3 with verified owner-purge receipt,
+        activation gates, bounded named-human attestation and stable idempotency
+        identity, revalidates every bound storage intent and records action
+        version 4, the canonical reconciliation manifest and preparer stamp. A
+        response is not certification and does not authorise the same person to
+        certify the action.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+        - $ref: "#/components/parameters/IfMatchVersion"
+        - $ref: "#/components/parameters/RetentionCompletionIdempotencyKey"
+      requestBody:
+        required: true
+        x-valo-request-body-max-bytes: 2048
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RetentionCompletionAttestation"
+      responses:
+        "200":
+          description: Exact terminal dispositions and the preparer's reconciliation manifest recorded at action version 4 with owner-purge proof preserved, or the exact command safely replayed.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+            ETag:
+              $ref: "#/components/headers/VersionETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetentionCompletionSnapshot"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The version, owner-purge receipt, lifecycle state, terminal storage proof or current blockers prevent reconciliation; a blocked snapshot may be returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetentionCompletionConflict"
+        "412":
+          description: The If-Match version is stale; no new side effect was applied and a current snapshot may be returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetentionCompletionStaleVersion"
+        "413":
+          description: The bounded retention operator body exceeds 2 KiB.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+        "503":
+          description: Governed retention reconciliation is not activated or its durable control plane is unavailable; no new side effect was applied.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetentionCompletionUnavailable"
+  /retention-actions/{id}/certify:
+    post:
+      operationId: certifyRetentionAction
+      tags: [Operations]
+      summary: Independently certify an exactly reconciled retention action
+      description: >-
+        Requires a checker distinct from the reconciliation preparer, action
+        version 4 with verified owner-purge receipt, bounded attestation and a
+        stable idempotency identity. Certification records action version 5 and
+        fails closed unless every bound storage intent has trusted terminal
+        evidence and both manifests still match. Only the returned certificate
+        is certification evidence.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+        - $ref: "#/components/parameters/IfMatchVersion"
+        - $ref: "#/components/parameters/RetentionCompletionIdempotencyKey"
+      requestBody:
+        required: true
+        x-valo-request-body-max-bytes: 2048
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RetentionCompletionAttestation"
+      responses:
+        "200":
+          description: Independent certification recorded at action version 5 with owner-purge and canonical certificate evidence, or the exact command safely replayed.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+            ETag:
+              $ref: "#/components/headers/VersionETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetentionCompletionSnapshot"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The version, owner-purge receipt, maker-checker boundary, reconciliation evidence or current blockers prevent certification; a blocked snapshot may be returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetentionCompletionConflict"
+        "412":
+          description: The If-Match version is stale; no new side effect was applied and a current snapshot may be returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetentionCompletionStaleVersion"
+        "413":
+          description: The bounded retention operator body exceeds 2 KiB.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+        "503":
+          description: Governed retention certification is not activated or its durable control plane is unavailable; no new side effect was applied.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
           content:
             application/json:
               schema:
@@ -6560,6 +6824,19 @@ components:
         maxLength: 21
         pattern: '^(?:W/)?"?(?:[1-9][0-9]{0,14}|[1-8][0-9]{15}|900[0-6][0-9]{12}|90070[0-9]{11}|90071[0-8][0-9]{10}|900719[0-8][0-9]{9}|9007199[01][0-9]{8}|90071992[0-4][0-9]{7}|900719925[0-3][0-9]{6}|9007199254[0-6][0-9]{5}|90071992547[0-3][0-9]{4}|9007199254740[0-8][0-9]{2}|90071992547409[0-8][0-9]|900719925474099[01])"?$'
       example: '"3"'
+    RetentionCompletionIdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: >-
+        Stable client-generated identity retained unchanged across retries of
+        one phase transition. Reuse is accepted only for the exact tenant,
+        actor, resource version and trimmed attestation.
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+        pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$"
   headers:
     ReleaseSha256:
       description: Declared candidate digest injected by the deployment control; this is not a live artifact hash and is omitted when no valid identity is configured.
@@ -16016,74 +16293,384 @@ components:
           enum: [queued, sent, archived, failed]
     RetentionRequest:
       type: object
-      required: [id, projectId, dueAt, status, createdAt]
+      additionalProperties: false
+      required:
+        [
+          id,
+          projectId,
+          subjectProjectId,
+          requestedByUserId,
+          requestedByName,
+          reason,
+          dueAt,
+          completedAt,
+          status,
+          completionProtocolVersion,
+          version,
+          createdAt,
+          updatedAt,
+        ]
       properties:
-        id: { type: string }
-        projectId: { type: string }
-        reason: { type: string, nullable: true }
-        dueAt: { type: string }
-        completedAt: { type: string, nullable: true }
-        certificateText: { type: string, nullable: true }
+        id: { type: string, format: uuid }
+        projectId:
+          oneOf:
+            - { type: string, format: uuid }
+            - { type: "null" }
+        subjectProjectId: { type: string, format: uuid }
+        requestedByUserId:
+          oneOf:
+            - { type: string, format: uuid }
+            - { type: "null" }
+        requestedByName:
+          oneOf:
+            - { type: string, minLength: 1, maxLength: 256 }
+            - { type: "null" }
+        reason:
+          oneOf:
+            - { type: string, minLength: 1, maxLength: 2000 }
+            - { type: "null" }
+        dueAt: { type: string, format: date-time }
+        completedAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: "null" }
         status:
           type: string
-          enum: [pending, completed, cancelled]
-        createdAt: { type: string }
+          enum: [pending, reconciling, completed, blocked]
+        completionProtocolVersion:
+          type: integer
+          enum: [0, 1]
+          description: >-
+            Zero identifies a read-only historical record that predates the
+            detach/reconcile/certify evidence protocol. Only protocol one may
+            expose completion actions.
+        version: { type: integer, minimum: 1, maximum: 9007199254740991 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
     RetentionRequestCreate:
       type: object
-      properties:
-        reason: { type: string }
-        dueAt: { type: string }
-    RetentionCompletionConflict:
-      type: object
-      deprecated: true
-      description: Legacy generated type retained for source compatibility; the inactive completion operation does not emit this response.
       additionalProperties: false
-      required: [error]
       properties:
-        error: { type: string }
-        commercialFinancialBlockers:
-          type: object
-          additionalProperties: false
-          required:
-            [
-              orders,
-              invoiceLines,
-              invoices,
-              payments,
-              entitlements,
-              subscriptions,
-              entitlementUsage,
-            ]
-          properties:
-            orders: { type: integer, minimum: 0 }
-            invoiceLines: { type: integer, minimum: 0 }
-            invoices: { type: integer, minimum: 0 }
-            payments: { type: integer, minimum: 0 }
-            entitlements: { type: integer, minimum: 0 }
-            subscriptions: { type: integer, minimum: 0 }
-            entitlementUsage: { type: integer, minimum: 0 }
-    RetentionCompletionUnavailable:
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+        dueAt: { type: string, format: date-time }
+    RetentionCompletionAttestation:
+      type: object
+      additionalProperties: false
+      required: [attestation]
+      properties:
+        attestation: { type: string, minLength: 16, maxLength: 512 }
+    RetentionReadinessBlocker:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          minLength: 3
+          maxLength: 80
+          pattern: "^[a-z][a-z0-9_]{2,79}$"
+        message: { type: string, minLength: 1, maxLength: 512 }
+    RetentionCompletionPermissions:
+      type: object
+      additionalProperties: false
+      required: [canStart, canReconcile, canCertify]
+      properties:
+        canStart: { type: boolean }
+        canReconcile: { type: boolean }
+        canCertify: { type: boolean }
+    RetentionCompletionReadiness:
       type: object
       additionalProperties: false
       required:
-        [error, code, sideEffectsApplied, requiredWorkflow, requiredCoverage]
+        [
+          activated,
+          manifestValid,
+          environmentOptIn,
+          workflow,
+          activationBlockers,
+          evidenceBlockers,
+          permissions,
+          makerCheckerRequired,
+          checkedAt,
+        ]
+      properties:
+        activated: { type: boolean }
+        manifestValid: { type: boolean }
+        environmentOptIn: { type: boolean }
+        workflow:
+          { type: string, const: durable_two_phase_detach_reconcile_certify }
+        activationBlockers:
+          type: array
+          maxItems: 32
+          items:
+            $ref: "#/components/schemas/RetentionReadinessBlocker"
+        evidenceBlockers:
+          type: array
+          maxItems: 32
+          items:
+            $ref: "#/components/schemas/RetentionReadinessBlocker"
+        permissions:
+          $ref: "#/components/schemas/RetentionCompletionPermissions"
+        makerCheckerRequired: { type: boolean, const: true }
+        checkedAt: { type: string, format: date-time }
+    RetentionAction:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          retentionRequestId,
+          subjectProjectId,
+          status,
+          version,
+          sourceManifest,
+          sourceManifestSha256,
+          purgeReceipt,
+          purgeReceiptSha256,
+          purgedAt,
+          reconciliationManifest,
+          reconciliationManifestSha256,
+          preparedByUserId,
+          preparedByName,
+          preparedAt,
+          checkedByUserId,
+          checkedByName,
+          checkedAt,
+          createdAt,
+          updatedAt,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        retentionRequestId: { type: string, format: uuid }
+        subjectProjectId: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [pending, detached, reconciled, certified, blocked]
+        version:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+          description: >-
+            Current action CAS version. The governed protocol returns version 3
+            after detached owner purge, version 4 after reconciliation and
+            version 5 after independent certification.
+        sourceManifest:
+          oneOf:
+            - { type: object, additionalProperties: true }
+            - { type: "null" }
+        sourceManifestSha256:
+          oneOf:
+            - { type: string, pattern: "^[0-9a-f]{64}$" }
+            - { type: "null" }
+        purgeReceipt:
+          description: >-
+            Canonical parsed owner-purge receipt, or null for pending or legacy
+            evidence. Successful phase-one completion returns a non-null value;
+            clients must not infer purge from detached status alone.
+          oneOf:
+            - { type: object, additionalProperties: true }
+            - { type: "null" }
+        purgeReceiptSha256:
+          oneOf:
+            - { type: string, pattern: "^[0-9a-f]{64}$" }
+            - { type: "null" }
+        purgedAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: "null" }
+        reconciliationManifest:
+          oneOf:
+            - { type: object, additionalProperties: true }
+            - { type: "null" }
+        reconciliationManifestSha256:
+          oneOf:
+            - { type: string, pattern: "^[0-9a-f]{64}$" }
+            - { type: "null" }
+        preparedByUserId:
+          oneOf:
+            - { type: string, format: uuid }
+            - { type: "null" }
+        preparedByName:
+          oneOf:
+            - { type: string, minLength: 1, maxLength: 256 }
+            - { type: "null" }
+        preparedAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: "null" }
+        checkedByUserId:
+          oneOf:
+            - { type: string, format: uuid }
+            - { type: "null" }
+        checkedByName:
+          oneOf:
+            - { type: string, minLength: 1, maxLength: 256 }
+            - { type: "null" }
+        checkedAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: "null" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    RetentionObjectReconciliationCounts:
+      type: object
+      additionalProperties: false
+      required: [expected, detached, reconciled, pending, deadLetters]
+      properties:
+        expected: { type: integer, minimum: 0, maximum: 1000000 }
+        detached: { type: integer, minimum: 0, maximum: 1000000 }
+        reconciled: { type: integer, minimum: 0, maximum: 1000000 }
+        pending: { type: integer, minimum: 0, maximum: 1000000 }
+        deadLetters: { type: integer, minimum: 0, maximum: 1000000 }
+    RetentionObjectBinding:
+      type: object
+      additionalProperties: false
+      required: [id, kind, status, terminalDisposition]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, const: project_retention }
+        status:
+          type: string
+          enum:
+            [queued, retry_wait, completed, cancelled, dead_letter, resolved]
+        terminalDisposition:
+          oneOf:
+            - type: string
+              enum:
+                [
+                  deleted,
+                  already_absent,
+                  cancelled_referenced,
+                  accepted_unresolved,
+                ]
+            - { type: "null" }
+    RetentionRetainedCategory:
+      type: object
+      additionalProperties: false
+      required: [category, reason, count]
+      properties:
+        category:
+          type: string
+          minLength: 2
+          maxLength: 80
+          pattern: "^[a-z][a-z0-9_]{1,79}$"
+        reason: { type: string, minLength: 1, maxLength: 512 }
+        count: { type: integer, minimum: 0, maximum: 1000000 }
+    RetentionDeletionCertificate:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          retentionActionId,
+          certificateNumber,
+          scopeManifestHash,
+          certificateManifest,
+          certificateManifestSha256,
+          method,
+          completedAt,
+          signedByUserId,
+          signedByName,
+          signatureEvidence,
+          createdAt,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        retentionActionId: { type: string, format: uuid }
+        certificateNumber: { type: string, minLength: 1, maxLength: 128 }
+        scopeManifestHash: { type: string, pattern: "^[0-9a-f]{64}$" }
+        certificateManifest:
+          type: object
+          additionalProperties: true
+        certificateManifestSha256: { type: string, pattern: "^[0-9a-f]{64}$" }
+        method: { type: string, minLength: 1, maxLength: 256 }
+        completedAt: { type: string, format: date-time }
+        signedByUserId: { type: string, format: uuid }
+        signedByName: { type: string, minLength: 1, maxLength: 256 }
+        signatureEvidence: { type: string, minLength: 1, maxLength: 2000 }
+        createdAt: { type: string, format: date-time }
+    RetentionCompletionSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          request,
+          action,
+          objectReconciliation,
+          objectBindings,
+          retainedCategories,
+          blockers,
+          certificate,
+          permissions,
+          generatedAt,
+        ]
+      properties:
+        request:
+          $ref: "#/components/schemas/RetentionRequest"
+        action:
+          oneOf:
+            - $ref: "#/components/schemas/RetentionAction"
+            - { type: "null" }
+        objectReconciliation:
+          $ref: "#/components/schemas/RetentionObjectReconciliationCounts"
+        objectBindings:
+          type: array
+          maxItems: 1000
+          items:
+            $ref: "#/components/schemas/RetentionObjectBinding"
+        retainedCategories:
+          type: array
+          maxItems: 64
+          items:
+            $ref: "#/components/schemas/RetentionRetainedCategory"
+        blockers:
+          type: array
+          maxItems: 64
+          items:
+            $ref: "#/components/schemas/RetentionReadinessBlocker"
+        certificate:
+          oneOf:
+            - $ref: "#/components/schemas/RetentionDeletionCertificate"
+            - { type: "null" }
+        permissions:
+          $ref: "#/components/schemas/RetentionCompletionPermissions"
+        generatedAt: { type: string, format: date-time }
+    RetentionCompletionConflict:
+      oneOf:
+        - $ref: "#/components/schemas/ErrorEnvelope"
+        - $ref: "#/components/schemas/RetentionCompletionSnapshot"
+    RetentionCompletionStaleVersion:
+      type: object
+      additionalProperties: false
+      required: [error, code, sideEffectsApplied]
+      properties:
+        error: { type: string, minLength: 1 }
+        code: { type: string, const: stale_version }
+        sideEffectsApplied: { type: boolean, const: false }
+        snapshot:
+          $ref: "#/components/schemas/RetentionCompletionSnapshot"
+    RetentionCompletionUnavailable:
+      oneOf:
+        - $ref: "#/components/schemas/RetentionCompletionNotActivated"
+        - $ref: "#/components/schemas/RetentionCompletionControlPlaneUnavailable"
+    RetentionCompletionNotActivated:
+      type: object
+      additionalProperties: false
+      required: [error, code, sideEffectsApplied, readiness]
       properties:
         error: { type: string, minLength: 1 }
         code: { type: string, const: RETENTION_COMPLETION_NOT_ACTIVATED }
         sideEffectsApplied: { type: boolean, const: false }
-        requiredWorkflow:
-          { type: string, const: durable_two_phase_detach_reconcile_certify }
-        requiredCoverage:
-          type: array
-          minItems: 4
-          maxItems: 4
-          uniqueItems: true
-          prefixItems:
-            - { type: string, const: project_content_rows }
-            - { type: string, const: object_storage }
-            - { type: string, const: upload_sessions }
-            - { type: string, const: storage_lifecycle_control_rows }
-          items: false
+        readiness:
+          $ref: "#/components/schemas/RetentionCompletionReadiness"
+    RetentionCompletionControlPlaneUnavailable:
+      type: object
+      additionalProperties: false
+      required: [error, code, sideEffectsApplied]
+      properties:
+        error: { type: string, minLength: 1 }
+        code: { type: string, const: persistence_unavailable }
+        sideEffectsApplied: { type: boolean, const: false }
     StorageDeletionOperatorReason:
       type: object
       additionalProperties: false
@@ -16123,12 +16710,21 @@ components:
             - { type: string, format: uuid }
             - { type: "null" }
         aggregateType:
-          { type: string, enum: [document, vault_item, upload_session] }
+          {
+            type: string,
+            enum: [document, vault_item, upload_session, project_retention],
+          }
         aggregateId: { type: string, format: uuid }
         reason:
           {
             type: string,
-            enum: [record_deleted, reference_replaced, lease_expired],
+            enum:
+              [
+                record_deleted,
+                reference_replaced,
+                lease_expired,
+                retention_completion,
+              ],
           }
         requestedAt: { type: string, format: date-time }
         requestSha256: { type: string, pattern: "^[0-9a-f]{64}$" }

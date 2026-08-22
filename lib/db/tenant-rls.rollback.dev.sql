@@ -122,6 +122,7 @@ DECLARE
     'requirement_citations',
     'requirements',
     'retention_actions',
+    'retention_action_storage_events',
     'retention_requests',
     'reviews',
     'rule_evaluations',

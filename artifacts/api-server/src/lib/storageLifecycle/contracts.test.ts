@@ -94,3 +94,19 @@ test("storage deletion intent is tenant-bound and tamper evident", () => {
     StorageLifecycleContractError,
   );
 });
+
+test("retention completion uses the closed durable deletion contract", () => {
+  const intent = createStorageDeletionIntent({
+    organisationId: ORG,
+    projectId: PROJECT,
+    objectPath: `/objects/tenants/${ORG}/retention/${RECORD}`,
+    aggregateType: "project_retention",
+    aggregateId: RECORD,
+    reason: "retention_completion",
+    requestedAt: "2026-08-22T12:00:00.000Z",
+  });
+  assert.deepEqual(
+    parseStorageDeletionIntent(serializeStorageDeletionIntent(intent)),
+    intent,
+  );
+});

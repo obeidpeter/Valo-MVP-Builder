@@ -6,7 +6,8 @@ export type BoundedJsonBodyDomain =
   | "consortium-room"
   | "evidence-renewal"
   | "opportunity-handoff"
-  | "operations";
+  | "operations"
+  | "retention-completion";
 
 /**
  * Applies a second, domain-specific bound after Express has parsed JSON.

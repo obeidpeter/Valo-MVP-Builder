@@ -15,13 +15,7 @@
  *
  * OpenAPI spec version: 2.5.0
  */
-import type { RetentionCompletionConflictCommercialFinancialBlockers } from './retentionCompletionConflictCommercialFinancialBlockers';
+import type { ErrorEnvelope } from './errorEnvelope';
+import type { RetentionCompletionSnapshot } from './retentionCompletionSnapshot';
 
-/**
- * Legacy generated type retained for source compatibility; the inactive completion operation does not emit this response.
- * @deprecated
- */
-export interface RetentionCompletionConflict {
-  error: string;
-  commercialFinancialBlockers?: RetentionCompletionConflictCommercialFinancialBlockers;
-}
+export type RetentionCompletionConflict = ErrorEnvelope | RetentionCompletionSnapshot;
