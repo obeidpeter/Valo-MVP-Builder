@@ -27,9 +27,11 @@ import {
   auditEvents,
   reports,
   redTeamRuns,
+  reviews,
   packages,
   packageVersions,
   packageManifestItems,
+  withTenantDatabase,
 } from "@workspace/db";
 import reportsRouter from "./reports";
 import {
@@ -55,6 +57,11 @@ import {
   TAXONOMY_VERSION,
 } from "../lib/provenance";
 import { computeProjectExportManifestHash } from "../lib/projectExportPackage";
+import {
+  computeCurrentDeliveryStudioSourceSnapshotHash,
+  isAttestedRedTeamApproval,
+  loadRedTeamApprovalAttestation,
+} from "../lib/deliveryStudio/drizzleRepository";
 
 /**
  * End-to-end proof that the real `GET /projects/:id/export` HTTP route can't
@@ -243,7 +250,7 @@ before(async () => {
       clientId: client.id,
       organisationId,
       tenderTitle: "Export Integration VMT-2026-999",
-      status: "signed_off",
+      status: "reporting",
       reviewerId: admin.id,
       paymentStatus: "not_required",
       conflictStatus: "clear",
@@ -418,16 +425,90 @@ before(async () => {
     details: "seeded audit event",
   });
 
-  await db.insert(redTeamRuns).values({
+  const sourceSnapshotHash = await withTenantDatabase(organisationId, () =>
+    computeCurrentDeliveryStudioSourceSnapshotHash(organisationId, project.id),
+  );
+  assert.ok(sourceSnapshotHash, "seeded project must have a current source");
+
+  const approvedAt = new Date();
+  const approvalProjectVersion = project.version + 1;
+  const approvalAttestation =
+    "I independently reviewed the current response source and approve this red-team run for governed export testing.";
+  const [redTeamRun] = await db
+    .insert(redTeamRuns)
+    .values({
+      organisationId,
+      projectId: project.id,
+      sourceSnapshotHash,
+      policyVersion: "test-policy-v1",
+      status: "approved",
+      initiatedByUserId: generatorId,
+      approvedByUserId: adminId,
+      approvedAt,
+      createdAt: approvedAt,
+      updatedAt: approvedAt,
+    })
+    .returning();
+  assert.ok(redTeamRun, "seeded red-team run must be stored");
+
+  await db.insert(reviews).values({
     organisationId,
     projectId: project.id,
-    sourceSnapshotHash: "c".repeat(64),
-    policyVersion: "test-policy-v1",
-    status: "approved",
-    initiatedByUserId: generatorId,
-    approvedByUserId: adminId,
-    approvedAt: new Date(),
+    reviewType: "delivery_studio_action_receipt",
+    objectType: "red_team_run",
+    objectId: redTeamRun.id,
+    reviewerUserId: adminId,
+    status: "completed",
+    findings: JSON.stringify({
+      schema: "valo.delivery-studio-receipt/v1",
+      requestDigest: createHash("sha256")
+        .update(
+          `approve_red_team:${redTeamRun.id}:${sourceSnapshotHash}`,
+          "utf8",
+        )
+        .digest("hex"),
+      action: "approve_red_team",
+      projectVersion: approvalProjectVersion,
+      sourceSnapshotHash,
+      attestation: approvalAttestation,
+    }),
+    sourceVersion: approvalProjectVersion,
+    completedAt: approvedAt,
+    createdAt: approvedAt,
+    updatedAt: approvedAt,
   });
+
+  const storedAttestation = await withTenantDatabase(organisationId, () =>
+    loadRedTeamApprovalAttestation(db, {
+      organisationId,
+      projectId: project.id,
+      runId: redTeamRun.id,
+      approvedByUserId: adminId,
+      approvedAt,
+    }),
+  );
+  assert.equal(storedAttestation, approvalAttestation);
+  assert.equal(
+    isAttestedRedTeamApproval({
+      runStatus: redTeamRun.status,
+      sourceSnapshotMatches:
+        redTeamRun.sourceSnapshotHash === sourceSnapshotHash,
+      initiatedByUserId: redTeamRun.initiatedByUserId,
+      approvedByUserId: redTeamRun.approvedByUserId,
+      approvedAt: redTeamRun.approvedAt,
+      approvalAttestation: storedAttestation,
+      openFindingCount: 0,
+    }),
+    true,
+  );
+
+  await db
+    .update(projects)
+    .set({
+      version: approvalProjectVersion,
+      updatedAt: approvedAt,
+    })
+    .where(eq(projects.id, project.id));
 
   const [draft] = await db
     .insert(reports)
@@ -447,6 +528,7 @@ before(async () => {
     .returning();
   draftReportId = draft.id;
 
+  const signedOffAt = new Date();
   const [signed] = await db
     .insert(reports)
     .values({
@@ -459,7 +541,7 @@ before(async () => {
       generatedBy: generatorId,
       reviewerId: adminId,
       reviewerName: "Export Admin",
-      signedOffAt: new Date(),
+      signedOffAt,
       engineVersion: ENGINE_VERSION,
       promptPackVersion: PROMPT_PACK_VERSION,
       modelId: MODEL_ID,
@@ -467,6 +549,28 @@ before(async () => {
     })
     .returning();
   signedReportId = signed.id;
+
+  const [signedOffProject] = await db
+    .update(projects)
+    .set({
+      status: "signed_off",
+      concludedAt: signedOffAt,
+      version: sql`${projects.version} + 1`,
+      updatedAt: signedOffAt,
+    })
+    .where(eq(projects.id, project.id))
+    .returning();
+  assert.equal(signedOffProject?.status, "signed_off");
+
+  const signedOffSourceSnapshotHash = await withTenantDatabase(
+    organisationId,
+    () =>
+      computeCurrentDeliveryStudioSourceSnapshotHash(
+        organisationId,
+        project.id,
+      ),
+  );
+  assert.equal(signedOffSourceSnapshotHash, sourceSnapshotHash);
 
   mock.method(
     ObjectStorageService.prototype,

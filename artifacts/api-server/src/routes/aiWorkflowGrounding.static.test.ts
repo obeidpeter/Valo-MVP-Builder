@@ -93,9 +93,46 @@ test("responsiveness suggestions use reviewed inputs and require explicit sign-o
   assert.match(source, /project\.responsiveness_approved/);
 });
 
-test("sign-off and export both pass pending responsiveness state to readiness", () => {
+test("sign-off preflight, locked recheck, and export pass pending responsiveness state to readiness", () => {
   const source = routeSource("reports");
-  assert.equal((source.match(/responsivenessSuggested:/g) ?? []).length, 2);
+  const signOff = between(
+    source,
+    '"/reports/:id/sign-off"',
+    '"/reports/:id/download"',
+  );
+  const preflight = between(
+    signOff,
+    "const readiness = evaluateSubmissionReadiness({",
+    "if (!readiness.ready)",
+  );
+  const lockedRecheck = between(
+    signOff,
+    "const currentReadiness = evaluateSubmissionReadiness({",
+    "if (!currentReadiness.ready)",
+  );
+  const exportWorkflow = between(
+    source,
+    '"/projects/:id/export"',
+    "export default router",
+  );
+  const exportReadiness = between(
+    exportWorkflow,
+    "const readiness = evaluateSubmissionReadiness({",
+    "if (!readiness.ready)",
+  );
+
+  assert.match(
+    preflight,
+    /responsivenessSuggested:\s*governance\.project\.responsivenessSuggested/,
+  );
+  assert.match(
+    lockedRecheck,
+    /responsivenessSuggested:\s*lockedProject\.responsivenessSuggested/,
+  );
+  assert.match(
+    exportReadiness,
+    /responsivenessSuggested:\s*project\.responsivenessSuggested/,
+  );
 });
 
 test("all text model inputs fail closed instead of truncating and use the strict registry", () => {
