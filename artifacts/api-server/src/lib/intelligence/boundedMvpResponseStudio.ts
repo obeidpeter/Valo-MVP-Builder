@@ -114,14 +114,14 @@ export function validateCitationFirstResponse(
       });
     }
 
-    if (claim.kind !== "factual") continue;
+    if (claim.kind === "opinion") continue;
     if (claim.citations.length === 0) {
       findings.push({
         code: "factual_citation_missing",
         severity: "blocker",
         claimId: claim.id,
         message:
-          "Every factual claim requires at least one exact source citation.",
+          "Every factual or instructional claim requires at least one exact source citation.",
       });
       continue;
     }

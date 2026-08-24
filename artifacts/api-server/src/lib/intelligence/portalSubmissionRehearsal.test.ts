@@ -135,6 +135,31 @@ test("rehearses reviewed file mappings while keeping declarations manual", () =>
   assert.equal(accepted.portalSubmissionReady, false);
 });
 
+test("two-pass approval keeps the subject stable while item reviews advance", () => {
+  const input = fixture();
+  const pendingReview = {
+    state: "needs_changes" as const,
+    reviewerId: "portal-operator",
+    reviewedAt: "2026-08-10T09:30:00.000Z",
+    note: "Confirm the frozen mapping before rehearsal.",
+  };
+  const proposed = buildPortalSubmissionRehearsal({
+    ...input,
+    fields: input.fields.map((field) => ({ ...field, review: pendingReview })),
+    files: input.files.map((file) => ({ ...file, review: pendingReview })),
+    mappings: input.mappings.map((mapping) => ({
+      ...mapping,
+      review: pendingReview,
+    })),
+  });
+  const accepted = buildPortalSubmissionRehearsal({
+    ...input,
+    rehearsalReview: { subjectId: proposed.rehearsalId, review: ACCEPTED },
+  });
+  assert.equal(accepted.rehearsalId, proposed.rehearsalId);
+  assert.equal(accepted.status, "rehearsal_ready");
+});
+
 test("reports size, extension, and filename violations without altering files", () => {
   const base = fixture();
   const badManifest = source(
@@ -189,6 +214,57 @@ test("never permits a file mapping to satisfy a declaration", () => {
   assert.ok(
     result.issues.some(
       (issue) => issue.code === "declaration_cannot_be_file_mapped",
+    ),
+  );
+});
+
+test("never marks a rehearsal ready while a frozen package file is unmapped", () => {
+  const input = fixture();
+  const secondHash = "b".repeat(64);
+  const manifest = source(
+    "complete-package-manifest",
+    "company_evidence",
+    `technical-proposal.pdf 1024 bytes ${FILE_HASH}. Mapping: technical-proposal.pdf assigned to Technical proposal. The frozen technical file is assigned to this upload slot.\nfinancial-proposal.pdf 2048 bytes ${secondHash}.`,
+    "corroborating",
+  );
+  const withUnmappedFile: PortalSubmissionRehearsalInput = {
+    ...input,
+    sources: [input.sources[0]!, manifest],
+    files: [
+      {
+        ...input.files[0]!,
+        citations: [citation(manifest)],
+      },
+      {
+        externalId: "financial-file",
+        filename: "financial-proposal.pdf",
+        sizeBytes: 2048,
+        sizeText: "2048 bytes",
+        sha256: secondHash,
+        citations: [citation(manifest)],
+        review: ACCEPTED,
+      },
+    ],
+    mappings: [
+      {
+        ...input.mappings[0]!,
+        citations: [input.fields[0]!.citations[0]!, citation(manifest)],
+      },
+    ],
+  };
+  const proposed = buildPortalSubmissionRehearsal(withUnmappedFile);
+  const reviewed = buildPortalSubmissionRehearsal({
+    ...withUnmappedFile,
+    rehearsalReview: { subjectId: proposed.rehearsalId, review: ACCEPTED },
+  });
+
+  assert.equal(reviewed.status, "blocked");
+  assert.equal(reviewed.readyForOperatorRehearsal, false);
+  assert.ok(
+    reviewed.issues.some(
+      (issue) =>
+        issue.code === "package_file_unmapped" &&
+        issue.path === "files.financial-file",
     ),
   );
 });
@@ -430,7 +506,7 @@ test("a rehearsal approval cannot transfer to a changed mapping", () => {
   );
 });
 
-test("a rehearsal approval cannot transfer to a different named item reviewer", () => {
+test("rehearsal identity excludes mutable item-review provenance", () => {
   const input = fixture();
   const baseline = buildPortalSubmissionRehearsal(input);
   const changed = buildPortalSubmissionRehearsal({
@@ -443,8 +519,53 @@ test("a rehearsal approval cannot transfer to a different named item reviewer", 
     ],
     rehearsalReview: { subjectId: baseline.rehearsalId, review: ACCEPTED },
   });
-  assert.equal(changed.status, "blocked");
-  assert.ok(
-    changed.issues.some((issue) => issue.code === "review_subject_mismatch"),
+  assert.equal(changed.rehearsalId, baseline.rehearsalId);
+  assert.equal(changed.status, "rehearsal_ready");
+});
+
+test("accepts bounded long canonical portal and manifest sources", () => {
+  const input = fixture();
+  const portal = {
+    ...input.sources[0]!,
+    content: `${input.sources[0]!.content}\n${"P".repeat(21_000)}`,
+  };
+  const manifest = {
+    ...input.sources[1]!,
+    content: `${input.sources[1]!.content}\n${"M".repeat(21_000)}`,
+  };
+  const boundPortal = { ...portal, contentSha256: sha256Text(portal.content) };
+  const boundManifest = {
+    ...manifest,
+    contentSha256: sha256Text(manifest.content),
+  };
+  const result = buildPortalSubmissionRehearsal({
+    ...input,
+    sources: [boundPortal, boundManifest],
+    fields: input.fields.map((field) => ({
+      ...field,
+      citations: field.citations.map((item) =>
+        item.sourceId === input.sources[0]!.sourceId
+          ? citation(boundPortal, item.quote)
+          : item,
+      ),
+    })),
+    files: input.files.map((file) => ({
+      ...file,
+      citations: [citation(boundManifest, file.citations[0]!.quote)],
+    })),
+    mappings: input.mappings.map((mapping) => ({
+      ...mapping,
+      citations: [
+        citation(boundPortal, mapping.citations[0]!.quote),
+        citation(boundManifest, mapping.citations[1]!.quote),
+      ],
+    })),
+  });
+  assert.equal(
+    result.issues.some(
+      (issue) => issue.code === "capability_text_limit_exceeded",
+    ),
+    false,
   );
+  assert.equal(result.status, "review_required");
 });

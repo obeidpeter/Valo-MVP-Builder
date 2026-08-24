@@ -13,6 +13,7 @@ describe("route privacy classification", () => {
     ["/app/security", "protected"],
     ["/projects/project-id?tab=requirements", "protected"],
     ["/intelligence?project=project-id", "protected"],
+    ["/portfolio-intelligence", "protected"],
     ["/pursuit-operations?project=project-id", "protected"],
     ["/growth-operations", "protected"],
     ["/commercial-retainer?project=project-id", "protected"],

@@ -41,6 +41,9 @@ const PrivacyOperations = lazy(() => import("@/pages/privacy-operations"));
 const IntelligenceCentre = lazy(
   () => import("@/pages/intelligence-centre-route"),
 );
+const PortfolioIntelligence = lazy(
+  () => import("@/pages/portfolio-intelligence"),
+);
 const PartnerWorkspace = lazy(() => import("@/pages/partner-workspace"));
 const PartnerConsortiumRoom = lazy(
   () => import("@/pages/partner-consortium-room-route"),
@@ -136,6 +139,11 @@ export default function ProtectedRoutes() {
         <Route path="/intelligence">
           <RequireArea area="pursuit_workbench">
             <IntelligenceCentre />
+          </RequireArea>
+        </Route>
+        <Route path="/portfolio-intelligence">
+          <RequireArea area="portfolio_intelligence">
+            <PortfolioIntelligence />
           </RequireArea>
         </Route>
         <Route path="/portal">

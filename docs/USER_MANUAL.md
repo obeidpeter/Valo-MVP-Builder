@@ -60,7 +60,7 @@ The left sidebar shows only what your role, permissions and organisation type al
 
 - **Workspace** — Command Centre, Pursuits, Opportunity Sources, Intelligence Centre, Client workspace, Client Action Room, Partner workspace, Consortium Room.
 - **Delivery** — Compliance (SBD corpus), Evidence Library, Pursuit Operations, Field Companion, Reviews, Reports.
-- **Oversight** — Clients, Getting Started & Offers, Billing & entitlements, Commercial & Retainer, Commercial & Claims Desk, Notifications, Communication Receipts.
+- **Oversight** — Clients, Portfolio intelligence, Getting Started & Offers, Billing & entitlements, Commercial & Retainer, Commercial & Claims Desk, Notifications, Communication Receipts.
 - **Administration** — Security & audit, Privacy Operations, Production Acceptance, AI Shadow Programme, Organisation Settings, Platform Operations.
 
 Items marked with an amber **"Pending"** chip are technically present but not commercially activated (section 20 explains feature flags).
@@ -125,7 +125,7 @@ A filterable table of all tender projects: search, status, risk, client, reviewe
 
 ### The pursuit workspace (`/projects/:id`)
 
-The header shows status, risk band and outcome, plus the **Mandate Quality** selector (autopsy-only / assisted bid / retainer). Nine tabs:
+The header shows status, risk band and outcome, plus the **Mandate Quality** selector (autopsy-only / assisted bid / retainer). Ten tabs:
 
 1. **Overview & next actions** — the **Project Readiness Gate** (a live checklist with a "next action" jump button; it refuses to rule at all if any underlying register failed to load), project metadata including model cost so far, the **Governance & Gates** card (status, SLA class, archive and redaction instructions, restricted mode, read-only conflict and payment state, and the two payment-confirmation legs), a per-project **notification log** (deadline reminders, payment confirmations, certificate renewals, report-ready notices — recorded, not dispatched), and for authorised users a **Retention Request** entry point.
 2. **Tender documents** — the document register with type, redaction status, extraction status and an integrity **Verify** action that re-hashes the stored object. Documents arrive **excluded** from processing by default; a reviewer must deliberately include (or redact) them before extraction can read them. **New generic uploads are deliberately disabled** ("Upload unavailable") until the durable-lease upload path is verified; governed uploads happen through the Client Action Room (section 14).
@@ -136,8 +136,13 @@ The header shows status, risk band and outcome, plus the **Mandate Quality** sel
    - **Commercial verification.** The deeper layer reconciles a whole lot against the **pinned Nigeria rule pack** (`ng-commercial-boq/v1`): line extensions, lot net, discount, taxable base, **VAT at 7.5%**, gross, net payable and bid security, all in exact kobo arithmetic. You select the governed source document the figures came from, enter the declared totals from the bid schedule, and run. Every discrepancy becomes a recorded **exception** with an exact expected/actual amount and a severity; exceptions stay open until a defect reviewer records a named resolution or waiver with a reason. Withholding-tax verification is deliberately disabled pending legal sign-off of category rates — declaring WHT raises its own exception rather than being silently accepted. Each run is stored permanently with the rule-pack version and the document version it verified, so a pass is reproducible — and a pass is an arithmetic statement, never a pricing or award opinion.
 6. **Issues & red team** — the defect register (suggested / open / remediated / waived; severities fatal → cosmetic; types from omission to validity). A red banner counts open fatal and likely-fatal defects: report sign-off is blocked until each has a persisted remediation, waiver or reclassification. Severity can be raised but never lowered once recorded, and only reviewers change severity.
 7. **Risk review** — the computed disqualification-risk band and score, plus a reviewer-only override that requires both a band and a written justification, and shows who set any active override.
-8. **Package & export** — report generation, the version table, sign-off (a fixed attestation recorded against a named reviewer), and DOCX/PDF/ZIP downloads that are only offered on signed-off versions. Blocked sign-offs and exports explain themselves ("Resolve any open fatal defects…", "Confirm physical archive instructions…").
-9. **Activity & audit** — the tamper-evident event timeline. Records from the migrated legacy system are amber-badged "Legacy v1 archive" with their integrity status, distinct from "Active v2 chain record" rows.
+8. **Delivery Studio** — the governed path from response to operator hand-off:
+   - **Response Studio** stores immutable section versions and a claim register. Exact-quote claims are checked against the selected current document version; factual and instructional claims without valid citations, plus unresolved placeholders, remain blocked. Opinion claims may be uncited. Paraphrases always require a different named reviewer.
+   - **Red-team review** records a policy version, the exact current response-source hash, findings, resolutions and an independent approval. A source change makes the approval stale; an empty findings list is not silently treated as approval.
+   - **Package assembly** freezes the current reviewed inputs into a content-addressed manifest. Assembly is not signing, visual QA, export, delivery or submission, and those separate controls remain in force.
+   - **Submission rehearsal** checks a reviewed portal profile and frozen package files for order, names, extensions, sizes, mappings and manual declarations. It never stores credentials, logs in, accepts a declaration, uploads or clicks submit.
+9. **Package & export** — report generation, the version table, sign-off (a fixed attestation recorded against a named reviewer), and DOCX/PDF/ZIP downloads that are only offered on signed-off versions. Sign-off and export recheck the current Response Studio claims and the exact, non-stale red-team source hash. Blocked actions explain themselves ("Resolve any open fatal defects…", "Confirm physical archive instructions…").
+10. **Activity & audit** — the tamper-evident event timeline. Records from the migrated legacy system are amber-badged "Legacy v1 archive" with their integrity status, distinct from "Active v2 chain record" rows.
 
 ---
 
@@ -206,6 +211,8 @@ Both pages appear when the partner-workspace feature flag is activated.
 **Evidence renewals (`/evidence-renewals`)** — governed renewal plans per pursuit: create a plan, stage a canonical replacement document, review the affected-pursuit impact, and record an **independent verifier decision**. Every action produces a hash receipt and confirms "no external message sent".
 
 **Reports (`/reports`)** — a portfolio directory of report records with version counts and latest status, linking into each pursuit. Rows whose register failed to load say "Unavailable" and are excluded from counts. Report presence is not submission readiness — generation, sign-off and export stay project-scoped.
+
+**Portfolio intelligence (`/portfolio-intelligence`)** — a tenant-local operating view of response, red-team, package and rehearsal status across the pursuits you are authorised to see. Filters and drill-downs lead back to the authoritative project records. Counts are descriptive workflow evidence only: this page does not predict awards, infer evaluator behaviour, train a model, compare tenants or authorise release.
 
 ---
 

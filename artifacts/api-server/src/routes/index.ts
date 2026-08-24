@@ -27,6 +27,7 @@ import configRouter from "./config";
 import aiOperationsRouter from "./aiOperations";
 import intelligenceRouter from "./intelligence";
 import { createAddendumImpactRouter } from "./addendumImpact";
+import { createDeliveryStudioRouter } from "./deliveryStudio";
 import { createTenderContextRouter } from "./tenderContext";
 import { createDocumentVersionSnapshotRouter } from "./documentVersionSnapshots";
 import { createGrowthSuiteRouter } from "./growthSuite";
@@ -127,6 +128,7 @@ const retentionCompletionRouter = createRetentionCompletionRouter({
 });
 const boqVerificationRouter = createBoqVerificationRouter();
 const addendumImpactRouter = createAddendumImpactRouter();
+const deliveryStudioRouter = createDeliveryStudioRouter();
 const tenderContextRouter = createTenderContextRouter();
 const documentVersionSnapshotRouter = createDocumentVersionSnapshotRouter();
 
@@ -197,6 +199,7 @@ router.use(aiOperationsRouter);
 router.use(aiShadowProgrammeRouter);
 router.use(intelligenceRouter);
 router.use(addendumImpactRouter);
+router.use(deliveryStudioRouter);
 router.use(tenderContextRouter);
 router.use(configRouter);
 router.use(storageRouter);

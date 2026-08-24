@@ -1,0 +1,292 @@
+{
+  "schemaVersion": 1,
+  "registryId": "valo-product-capabilities/third-wave-v1",
+  "authority": "checked_in_source_runtime_gates_and_release_evidence_are_authoritative",
+  "deterministicRuntimeLevel": 0,
+  "productionModelExecutionGranted": false,
+  "autonomousExternalActionGranted": false,
+  "capabilities": [
+    {
+      "id": "response_studio",
+      "title": "Citation-first Response Studio",
+      "wave": "third",
+      "deliveryState": "integrated",
+      "productionState": "release_verification_required",
+      "availability": "role_and_tenant_guarded",
+      "externalEffects": "none",
+      "runtimeLevel": 0,
+      "deterministic": true,
+      "automaticMutation": false,
+      "namedHumanAuthority": true,
+      "modelExecution": false,
+      "externalActionAuthorized": false,
+      "releaseAuthority": false,
+      "crossTenantReuse": false,
+      "authorityBoundary": "Response Studio validates citation-bound claims and placeholders for a named author and reviewer; it cannot approve evidence, sign a package, or turn a validation result into release authority.",
+      "evidence": [
+        "artifacts/api-server/src/lib/intelligence/boundedMvpResponseStudio.ts",
+        "artifacts/api-server/src/lib/deliveryStudio/contracts.ts",
+        "artifacts/api-server/src/lib/deliveryStudio/service.ts",
+        "artifacts/api-server/src/lib/deliveryStudio/drizzleRepository.ts",
+        "artifacts/api-server/src/routes/deliveryStudio.ts",
+        "artifacts/valo-workbench/src/pages/project-tabs/delivery-studio-tab.tsx",
+        "lib/api-spec/openapi.yaml",
+        "docs/third-wave/IMPLEMENTATION.md"
+      ],
+      "sourceAssertions": [
+        {
+          "path": "artifacts/api-server/src/lib/intelligence/boundedMvpResponseStudio.ts",
+          "includes": "export function validateCitationFirstResponse"
+        },
+        {
+          "path": "artifacts/api-server/src/lib/deliveryStudio/contracts.ts",
+          "includes": "DELIVERY_STUDIO_AUTHORITY_NOTE"
+        },
+        {
+          "path": "artifacts/api-server/src/lib/deliveryStudio/service.ts",
+          "includes": "validateCitationFirstResponse"
+        },
+        {
+          "path": "artifacts/api-server/src/routes/deliveryStudio.ts",
+          "includes": "delivery-studio"
+        },
+        {
+          "path": "artifacts/valo-workbench/src/pages/project-tabs/delivery-studio-tab.tsx",
+          "includes": "Response Studio"
+        },
+        {
+          "path": "lib/api-spec/openapi.yaml",
+          "includes": "delivery-studio"
+        },
+        {
+          "path": "docs/third-wave/IMPLEMENTATION.md",
+          "includes": "Every result remains deterministic evidence for a named human decision."
+        }
+      ]
+    },
+    {
+      "id": "red_team_review",
+      "title": "Independent Red-team Review",
+      "wave": "third",
+      "deliveryState": "integrated",
+      "productionState": "release_verification_required",
+      "availability": "role_and_tenant_guarded",
+      "externalEffects": "none",
+      "runtimeLevel": 0,
+      "deterministic": true,
+      "automaticMutation": false,
+      "namedHumanAuthority": true,
+      "modelExecution": false,
+      "externalActionAuthorized": false,
+      "releaseAuthority": false,
+      "crossTenantReuse": false,
+      "authorityBoundary": "Red-team results remain source-version-bound findings for an independent named reviewer; the workflow cannot self-clear findings, bypass fatal controls, or approve a package.",
+      "evidence": [
+        "artifacts/api-server/src/lib/submissionReadiness.ts",
+        "artifacts/api-server/src/lib/deliveryStudio/contracts.ts",
+        "artifacts/api-server/src/lib/deliveryStudio/service.ts",
+        "artifacts/api-server/src/lib/deliveryStudio/drizzleRepository.ts",
+        "artifacts/api-server/src/routes/deliveryStudio.ts",
+        "artifacts/valo-workbench/src/pages/project-tabs/delivery-studio-tab.tsx",
+        "lib/api-spec/openapi.yaml",
+        "docs/third-wave/IMPLEMENTATION.md"
+      ],
+      "sourceAssertions": [
+        {
+          "path": "artifacts/api-server/src/lib/submissionReadiness.ts",
+          "includes": "red_team_incomplete"
+        },
+        {
+          "path": "artifacts/api-server/src/lib/deliveryStudio/contracts.ts",
+          "includes": "DELIVERY_STUDIO_AUTHORITY_NOTE"
+        },
+        {
+          "path": "artifacts/api-server/src/lib/deliveryStudio/drizzleRepository.ts",
+          "includes": "Fatal and likely-fatal findings cannot be cleared"
+        },
+        {
+          "path": "artifacts/api-server/src/lib/deliveryStudio/drizzleRepository.ts",
+          "includes": "attestation: input.data.attestation.trim()"
+        },
+        {
+          "path": "artifacts/api-server/src/routes/deliveryStudio.ts",
+          "includes": "delivery-studio"
+        },
+        {
+          "path": "artifacts/valo-workbench/src/pages/project-tabs/delivery-studio-tab.tsx",
+          "includes": "Red-team review"
+        },
+        {
+          "path": "docs/third-wave/IMPLEMENTATION.md",
+          "includes": "Red-team approval is never inferred from an empty queue."
+        }
+      ]
+    },
+    {
+      "id": "package_assembly",
+      "title": "Governed Package Assembly",
+      "wave": "third",
+      "deliveryState": "integrated",
+      "productionState": "release_verification_required",
+      "availability": "role_and_tenant_guarded",
+      "externalEffects": "none",
+      "runtimeLevel": 0,
+      "deterministic": true,
+      "automaticMutation": false,
+      "namedHumanAuthority": true,
+      "modelExecution": false,
+      "externalActionAuthorized": false,
+      "releaseAuthority": false,
+      "crossTenantReuse": false,
+      "authorityBoundary": "Package assembly binds reviewed inputs to one deterministic manifest and immutable version; assembly cannot sign, export, deliver, or submit without the separate governed human gates.",
+      "evidence": [
+        "artifacts/api-server/src/lib/projectExportPackage.ts",
+        "artifacts/api-server/src/lib/submissionReadiness.ts",
+        "artifacts/api-server/src/lib/deliveryStudio/contracts.ts",
+        "artifacts/api-server/src/lib/deliveryStudio/service.ts",
+        "artifacts/api-server/src/lib/deliveryStudio/drizzleRepository.ts",
+        "artifacts/api-server/src/routes/deliveryStudio.ts",
+        "artifacts/valo-workbench/src/pages/project-tabs/delivery-studio-tab.tsx",
+        "lib/api-spec/openapi.yaml",
+        "docs/third-wave/IMPLEMENTATION.md"
+      ],
+      "sourceAssertions": [
+        {
+          "path": "artifacts/api-server/src/lib/projectExportPackage.ts",
+          "includes": "export function buildCanonicalProjectExportManifest"
+        },
+        {
+          "path": "artifacts/api-server/src/lib/submissionReadiness.ts",
+          "includes": "export function evaluateSubmissionReadiness"
+        },
+        {
+          "path": "artifacts/api-server/src/lib/deliveryStudio/contracts.ts",
+          "includes": "DELIVERY_STUDIO_AUTHORITY_NOTE"
+        },
+        {
+          "path": "artifacts/api-server/src/routes/deliveryStudio.ts",
+          "includes": "delivery-studio"
+        },
+        {
+          "path": "artifacts/valo-workbench/src/pages/project-tabs/delivery-studio-tab.tsx",
+          "includes": "Package assembly"
+        },
+        {
+          "path": "docs/third-wave/IMPLEMENTATION.md",
+          "includes": "Assembly cannot sign, export, deliver, or submit a package."
+        }
+      ]
+    },
+    {
+      "id": "submission_rehearsal",
+      "title": "Portal Submission Rehearsal",
+      "wave": "third",
+      "deliveryState": "integrated",
+      "productionState": "release_verification_required",
+      "availability": "role_and_tenant_guarded",
+      "externalEffects": "none",
+      "runtimeLevel": 0,
+      "deterministic": true,
+      "automaticMutation": false,
+      "namedHumanAuthority": true,
+      "modelExecution": false,
+      "externalActionAuthorized": false,
+      "releaseAuthority": false,
+      "crossTenantReuse": false,
+      "authorityBoundary": "Submission rehearsal checks reviewed portal fields and frozen package files for a named operator; it never uses credentials, accepts declarations, uploads files, or submits a tender.",
+      "evidence": [
+        "artifacts/api-server/src/lib/intelligence/portalSubmissionRehearsal.ts",
+        "artifacts/api-server/src/lib/deliveryStudio/contracts.ts",
+        "artifacts/api-server/src/lib/deliveryStudio/service.ts",
+        "artifacts/api-server/src/lib/deliveryStudio/drizzleRepository.ts",
+        "artifacts/api-server/src/routes/deliveryStudio.ts",
+        "artifacts/valo-workbench/src/pages/project-tabs/delivery-studio-tab.tsx",
+        "lib/api-spec/openapi.yaml",
+        "docs/third-wave/IMPLEMENTATION.md"
+      ],
+      "sourceAssertions": [
+        {
+          "path": "artifacts/api-server/src/lib/intelligence/portalSubmissionRehearsal.ts",
+          "includes": "export function buildPortalSubmissionRehearsal"
+        },
+        {
+          "path": "artifacts/api-server/src/lib/deliveryStudio/contracts.ts",
+          "includes": "DELIVERY_STUDIO_AUTHORITY_NOTE"
+        },
+        {
+          "path": "artifacts/api-server/src/lib/deliveryStudio/drizzleRepository.ts",
+          "includes": "buildPortalSubmissionRehearsal"
+        },
+        {
+          "path": "artifacts/api-server/src/routes/deliveryStudio.ts",
+          "includes": "delivery-studio"
+        },
+        {
+          "path": "artifacts/valo-workbench/src/pages/project-tabs/delivery-studio-tab.tsx",
+          "includes": "Submission rehearsal"
+        },
+        {
+          "path": "docs/third-wave/IMPLEMENTATION.md",
+          "includes": "No route logs in, uploads to, declares on, or submits through a procurement portal."
+        }
+      ]
+    },
+    {
+      "id": "portfolio_intelligence",
+      "title": "Tenant-local Portfolio Intelligence",
+      "wave": "third",
+      "deliveryState": "integrated",
+      "productionState": "release_verification_required",
+      "availability": "role_and_tenant_guarded",
+      "externalEffects": "none",
+      "runtimeLevel": 0,
+      "deterministic": true,
+      "automaticMutation": false,
+      "namedHumanAuthority": true,
+      "modelExecution": false,
+      "externalActionAuthorized": false,
+      "releaseAuthority": false,
+      "crossTenantReuse": false,
+      "authorityBoundary": "Portfolio intelligence reports bounded tenant-local workflow states and counts authorised client-confirmed outcome records; lesson derivation is unavailable and it cannot predict awards, train a model, reuse another tenant's data, or publish a benchmark.",
+      "evidence": [
+        "artifacts/api-server/src/lib/deliveryStudio/contracts.ts",
+        "artifacts/api-server/src/lib/deliveryStudio/service.ts",
+        "artifacts/api-server/src/lib/deliveryStudio/drizzleRepository.ts",
+        "artifacts/api-server/src/routes/deliveryStudio.ts",
+        "artifacts/valo-workbench/src/pages/portfolio-intelligence.tsx",
+        "lib/api-spec/openapi.yaml",
+        "docs/third-wave/IMPLEMENTATION.md"
+      ],
+      "sourceAssertions": [
+        {
+          "path": "artifacts/api-server/src/lib/deliveryStudio/contracts.ts",
+          "includes": "DELIVERY_STUDIO_AUTHORITY_NOTE"
+        },
+        {
+          "path": "artifacts/api-server/src/lib/deliveryStudio/service.ts",
+          "includes": "Lesson derivation is unavailable"
+        },
+        {
+          "path": "artifacts/api-server/src/lib/deliveryStudio/drizzleRepository.ts",
+          "includes": "eq(outcomes.clientConfirmed, true)"
+        },
+        {
+          "path": "artifacts/api-server/src/routes/deliveryStudio.ts",
+          "includes": "portfolio-intelligence"
+        },
+        {
+          "path": "artifacts/valo-workbench/src/pages/portfolio-intelligence.tsx",
+          "includes": "Portfolio intelligence"
+        },
+        {
+          "path": "lib/api-spec/openapi.yaml",
+          "includes": "portfolio-intelligence"
+        },
+        {
+          "path": "docs/third-wave/IMPLEMENTATION.md",
+          "includes": "Portfolio intelligence is tenant-local and never predicts an award."
+        }
+      ]
+    }
+  ]
+}

@@ -29,6 +29,7 @@ import {
   Archive,
   Save,
   UserCheck,
+  PackageCheck,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -91,6 +92,11 @@ const AuditTab = lazy(() =>
     default: AuditTab,
   })),
 );
+const DeliveryStudioTab = lazy(() =>
+  import("./project-tabs/delivery-studio-tab").then(
+    ({ DeliveryStudioTab }) => ({ default: DeliveryStudioTab }),
+  ),
+);
 
 const STATUS_OPTIONS = [
   "intake",
@@ -125,6 +131,7 @@ const PROJECT_TABS: readonly ProjectTab[] = [
   "boq",
   "defects",
   "risk",
+  "delivery",
   "reports",
   "audit",
 ];
@@ -594,6 +601,13 @@ export default function ProjectDetails() {
             Risk review
           </TabsTrigger>
           <TabsTrigger
+            value="delivery"
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium"
+          >
+            <PackageCheck className="w-4 h-4 mr-2" />
+            Delivery studio
+          </TabsTrigger>
+          <TabsTrigger
             value="reports"
             className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-3 font-medium"
           >
@@ -1053,6 +1067,9 @@ export default function ProjectDetails() {
             </TabsContent>
             <TabsContent value="risk" className="m-0">
               <RiskTab projectId={id} />
+            </TabsContent>
+            <TabsContent value="delivery" className="m-0">
+              <DeliveryStudioTab projectId={id} />
             </TabsContent>
             <TabsContent value="reports" className="m-0">
               <ReportsTab projectId={id} />

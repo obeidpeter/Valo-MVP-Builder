@@ -243,6 +243,7 @@ export function buildPortalSubmissionRehearsal(
   const sourceValidation = validateNextCapabilitySources(
     input.sources,
     "Portal rehearsal source documents",
+    { maximumContentChars: 2_000_000 },
   );
   const sourceSet = sourceValidation.sourceSet;
   const issues: DomainIssue[] = [
@@ -730,6 +731,18 @@ export function buildPortalSubmissionRehearsal(
   });
   mappings.sort((left, right) => left.mappingId.localeCompare(right.mappingId));
 
+  const mappedFileIds = new Set(mappings.map((mapping) => mapping.fileId));
+  for (const file of files) {
+    if (mappedFileIds.has(file.fileId)) continue;
+    issues.push({
+      code: "package_file_unmapped",
+      severity: "blocker",
+      path: `files.${file.externalId}`,
+      message:
+        "Every frozen package file must be assigned to an exact cited portal file field before rehearsal can be ready.",
+    });
+  }
+
   const checks: PortalFieldRehearsalCheck[] = fields.map((field) => {
     if (field.fieldType === "declaration") {
       return {
@@ -813,10 +826,16 @@ export function buildPortalSubmissionRehearsal(
       left.fieldId.localeCompare(right.fieldId),
   );
   const rehearsalId = deterministicId("portalrun", {
-    fields: fields.map((field) => [field.fieldId, field.review]),
-    files: files.map((file) => [file.fileId, file.review]),
-    mappings: mappings.map((mapping) => [mapping.mappingId, mapping.review]),
-    checks,
+    fieldIds: fields.map((field) => field.fieldId),
+    fileIds: files.map((file) => file.fileId),
+    mappingIds: mappings.map((mapping) => mapping.mappingId),
+    checks: checks.map((check) => ({
+      fieldId: check.fieldId,
+      uploadOrder: check.uploadOrder,
+      mappingIds: check.mappingIds,
+      fileIds: check.fileIds,
+      violations: check.violations,
+    })),
   });
   const rehearsalReviewResult = resolveSubjectReview(
     rehearsalId,

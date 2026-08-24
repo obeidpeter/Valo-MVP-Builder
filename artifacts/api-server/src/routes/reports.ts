@@ -31,6 +31,7 @@ import {
   getAccessContext,
   requirePermissionOrLegacy,
 } from "../middlewares/tenancy";
+import { commitTenantDatabaseBeforeResponse } from "../middlewares/databaseTenancy";
 import { serializeReport } from "../lib/serializers";
 import { writeAudit, writeAuditTx } from "../lib/audit";
 import { buildReportDocx, DOCX_MIME, type ReportData } from "../lib/docx";
@@ -48,7 +49,10 @@ import {
   suggestedFlagReviewState,
   withReviewState,
 } from "../lib/reportCsv";
-import { evaluateSubmissionReadiness } from "../lib/submissionReadiness";
+import {
+  evaluateSubmissionReadiness,
+  type SubmissionBlocker,
+} from "../lib/submissionReadiness";
 import { getActiveConfig } from "../lib/appConfig";
 import { computeScorecard } from "../lib/scorecard";
 import { ObjectStorageService } from "../lib/objectStorage";
@@ -70,9 +74,25 @@ import {
   soleCanonicalProjectExportPackageId,
   type ProjectExportArchiveEntry,
 } from "../lib/projectExportPackage";
+import {
+  computeCurrentDeliveryStudioSourceSnapshotHash,
+  isAttestedRedTeamApproval,
+  loadRedTeamApprovalAttestation,
+  type DeliveryStudioQueryExecutor,
+} from "../lib/deliveryStudio/drizzleRepository";
 
 const router: IRouter = Router();
 const objectStorage = new ObjectStorageService();
+
+class ReportSignOffConflictError extends Error {
+  constructor(
+    message: string,
+    readonly blockers?: SubmissionBlocker[],
+  ) {
+    super(message);
+    this.name = "ReportSignOffConflictError";
+  }
+}
 import {
   SHA256_HEX_PATTERN as SHA256_PATTERN,
   UUID_V1_5_PATTERN as UUID_PATTERN,
@@ -87,7 +107,16 @@ const { ZipArchive } = nodeRequire("archiver") as {
   ZipArchive: new (options?: ArchiverOptions) => Archiver;
 };
 
-async function gatherReportData(projectId: string): Promise<ReportData | null> {
+type StoredReportData = Omit<ReportData, "project"> & {
+  project: ReportData["project"] & {
+    organisationId: string | null;
+    version: number;
+  };
+};
+
+async function gatherReportData(
+  projectId: string,
+): Promise<StoredReportData | null> {
   const [row] = await db
     .select({ project: projects, client: clients, reviewerName: users.name })
     .from(projects)
@@ -166,12 +195,16 @@ async function latestReportForProject(projectId: string) {
   return latest;
 }
 
-async function gatherSupplementalReleaseGates(projectId: string): Promise<{
+async function gatherSupplementalReleaseGates(
+  organisationId: string | null,
+  projectId: string,
+  query: DeliveryStudioQueryExecutor = db,
+): Promise<{
   unsupportedClaimIds: string[];
   requiresRedTeam: true;
   redTeamApproved: boolean;
 }> {
-  const claimRows = await db
+  const claimRows = await query
     .select({
       id: draftClaims.id,
       claimKind: draftClaims.claimKind,
@@ -180,7 +213,13 @@ async function gatherSupplementalReleaseGates(projectId: string): Promise<{
     })
     .from(draftClaims)
     .innerJoin(draftVersions, eq(draftClaims.draftVersionId, draftVersions.id))
-    .innerJoin(drafts, eq(draftVersions.draftId, drafts.id))
+    .innerJoin(
+      drafts,
+      and(
+        eq(draftVersions.draftId, drafts.id),
+        eq(draftVersions.versionNumber, drafts.currentVersionNumber),
+      ),
+    )
     .leftJoin(
       claimEvidenceLinks,
       eq(claimEvidenceLinks.draftClaimId, draftClaims.id),
@@ -194,7 +233,9 @@ async function gatherSupplementalReleaseGates(projectId: string): Promise<{
       claimRows
         .filter(
           (row) =>
-            row.claimKind.toLowerCase().includes("fact") &&
+            new Set(["factual", "instructional"]).has(
+              row.claimKind.toLowerCase(),
+            ) &&
             (row.groundingStatus !== "approved" ||
               !evidenceLinkedClaimIds.has(row.id)),
         )
@@ -202,26 +243,48 @@ async function gatherSupplementalReleaseGates(projectId: string): Promise<{
     ),
   ];
 
-  const [latestRedTeamRun] = await db
+  const currentSourceSnapshotHash = organisationId
+    ? await computeCurrentDeliveryStudioSourceSnapshotHash(
+        organisationId,
+        projectId,
+        query,
+      )
+    : null;
+  const [latestRedTeamRun] = await query
     .select()
     .from(redTeamRuns)
     .where(eq(redTeamRuns.projectId, projectId))
-    .orderBy(desc(redTeamRuns.createdAt))
+    .orderBy(desc(redTeamRuns.createdAt), desc(redTeamRuns.id))
     .limit(1);
   let redTeamApproved = false;
   if (
-    latestRedTeamRun?.status === "approved" &&
-    latestRedTeamRun.approvedByUserId &&
-    latestRedTeamRun.approvedAt &&
-    latestRedTeamRun.approvedByUserId !== latestRedTeamRun.initiatedByUserId
+    latestRedTeamRun &&
+    organisationId &&
+    currentSourceSnapshotHash !== null
   ) {
-    const findings = await db
+    const findings = await query
       .select({ status: redTeamFindings.status })
       .from(redTeamFindings)
       .where(eq(redTeamFindings.redTeamRunId, latestRedTeamRun.id));
-    redTeamApproved = findings.every(
-      (finding) => finding.status === "resolved",
-    );
+    const approvalAttestation = await loadRedTeamApprovalAttestation(query, {
+      organisationId,
+      projectId,
+      runId: latestRedTeamRun.id,
+      approvedByUserId: latestRedTeamRun.approvedByUserId,
+      approvedAt: latestRedTeamRun.approvedAt,
+    });
+    redTeamApproved = isAttestedRedTeamApproval({
+      runStatus: latestRedTeamRun.status,
+      sourceSnapshotMatches:
+        latestRedTeamRun.sourceSnapshotHash === currentSourceSnapshotHash,
+      initiatedByUserId: latestRedTeamRun.initiatedByUserId,
+      approvedByUserId: latestRedTeamRun.approvedByUserId,
+      approvedAt: latestRedTeamRun.approvedAt,
+      approvalAttestation,
+      openFindingCount: findings.filter(
+        (finding) => finding.status !== "resolved",
+      ).length,
+    });
   }
   return { unsupportedClaimIds, requiresRedTeam: true, redTeamApproved };
 }
@@ -328,6 +391,25 @@ router.post(
 
     const created = await db.transaction(
       async (tx) => {
+        const [lockedProject] = await tx
+          .select({
+            id: projects.id,
+            organisationId: projects.organisationId,
+            status: projects.status,
+            version: projects.version,
+          })
+          .from(projects)
+          .where(eq(projects.id, projectId))
+          .for("update");
+        if (
+          !lockedProject ||
+          lockedProject.organisationId !== data.project.organisationId ||
+          lockedProject.version !== data.project.version ||
+          !canGenerateReportForProjectStatus(lockedProject.status)
+        ) {
+          return null;
+        }
+
         const [report] = await tx
           .insert(reports)
           .values({
@@ -346,17 +428,27 @@ router.post(
           .returning();
 
         if (
-          data.project.status === "defects" ||
-          data.project.status === "review"
+          lockedProject.status === "defects" ||
+          lockedProject.status === "review"
         ) {
-          await tx
+          const [transitionedProject] = await tx
             .update(projects)
             .set({
               status: "reporting",
               version: sql`${projects.version} + 1`,
               updatedAt: new Date(),
             })
-            .where(eq(projects.id, projectId));
+            .where(
+              and(
+                eq(projects.id, projectId),
+                eq(projects.status, lockedProject.status),
+                eq(projects.version, lockedProject.version),
+              ),
+            )
+            .returning({ id: projects.id });
+          if (!transitionedProject) {
+            throw new Error("Project state changed during report generation");
+          }
         }
         await writeAuditTx(tx, {
           user,
@@ -371,6 +463,14 @@ router.post(
       },
       { isolationLevel: "read committed" },
     );
+    if (!created) {
+      res.status(409).json({
+        error:
+          "Project state changed while the report was rendering. Refresh before generating another report.",
+      });
+      return;
+    }
+    await commitTenantDatabaseBeforeResponse(req);
     res.status(201).json(serializeReport(created, user?.name));
   },
 );
@@ -391,6 +491,13 @@ router.post(
       .where(eq(reports.id, String(req.params.id)));
     if (!report) {
       res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const reportOrganisationId = report.organisationId;
+    if (!reportOrganisationId) {
+      res.status(409).json({
+        error: "Report sign-off requires an organisation-bound report.",
+      });
       return;
     }
 
@@ -495,7 +602,7 @@ router.post(
         .select()
         .from(boqChecks)
         .where(eq(boqChecks.projectId, report.projectId)),
-      gatherSupplementalReleaseGates(report.projectId),
+      gatherSupplementalReleaseGates(reportOrganisationId, report.projectId),
     ]);
 
     const readiness = evaluateSubmissionReadiness({
@@ -546,8 +653,140 @@ router.post(
     }
 
     const reviewerName = user?.name || user?.email || "Unknown reviewer";
-    const updated = await db.transaction(
-      async (tx) => {
+    let updated;
+    try {
+      updated = await db.transaction(async (tx) => {
+        // Client -> project is the canonical release lock order. A concurrent
+        // NDA change either completes before this point-in-time re-read or is
+        // serialized after sign-off; package export rechecks current NDA state.
+        const [lockedClient] = await tx
+          .select({ id: clients.id, ndaStatus: clients.ndaStatus })
+          .from(clients)
+          .where(
+            and(
+              eq(clients.id, governance.project.clientId),
+              eq(clients.organisationId, reportOrganisationId),
+            ),
+          )
+          .for("share");
+        if (!lockedClient) {
+          throw new ReportSignOffConflictError(
+            "Client governance changed during report sign-off.",
+          );
+        }
+
+        const [lockedProject] = await tx
+          .select()
+          .from(projects)
+          .where(
+            and(
+              eq(projects.id, report.projectId),
+              eq(projects.organisationId, reportOrganisationId),
+            ),
+          )
+          .for("update");
+        if (
+          !lockedProject ||
+          lockedProject.status !== "reporting" ||
+          lockedProject.version !== governance.project.version
+        ) {
+          throw new ReportSignOffConflictError(
+            "Project state changed during report sign-off.",
+          );
+        }
+
+        const [currentReport] = await tx
+          .select()
+          .from(reports)
+          .where(
+            and(
+              eq(reports.id, report.id),
+              eq(reports.projectId, report.projectId),
+              eq(reports.organisationId, reportOrganisationId),
+            ),
+          )
+          .for("update");
+        if (!currentReport || currentReport.status !== "draft") {
+          throw new ReportSignOffConflictError(
+            "Report state changed during report sign-off.",
+          );
+        }
+
+        const [currentLatestReport] = await tx
+          .select({ id: reports.id })
+          .from(reports)
+          .where(eq(reports.projectId, report.projectId))
+          .orderBy(desc(reports.version))
+          .limit(1);
+        if (currentLatestReport?.id !== report.id) {
+          throw new ReportSignOffConflictError(
+            "Report version changed during report sign-off.",
+          );
+        }
+
+        // Recompute every release input only after the release locks are held.
+        // The 0012 DB guards make project-bound rows contend on the locked
+        // project, so this decision remains stable through the commit.
+        const currentDocuments = await tx
+          .select()
+          .from(documents)
+          .where(eq(documents.projectId, report.projectId));
+        const currentRequirements = await tx
+          .select()
+          .from(requirements)
+          .where(eq(requirements.projectId, report.projectId));
+        const currentEvidence = await tx
+          .select()
+          .from(evidenceItems)
+          .where(eq(evidenceItems.projectId, report.projectId));
+        const currentDefects = await tx
+          .select()
+          .from(defects)
+          .where(eq(defects.projectId, report.projectId));
+        const currentBoqChecks = await tx
+          .select()
+          .from(boqChecks)
+          .where(eq(boqChecks.projectId, report.projectId));
+        const currentDeliveryGates = await gatherSupplementalReleaseGates(
+          reportOrganisationId,
+          report.projectId,
+          tx,
+        );
+        const currentReadiness = evaluateSubmissionReadiness({
+          project: {
+            ndaStatus: lockedClient.ndaStatus,
+            reviewerId: lockedProject.reviewerId,
+            conflictStatus: lockedProject.conflictStatus,
+            paymentStatus: lockedProject.paymentStatus,
+            paymentConfirmedByFounder: lockedProject.paymentConfirmedByFounder,
+            paymentConfirmedByAdvisor: lockedProject.paymentConfirmedByAdvisor,
+            paymentFounderConfirmedBy: lockedProject.paymentFounderConfirmedBy,
+            paymentAdvisorConfirmedBy: lockedProject.paymentAdvisorConfirmedBy,
+            responsivenessSuggested: lockedProject.responsivenessSuggested,
+          },
+          report: {
+            generatedBy: currentReport.generatedBy,
+            engineVersion: currentReport.engineVersion,
+            promptPackVersion: currentReport.promptPackVersion,
+            modelId: currentReport.modelId,
+            taxonomyVersion: currentReport.taxonomyVersion,
+          },
+          signerId: user?.id,
+          documents: currentDocuments,
+          requirements: currentRequirements,
+          evidence: currentEvidence,
+          defects: currentDefects,
+          boqChecks: currentBoqChecks,
+          ...currentDeliveryGates,
+          requireIndependentSignOff: true,
+        });
+        if (!currentReadiness.ready) {
+          throw new ReportSignOffConflictError(
+            "Release inputs changed during report sign-off.",
+            currentReadiness.blockers,
+          );
+        }
+
         const clock = await tx.execute<{ now: unknown }>(
           sql`SELECT pg_catalog.clock_timestamp() AS now`,
         );
@@ -568,7 +807,11 @@ router.post(
           })
           .where(and(eq(reports.id, report.id), eq(reports.status, "draft")))
           .returning();
-        if (!signed) return undefined;
+        if (!signed) {
+          throw new ReportSignOffConflictError(
+            "Report state changed during report sign-off.",
+          );
+        }
 
         const [signedProject] = await tx
           .update(projects)
@@ -581,12 +824,16 @@ router.post(
           .where(
             and(
               eq(projects.id, signed.projectId),
+              eq(projects.organisationId, reportOrganisationId),
               eq(projects.status, "reporting"),
+              eq(projects.version, lockedProject.version),
             ),
           )
           .returning({ id: projects.id });
         if (!signedProject) {
-          throw new Error("Project state changed during report sign-off");
+          throw new ReportSignOffConflictError(
+            "Project state changed during report sign-off.",
+          );
         }
         await writeAuditTx(tx, {
           user,
@@ -598,13 +845,29 @@ router.post(
           createdAt: signedOffAt,
         });
         return signed;
-      },
-      { isolationLevel: "read committed" },
-    );
-    if (!updated) {
-      res.status(404).json({ error: "Not found" });
+      });
+    } catch (error) {
+      if (!(error instanceof ReportSignOffConflictError)) throw error;
+      await writeAudit({
+        user,
+        organisationId: reportOrganisationId,
+        projectId: report.projectId,
+        eventType: "report.sign_off_denied",
+        objectType: "report",
+        objectId: report.id,
+        details: JSON.stringify({
+          reason: error.message,
+          blockerCodes: error.blockers?.map((blocker) => blocker.code) ?? [],
+        }),
+      });
+      res.status(409).json({
+        error:
+          "Report sign-off was denied because the release state changed. Refresh and review the current blockers.",
+        ...(error.blockers ? { blockers: error.blockers } : {}),
+      });
       return;
     }
+    await commitTenantDatabaseBeforeResponse(req);
     res.json(serializeReport(updated, user?.name));
   },
 );
@@ -881,7 +1144,7 @@ router.get(
         .from(legacyAuditEvents)
         .where(eq(legacyAuditEvents.projectId, projectId)),
       db.select().from(documents).where(eq(documents.projectId, projectId)),
-      gatherSupplementalReleaseGates(projectId),
+      gatherSupplementalReleaseGates(project.organisationId, projectId),
     ]);
     const readiness = evaluateSubmissionReadiness({
       project: {

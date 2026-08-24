@@ -132,6 +132,10 @@ import type {
   DefectCreate,
   DefectSuggestResult,
   DefectUpdate,
+  DeliveryStudioAction,
+  DeliveryStudioEnvelope,
+  DeliveryStudioMutationResponse,
+  DeliveryStudioPayloadTooLargeResponse,
   DiscardUploadRequest,
   Document,
   DocumentCreate,
@@ -257,6 +261,8 @@ import type {
   PartnerRelationship,
   PartnerRelationshipCreate,
   PaymentConfirmationBody,
+  PortfolioIntelligenceEnvelope,
+  PreconditionFailedResponse,
   PreconditionRequiredResponse,
   PrivacyConsentWithdrawalDraft,
   PrivacyDsrTriageDraft,
@@ -16742,6 +16748,234 @@ export const useTransitionClaimsDeskRecord = <TError = ErrorType<BadRequestRespo
       > => {
       return useMutation(getTransitionClaimsDeskRecordMutationOptions(options));
     }
+
+export const getGetDeliveryStudioUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/projects/${projectId}/delivery-studio`
+}
+
+/**
+ * Returns tenant-scoped response, red-team, package and rehearsal workflow facts for named-human review. It performs no model execution or external portal action.
+ * @summary Read the deterministic Delivery Studio project snapshot
+ */
+export const getDeliveryStudio = async (projectId: string, options?: RequestInit): Promise<DeliveryStudioEnvelope> => {
+
+  return customFetch<DeliveryStudioEnvelope>(getGetDeliveryStudioUrl(projectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDeliveryStudioQueryKey = (projectId: string,) => {
+    return [
+    `/api/projects/${projectId}/delivery-studio`
+    ] as const;
+    }
+
+
+export const getGetDeliveryStudioQueryOptions = <TData = Awaited<ReturnType<typeof getDeliveryStudio>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ErrorEnvelope | InternalServerErrorResponse>>(projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDeliveryStudio>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDeliveryStudioQueryKey(projectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDeliveryStudio>>> = ({ signal }) => getDeliveryStudio(projectId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: projectId !== null && projectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDeliveryStudio>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDeliveryStudioQueryResult = NonNullable<Awaited<ReturnType<typeof getDeliveryStudio>>>
+export type GetDeliveryStudioQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ErrorEnvelope | InternalServerErrorResponse>
+
+
+/**
+ * @summary Read the deterministic Delivery Studio project snapshot
+ */
+
+export function useGetDeliveryStudio<TData = Awaited<ReturnType<typeof getDeliveryStudio>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ErrorEnvelope | InternalServerErrorResponse>>(
+ projectId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDeliveryStudio>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDeliveryStudioQueryOptions(projectId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRunDeliveryStudioActionUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/projects/${projectId}/delivery-studio/actions`
+}
+
+/**
+ * Records one bounded, deterministic action under optimistic concurrency and idempotency. Named humans retain approval authority; the operation never submits to an external portal.
+ * @summary Record one governed Delivery Studio action
+ */
+export const runDeliveryStudioAction = async (projectId: string,
+    deliveryStudioAction: DeliveryStudioAction, ifMatch: string, idempotencyKey: string, options?: RequestInit): Promise<DeliveryStudioMutationResponse> => {
+
+  return customFetch<DeliveryStudioMutationResponse>(getRunDeliveryStudioActionUrl(projectId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'If-Match': ifMatch, 'Idempotency-Key': idempotencyKey, ...options?.headers },
+    body: JSON.stringify(deliveryStudioAction)
+  }
+);}
+
+
+
+
+export const getRunDeliveryStudioActionMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PreconditionFailedResponse | DeliveryStudioPayloadTooLargeResponse | PreconditionRequiredResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runDeliveryStudioAction>>, TError,{projectId: string;data: BodyType<DeliveryStudioAction>;ifMatch: string;idempotencyKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runDeliveryStudioAction>>, TError,{projectId: string;data: BodyType<DeliveryStudioAction>;ifMatch: string;idempotencyKey: string}, TContext> => {
+
+const mutationKey = ['runDeliveryStudioAction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runDeliveryStudioAction>>, {projectId: string;data: BodyType<DeliveryStudioAction>;ifMatch: string;idempotencyKey: string}> = (props) => {
+          const {projectId,data,ifMatch,idempotencyKey} = props ?? {};
+
+          return  runDeliveryStudioAction(projectId,data,ifMatch,idempotencyKey,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunDeliveryStudioActionMutationResult = NonNullable<Awaited<ReturnType<typeof runDeliveryStudioAction>>>
+    export type RunDeliveryStudioActionMutationBody = BodyType<DeliveryStudioAction>
+    export type RunDeliveryStudioActionMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PreconditionFailedResponse | DeliveryStudioPayloadTooLargeResponse | PreconditionRequiredResponse | InternalServerErrorResponse>
+
+    /**
+ * @summary Record one governed Delivery Studio action
+ */
+export const useRunDeliveryStudioAction = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PreconditionFailedResponse | DeliveryStudioPayloadTooLargeResponse | PreconditionRequiredResponse | InternalServerErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runDeliveryStudioAction>>, TError,{projectId: string;data: BodyType<DeliveryStudioAction>;ifMatch: string;idempotencyKey: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runDeliveryStudioAction>>,
+        TError,
+        {projectId: string;data: BodyType<DeliveryStudioAction>;ifMatch: string;idempotencyKey: string},
+        TContext
+      > => {
+      return useMutation(getRunDeliveryStudioActionMutationOptions(options));
+    }
+
+export const getGetPortfolioIntelligenceUrl = () => {
+
+
+
+
+  return `/api/portfolio-intelligence`
+}
+
+/**
+ * Returns deterministic workflow facts for the current organisation. It publishes no win prediction, cross-tenant benchmark or reusable lesson without cited named-human review.
+ * @summary Read tenant-local portfolio workflow intelligence
+ */
+export const getPortfolioIntelligence = async ( options?: RequestInit): Promise<PortfolioIntelligenceEnvelope> => {
+
+  return customFetch<PortfolioIntelligenceEnvelope>(getGetPortfolioIntelligenceUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPortfolioIntelligenceQueryKey = () => {
+    return [
+    `/api/portfolio-intelligence`
+    ] as const;
+    }
+
+
+export const getGetPortfolioIntelligenceQueryOptions = <TData = Awaited<ReturnType<typeof getPortfolioIntelligence>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ErrorEnvelope | InternalServerErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPortfolioIntelligence>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPortfolioIntelligenceQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPortfolioIntelligence>>> = ({ signal }) => getPortfolioIntelligence({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPortfolioIntelligence>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPortfolioIntelligenceQueryResult = NonNullable<Awaited<ReturnType<typeof getPortfolioIntelligence>>>
+export type GetPortfolioIntelligenceQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ErrorEnvelope | InternalServerErrorResponse>
+
+
+/**
+ * @summary Read tenant-local portfolio workflow intelligence
+ */
+
+export function useGetPortfolioIntelligence<TData = Awaited<ReturnType<typeof getPortfolioIntelligence>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ErrorEnvelope | InternalServerErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPortfolioIntelligence>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPortfolioIntelligenceQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getRequestUploadUrlUrl = () => {
 

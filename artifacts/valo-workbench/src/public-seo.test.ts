@@ -73,6 +73,7 @@ describe("public SEO and privacy boundary", () => {
       "/app",
       "/projects",
       "/intelligence",
+      "/portfolio-intelligence",
       "/reports",
       "/organisation-settings",
       "/account",

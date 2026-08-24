@@ -54,7 +54,8 @@ CREATE TEMPORARY TABLE _valo_bridge_inputs (
   migration_0000_hash text NOT NULL,
   migration_0001_hash text NOT NULL,
   migration_0002_hash text NOT NULL,
-  migration_0011_hash text NOT NULL
+  migration_0011_hash text NOT NULL,
+  migration_0012_hash text NOT NULL
 ) ON COMMIT DROP;
 
 INSERT INTO _valo_bridge_inputs VALUES (
@@ -78,7 +79,8 @@ INSERT INTO _valo_bridge_inputs VALUES (
   '__VALO_BRIDGE_MIGRATION_0000_HASH__',
   '__VALO_BRIDGE_MIGRATION_0001_HASH__',
   '__VALO_BRIDGE_MIGRATION_0002_HASH__',
-  '__VALO_BRIDGE_MIGRATION_0011_HASH__'
+  '__VALO_BRIDGE_MIGRATION_0011_HASH__',
+  '__VALO_BRIDGE_MIGRATION_0012_HASH__'
 );
 
 CREATE TEMPORARY TABLE _valo_bridge_state (
@@ -87,7 +89,8 @@ CREATE TEMPORARY TABLE _valo_bridge_state (
   production_assurance_expected boolean NOT NULL,
   retrieval_registry_expected boolean NOT NULL,
   tender_context_expected boolean NOT NULL,
-  retention_completion_expected boolean NOT NULL
+  retention_completion_expected boolean NOT NULL,
+  delivery_source_release_boundary_expected boolean NOT NULL
 ) ON COMMIT DROP;
 
 CREATE TEMPORARY TABLE _valo_expected_legacy_columns (
@@ -202,6 +205,7 @@ DECLARE
   retrieval_registry_match boolean;
   tender_context_match boolean;
   retention_completion_match boolean;
+  delivery_source_release_boundary_match boolean;
   tender_context_policy_matches boolean;
   retention_completion_policy_matches boolean;
 BEGIN
@@ -209,11 +213,63 @@ BEGIN
   IF inputs.acknowledgement <> 'RESTORE_VERIFIED_AND_APPLICATION_QUIESCED' THEN
     RAISE EXCEPTION 'bridge acknowledgement is absent or incorrect';
   END IF;
-  IF EXISTS (
+  SELECT EXISTS (
     SELECT 1 FROM pg_proc AS routine
     JOIN pg_namespace AS namespace ON namespace.oid=routine.pronamespace
     WHERE namespace.nspname='public'
-  ) THEN
+  ) INTO delivery_source_release_boundary_match;
+  IF EXISTS (
+       SELECT 1 FROM pg_proc AS routine
+       JOIN pg_namespace AS namespace ON namespace.oid=routine.pronamespace
+       WHERE namespace.nspname='public'
+     )
+     AND NOT (
+       SELECT count(*) = 4
+         AND COALESCE(bool_and(
+           routine.prolang = (
+             SELECT language.oid
+             FROM pg_language AS language
+             WHERE language.lanname='plpgsql'
+           )
+           AND routine.prokind = 'f'
+           AND routine.proowner = (
+             SELECT role_record.oid
+             FROM pg_roles AS role_record
+             WHERE role_record.rolname=CURRENT_USER
+           )
+           AND NOT routine.prosecdef
+           AND NOT routine.proleakproof
+           AND NOT routine.proisstrict
+           AND routine.proparallel = 'u'
+           AND NOT routine.proretset
+           AND COALESCE(array_to_string(routine.proconfig,','),'') =
+             'search_path=pg_catalog, public'
+           AND (
+             (routine.oid = to_regprocedure(
+                'public.valo_delivery_source_project_id(name,jsonb)'
+              ) AND routine.provolatile = 's'
+                AND format_type(routine.prorettype,NULL) = 'uuid')
+             OR
+             (routine.oid = to_regprocedure(
+                'public.valo_assert_delivery_project_mutable(uuid,boolean)'
+              ) AND routine.provolatile = 'v'
+                AND format_type(routine.prorettype,NULL) = 'void')
+             OR
+             (routine.oid = to_regprocedure(
+                'public.valo_guard_delivery_project_delete()'
+              ) AND routine.provolatile = 'v'
+                AND format_type(routine.prorettype,NULL) = 'trigger')
+             OR
+             (routine.oid = to_regprocedure(
+                'public.valo_guard_delivery_source_mutation()'
+              ) AND routine.provolatile = 'v'
+                AND format_type(routine.prorettype,NULL) = 'trigger')
+           )
+         ), false)
+       FROM pg_proc AS routine
+       JOIN pg_namespace AS namespace ON namespace.oid=routine.pronamespace
+       WHERE namespace.nspname='public'
+     ) THEN
     RAISE EXCEPTION 'unexpected public-schema function could shadow privileged bridge SQL';
   END IF;
   IF inputs.expected_database <> current_database() THEN
@@ -250,7 +306,8 @@ BEGIN
   IF inputs.migration_0000_hash !~ '^[0-9a-f]{64}$'
      OR inputs.migration_0001_hash !~ '^[0-9a-f]{64}$'
      OR inputs.migration_0002_hash !~ '^[0-9a-f]{64}$'
-     OR inputs.migration_0011_hash !~ '^[0-9a-f]{64}$' THEN
+     OR inputs.migration_0011_hash !~ '^[0-9a-f]{64}$'
+     OR inputs.migration_0012_hash !~ '^[0-9a-f]{64}$' THEN
     RAISE EXCEPTION 'migration hashes must be lower-case SHA-256 values';
   END IF;
   IF inputs.archive_digest !~ '^[0-9a-f]{64}$'
@@ -393,6 +450,7 @@ BEGIN
       AND legacy_tables @> actual_tables,
       false
     )
+    AND NOT delivery_source_release_boundary_match
     AND NOT has_hash_version
     AND any_rls_table_count = 0
     AND policy_count = 0
@@ -470,8 +528,13 @@ BEGIN
 
   IF legacy_match THEN
     INSERT INTO _valo_bridge_state
-      VALUES (true, false, false, false, false, false);
+      VALUES (true, false, false, false, false, false, false);
   ELSIF complete_match THEN
+    IF delivery_source_release_boundary_match
+       AND NOT retention_completion_match THEN
+      RAISE EXCEPTION
+        'the 0012 delivery-source release boundary requires the 0011 retention-completion catalog';
+    END IF;
     INSERT INTO _valo_bridge_state
       VALUES (
         false,
@@ -479,7 +542,10 @@ BEGIN
         production_assurance_match,
         production_assurance_match AND retrieval_registry_match,
         production_assurance_match AND tender_context_match,
-        production_assurance_match AND retention_completion_match
+        production_assurance_match AND retention_completion_match,
+        production_assurance_match
+          AND retention_completion_match
+          AND delivery_source_release_boundary_match
       );
   ELSE
     RAISE EXCEPTION
@@ -8066,6 +8132,13 @@ BEGIN
       role_name
     );
   END IF;
+  IF (SELECT delivery_source_release_boundary_expected
+      FROM _valo_bridge_state) THEN
+    EXECUTE format(
+      'REVOKE DELETE ON TABLE public.clients FROM %I',
+      role_name
+    );
+  END IF;
   IF (SELECT retrieval_registry_expected FROM _valo_bridge_state) THEN
     EXECUTE format(
       'REVOKE DELETE ON TABLE public.ai_retrieval_registry FROM %I',
@@ -8244,6 +8317,10 @@ BEGIN
                   'deletion_certificates','projects','retention_actions',
                   'retention_action_storage_events','retention_requests'
                 )
+              ) AND NOT (
+                (SELECT delivery_source_release_boundary_expected
+                 FROM _valo_bridge_state)
+                AND relation.relname='clients'
               ))
             OR has_table_privilege(role_name, relation.oid, 'TRUNCATE')
             OR has_table_privilege(role_name, relation.oid, 'REFERENCES')
@@ -8369,6 +8446,26 @@ BEGIN
        WHERE created_at=1787472000000
      ) THEN
     RAISE EXCEPTION '0011 retention-completion journal evidence exists without its catalog';
+  END IF;
+  IF (SELECT delivery_source_release_boundary_expected
+      FROM _valo_bridge_state)
+     AND (
+       (SELECT count(*) FROM drizzle.__drizzle_migrations
+        WHERE created_at=1787558400000) <> 1
+       OR
+       (SELECT count(*) FROM drizzle.__drizzle_migrations
+        WHERE created_at=1787558400000
+          AND hash=inputs.migration_0012_hash) <> 1
+  ) THEN
+    RAISE EXCEPTION '0012 delivery-source release-boundary journal evidence is absent or drifted';
+  END IF;
+  IF NOT (SELECT delivery_source_release_boundary_expected
+          FROM _valo_bridge_state)
+     AND EXISTS (
+       SELECT 1 FROM drizzle.__drizzle_migrations
+       WHERE created_at=1787558400000
+     ) THEN
+    RAISE EXCEPTION '0012 delivery-source release-boundary journal evidence exists without its catalog';
   END IF;
 END;
 $migration_journal$;

@@ -26,10 +26,10 @@ import {
   computeReadinessChecks,
   summarizeReadiness,
   type GateStatus,
-  type ProjectTab,
+  type ProjectTab as ReadinessProjectTab,
 } from "@/lib/readiness";
 
-export type { ProjectTab };
+export type ProjectTab = ReadinessProjectTab | "delivery";
 
 function statusMeta(status: GateStatus) {
   switch (status) {
@@ -123,14 +123,15 @@ export function ProjectReadinessGate({
                   }
                 >
                   {summary.ready
-                    ? "Ready for sign-off review"
+                    ? "Core registers ready"
                     : `${summary.blockedRequired} blocker${summary.blockedRequired === 1 ? "" : "s"}`}
                 </Badge>
               )}
             </div>
             <p className="text-sm text-muted-foreground max-w-3xl">
-              Check the required status, intake, evidence, defects, BOQ, risk
-              and report records before sign-off, export or archive.
+              Check the core status, intake, evidence, defects, BOQ, risk and
+              report records. Delivery Studio response and independent red-team
+              gates must also pass before sign-off.
             </p>
           </div>
           {!isLoading && !isError && (

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getPlatformAccessDecision,
   navigationForRole,
+  PORTFOLIO_INTELLIGENCE_READ_PERMISSIONS,
   platformFeatureFlags,
   platformHomeForRole,
   platformRoleLabel,
@@ -310,6 +311,54 @@ describe("v2.5 platform access", () => {
         "package:read",
       ]).map((item) => item.href),
     ).toContain("/intelligence");
+  });
+
+  it("keeps portfolio intelligence tenant-local and exact-permission-gated", () => {
+    expect(
+      getPlatformAccessDecision(
+        "client_reviewer_approver",
+        "portfolio_intelligence",
+        enabledFlags,
+        [...PORTFOLIO_INTELLIGENCE_READ_PERMISSIONS],
+        "membership",
+      ),
+    ).toMatchObject({ allowed: true, state: "active" });
+    expect(
+      navigationForRole(
+        "client_reviewer_approver",
+        enabledFlags,
+        [...PORTFOLIO_INTELLIGENCE_READ_PERMISSIONS],
+        "membership",
+      ).map((item) => item.href),
+    ).toContain("/portfolio-intelligence");
+    for (const accessSource of ["partner", undefined] as const) {
+      expect(
+        getPlatformAccessDecision(
+          "consultancy_partner_analyst_reviewer",
+          "portfolio_intelligence",
+          enabledFlags,
+          [...PORTFOLIO_INTELLIGENCE_READ_PERMISSIONS],
+          accessSource,
+        ),
+      ).toMatchObject({ allowed: false, state: "denied" });
+    }
+    expect(
+      getPlatformAccessDecision(
+        "client_reviewer_approver",
+        "portfolio_intelligence",
+        enabledFlags,
+        [],
+        "membership",
+      ),
+    ).toMatchObject({ allowed: false, state: "denied" });
+    expect(
+      navigationForRole(
+        "valo_operations_administrator",
+        enabledFlags,
+        ["analytics:read"],
+        "membership",
+      ).map((item) => item.href),
+    ).not.toContain("/portfolio-intelligence");
   });
 
   it("preserves legacy reviewer access while hiding administration", () => {
