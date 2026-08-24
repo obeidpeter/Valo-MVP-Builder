@@ -108,6 +108,9 @@ const strictRoadmapOperationIds = [
   "getClaimsDesk",
   "createClaimsDeskRecord",
   "transitionClaimsDeskRecord",
+  "getDeliveryStudio",
+  "runDeliveryStudioAction",
+  "getPortfolioIntelligence",
   "promoteFieldDraftToOperationsWorkItem",
 ] as const;
 

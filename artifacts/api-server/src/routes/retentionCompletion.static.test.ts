@@ -135,6 +135,19 @@ test("owner purge proof and named phase authority gate every terminal transition
   assert.match(repository, /actorName !== row\.actor\.name/u);
 });
 
+test("detach retries only a bounded PostgreSQL deadlock victim transaction", () => {
+  assert.match(repository, /RETENTION_DETACH_DEADLOCK_ATTEMPTS = 3/u);
+  assert.match(repository, /postgresErrorCode\(error\) === "40P01"/u);
+  assert.match(
+    repository,
+    /withDetachPersistenceBoundary[\s\S]*retryDeadlock: true/u,
+  );
+  assert.match(
+    repository,
+    /async detach\([\s\S]*withDetachPersistenceBoundary\(async/u,
+  );
+});
+
 test("completion snapshots ignore legacy protocol actions", () => {
   assert.match(
     repository,

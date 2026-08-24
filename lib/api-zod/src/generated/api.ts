@@ -16744,6 +16744,937 @@ export const TransitionClaimsDeskRecordResponse = zod.object({
 
 
 /**
+ * Returns tenant-scoped response, red-team, package and rehearsal workflow facts for named-human review. It performs no model execution or external portal action.
+ * @summary Read the deterministic Delivery Studio project snapshot
+ */
+export const GetDeliveryStudioParams = zod.object({
+  "projectId": zod.string().uuid()
+})
+
+export const getDeliveryStudioResponseVersionMax = 9007199254740991;
+
+export const getDeliveryStudioResponseProjectTitleMax = 500;
+
+export const getDeliveryStudioResponseProjectDeadlineOneMax = 128;
+
+export const getDeliveryStudioResponseSourceSnapshotHashRegExp = new RegExp('^[0-9A-Fa-f]{64}$');
+export const getDeliveryStudioResponseResponseStudioSectionCountMin = 0;
+export const getDeliveryStudioResponseResponseStudioSectionCountMax = 500;
+
+export const getDeliveryStudioResponseResponseStudioClaimCountMin = 0;
+export const getDeliveryStudioResponseResponseStudioClaimCountMax = 250000;
+
+export const getDeliveryStudioResponseResponseStudioGroundedClaimCountMin = 0;
+export const getDeliveryStudioResponseResponseStudioGroundedClaimCountMax = 250000;
+
+export const getDeliveryStudioResponseResponseStudioPlaceholderCountMin = 0;
+export const getDeliveryStudioResponseResponseStudioPlaceholderCountMax = 250000;
+
+export const getDeliveryStudioResponseResponseStudioSectionsItemSectionKeyMax = 128;
+
+
+export const getDeliveryStudioResponseResponseStudioSectionsItemSectionKeyRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const getDeliveryStudioResponseResponseStudioSectionsItemTitleMax = 500;
+
+export const getDeliveryStudioResponseResponseStudioSectionsItemCurrentVersionNumberMin = 0;
+export const getDeliveryStudioResponseResponseStudioSectionsItemCurrentVersionNumberMax = 9007199254740991;
+
+export const getDeliveryStudioResponseResponseStudioSectionsItemVersionOneContentMax = 60000;
+
+export const getDeliveryStudioResponseResponseStudioSectionsItemVersionOneContentHashRegExp = new RegExp('^[0-9A-Fa-f]{64}$');
+export const getDeliveryStudioResponseResponseStudioSectionsItemVersionOneClaimsItemClaimKeyMax = 128;
+
+
+export const getDeliveryStudioResponseResponseStudioSectionsItemVersionOneClaimsItemClaimKeyRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const getDeliveryStudioResponseResponseStudioSectionsItemVersionOneClaimsItemTextMax = 5000;
+
+export const getDeliveryStudioResponseResponseStudioSectionsItemVersionOneClaimsItemCitationsItemEvidenceCitationMax = 60000;
+
+export const getDeliveryStudioResponseResponseStudioSectionsItemVersionOneClaimsItemCitationsItemEvidenceHashRegExp = new RegExp('^[0-9A-Fa-f]{64}$');
+export const getDeliveryStudioResponseResponseStudioSectionsItemVersionOneClaimsItemCitationsMax = 500;
+
+export const getDeliveryStudioResponseResponseStudioSectionsItemVersionOneClaimsMax = 500;
+
+export const getDeliveryStudioResponseResponseStudioSectionsMax = 500;
+
+export const getDeliveryStudioResponseRedTeamReviewRunOneSourceSnapshotHashRegExp = new RegExp('^[0-9A-Fa-f]{64}$');
+export const getDeliveryStudioResponseRedTeamReviewRunOnePolicyVersionMax = 128;
+
+export const getDeliveryStudioResponseRedTeamReviewRunOneApprovalAttestationOneMin = 10;
+export const getDeliveryStudioResponseRedTeamReviewRunOneApprovalAttestationOneMax = 2000;
+
+export const getDeliveryStudioResponseRedTeamReviewRunOneFindingsItemCategoryMax = 128;
+
+export const getDeliveryStudioResponseRedTeamReviewRunOneFindingsItemFindingMax = 20000;
+
+export const getDeliveryStudioResponseRedTeamReviewRunOneFindingsItemResolutionOneMax = 20000;
+
+export const getDeliveryStudioResponseRedTeamReviewRunOneFindingsItemVersionMax = 9007199254740991;
+
+export const getDeliveryStudioResponseRedTeamReviewRunOneFindingsMax = 500;
+
+export const getDeliveryStudioResponsePackageAssemblyPackageOneVersionNumberMax = 9007199254740991;
+
+export const getDeliveryStudioResponsePackageAssemblyPackageOneSourceSnapshotHashRegExp = new RegExp('^[0-9A-Fa-f]{64}$');
+export const getDeliveryStudioResponsePackageAssemblyPackageOneManifestHashRegExp = new RegExp('^[0-9A-Fa-f]{64}$');
+export const getDeliveryStudioResponsePackageAssemblyPackageOneManifestItemsItemOrdinalMax = 1000;
+
+export const getDeliveryStudioResponsePackageAssemblyPackageOneManifestItemsItemSourceVersionOneMax = 9007199254740991;
+
+export const getDeliveryStudioResponsePackageAssemblyPackageOneManifestItemsItemFilenameMax = 500;
+
+export const getDeliveryStudioResponsePackageAssemblyPackageOneManifestItemsItemSha256RegExp = new RegExp('^[0-9A-Fa-f]{64}$');
+export const getDeliveryStudioResponsePackageAssemblyPackageOneManifestItemsItemSizeBytesMin = 0;
+export const getDeliveryStudioResponsePackageAssemblyPackageOneManifestItemsItemSizeBytesMax = 9007199254740991;
+
+export const getDeliveryStudioResponsePackageAssemblyPackageOneManifestItemsMax = 1000;
+
+export const getDeliveryStudioResponseSubmissionRehearsalReceiptOneRehearsalIdMax = 128;
+
+
+export const getDeliveryStudioResponseSubmissionRehearsalReceiptOneRehearsalIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const getDeliveryStudioResponseSubmissionRehearsalReceiptOneIssuesItemCodeMax = 128;
+
+export const getDeliveryStudioResponseSubmissionRehearsalReceiptOneIssuesItemMessageMax = 20000;
+
+export const getDeliveryStudioResponseSubmissionRehearsalReceiptOneIssuesMax = 500;
+
+
+
+export const GetDeliveryStudioResponse = zod.object({
+  "authorityNote": zod.literal("Delivery Studio organises cited response work for named-human review. It never submits to an external portal, approves its own work, predicts an outcome, or reuses another tenant's data."),
+  "generatedAt": zod.string().datetime({ offset: true }),
+  "version": zod.number().int().safe().min(1).max(getDeliveryStudioResponseVersionMax),
+  "project": zod.object({
+  "id": zod.string().uuid(),
+  "title": zod.string().min(1).max(getDeliveryStudioResponseProjectTitleMax),
+  "status": zod.enum(['intake', 'extraction', 'review', 'defects', 'reporting', 'signed_off', 'exported', 'archived']),
+  "deadline": zod.union([zod.string().min(1).max(getDeliveryStudioResponseProjectDeadlineOneMax),zod.null()])
+}).strict(),
+  "sourceSnapshotHash": zod.string().regex(getDeliveryStudioResponseSourceSnapshotHashRegExp),
+  "responseStudio": zod.object({
+  "status": zod.enum(['empty', 'draft', 'review_required', 'ready']),
+  "sectionCount": zod.number().int().safe().min(getDeliveryStudioResponseResponseStudioSectionCountMin).max(getDeliveryStudioResponseResponseStudioSectionCountMax),
+  "claimCount": zod.number().int().safe().min(getDeliveryStudioResponseResponseStudioClaimCountMin).max(getDeliveryStudioResponseResponseStudioClaimCountMax),
+  "groundedClaimCount": zod.number().int().safe().min(getDeliveryStudioResponseResponseStudioGroundedClaimCountMin).max(getDeliveryStudioResponseResponseStudioGroundedClaimCountMax),
+  "placeholderCount": zod.number().int().safe().min(getDeliveryStudioResponseResponseStudioPlaceholderCountMin).max(getDeliveryStudioResponseResponseStudioPlaceholderCountMax),
+  "sections": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "sectionKey": zod.string().min(1).max(getDeliveryStudioResponseResponseStudioSectionsItemSectionKeyMax).regex(getDeliveryStudioResponseResponseStudioSectionsItemSectionKeyRegExp),
+  "title": zod.string().min(1).max(getDeliveryStudioResponseResponseStudioSectionsItemTitleMax),
+  "status": zod.enum(['draft', 'review_required', 'reviewed']),
+  "currentVersionNumber": zod.number().int().safe().min(getDeliveryStudioResponseResponseStudioSectionsItemCurrentVersionNumberMin).max(getDeliveryStudioResponseResponseStudioSectionsItemCurrentVersionNumberMax),
+  "version": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "content": zod.string().min(1).max(getDeliveryStudioResponseResponseStudioSectionsItemVersionOneContentMax),
+  "contentHash": zod.string().regex(getDeliveryStudioResponseResponseStudioSectionsItemVersionOneContentHashRegExp),
+  "authorUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "claims": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "claimKey": zod.string().min(1).max(getDeliveryStudioResponseResponseStudioSectionsItemVersionOneClaimsItemClaimKeyMax).regex(getDeliveryStudioResponseResponseStudioSectionsItemVersionOneClaimsItemClaimKeyRegExp),
+  "text": zod.string().min(1).max(getDeliveryStudioResponseResponseStudioSectionsItemVersionOneClaimsItemTextMax),
+  "kind": zod.enum(['factual', 'instructional', 'opinion']),
+  "supportMode": zod.union([zod.enum(['exact_quote', 'paraphrase']),zod.null()]),
+  "groundingStatus": zod.enum(['unverified', 'approved', 'rejected', 'review_required']),
+  "reviewerUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "citations": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "documentVersionId": zod.union([zod.string().uuid(),zod.null()]),
+  "evidenceCitation": zod.string().min(1).max(getDeliveryStudioResponseResponseStudioSectionsItemVersionOneClaimsItemCitationsItemEvidenceCitationMax),
+  "evidenceHash": zod.string().regex(getDeliveryStudioResponseResponseStudioSectionsItemVersionOneClaimsItemCitationsItemEvidenceHashRegExp)
+}).strict()).max(getDeliveryStudioResponseResponseStudioSectionsItemVersionOneClaimsItemCitationsMax)
+}).strict()).max(getDeliveryStudioResponseResponseStudioSectionsItemVersionOneClaimsMax)
+}).strict(),zod.null()])
+}).strict()).max(getDeliveryStudioResponseResponseStudioSectionsMax)
+}).strict(),
+  "redTeamReview": zod.object({
+  "status": zod.enum(['not_started', 'running', 'findings_open', 'ready_for_approval', 'approved', 'stale']),
+  "dueAt": zod.union([zod.string().datetime({ offset: true }),zod.null()]),
+  "run": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.enum(['running', 'findings_open', 'ready_for_approval', 'approved', 'stale']),
+  "sourceSnapshotHash": zod.string().regex(getDeliveryStudioResponseRedTeamReviewRunOneSourceSnapshotHashRegExp),
+  "policyVersion": zod.string().min(1).max(getDeliveryStudioResponseRedTeamReviewRunOnePolicyVersionMax),
+  "initiatedByUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "approvedByUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "approvedAt": zod.union([zod.string().datetime({ offset: true }),zod.null()]),
+  "approvalAttestation": zod.union([zod.string().min(getDeliveryStudioResponseRedTeamReviewRunOneApprovalAttestationOneMin).max(getDeliveryStudioResponseRedTeamReviewRunOneApprovalAttestationOneMax),zod.null()]),
+  "createdAt": zod.string().datetime({ offset: true }),
+  "findings": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "category": zod.string().min(1).max(getDeliveryStudioResponseRedTeamReviewRunOneFindingsItemCategoryMax),
+  "severity": zod.enum(['fatal', 'likely_fatal', 'scoring_risk', 'cosmetic']),
+  "finding": zod.string().min(1).max(getDeliveryStudioResponseRedTeamReviewRunOneFindingsItemFindingMax),
+  "status": zod.enum(['open', 'resolved']),
+  "resolution": zod.union([zod.string().min(1).max(getDeliveryStudioResponseRedTeamReviewRunOneFindingsItemResolutionOneMax),zod.null()]),
+  "resolvedByUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "resolvedAt": zod.union([zod.string().datetime({ offset: true }),zod.null()]),
+  "version": zod.number().int().safe().min(1).max(getDeliveryStudioResponseRedTeamReviewRunOneFindingsItemVersionMax)
+}).strict()).max(getDeliveryStudioResponseRedTeamReviewRunOneFindingsMax)
+}).strict(),zod.null()])
+}).strict(),
+  "packageAssembly": zod.object({
+  "status": zod.enum(['not_started', 'draft', 'ready', 'stale']),
+  "package": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.enum(['draft', 'assembled']),
+  "versionId": zod.string().uuid(),
+  "versionNumber": zod.number().int().safe().min(1).max(getDeliveryStudioResponsePackageAssemblyPackageOneVersionNumberMax),
+  "sourceSnapshotHash": zod.string().regex(getDeliveryStudioResponsePackageAssemblyPackageOneSourceSnapshotHashRegExp),
+  "manifestHash": zod.string().regex(getDeliveryStudioResponsePackageAssemblyPackageOneManifestHashRegExp),
+  "renderQaStatus": zod.enum(['pending', 'passed', 'failed']),
+  "manifestItems": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "ordinal": zod.number().int().safe().min(1).max(getDeliveryStudioResponsePackageAssemblyPackageOneManifestItemsItemOrdinalMax),
+  "itemType": zod.literal("response_section"),
+  "sourceObjectId": zod.union([zod.string().uuid(),zod.null()]),
+  "sourceVersion": zod.union([zod.number().int().safe().min(1).max(getDeliveryStudioResponsePackageAssemblyPackageOneManifestItemsItemSourceVersionOneMax),zod.null()]),
+  "filename": zod.string().min(1).max(getDeliveryStudioResponsePackageAssemblyPackageOneManifestItemsItemFilenameMax),
+  "sha256": zod.string().regex(getDeliveryStudioResponsePackageAssemblyPackageOneManifestItemsItemSha256RegExp),
+  "sizeBytes": zod.number().int().safe().min(getDeliveryStudioResponsePackageAssemblyPackageOneManifestItemsItemSizeBytesMin).max(getDeliveryStudioResponsePackageAssemblyPackageOneManifestItemsItemSizeBytesMax)
+}).strict()).max(getDeliveryStudioResponsePackageAssemblyPackageOneManifestItemsMax)
+}).strict(),zod.null()])
+}).strict(),
+  "submissionRehearsal": zod.object({
+  "status": zod.enum(['not_started', 'blocked', 'incomplete', 'review_required', 'rehearsal_ready', 'stale']),
+  "receipt": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "packageVersionId": zod.string().uuid(),
+  "status": zod.enum(['blocked', 'incomplete', 'review_required', 'rehearsal_ready']),
+  "rehearsalId": zod.string().min(1).max(getDeliveryStudioResponseSubmissionRehearsalReceiptOneRehearsalIdMax).regex(getDeliveryStudioResponseSubmissionRehearsalReceiptOneRehearsalIdRegExp),
+  "readyForOperatorRehearsal": zod.boolean(),
+  "reviewerUserId": zod.string().uuid(),
+  "completedAt": zod.string().datetime({ offset: true }),
+  "issues": zod.array(zod.object({
+  "code": zod.string().min(1).max(getDeliveryStudioResponseSubmissionRehearsalReceiptOneIssuesItemCodeMax),
+  "severity": zod.enum(['blocker', 'warning']),
+  "message": zod.string().min(1).max(getDeliveryStudioResponseSubmissionRehearsalReceiptOneIssuesItemMessageMax)
+}).strict()).max(getDeliveryStudioResponseSubmissionRehearsalReceiptOneIssuesMax)
+}).strict(),zod.null()])
+}).strict(),
+  "safety": zod.object({
+  "automaticMutation": zod.literal(false),
+  "externalPortalAction": zod.literal(false),
+  "namedHumanAuthority": zod.literal(true)
+}).strict()
+}).strict()
+
+
+/**
+ * Records one bounded, deterministic action under optimistic concurrency and idempotency. Named humans retain approval authority; the operation never submits to an external portal.
+ * @summary Record one governed Delivery Studio action
+ */
+export const RunDeliveryStudioActionParams = zod.object({
+  "projectId": zod.string().uuid()
+})
+
+export const runDeliveryStudioActionHeaderIfMatchMax = 21;
+
+
+export const runDeliveryStudioActionHeaderIfMatchRegExp = new RegExp('^(?:W/)?"?(?:[1-9][0-9]{0,14}|[1-8][0-9]{15}|900[0-6][0-9]{12}|90070[0-9]{11}|90071[0-8][0-9]{10}|900719[0-8][0-9]{9}|9007199[01][0-9]{8}|90071992[0-4][0-9]{7}|900719925[0-3][0-9]{6}|9007199254[0-6][0-9]{5}|90071992547[0-3][0-9]{4}|9007199254740[0-8][0-9]{2}|90071992547409[0-8][0-9]|900719925474099[01])"?$');
+export const runDeliveryStudioActionHeaderIdempotencyKeyMin = 16;
+export const runDeliveryStudioActionHeaderIdempotencyKeyMax = 128;
+
+
+export const runDeliveryStudioActionHeaderIdempotencyKeyRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$');
+
+
+export const RunDeliveryStudioActionHeader = zod.object({
+  "If-Match": zod.string().max(runDeliveryStudioActionHeaderIfMatchMax).regex(runDeliveryStudioActionHeaderIfMatchRegExp).describe('Current positive safe-integer resource version, optionally quoted or weakly prefixed.'),
+  "Idempotency-Key": zod.string().min(runDeliveryStudioActionHeaderIdempotencyKeyMin).max(runDeliveryStudioActionHeaderIdempotencyKeyMax).regex(runDeliveryStudioActionHeaderIdempotencyKeyRegExp).describe('Stable client-generated identity; reuse is accepted only for the exact same tenant, actor, project version and action body.')
+})
+
+export const runDeliveryStudioActionBodyOneSectionKeyMax = 128;
+
+
+export const runDeliveryStudioActionBodyOneSectionKeyRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const runDeliveryStudioActionBodyOneTitleMax = 300;
+
+export const runDeliveryStudioActionBodyOneContentMax = 60000;
+
+export const runDeliveryStudioActionBodyOneChangeSummaryMax = 2000;
+
+export const runDeliveryStudioActionBodyOneClaimsItemClaimKeyMax = 128;
+
+
+export const runDeliveryStudioActionBodyOneClaimsItemClaimKeyRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const runDeliveryStudioActionBodyOneClaimsItemTextMax = 5000;
+
+export const runDeliveryStudioActionBodyOneClaimsItemCitationsItemPageNumberMax = 9007199254740991;
+
+export const runDeliveryStudioActionBodyOneClaimsItemCitationsItemQuoteMax = 20000;
+
+export const runDeliveryStudioActionBodyOneClaimsItemCitationsItemStartOffsetMin = 0;
+export const runDeliveryStudioActionBodyOneClaimsItemCitationsItemStartOffsetMax = 9007199254740991;
+
+export const runDeliveryStudioActionBodyOneClaimsItemCitationsItemEndOffsetMax = 9007199254740991;
+
+export const runDeliveryStudioActionBodyOneClaimsItemCitationsMax = 500;
+
+export const runDeliveryStudioActionBodyOneClaimsMax = 500;
+
+export const runDeliveryStudioActionBodyTwoNoteMin = 2;
+export const runDeliveryStudioActionBodyTwoNoteMax = 5000;
+
+export const runDeliveryStudioActionBodyThreePolicyVersionMax = 128;
+
+export const runDeliveryStudioActionBodyThreeFindingsItemCategoryMax = 120;
+
+export const runDeliveryStudioActionBodyThreeFindingsItemFindingMax = 10000;
+
+export const runDeliveryStudioActionBodyThreeFindingsItemObjectTypeMax = 120;
+
+export const runDeliveryStudioActionBodyThreeFindingsMax = 500;
+
+export const runDeliveryStudioActionBodyFourResolutionMin = 2;
+export const runDeliveryStudioActionBodyFourResolutionMax = 5000;
+
+export const runDeliveryStudioActionBodyFiveAttestationMin = 10;
+export const runDeliveryStudioActionBodyFiveAttestationMax = 2000;
+
+export const runDeliveryStudioActionBodySevenRehearsalSourcesItemSourceIdMax = 128;
+
+
+export const runDeliveryStudioActionBodySevenRehearsalSourcesItemSourceIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const runDeliveryStudioActionBodySevenRehearsalSourcesItemVersionIdMax = 128;
+
+
+export const runDeliveryStudioActionBodySevenRehearsalSourcesItemVersionIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const runDeliveryStudioActionBodySevenRehearsalSourcesItemTitleMax = 2000;
+
+export const runDeliveryStudioActionBodySevenRehearsalSourcesItemContentMax = 2000000;
+
+export const runDeliveryStudioActionBodySevenRehearsalSourcesItemContentSha256RegExp = new RegExp('^[0-9A-Fa-f]{64}$');
+export const runDeliveryStudioActionBodySevenRehearsalSourcesItemCapturedAtMax = 40;
+
+export const runDeliveryStudioActionBodySevenRehearsalSourcesItemOriginMax = 2000;
+
+export const runDeliveryStudioActionBodySevenRehearsalSourcesMax = 500;
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemExternalIdMax = 128;
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemLabelMax = 2000;
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemUploadOrderMax = 9007199254740991;
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemRuleTextMax = 20000;
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemMaxFileBytesMax = 9007199254740991;
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemMaxFileBytesTextMax = 2000;
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemAllowedExtensionsItemMax = 2000;
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemAllowedExtensionsMax = 50;
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemRequiredFilenamePrefixMax = 2000;
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemDeclarationTextMax = 20000;
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemSourceIdMax = 128;
+
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemSourceIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemSourceVersionIdMax = 128;
+
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemSourceVersionIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemContentSha256RegExp = new RegExp('^[0-9A-Fa-f]{64}$');
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemStartOffsetMin = 0;
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemStartOffsetMax = 9007199254740991;
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemEndOffsetMax = 9007199254740991;
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemQuoteMax = 20000;
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemPageMax = 9007199254740991;
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemSectionMax = 2000;
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsMax = 500;
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemReviewReviewerIdMax = 128;
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemReviewReviewedAtMax = 40;
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsItemReviewNoteMax = 5000;
+
+export const runDeliveryStudioActionBodySevenRehearsalFieldsMax = 500;
+
+export const runDeliveryStudioActionBodySevenRehearsalFilesItemExternalIdMax = 128;
+
+export const runDeliveryStudioActionBodySevenRehearsalFilesItemFilenameMax = 500;
+
+export const runDeliveryStudioActionBodySevenRehearsalFilesItemSizeBytesMax = 9007199254740991;
+
+export const runDeliveryStudioActionBodySevenRehearsalFilesItemSizeTextMax = 2000;
+
+export const runDeliveryStudioActionBodySevenRehearsalFilesItemSha256RegExp = new RegExp('^[0-9A-Fa-f]{64}$');
+export const runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemSourceIdMax = 128;
+
+
+export const runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemSourceIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemSourceVersionIdMax = 128;
+
+
+export const runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemSourceVersionIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemContentSha256RegExp = new RegExp('^[0-9A-Fa-f]{64}$');
+export const runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemStartOffsetMin = 0;
+export const runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemStartOffsetMax = 9007199254740991;
+
+export const runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemEndOffsetMax = 9007199254740991;
+
+export const runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemQuoteMax = 20000;
+
+export const runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemPageMax = 9007199254740991;
+
+export const runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemSectionMax = 2000;
+
+export const runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsMax = 500;
+
+export const runDeliveryStudioActionBodySevenRehearsalFilesItemReviewReviewerIdMax = 128;
+
+export const runDeliveryStudioActionBodySevenRehearsalFilesItemReviewReviewedAtMax = 40;
+
+export const runDeliveryStudioActionBodySevenRehearsalFilesItemReviewNoteMax = 5000;
+
+export const runDeliveryStudioActionBodySevenRehearsalFilesMax = 500;
+
+export const runDeliveryStudioActionBodySevenRehearsalMappingsItemExternalIdMax = 128;
+
+export const runDeliveryStudioActionBodySevenRehearsalMappingsItemFieldExternalIdMax = 128;
+
+export const runDeliveryStudioActionBodySevenRehearsalMappingsItemFileExternalIdMax = 128;
+
+export const runDeliveryStudioActionBodySevenRehearsalMappingsItemRationaleMax = 20000;
+
+export const runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemSourceIdMax = 128;
+
+
+export const runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemSourceIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemSourceVersionIdMax = 128;
+
+
+export const runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemSourceVersionIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemContentSha256RegExp = new RegExp('^[0-9A-Fa-f]{64}$');
+export const runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemStartOffsetMin = 0;
+export const runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemStartOffsetMax = 9007199254740991;
+
+export const runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemEndOffsetMax = 9007199254740991;
+
+export const runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemQuoteMax = 20000;
+
+export const runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemPageMax = 9007199254740991;
+
+export const runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemSectionMax = 2000;
+
+export const runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsMax = 500;
+
+export const runDeliveryStudioActionBodySevenRehearsalMappingsItemReviewReviewerIdMax = 128;
+
+export const runDeliveryStudioActionBodySevenRehearsalMappingsItemReviewReviewedAtMax = 40;
+
+export const runDeliveryStudioActionBodySevenRehearsalMappingsItemReviewNoteMax = 5000;
+
+export const runDeliveryStudioActionBodySevenRehearsalMappingsMax = 500;
+
+export const runDeliveryStudioActionBodySevenRehearsalRehearsalReviewSubjectIdMax = 128;
+
+export const runDeliveryStudioActionBodySevenRehearsalRehearsalReviewReviewReviewerIdMax = 128;
+
+export const runDeliveryStudioActionBodySevenRehearsalRehearsalReviewReviewReviewedAtMax = 40;
+
+export const runDeliveryStudioActionBodySevenRehearsalRehearsalReviewReviewNoteMax = 5000;
+
+
+
+export const RunDeliveryStudioActionBody = zod.union([zod.object({
+  "action": zod.enum(['save_response']),
+  "sectionKey": zod.string().min(1).max(runDeliveryStudioActionBodyOneSectionKeyMax).regex(runDeliveryStudioActionBodyOneSectionKeyRegExp),
+  "title": zod.string().min(1).max(runDeliveryStudioActionBodyOneTitleMax),
+  "content": zod.string().min(1).max(runDeliveryStudioActionBodyOneContentMax),
+  "changeSummary": zod.string().min(1).max(runDeliveryStudioActionBodyOneChangeSummaryMax).optional(),
+  "claims": zod.array(zod.object({
+  "claimKey": zod.string().min(1).max(runDeliveryStudioActionBodyOneClaimsItemClaimKeyMax).regex(runDeliveryStudioActionBodyOneClaimsItemClaimKeyRegExp),
+  "text": zod.string().min(1).max(runDeliveryStudioActionBodyOneClaimsItemTextMax),
+  "kind": zod.enum(['factual', 'instructional', 'opinion']).describe('Factual and instructional claims require at least one exact source citation; opinion claims may be uncited.'),
+  "supportMode": zod.enum(['exact_quote', 'paraphrase']).optional(),
+  "citations": zod.array(zod.object({
+  "documentId": zod.string().uuid(),
+  "documentVersionId": zod.string().uuid(),
+  "pageNumber": zod.number().int().safe().min(1).max(runDeliveryStudioActionBodyOneClaimsItemCitationsItemPageNumberMax),
+  "quote": zod.string().min(1).max(runDeliveryStudioActionBodyOneClaimsItemCitationsItemQuoteMax),
+  "startOffset": zod.number().int().safe().min(runDeliveryStudioActionBodyOneClaimsItemCitationsItemStartOffsetMin).max(runDeliveryStudioActionBodyOneClaimsItemCitationsItemStartOffsetMax).optional(),
+  "endOffset": zod.number().int().safe().min(1).max(runDeliveryStudioActionBodyOneClaimsItemCitationsItemEndOffsetMax).optional()
+}).strict().superRefine((value, context) => {
+  if (
+    (value.startOffset === undefined) !== (value.endOffset === undefined) ||
+    (value.startOffset !== undefined &&
+      value.endOffset !== undefined &&
+      value.endOffset <= value.startOffset)
+  ) {
+    context.addIssue({
+      code: zod.ZodIssueCode.custom,
+      path: ["endOffset"],
+      message: "Citation offsets must be supplied together and end after start",
+    });
+  }
+})).max(runDeliveryStudioActionBodyOneClaimsItemCitationsMax).describe('Required and non-empty when kind is factual or instructional.')
+}).strict().superRefine((value, context) => {
+  if (value.kind !== "opinion" && value.citations.length === 0) {
+    context.addIssue({
+      code: zod.ZodIssueCode.custom,
+      path: ["citations"],
+      message: "Factual and instructional claims require at least one exact source citation",
+    });
+  }
+})).min(1).max(runDeliveryStudioActionBodyOneClaimsMax)
+}).strict(),zod.object({
+  "action": zod.enum(['review_response_claim']),
+  "claimId": zod.string().uuid(),
+  "decision": zod.enum(['accepted', 'rejected', 'needs_changes']),
+  "note": zod.string().min(runDeliveryStudioActionBodyTwoNoteMin).max(runDeliveryStudioActionBodyTwoNoteMax)
+}).strict(),zod.object({
+  "action": zod.enum(['start_red_team']),
+  "policyVersion": zod.string().min(1).max(runDeliveryStudioActionBodyThreePolicyVersionMax),
+  "findings": zod.array(zod.object({
+  "category": zod.string().min(1).max(runDeliveryStudioActionBodyThreeFindingsItemCategoryMax),
+  "severity": zod.enum(['fatal', 'likely_fatal', 'scoring_risk', 'cosmetic']),
+  "finding": zod.string().min(1).max(runDeliveryStudioActionBodyThreeFindingsItemFindingMax),
+  "objectType": zod.string().min(1).max(runDeliveryStudioActionBodyThreeFindingsItemObjectTypeMax).optional(),
+  "objectId": zod.string().uuid().optional()
+}).strict()).max(runDeliveryStudioActionBodyThreeFindingsMax)
+}).strict(),zod.object({
+  "action": zod.enum(['resolve_red_team_finding']),
+  "runId": zod.string().uuid(),
+  "findingId": zod.string().uuid(),
+  "resolution": zod.string().min(runDeliveryStudioActionBodyFourResolutionMin).max(runDeliveryStudioActionBodyFourResolutionMax)
+}).strict(),zod.object({
+  "action": zod.enum(['approve_red_team']),
+  "runId": zod.string().uuid(),
+  "attestation": zod.string().min(runDeliveryStudioActionBodyFiveAttestationMin).max(runDeliveryStudioActionBodyFiveAttestationMax)
+}).strict(),zod.object({
+  "action": zod.enum(['assemble_package']),
+  "packageType": zod.literal("submission")
+}).strict(),zod.object({
+  "action": zod.enum(['rehearse_submission']),
+  "packageVersionId": zod.string().uuid(),
+  "rehearsal": zod.object({
+  "sources": zod.array(zod.object({
+  "sourceId": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalSourcesItemSourceIdMax).regex(runDeliveryStudioActionBodySevenRehearsalSourcesItemSourceIdRegExp),
+  "versionId": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalSourcesItemVersionIdMax).regex(runDeliveryStudioActionBodySevenRehearsalSourcesItemVersionIdRegExp),
+  "kind": zod.enum(['solicitation', 'addendum', 'company_evidence', 'official_opportunity', 'other']),
+  "title": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalSourcesItemTitleMax),
+  "content": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalSourcesItemContentMax),
+  "contentSha256": zod.string().regex(runDeliveryStudioActionBodySevenRehearsalSourcesItemContentSha256RegExp),
+  "capturedAt": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalSourcesItemCapturedAtMax),
+  "authority": zod.enum(['authoritative', 'corroborating', 'unverified']),
+  "origin": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalSourcesItemOriginMax)
+}).strict()).max(runDeliveryStudioActionBodySevenRehearsalSourcesMax),
+  "fields": zod.array(zod.object({
+  "externalId": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFieldsItemExternalIdMax),
+  "label": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFieldsItemLabelMax),
+  "fieldType": zod.enum(['file', 'declaration']),
+  "required": zod.boolean(),
+  "uploadOrder": zod.number().int().safe().min(1).max(runDeliveryStudioActionBodySevenRehearsalFieldsItemUploadOrderMax),
+  "ruleText": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFieldsItemRuleTextMax),
+  "maxFileBytes": zod.number().int().safe().min(1).max(runDeliveryStudioActionBodySevenRehearsalFieldsItemMaxFileBytesMax).optional(),
+  "maxFileBytesText": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFieldsItemMaxFileBytesTextMax).optional(),
+  "allowedExtensions": zod.array(zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFieldsItemAllowedExtensionsItemMax)).max(runDeliveryStudioActionBodySevenRehearsalFieldsItemAllowedExtensionsMax).optional(),
+  "requiredFilenamePrefix": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFieldsItemRequiredFilenamePrefixMax).optional(),
+  "declarationText": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFieldsItemDeclarationTextMax).optional(),
+  "citations": zod.array(zod.object({
+  "sourceId": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemSourceIdMax).regex(runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemSourceIdRegExp),
+  "sourceVersionId": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemSourceVersionIdMax).regex(runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemSourceVersionIdRegExp),
+  "contentSha256": zod.string().regex(runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemContentSha256RegExp),
+  "startOffset": zod.number().int().safe().min(runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemStartOffsetMin).max(runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemStartOffsetMax),
+  "endOffset": zod.number().int().safe().min(1).max(runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemEndOffsetMax),
+  "quote": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemQuoteMax),
+  "page": zod.number().int().safe().min(1).max(runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemPageMax).optional(),
+  "section": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsItemSectionMax).optional()
+}).strict().superRefine((value, context) => {
+  if (
+    (value.startOffset === undefined) !== (value.endOffset === undefined) ||
+    (value.startOffset !== undefined &&
+      value.endOffset !== undefined &&
+      value.endOffset <= value.startOffset)
+  ) {
+    context.addIssue({
+      code: zod.ZodIssueCode.custom,
+      path: ["endOffset"],
+      message: "Citation offsets must be supplied together and end after start",
+    });
+  }
+})).max(runDeliveryStudioActionBodySevenRehearsalFieldsItemCitationsMax),
+  "review": zod.object({
+  "state": zod.enum(['unreviewed', 'accepted', 'rejected', 'needs_changes']),
+  "reviewerId": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFieldsItemReviewReviewerIdMax).optional(),
+  "reviewedAt": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFieldsItemReviewReviewedAtMax).optional(),
+  "note": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFieldsItemReviewNoteMax).optional()
+}).strict()
+}).strict()).max(runDeliveryStudioActionBodySevenRehearsalFieldsMax),
+  "files": zod.array(zod.object({
+  "externalId": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFilesItemExternalIdMax),
+  "filename": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFilesItemFilenameMax),
+  "sizeBytes": zod.number().int().safe().min(1).max(runDeliveryStudioActionBodySevenRehearsalFilesItemSizeBytesMax),
+  "sizeText": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFilesItemSizeTextMax),
+  "sha256": zod.string().regex(runDeliveryStudioActionBodySevenRehearsalFilesItemSha256RegExp),
+  "citations": zod.array(zod.object({
+  "sourceId": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemSourceIdMax).regex(runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemSourceIdRegExp),
+  "sourceVersionId": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemSourceVersionIdMax).regex(runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemSourceVersionIdRegExp),
+  "contentSha256": zod.string().regex(runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemContentSha256RegExp),
+  "startOffset": zod.number().int().safe().min(runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemStartOffsetMin).max(runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemStartOffsetMax),
+  "endOffset": zod.number().int().safe().min(1).max(runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemEndOffsetMax),
+  "quote": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemQuoteMax),
+  "page": zod.number().int().safe().min(1).max(runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemPageMax).optional(),
+  "section": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsItemSectionMax).optional()
+}).strict().superRefine((value, context) => {
+  if (
+    (value.startOffset === undefined) !== (value.endOffset === undefined) ||
+    (value.startOffset !== undefined &&
+      value.endOffset !== undefined &&
+      value.endOffset <= value.startOffset)
+  ) {
+    context.addIssue({
+      code: zod.ZodIssueCode.custom,
+      path: ["endOffset"],
+      message: "Citation offsets must be supplied together and end after start",
+    });
+  }
+})).max(runDeliveryStudioActionBodySevenRehearsalFilesItemCitationsMax),
+  "review": zod.object({
+  "state": zod.enum(['unreviewed', 'accepted', 'rejected', 'needs_changes']),
+  "reviewerId": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFilesItemReviewReviewerIdMax).optional(),
+  "reviewedAt": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFilesItemReviewReviewedAtMax).optional(),
+  "note": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalFilesItemReviewNoteMax).optional()
+}).strict()
+}).strict()).max(runDeliveryStudioActionBodySevenRehearsalFilesMax),
+  "mappings": zod.array(zod.object({
+  "externalId": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalMappingsItemExternalIdMax),
+  "fieldExternalId": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalMappingsItemFieldExternalIdMax),
+  "fileExternalId": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalMappingsItemFileExternalIdMax),
+  "rationale": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalMappingsItemRationaleMax),
+  "citations": zod.array(zod.object({
+  "sourceId": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemSourceIdMax).regex(runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemSourceIdRegExp),
+  "sourceVersionId": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemSourceVersionIdMax).regex(runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemSourceVersionIdRegExp),
+  "contentSha256": zod.string().regex(runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemContentSha256RegExp),
+  "startOffset": zod.number().int().safe().min(runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemStartOffsetMin).max(runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemStartOffsetMax),
+  "endOffset": zod.number().int().safe().min(1).max(runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemEndOffsetMax),
+  "quote": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemQuoteMax),
+  "page": zod.number().int().safe().min(1).max(runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemPageMax).optional(),
+  "section": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsItemSectionMax).optional()
+}).strict().superRefine((value, context) => {
+  if (
+    (value.startOffset === undefined) !== (value.endOffset === undefined) ||
+    (value.startOffset !== undefined &&
+      value.endOffset !== undefined &&
+      value.endOffset <= value.startOffset)
+  ) {
+    context.addIssue({
+      code: zod.ZodIssueCode.custom,
+      path: ["endOffset"],
+      message: "Citation offsets must be supplied together and end after start",
+    });
+  }
+})).max(runDeliveryStudioActionBodySevenRehearsalMappingsItemCitationsMax),
+  "review": zod.object({
+  "state": zod.enum(['unreviewed', 'accepted', 'rejected', 'needs_changes']),
+  "reviewerId": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalMappingsItemReviewReviewerIdMax).optional(),
+  "reviewedAt": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalMappingsItemReviewReviewedAtMax).optional(),
+  "note": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalMappingsItemReviewNoteMax).optional()
+}).strict()
+}).strict()).max(runDeliveryStudioActionBodySevenRehearsalMappingsMax),
+  "rehearsalReview": zod.object({
+  "subjectId": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalRehearsalReviewSubjectIdMax),
+  "review": zod.object({
+  "state": zod.enum(['unreviewed', 'accepted', 'rejected', 'needs_changes']),
+  "reviewerId": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalRehearsalReviewReviewReviewerIdMax).optional(),
+  "reviewedAt": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalRehearsalReviewReviewReviewedAtMax).optional(),
+  "note": zod.string().min(1).max(runDeliveryStudioActionBodySevenRehearsalRehearsalReviewReviewNoteMax).optional()
+}).strict()
+}).strict().optional()
+}).strict()
+}).strict()])
+
+export const runDeliveryStudioActionResponseDataVersionMax = 9007199254740991;
+
+export const runDeliveryStudioActionResponseDataProjectTitleMax = 500;
+
+export const runDeliveryStudioActionResponseDataProjectDeadlineOneMax = 128;
+
+export const runDeliveryStudioActionResponseDataSourceSnapshotHashRegExp = new RegExp('^[0-9A-Fa-f]{64}$');
+export const runDeliveryStudioActionResponseDataResponseStudioSectionCountMin = 0;
+export const runDeliveryStudioActionResponseDataResponseStudioSectionCountMax = 500;
+
+export const runDeliveryStudioActionResponseDataResponseStudioClaimCountMin = 0;
+export const runDeliveryStudioActionResponseDataResponseStudioClaimCountMax = 250000;
+
+export const runDeliveryStudioActionResponseDataResponseStudioGroundedClaimCountMin = 0;
+export const runDeliveryStudioActionResponseDataResponseStudioGroundedClaimCountMax = 250000;
+
+export const runDeliveryStudioActionResponseDataResponseStudioPlaceholderCountMin = 0;
+export const runDeliveryStudioActionResponseDataResponseStudioPlaceholderCountMax = 250000;
+
+export const runDeliveryStudioActionResponseDataResponseStudioSectionsItemSectionKeyMax = 128;
+
+
+export const runDeliveryStudioActionResponseDataResponseStudioSectionsItemSectionKeyRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const runDeliveryStudioActionResponseDataResponseStudioSectionsItemTitleMax = 500;
+
+export const runDeliveryStudioActionResponseDataResponseStudioSectionsItemCurrentVersionNumberMin = 0;
+export const runDeliveryStudioActionResponseDataResponseStudioSectionsItemCurrentVersionNumberMax = 9007199254740991;
+
+export const runDeliveryStudioActionResponseDataResponseStudioSectionsItemVersionOneContentMax = 60000;
+
+export const runDeliveryStudioActionResponseDataResponseStudioSectionsItemVersionOneContentHashRegExp = new RegExp('^[0-9A-Fa-f]{64}$');
+export const runDeliveryStudioActionResponseDataResponseStudioSectionsItemVersionOneClaimsItemClaimKeyMax = 128;
+
+
+export const runDeliveryStudioActionResponseDataResponseStudioSectionsItemVersionOneClaimsItemClaimKeyRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const runDeliveryStudioActionResponseDataResponseStudioSectionsItemVersionOneClaimsItemTextMax = 5000;
+
+export const runDeliveryStudioActionResponseDataResponseStudioSectionsItemVersionOneClaimsItemCitationsItemEvidenceCitationMax = 60000;
+
+export const runDeliveryStudioActionResponseDataResponseStudioSectionsItemVersionOneClaimsItemCitationsItemEvidenceHashRegExp = new RegExp('^[0-9A-Fa-f]{64}$');
+export const runDeliveryStudioActionResponseDataResponseStudioSectionsItemVersionOneClaimsItemCitationsMax = 500;
+
+export const runDeliveryStudioActionResponseDataResponseStudioSectionsItemVersionOneClaimsMax = 500;
+
+export const runDeliveryStudioActionResponseDataResponseStudioSectionsMax = 500;
+
+export const runDeliveryStudioActionResponseDataRedTeamReviewRunOneSourceSnapshotHashRegExp = new RegExp('^[0-9A-Fa-f]{64}$');
+export const runDeliveryStudioActionResponseDataRedTeamReviewRunOnePolicyVersionMax = 128;
+
+export const runDeliveryStudioActionResponseDataRedTeamReviewRunOneApprovalAttestationOneMin = 10;
+export const runDeliveryStudioActionResponseDataRedTeamReviewRunOneApprovalAttestationOneMax = 2000;
+
+export const runDeliveryStudioActionResponseDataRedTeamReviewRunOneFindingsItemCategoryMax = 128;
+
+export const runDeliveryStudioActionResponseDataRedTeamReviewRunOneFindingsItemFindingMax = 20000;
+
+export const runDeliveryStudioActionResponseDataRedTeamReviewRunOneFindingsItemResolutionOneMax = 20000;
+
+export const runDeliveryStudioActionResponseDataRedTeamReviewRunOneFindingsItemVersionMax = 9007199254740991;
+
+export const runDeliveryStudioActionResponseDataRedTeamReviewRunOneFindingsMax = 500;
+
+export const runDeliveryStudioActionResponseDataPackageAssemblyPackageOneVersionNumberMax = 9007199254740991;
+
+export const runDeliveryStudioActionResponseDataPackageAssemblyPackageOneSourceSnapshotHashRegExp = new RegExp('^[0-9A-Fa-f]{64}$');
+export const runDeliveryStudioActionResponseDataPackageAssemblyPackageOneManifestHashRegExp = new RegExp('^[0-9A-Fa-f]{64}$');
+export const runDeliveryStudioActionResponseDataPackageAssemblyPackageOneManifestItemsItemOrdinalMax = 1000;
+
+export const runDeliveryStudioActionResponseDataPackageAssemblyPackageOneManifestItemsItemSourceVersionOneMax = 9007199254740991;
+
+export const runDeliveryStudioActionResponseDataPackageAssemblyPackageOneManifestItemsItemFilenameMax = 500;
+
+export const runDeliveryStudioActionResponseDataPackageAssemblyPackageOneManifestItemsItemSha256RegExp = new RegExp('^[0-9A-Fa-f]{64}$');
+export const runDeliveryStudioActionResponseDataPackageAssemblyPackageOneManifestItemsItemSizeBytesMin = 0;
+export const runDeliveryStudioActionResponseDataPackageAssemblyPackageOneManifestItemsItemSizeBytesMax = 9007199254740991;
+
+export const runDeliveryStudioActionResponseDataPackageAssemblyPackageOneManifestItemsMax = 1000;
+
+export const runDeliveryStudioActionResponseDataSubmissionRehearsalReceiptOneRehearsalIdMax = 128;
+
+
+export const runDeliveryStudioActionResponseDataSubmissionRehearsalReceiptOneRehearsalIdRegExp = new RegExp('^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$');
+export const runDeliveryStudioActionResponseDataSubmissionRehearsalReceiptOneIssuesItemCodeMax = 128;
+
+export const runDeliveryStudioActionResponseDataSubmissionRehearsalReceiptOneIssuesItemMessageMax = 20000;
+
+export const runDeliveryStudioActionResponseDataSubmissionRehearsalReceiptOneIssuesMax = 500;
+
+
+
+export const RunDeliveryStudioActionResponse = zod.object({
+  "projectId": zod.string().uuid(),
+  "action": zod.enum(['save_response', 'review_response_claim', 'start_red_team', 'resolve_red_team_finding', 'approve_red_team', 'assemble_package', 'rehearse_submission']),
+  "outcome": zod.enum(['recorded', 'replayed']),
+  "receiptId": zod.string().uuid(),
+  "data": zod.object({
+  "authorityNote": zod.literal("Delivery Studio organises cited response work for named-human review. It never submits to an external portal, approves its own work, predicts an outcome, or reuses another tenant's data."),
+  "generatedAt": zod.string().datetime({ offset: true }),
+  "version": zod.number().int().safe().min(1).max(runDeliveryStudioActionResponseDataVersionMax),
+  "project": zod.object({
+  "id": zod.string().uuid(),
+  "title": zod.string().min(1).max(runDeliveryStudioActionResponseDataProjectTitleMax),
+  "status": zod.enum(['intake', 'extraction', 'review', 'defects', 'reporting', 'signed_off', 'exported', 'archived']),
+  "deadline": zod.union([zod.string().min(1).max(runDeliveryStudioActionResponseDataProjectDeadlineOneMax),zod.null()])
+}).strict(),
+  "sourceSnapshotHash": zod.string().regex(runDeliveryStudioActionResponseDataSourceSnapshotHashRegExp),
+  "responseStudio": zod.object({
+  "status": zod.enum(['empty', 'draft', 'review_required', 'ready']),
+  "sectionCount": zod.number().int().safe().min(runDeliveryStudioActionResponseDataResponseStudioSectionCountMin).max(runDeliveryStudioActionResponseDataResponseStudioSectionCountMax),
+  "claimCount": zod.number().int().safe().min(runDeliveryStudioActionResponseDataResponseStudioClaimCountMin).max(runDeliveryStudioActionResponseDataResponseStudioClaimCountMax),
+  "groundedClaimCount": zod.number().int().safe().min(runDeliveryStudioActionResponseDataResponseStudioGroundedClaimCountMin).max(runDeliveryStudioActionResponseDataResponseStudioGroundedClaimCountMax),
+  "placeholderCount": zod.number().int().safe().min(runDeliveryStudioActionResponseDataResponseStudioPlaceholderCountMin).max(runDeliveryStudioActionResponseDataResponseStudioPlaceholderCountMax),
+  "sections": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "sectionKey": zod.string().min(1).max(runDeliveryStudioActionResponseDataResponseStudioSectionsItemSectionKeyMax).regex(runDeliveryStudioActionResponseDataResponseStudioSectionsItemSectionKeyRegExp),
+  "title": zod.string().min(1).max(runDeliveryStudioActionResponseDataResponseStudioSectionsItemTitleMax),
+  "status": zod.enum(['draft', 'review_required', 'reviewed']),
+  "currentVersionNumber": zod.number().int().safe().min(runDeliveryStudioActionResponseDataResponseStudioSectionsItemCurrentVersionNumberMin).max(runDeliveryStudioActionResponseDataResponseStudioSectionsItemCurrentVersionNumberMax),
+  "version": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "content": zod.string().min(1).max(runDeliveryStudioActionResponseDataResponseStudioSectionsItemVersionOneContentMax),
+  "contentHash": zod.string().regex(runDeliveryStudioActionResponseDataResponseStudioSectionsItemVersionOneContentHashRegExp),
+  "authorUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "claims": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "claimKey": zod.string().min(1).max(runDeliveryStudioActionResponseDataResponseStudioSectionsItemVersionOneClaimsItemClaimKeyMax).regex(runDeliveryStudioActionResponseDataResponseStudioSectionsItemVersionOneClaimsItemClaimKeyRegExp),
+  "text": zod.string().min(1).max(runDeliveryStudioActionResponseDataResponseStudioSectionsItemVersionOneClaimsItemTextMax),
+  "kind": zod.enum(['factual', 'instructional', 'opinion']),
+  "supportMode": zod.union([zod.enum(['exact_quote', 'paraphrase']),zod.null()]),
+  "groundingStatus": zod.enum(['unverified', 'approved', 'rejected', 'review_required']),
+  "reviewerUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "citations": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "documentVersionId": zod.union([zod.string().uuid(),zod.null()]),
+  "evidenceCitation": zod.string().min(1).max(runDeliveryStudioActionResponseDataResponseStudioSectionsItemVersionOneClaimsItemCitationsItemEvidenceCitationMax),
+  "evidenceHash": zod.string().regex(runDeliveryStudioActionResponseDataResponseStudioSectionsItemVersionOneClaimsItemCitationsItemEvidenceHashRegExp)
+}).strict()).max(runDeliveryStudioActionResponseDataResponseStudioSectionsItemVersionOneClaimsItemCitationsMax)
+}).strict()).max(runDeliveryStudioActionResponseDataResponseStudioSectionsItemVersionOneClaimsMax)
+}).strict(),zod.null()])
+}).strict()).max(runDeliveryStudioActionResponseDataResponseStudioSectionsMax)
+}).strict(),
+  "redTeamReview": zod.object({
+  "status": zod.enum(['not_started', 'running', 'findings_open', 'ready_for_approval', 'approved', 'stale']),
+  "dueAt": zod.union([zod.string().datetime({ offset: true }),zod.null()]),
+  "run": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.enum(['running', 'findings_open', 'ready_for_approval', 'approved', 'stale']),
+  "sourceSnapshotHash": zod.string().regex(runDeliveryStudioActionResponseDataRedTeamReviewRunOneSourceSnapshotHashRegExp),
+  "policyVersion": zod.string().min(1).max(runDeliveryStudioActionResponseDataRedTeamReviewRunOnePolicyVersionMax),
+  "initiatedByUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "approvedByUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "approvedAt": zod.union([zod.string().datetime({ offset: true }),zod.null()]),
+  "approvalAttestation": zod.union([zod.string().min(runDeliveryStudioActionResponseDataRedTeamReviewRunOneApprovalAttestationOneMin).max(runDeliveryStudioActionResponseDataRedTeamReviewRunOneApprovalAttestationOneMax),zod.null()]),
+  "createdAt": zod.string().datetime({ offset: true }),
+  "findings": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "category": zod.string().min(1).max(runDeliveryStudioActionResponseDataRedTeamReviewRunOneFindingsItemCategoryMax),
+  "severity": zod.enum(['fatal', 'likely_fatal', 'scoring_risk', 'cosmetic']),
+  "finding": zod.string().min(1).max(runDeliveryStudioActionResponseDataRedTeamReviewRunOneFindingsItemFindingMax),
+  "status": zod.enum(['open', 'resolved']),
+  "resolution": zod.union([zod.string().min(1).max(runDeliveryStudioActionResponseDataRedTeamReviewRunOneFindingsItemResolutionOneMax),zod.null()]),
+  "resolvedByUserId": zod.union([zod.string().uuid(),zod.null()]),
+  "resolvedAt": zod.union([zod.string().datetime({ offset: true }),zod.null()]),
+  "version": zod.number().int().safe().min(1).max(runDeliveryStudioActionResponseDataRedTeamReviewRunOneFindingsItemVersionMax)
+}).strict()).max(runDeliveryStudioActionResponseDataRedTeamReviewRunOneFindingsMax)
+}).strict(),zod.null()])
+}).strict(),
+  "packageAssembly": zod.object({
+  "status": zod.enum(['not_started', 'draft', 'ready', 'stale']),
+  "package": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.enum(['draft', 'assembled']),
+  "versionId": zod.string().uuid(),
+  "versionNumber": zod.number().int().safe().min(1).max(runDeliveryStudioActionResponseDataPackageAssemblyPackageOneVersionNumberMax),
+  "sourceSnapshotHash": zod.string().regex(runDeliveryStudioActionResponseDataPackageAssemblyPackageOneSourceSnapshotHashRegExp),
+  "manifestHash": zod.string().regex(runDeliveryStudioActionResponseDataPackageAssemblyPackageOneManifestHashRegExp),
+  "renderQaStatus": zod.enum(['pending', 'passed', 'failed']),
+  "manifestItems": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "ordinal": zod.number().int().safe().min(1).max(runDeliveryStudioActionResponseDataPackageAssemblyPackageOneManifestItemsItemOrdinalMax),
+  "itemType": zod.literal("response_section"),
+  "sourceObjectId": zod.union([zod.string().uuid(),zod.null()]),
+  "sourceVersion": zod.union([zod.number().int().safe().min(1).max(runDeliveryStudioActionResponseDataPackageAssemblyPackageOneManifestItemsItemSourceVersionOneMax),zod.null()]),
+  "filename": zod.string().min(1).max(runDeliveryStudioActionResponseDataPackageAssemblyPackageOneManifestItemsItemFilenameMax),
+  "sha256": zod.string().regex(runDeliveryStudioActionResponseDataPackageAssemblyPackageOneManifestItemsItemSha256RegExp),
+  "sizeBytes": zod.number().int().safe().min(runDeliveryStudioActionResponseDataPackageAssemblyPackageOneManifestItemsItemSizeBytesMin).max(runDeliveryStudioActionResponseDataPackageAssemblyPackageOneManifestItemsItemSizeBytesMax)
+}).strict()).max(runDeliveryStudioActionResponseDataPackageAssemblyPackageOneManifestItemsMax)
+}).strict(),zod.null()])
+}).strict(),
+  "submissionRehearsal": zod.object({
+  "status": zod.enum(['not_started', 'blocked', 'incomplete', 'review_required', 'rehearsal_ready', 'stale']),
+  "receipt": zod.union([zod.object({
+  "id": zod.string().uuid(),
+  "packageVersionId": zod.string().uuid(),
+  "status": zod.enum(['blocked', 'incomplete', 'review_required', 'rehearsal_ready']),
+  "rehearsalId": zod.string().min(1).max(runDeliveryStudioActionResponseDataSubmissionRehearsalReceiptOneRehearsalIdMax).regex(runDeliveryStudioActionResponseDataSubmissionRehearsalReceiptOneRehearsalIdRegExp),
+  "readyForOperatorRehearsal": zod.boolean(),
+  "reviewerUserId": zod.string().uuid(),
+  "completedAt": zod.string().datetime({ offset: true }),
+  "issues": zod.array(zod.object({
+  "code": zod.string().min(1).max(runDeliveryStudioActionResponseDataSubmissionRehearsalReceiptOneIssuesItemCodeMax),
+  "severity": zod.enum(['blocker', 'warning']),
+  "message": zod.string().min(1).max(runDeliveryStudioActionResponseDataSubmissionRehearsalReceiptOneIssuesItemMessageMax)
+}).strict()).max(runDeliveryStudioActionResponseDataSubmissionRehearsalReceiptOneIssuesMax)
+}).strict(),zod.null()])
+}).strict(),
+  "safety": zod.object({
+  "automaticMutation": zod.literal(false),
+  "externalPortalAction": zod.literal(false),
+  "namedHumanAuthority": zod.literal(true)
+}).strict()
+}).strict()
+}).strict()
+
+
+/**
+ * Returns deterministic workflow facts for the current organisation. It publishes no win prediction, cross-tenant benchmark or reusable lesson without cited named-human review.
+ * @summary Read tenant-local portfolio workflow intelligence
+ */
+export const getPortfolioIntelligenceResponseTotalsProjectCountMin = 0;
+export const getPortfolioIntelligenceResponseTotalsProjectCountMax = 500;
+
+export const getPortfolioIntelligenceResponseTotalsResponseReadyCountMin = 0;
+export const getPortfolioIntelligenceResponseTotalsResponseReadyCountMax = 500;
+
+export const getPortfolioIntelligenceResponseTotalsRedTeamApprovedCountMin = 0;
+export const getPortfolioIntelligenceResponseTotalsRedTeamApprovedCountMax = 500;
+
+export const getPortfolioIntelligenceResponseTotalsPackageReadyCountMin = 0;
+export const getPortfolioIntelligenceResponseTotalsPackageReadyCountMax = 500;
+
+export const getPortfolioIntelligenceResponseTotalsRehearsalReadyCountMin = 0;
+export const getPortfolioIntelligenceResponseTotalsRehearsalReadyCountMax = 500;
+
+export const getPortfolioIntelligenceResponseTotalsConfirmedOutcomeCountMin = 0;
+export const getPortfolioIntelligenceResponseTotalsConfirmedOutcomeCountMax = 500;
+
+export const getPortfolioIntelligenceResponseProjectsItemTitleMax = 500;
+
+export const getPortfolioIntelligenceResponseProjectsItemDeadlineOneMax = 128;
+
+export const getPortfolioIntelligenceResponseProjectsItemNextActionMax = 500;
+
+export const getPortfolioIntelligenceResponseProjectsMax = 500;
+
+export const getPortfolioIntelligenceResponseLimitationsItemMax = 500;
+
+export const getPortfolioIntelligenceResponseLimitationsMin = 3;
+export const getPortfolioIntelligenceResponseLimitationsMax = 3;
+
+
+
+export const GetPortfolioIntelligenceResponse = zod.object({
+  "generatedAt": zod.string().datetime({ offset: true }),
+  "authorityNote": zod.literal("Delivery Studio organises cited response work for named-human review. It never submits to an external portal, approves its own work, predicts an outcome, or reuses another tenant's data."),
+  "totals": zod.object({
+  "projectCount": zod.number().int().safe().min(getPortfolioIntelligenceResponseTotalsProjectCountMin).max(getPortfolioIntelligenceResponseTotalsProjectCountMax),
+  "responseReadyCount": zod.number().int().safe().min(getPortfolioIntelligenceResponseTotalsResponseReadyCountMin).max(getPortfolioIntelligenceResponseTotalsResponseReadyCountMax),
+  "redTeamApprovedCount": zod.number().int().safe().min(getPortfolioIntelligenceResponseTotalsRedTeamApprovedCountMin).max(getPortfolioIntelligenceResponseTotalsRedTeamApprovedCountMax),
+  "packageReadyCount": zod.number().int().safe().min(getPortfolioIntelligenceResponseTotalsPackageReadyCountMin).max(getPortfolioIntelligenceResponseTotalsPackageReadyCountMax),
+  "rehearsalReadyCount": zod.number().int().safe().min(getPortfolioIntelligenceResponseTotalsRehearsalReadyCountMin).max(getPortfolioIntelligenceResponseTotalsRehearsalReadyCountMax),
+  "confirmedOutcomeCount": zod.number().int().safe().min(getPortfolioIntelligenceResponseTotalsConfirmedOutcomeCountMin).max(getPortfolioIntelligenceResponseTotalsConfirmedOutcomeCountMax)
+}).strict(),
+  "projects": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "title": zod.string().min(1).max(getPortfolioIntelligenceResponseProjectsItemTitleMax),
+  "status": zod.enum(['intake', 'extraction', 'review', 'defects', 'reporting', 'signed_off', 'exported', 'archived']),
+  "deadline": zod.union([zod.string().min(1).max(getPortfolioIntelligenceResponseProjectsItemDeadlineOneMax),zod.null()]),
+  "responseStatus": zod.enum(['empty', 'draft', 'review_required', 'ready']),
+  "redTeamStatus": zod.enum(['not_started', 'running', 'findings_open', 'ready_for_approval', 'approved', 'stale']),
+  "packageStatus": zod.enum(['not_started', 'draft', 'ready', 'stale']),
+  "rehearsalStatus": zod.enum(['not_started', 'blocked', 'incomplete', 'review_required', 'rehearsal_ready', 'stale']),
+  "nextAction": zod.string().min(1).max(getPortfolioIntelligenceResponseProjectsItemNextActionMax)
+}).strict()).max(getPortfolioIntelligenceResponseProjectsMax),
+  "limitations": zod.array(zod.string().min(1).max(getPortfolioIntelligenceResponseLimitationsItemMax)).min(getPortfolioIntelligenceResponseLimitationsMin).max(getPortfolioIntelligenceResponseLimitationsMax)
+}).strict()
+
+
+/**
  * This compatibility operation is fail-closed. It issues no capability until generic uploads use durable leases and the provider's create-only semantics are independently verified.
  * @summary Legacy generic signed-upload issuance (not activated)
  */

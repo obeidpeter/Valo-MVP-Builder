@@ -4,6 +4,7 @@ import { UserButton } from "@clerk/clerk-react";
 import { getGetMeQueryKey, useGetMe } from "@workspace/api-client-react";
 import {
   Bell,
+  BarChart3,
   BookOpenCheck,
   BriefcaseBusiness,
   Building2,
@@ -58,6 +59,7 @@ const ICONS: Record<string, LucideIcon> = {
   "/clients": Users,
   "/projects": BriefcaseBusiness,
   "/intelligence": Sparkles,
+  "/portfolio-intelligence": BarChart3,
   "/sbd": BookOpenCheck,
   "/portal": Building2,
   "/partner": ShieldCheck,

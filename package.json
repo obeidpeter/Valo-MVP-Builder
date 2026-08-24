@@ -22,8 +22,9 @@
     "verify:release-provenance": "node --test ./scripts/release-provenance.test.mjs",
     "verify:product-capabilities": "node --test ./scripts/verify-product-capabilities.test.mjs && node ./scripts/verify-product-capabilities.mjs",
     "verify:second-wave-capabilities": "node --test ./scripts/verify-second-wave-capabilities.test.mjs && node ./scripts/verify-second-wave-capabilities.mjs",
+    "verify:third-wave-capabilities": "node --test ./scripts/verify-third-wave-capabilities.test.mjs && node ./scripts/verify-third-wave-capabilities.mjs",
     "verify:operational-controls": "node --test ./scripts/verify-operational-evidence.test.mjs && node ./scripts/verify-operational-controls.mjs",
-    "verify:release-config": "node --test ./scripts/start-replit-production.test.mjs ./scripts/verify-release-config.test.mjs && node ./scripts/verify-release-config.mjs && pnpm run verify:operational-controls && pnpm run verify:product-capabilities && pnpm run verify:second-wave-capabilities",
+    "verify:release-config": "node --test ./scripts/start-replit-production.test.mjs ./scripts/verify-release-config.test.mjs && node ./scripts/verify-release-config.mjs && pnpm run verify:operational-controls && pnpm run verify:product-capabilities && pnpm run verify:second-wave-capabilities && pnpm run verify:third-wave-capabilities",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },

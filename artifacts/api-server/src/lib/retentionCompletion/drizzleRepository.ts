@@ -291,28 +291,69 @@ async function assertCurrentAuthority(
   return { actor: row.actor, actorName, roles };
 }
 
+const RETENTION_DETACH_DEADLOCK_ATTEMPTS = 3;
+
+function postgresErrorCode(error: unknown): string | null {
+  let candidate: unknown = error;
+  for (let depth = 0; depth < 4; depth += 1) {
+    if (typeof candidate !== "object" || candidate === null) return null;
+    if ("code" in candidate && typeof candidate.code === "string") {
+      return candidate.code;
+    }
+    candidate = "cause" in candidate ? candidate.cause : null;
+  }
+  return null;
+}
+
+/**
+ * Source-row release guards take their project lock from a row trigger, while
+ * the owner-held purge intentionally freezes the project before its children.
+ * PostgreSQL can therefore choose the purge as a deadlock victim when a
+ * pre-existing source write overlaps detach. A deadlock aborts the complete
+ * transaction, so a small fresh-transaction retry is safe and remains bound
+ * to the same idempotency/CAS command.
+ */
 async function withPersistenceBoundary<T>(
   operation: () => Promise<T>,
+  options: { readonly retryDeadlock?: boolean } = {},
 ): Promise<T> {
-  try {
-    return await operation();
-  } catch (error) {
-    if (error instanceof RetentionCompletionError) throw error;
-    if (
-      error instanceof ClaimsDeskRepositoryUnavailableError ||
-      error instanceof ClaimsDeskProjectAccessError ||
-      error instanceof RetentionManifestError
-    ) {
+  const attempts = options.retryDeadlock
+    ? RETENTION_DETACH_DEADLOCK_ATTEMPTS
+    : 1;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (postgresErrorCode(error) === "40P01" && attempt < attempts) {
+        continue;
+      }
+      if (error instanceof RetentionCompletionError) throw error;
+      if (
+        error instanceof ClaimsDeskRepositoryUnavailableError ||
+        error instanceof ClaimsDeskProjectAccessError ||
+        error instanceof RetentionManifestError
+      ) {
+        throw new RetentionCompletionError(
+          "persistence_unavailable",
+          "Retention completion evidence could not be verified.",
+        );
+      }
       throw new RetentionCompletionError(
         "persistence_unavailable",
-        "Retention completion evidence could not be verified.",
+        "Retention completion persistence is unavailable.",
       );
     }
-    throw new RetentionCompletionError(
-      "persistence_unavailable",
-      "Retention completion persistence is unavailable.",
-    );
   }
+  throw new RetentionCompletionError(
+    "persistence_unavailable",
+    "Retention completion persistence is unavailable.",
+  );
+}
+
+function withDetachPersistenceBoundary<T>(
+  operation: () => Promise<T>,
+): Promise<T> {
+  return withPersistenceBoundary(operation, { retryDeadlock: true });
 }
 
 function requestView(row: RequestRow): RetentionRequestView {
@@ -2326,7 +2367,7 @@ export class DrizzleRetentionCompletionRepository implements RetentionCompletion
     command: RetentionCompletionMutationCommand,
     _permissions: RetentionCompletionPermissions,
   ): Promise<RetentionCompletionSnapshot> {
-    return withPersistenceBoundary(async () => {
+    return withDetachPersistenceBoundary(async () => {
       assertTenant(scope);
       return db.transaction(async (tx) => {
         const now = await databaseTime(tx);

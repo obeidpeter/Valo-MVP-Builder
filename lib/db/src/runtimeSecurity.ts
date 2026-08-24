@@ -340,6 +340,7 @@ const NO_TABLE_DELETE = new Set([
   "audit_events",
   "authenticated_rate_limit_buckets",
   "break_glass_sessions",
+  "clients",
   "document_version_snapshots",
   "deletion_certificates",
   "jurisdiction_rule_packs",

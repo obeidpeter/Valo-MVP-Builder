@@ -5,6 +5,7 @@ Disallow: /dashboard
 Disallow: /clients
 Disallow: /projects
 Disallow: /intelligence
+Disallow: /portfolio-intelligence
 Disallow: /sbd
 Disallow: /operations
 Disallow: /portal

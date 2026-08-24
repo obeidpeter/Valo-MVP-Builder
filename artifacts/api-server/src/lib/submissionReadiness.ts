@@ -403,7 +403,7 @@ export function evaluateSubmissionReadiness(
   if ((input.unsupportedClaimIds?.length ?? 0) > 0) {
     add({
       code: "unsupported_claim",
-      message: `${input.unsupportedClaimIds!.length} factual claim(s) lack approved evidence.`,
+      message: `${input.unsupportedClaimIds!.length} factual or instructional claim(s) lack approved evidence.`,
       objectIds: input.unsupportedClaimIds,
     });
   }

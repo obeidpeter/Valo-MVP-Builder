@@ -9613,6 +9613,1024 @@ export interface StorageLifecycleUnavailableError {
   sideEffectsApplied: false;
 }
 
+/**
+ * @minLength 1
+ * @maxLength 128
+ * @pattern ^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$
+ */
+export type DeliveryStudioDomainIdentifier = string;
+
+/**
+ * @minLength 1
+ * @maxLength 128
+ */
+export type DeliveryStudioTextIdentifier = string;
+
+/**
+ * @pattern ^[0-9A-Fa-f]{64}$
+ */
+export type DeliveryStudioSha256 = string;
+
+export interface DeliveryStudioResponseCitationInput {
+  documentId: string;
+  documentVersionId: string;
+  /**
+     * @minimum 1
+     * @maximum 9007199254740991
+     */
+  pageNumber: number;
+  /**
+     * @minLength 1
+     * @maxLength 20000
+     */
+  quote: string;
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     */
+  startOffset?: number;
+  /**
+     * @minimum 1
+     * @maximum 9007199254740991
+     */
+  endOffset?: number;
+}
+
+/**
+ * Factual and instructional claims require at least one exact source citation; opinion claims may be uncited.
+ */
+export type DeliveryStudioResponseClaimInputKind = typeof DeliveryStudioResponseClaimInputKind[keyof typeof DeliveryStudioResponseClaimInputKind];
+
+
+export const DeliveryStudioResponseClaimInputKind = {
+  factual: 'factual',
+  instructional: 'instructional',
+  opinion: 'opinion',
+} as const;
+
+export type DeliveryStudioResponseClaimInputSupportMode = typeof DeliveryStudioResponseClaimInputSupportMode[keyof typeof DeliveryStudioResponseClaimInputSupportMode];
+
+
+export const DeliveryStudioResponseClaimInputSupportMode = {
+  exact_quote: 'exact_quote',
+  paraphrase: 'paraphrase',
+} as const;
+
+export interface DeliveryStudioResponseClaimInput {
+  claimKey: DeliveryStudioDomainIdentifier;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  text: string;
+  /** Factual and instructional claims require at least one exact source citation; opinion claims may be uncited. */
+  kind: DeliveryStudioResponseClaimInputKind;
+  supportMode?: DeliveryStudioResponseClaimInputSupportMode;
+  /**
+     * Required and non-empty when kind is factual or instructional.
+     * @maxItems 500
+     */
+  citations: DeliveryStudioResponseCitationInput[];
+}
+
+export type DeliveryStudioSaveResponseActionAction = typeof DeliveryStudioSaveResponseActionAction[keyof typeof DeliveryStudioSaveResponseActionAction];
+
+
+export const DeliveryStudioSaveResponseActionAction = {
+  save_response: 'save_response',
+} as const;
+
+export interface DeliveryStudioSaveResponseAction {
+  action: DeliveryStudioSaveResponseActionAction;
+  sectionKey: DeliveryStudioDomainIdentifier;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 60000
+     */
+  content: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  changeSummary?: string;
+  /**
+     * @minItems 1
+     * @maxItems 500
+     */
+  claims: DeliveryStudioResponseClaimInput[];
+}
+
+export type DeliveryStudioReviewResponseClaimActionAction = typeof DeliveryStudioReviewResponseClaimActionAction[keyof typeof DeliveryStudioReviewResponseClaimActionAction];
+
+
+export const DeliveryStudioReviewResponseClaimActionAction = {
+  review_response_claim: 'review_response_claim',
+} as const;
+
+export type DeliveryStudioReviewResponseClaimActionDecision = typeof DeliveryStudioReviewResponseClaimActionDecision[keyof typeof DeliveryStudioReviewResponseClaimActionDecision];
+
+
+export const DeliveryStudioReviewResponseClaimActionDecision = {
+  accepted: 'accepted',
+  rejected: 'rejected',
+  needs_changes: 'needs_changes',
+} as const;
+
+export interface DeliveryStudioReviewResponseClaimAction {
+  action: DeliveryStudioReviewResponseClaimActionAction;
+  claimId: string;
+  decision: DeliveryStudioReviewResponseClaimActionDecision;
+  /**
+     * @minLength 2
+     * @maxLength 5000
+     */
+  note: string;
+}
+
+export type DeliveryStudioRedTeamFindingInputSeverity = typeof DeliveryStudioRedTeamFindingInputSeverity[keyof typeof DeliveryStudioRedTeamFindingInputSeverity];
+
+
+export const DeliveryStudioRedTeamFindingInputSeverity = {
+  fatal: 'fatal',
+  likely_fatal: 'likely_fatal',
+  scoring_risk: 'scoring_risk',
+  cosmetic: 'cosmetic',
+} as const;
+
+export interface DeliveryStudioRedTeamFindingInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  category: string;
+  severity: DeliveryStudioRedTeamFindingInputSeverity;
+  /**
+     * @minLength 1
+     * @maxLength 10000
+     */
+  finding: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  objectType?: string;
+  objectId?: string;
+}
+
+export type DeliveryStudioStartRedTeamActionAction = typeof DeliveryStudioStartRedTeamActionAction[keyof typeof DeliveryStudioStartRedTeamActionAction];
+
+
+export const DeliveryStudioStartRedTeamActionAction = {
+  start_red_team: 'start_red_team',
+} as const;
+
+export interface DeliveryStudioStartRedTeamAction {
+  action: DeliveryStudioStartRedTeamActionAction;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  policyVersion: string;
+  /** @maxItems 500 */
+  findings: DeliveryStudioRedTeamFindingInput[];
+}
+
+export type DeliveryStudioResolveRedTeamFindingActionAction = typeof DeliveryStudioResolveRedTeamFindingActionAction[keyof typeof DeliveryStudioResolveRedTeamFindingActionAction];
+
+
+export const DeliveryStudioResolveRedTeamFindingActionAction = {
+  resolve_red_team_finding: 'resolve_red_team_finding',
+} as const;
+
+export interface DeliveryStudioResolveRedTeamFindingAction {
+  action: DeliveryStudioResolveRedTeamFindingActionAction;
+  runId: string;
+  findingId: string;
+  /**
+     * @minLength 2
+     * @maxLength 5000
+     */
+  resolution: string;
+}
+
+export type DeliveryStudioApproveRedTeamActionAction = typeof DeliveryStudioApproveRedTeamActionAction[keyof typeof DeliveryStudioApproveRedTeamActionAction];
+
+
+export const DeliveryStudioApproveRedTeamActionAction = {
+  approve_red_team: 'approve_red_team',
+} as const;
+
+export interface DeliveryStudioApproveRedTeamAction {
+  action: DeliveryStudioApproveRedTeamActionAction;
+  runId: string;
+  /**
+     * @minLength 10
+     * @maxLength 2000
+     */
+  attestation: string;
+}
+
+export type DeliveryStudioAssemblePackageActionAction = typeof DeliveryStudioAssemblePackageActionAction[keyof typeof DeliveryStudioAssemblePackageActionAction];
+
+
+export const DeliveryStudioAssemblePackageActionAction = {
+  assemble_package: 'assemble_package',
+} as const;
+
+export interface DeliveryStudioAssemblePackageAction {
+  action: DeliveryStudioAssemblePackageActionAction;
+  packageType: 'submission';
+}
+
+export type DeliveryStudioSourceDocumentInputKind = typeof DeliveryStudioSourceDocumentInputKind[keyof typeof DeliveryStudioSourceDocumentInputKind];
+
+
+export const DeliveryStudioSourceDocumentInputKind = {
+  solicitation: 'solicitation',
+  addendum: 'addendum',
+  company_evidence: 'company_evidence',
+  official_opportunity: 'official_opportunity',
+  other: 'other',
+} as const;
+
+export type DeliveryStudioSourceDocumentInputAuthority = typeof DeliveryStudioSourceDocumentInputAuthority[keyof typeof DeliveryStudioSourceDocumentInputAuthority];
+
+
+export const DeliveryStudioSourceDocumentInputAuthority = {
+  authoritative: 'authoritative',
+  corroborating: 'corroborating',
+  unverified: 'unverified',
+} as const;
+
+export interface DeliveryStudioSourceDocumentInput {
+  sourceId: DeliveryStudioDomainIdentifier;
+  versionId: DeliveryStudioDomainIdentifier;
+  kind: DeliveryStudioSourceDocumentInputKind;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000000
+     */
+  content: string;
+  contentSha256: DeliveryStudioSha256;
+  /**
+     * @minLength 1
+     * @maxLength 40
+     */
+  capturedAt: string;
+  authority: DeliveryStudioSourceDocumentInputAuthority;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  origin: string;
+}
+
+export interface DeliveryStudioExactCitationInput {
+  sourceId: DeliveryStudioDomainIdentifier;
+  sourceVersionId: DeliveryStudioDomainIdentifier;
+  contentSha256: DeliveryStudioSha256;
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     */
+  startOffset: number;
+  /**
+     * @minimum 1
+     * @maximum 9007199254740991
+     */
+  endOffset: number;
+  /**
+     * @minLength 1
+     * @maxLength 20000
+     */
+  quote: string;
+  /**
+     * @minimum 1
+     * @maximum 9007199254740991
+     */
+  page?: number;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  section?: string;
+}
+
+export type DeliveryStudioHumanReviewInputState = typeof DeliveryStudioHumanReviewInputState[keyof typeof DeliveryStudioHumanReviewInputState];
+
+
+export const DeliveryStudioHumanReviewInputState = {
+  unreviewed: 'unreviewed',
+  accepted: 'accepted',
+  rejected: 'rejected',
+  needs_changes: 'needs_changes',
+} as const;
+
+export interface DeliveryStudioHumanReviewInput {
+  state: DeliveryStudioHumanReviewInputState;
+  reviewerId?: DeliveryStudioTextIdentifier;
+  /**
+     * @minLength 1
+     * @maxLength 40
+     */
+  reviewedAt?: string;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  note?: string;
+}
+
+export interface DeliveryStudioSubjectReviewInput {
+  subjectId: DeliveryStudioTextIdentifier;
+  review: DeliveryStudioHumanReviewInput;
+}
+
+export type DeliveryStudioPortalFieldRequirementInputFieldType = typeof DeliveryStudioPortalFieldRequirementInputFieldType[keyof typeof DeliveryStudioPortalFieldRequirementInputFieldType];
+
+
+export const DeliveryStudioPortalFieldRequirementInputFieldType = {
+  file: 'file',
+  declaration: 'declaration',
+} as const;
+
+export interface DeliveryStudioPortalFieldRequirementInput {
+  externalId: DeliveryStudioTextIdentifier;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  label: string;
+  fieldType: DeliveryStudioPortalFieldRequirementInputFieldType;
+  required: boolean;
+  /**
+     * @minimum 1
+     * @maximum 9007199254740991
+     */
+  uploadOrder: number;
+  /**
+     * @minLength 1
+     * @maxLength 20000
+     */
+  ruleText: string;
+  /**
+     * @minimum 1
+     * @maximum 9007199254740991
+     */
+  maxFileBytes?: number;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  maxFileBytesText?: string;
+  /**
+     * @maxItems 50
+     * @items.minLength 1
+     * @items.maxLength 2000
+     */
+  allowedExtensions?: string[];
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  requiredFilenamePrefix?: string;
+  /**
+     * @minLength 1
+     * @maxLength 20000
+     */
+  declarationText?: string;
+  /** @maxItems 500 */
+  citations: DeliveryStudioExactCitationInput[];
+  review: DeliveryStudioHumanReviewInput;
+}
+
+export interface DeliveryStudioPortalPackageFileInput {
+  externalId: DeliveryStudioTextIdentifier;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  filename: string;
+  /**
+     * @minimum 1
+     * @maximum 9007199254740991
+     */
+  sizeBytes: number;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  sizeText: string;
+  sha256: DeliveryStudioSha256;
+  /** @maxItems 500 */
+  citations: DeliveryStudioExactCitationInput[];
+  review: DeliveryStudioHumanReviewInput;
+}
+
+export interface DeliveryStudioPortalFileMappingInput {
+  externalId: DeliveryStudioTextIdentifier;
+  fieldExternalId: DeliveryStudioTextIdentifier;
+  fileExternalId: DeliveryStudioTextIdentifier;
+  /**
+     * @minLength 1
+     * @maxLength 20000
+     */
+  rationale: string;
+  /** @maxItems 500 */
+  citations: DeliveryStudioExactCitationInput[];
+  review: DeliveryStudioHumanReviewInput;
+}
+
+export interface DeliveryStudioPortalSubmissionRehearsalInput {
+  /** @maxItems 500 */
+  sources: DeliveryStudioSourceDocumentInput[];
+  /** @maxItems 500 */
+  fields: DeliveryStudioPortalFieldRequirementInput[];
+  /** @maxItems 500 */
+  files: DeliveryStudioPortalPackageFileInput[];
+  /** @maxItems 500 */
+  mappings: DeliveryStudioPortalFileMappingInput[];
+  rehearsalReview?: DeliveryStudioSubjectReviewInput;
+}
+
+export type DeliveryStudioRehearseSubmissionActionAction = typeof DeliveryStudioRehearseSubmissionActionAction[keyof typeof DeliveryStudioRehearseSubmissionActionAction];
+
+
+export const DeliveryStudioRehearseSubmissionActionAction = {
+  rehearse_submission: 'rehearse_submission',
+} as const;
+
+export interface DeliveryStudioRehearseSubmissionAction {
+  action: DeliveryStudioRehearseSubmissionActionAction;
+  packageVersionId: string;
+  rehearsal: DeliveryStudioPortalSubmissionRehearsalInput;
+}
+
+export type DeliveryStudioAction = DeliveryStudioSaveResponseAction | DeliveryStudioReviewResponseClaimAction | DeliveryStudioStartRedTeamAction | DeliveryStudioResolveRedTeamFindingAction | DeliveryStudioApproveRedTeamAction | DeliveryStudioAssemblePackageAction | DeliveryStudioRehearseSubmissionAction;
+
+export interface DeliveryStudioSafety {
+  automaticMutation: false;
+  externalPortalAction: false;
+  namedHumanAuthority: true;
+}
+
+export type DeliveryStudioProjectStatus = typeof DeliveryStudioProjectStatus[keyof typeof DeliveryStudioProjectStatus];
+
+
+export const DeliveryStudioProjectStatus = {
+  intake: 'intake',
+  extraction: 'extraction',
+  review: 'review',
+  defects: 'defects',
+  reporting: 'reporting',
+  signed_off: 'signed_off',
+  exported: 'exported',
+  archived: 'archived',
+} as const;
+
+export interface DeliveryStudioProject {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  title: string;
+  status: DeliveryStudioProjectStatus;
+  deadline: string | null;
+}
+
+export interface DeliveryStudioCitation {
+  id: string;
+  documentVersionId: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 60000
+     */
+  evidenceCitation: string;
+  evidenceHash: DeliveryStudioSha256;
+}
+
+export type DeliveryStudioClaimKind = typeof DeliveryStudioClaimKind[keyof typeof DeliveryStudioClaimKind];
+
+
+export const DeliveryStudioClaimKind = {
+  factual: 'factual',
+  instructional: 'instructional',
+  opinion: 'opinion',
+} as const;
+
+export type DeliveryStudioClaimSupportMode = typeof DeliveryStudioClaimSupportMode[keyof typeof DeliveryStudioClaimSupportMode] | null;
+
+
+export const DeliveryStudioClaimSupportMode = {
+  exact_quote: 'exact_quote',
+  paraphrase: 'paraphrase',
+} as const;
+
+export type DeliveryStudioClaimGroundingStatus = typeof DeliveryStudioClaimGroundingStatus[keyof typeof DeliveryStudioClaimGroundingStatus];
+
+
+export const DeliveryStudioClaimGroundingStatus = {
+  unverified: 'unverified',
+  approved: 'approved',
+  rejected: 'rejected',
+  review_required: 'review_required',
+} as const;
+
+export interface DeliveryStudioClaim {
+  id: string;
+  claimKey: DeliveryStudioDomainIdentifier;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  text: string;
+  kind: DeliveryStudioClaimKind;
+  supportMode: DeliveryStudioClaimSupportMode;
+  groundingStatus: DeliveryStudioClaimGroundingStatus;
+  reviewerUserId: string | null;
+  /** @maxItems 500 */
+  citations: DeliveryStudioCitation[];
+}
+
+export interface DeliveryStudioSectionVersion {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 60000
+     */
+  content: string;
+  contentHash: DeliveryStudioSha256;
+  authorUserId: string | null;
+  /** @maxItems 500 */
+  claims: DeliveryStudioClaim[];
+}
+
+export type DeliveryStudioSectionStatus = typeof DeliveryStudioSectionStatus[keyof typeof DeliveryStudioSectionStatus];
+
+
+export const DeliveryStudioSectionStatus = {
+  draft: 'draft',
+  review_required: 'review_required',
+  reviewed: 'reviewed',
+} as const;
+
+export interface DeliveryStudioSection {
+  id: string;
+  sectionKey: DeliveryStudioDomainIdentifier;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  title: string;
+  status: DeliveryStudioSectionStatus;
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     */
+  currentVersionNumber: number;
+  version: DeliveryStudioSectionVersion | null;
+}
+
+export type DeliveryStudioResponseStudioStatus = typeof DeliveryStudioResponseStudioStatus[keyof typeof DeliveryStudioResponseStudioStatus];
+
+
+export const DeliveryStudioResponseStudioStatus = {
+  empty: 'empty',
+  draft: 'draft',
+  review_required: 'review_required',
+  ready: 'ready',
+} as const;
+
+export interface DeliveryStudioResponseStudio {
+  status: DeliveryStudioResponseStudioStatus;
+  /**
+     * @minimum 0
+     * @maximum 500
+     */
+  sectionCount: number;
+  /**
+     * @minimum 0
+     * @maximum 250000
+     */
+  claimCount: number;
+  /**
+     * @minimum 0
+     * @maximum 250000
+     */
+  groundedClaimCount: number;
+  /**
+     * @minimum 0
+     * @maximum 250000
+     */
+  placeholderCount: number;
+  /** @maxItems 500 */
+  sections: DeliveryStudioSection[];
+}
+
+export type DeliveryStudioRedTeamFindingSeverity = typeof DeliveryStudioRedTeamFindingSeverity[keyof typeof DeliveryStudioRedTeamFindingSeverity];
+
+
+export const DeliveryStudioRedTeamFindingSeverity = {
+  fatal: 'fatal',
+  likely_fatal: 'likely_fatal',
+  scoring_risk: 'scoring_risk',
+  cosmetic: 'cosmetic',
+} as const;
+
+export type DeliveryStudioRedTeamFindingStatus = typeof DeliveryStudioRedTeamFindingStatus[keyof typeof DeliveryStudioRedTeamFindingStatus];
+
+
+export const DeliveryStudioRedTeamFindingStatus = {
+  open: 'open',
+  resolved: 'resolved',
+} as const;
+
+export interface DeliveryStudioRedTeamFinding {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  category: string;
+  severity: DeliveryStudioRedTeamFindingSeverity;
+  /**
+     * @minLength 1
+     * @maxLength 20000
+     */
+  finding: string;
+  status: DeliveryStudioRedTeamFindingStatus;
+  resolution: string | null;
+  resolvedByUserId: string | null;
+  resolvedAt: string | null;
+  /**
+     * @minimum 1
+     * @maximum 9007199254740991
+     */
+  version: number;
+}
+
+export type DeliveryStudioRedTeamRunStatus = typeof DeliveryStudioRedTeamRunStatus[keyof typeof DeliveryStudioRedTeamRunStatus];
+
+
+export const DeliveryStudioRedTeamRunStatus = {
+  running: 'running',
+  findings_open: 'findings_open',
+  ready_for_approval: 'ready_for_approval',
+  approved: 'approved',
+  stale: 'stale',
+} as const;
+
+export interface DeliveryStudioRedTeamRun {
+  id: string;
+  status: DeliveryStudioRedTeamRunStatus;
+  sourceSnapshotHash: DeliveryStudioSha256;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  policyVersion: string;
+  initiatedByUserId: string | null;
+  approvedByUserId: string | null;
+  approvedAt: string | null;
+  approvalAttestation: string | null;
+  createdAt: string;
+  /** @maxItems 500 */
+  findings: DeliveryStudioRedTeamFinding[];
+}
+
+export type DeliveryStudioRedTeamReviewStatus = typeof DeliveryStudioRedTeamReviewStatus[keyof typeof DeliveryStudioRedTeamReviewStatus];
+
+
+export const DeliveryStudioRedTeamReviewStatus = {
+  not_started: 'not_started',
+  running: 'running',
+  findings_open: 'findings_open',
+  ready_for_approval: 'ready_for_approval',
+  approved: 'approved',
+  stale: 'stale',
+} as const;
+
+export interface DeliveryStudioRedTeamReview {
+  status: DeliveryStudioRedTeamReviewStatus;
+  dueAt: string | null;
+  run: DeliveryStudioRedTeamRun | null;
+}
+
+export interface DeliveryStudioPackageManifestItem {
+  id: string;
+  /**
+     * @minimum 1
+     * @maximum 1000
+     */
+  ordinal: number;
+  itemType: 'response_section';
+  sourceObjectId: string | null;
+  sourceVersion: number | null;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  filename: string;
+  sha256: DeliveryStudioSha256;
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     */
+  sizeBytes: number;
+}
+
+export type DeliveryStudioPackageStatus = typeof DeliveryStudioPackageStatus[keyof typeof DeliveryStudioPackageStatus];
+
+
+export const DeliveryStudioPackageStatus = {
+  draft: 'draft',
+  assembled: 'assembled',
+} as const;
+
+export type DeliveryStudioPackageRenderQaStatus = typeof DeliveryStudioPackageRenderQaStatus[keyof typeof DeliveryStudioPackageRenderQaStatus];
+
+
+export const DeliveryStudioPackageRenderQaStatus = {
+  pending: 'pending',
+  passed: 'passed',
+  failed: 'failed',
+} as const;
+
+export interface DeliveryStudioPackage {
+  id: string;
+  status: DeliveryStudioPackageStatus;
+  versionId: string;
+  /**
+     * @minimum 1
+     * @maximum 9007199254740991
+     */
+  versionNumber: number;
+  sourceSnapshotHash: DeliveryStudioSha256;
+  manifestHash: DeliveryStudioSha256;
+  renderQaStatus: DeliveryStudioPackageRenderQaStatus;
+  /** @maxItems 1000 */
+  manifestItems: DeliveryStudioPackageManifestItem[];
+}
+
+export type DeliveryStudioPackageAssemblyStatus = typeof DeliveryStudioPackageAssemblyStatus[keyof typeof DeliveryStudioPackageAssemblyStatus];
+
+
+export const DeliveryStudioPackageAssemblyStatus = {
+  not_started: 'not_started',
+  draft: 'draft',
+  ready: 'ready',
+  stale: 'stale',
+} as const;
+
+export interface DeliveryStudioPackageAssembly {
+  status: DeliveryStudioPackageAssemblyStatus;
+  package: DeliveryStudioPackage | null;
+}
+
+export type DeliveryStudioRehearsalIssueSeverity = typeof DeliveryStudioRehearsalIssueSeverity[keyof typeof DeliveryStudioRehearsalIssueSeverity];
+
+
+export const DeliveryStudioRehearsalIssueSeverity = {
+  blocker: 'blocker',
+  warning: 'warning',
+} as const;
+
+export interface DeliveryStudioRehearsalIssue {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  code: string;
+  severity: DeliveryStudioRehearsalIssueSeverity;
+  /**
+     * @minLength 1
+     * @maxLength 20000
+     */
+  message: string;
+}
+
+export type DeliveryStudioRehearsalReceiptStatus = typeof DeliveryStudioRehearsalReceiptStatus[keyof typeof DeliveryStudioRehearsalReceiptStatus];
+
+
+export const DeliveryStudioRehearsalReceiptStatus = {
+  blocked: 'blocked',
+  incomplete: 'incomplete',
+  review_required: 'review_required',
+  rehearsal_ready: 'rehearsal_ready',
+} as const;
+
+export interface DeliveryStudioRehearsalReceipt {
+  id: string;
+  packageVersionId: string;
+  status: DeliveryStudioRehearsalReceiptStatus;
+  rehearsalId: DeliveryStudioDomainIdentifier;
+  readyForOperatorRehearsal: boolean;
+  reviewerUserId: string;
+  completedAt: string;
+  /** @maxItems 500 */
+  issues: DeliveryStudioRehearsalIssue[];
+}
+
+export type DeliveryStudioSubmissionRehearsalStatus = typeof DeliveryStudioSubmissionRehearsalStatus[keyof typeof DeliveryStudioSubmissionRehearsalStatus];
+
+
+export const DeliveryStudioSubmissionRehearsalStatus = {
+  not_started: 'not_started',
+  blocked: 'blocked',
+  incomplete: 'incomplete',
+  review_required: 'review_required',
+  rehearsal_ready: 'rehearsal_ready',
+  stale: 'stale',
+} as const;
+
+export interface DeliveryStudioSubmissionRehearsal {
+  status: DeliveryStudioSubmissionRehearsalStatus;
+  receipt: DeliveryStudioRehearsalReceipt | null;
+}
+
+export interface DeliveryStudioEnvelope {
+  authorityNote: 'Delivery Studio organises cited response work for named-human review. It never submits to an external portal, approves its own work, predicts an outcome, or reuses another tenant\'s data.';
+  generatedAt: string;
+  /**
+     * @minimum 1
+     * @maximum 9007199254740991
+     */
+  version: number;
+  project: DeliveryStudioProject;
+  sourceSnapshotHash: DeliveryStudioSha256;
+  responseStudio: DeliveryStudioResponseStudio;
+  redTeamReview: DeliveryStudioRedTeamReview;
+  packageAssembly: DeliveryStudioPackageAssembly;
+  submissionRehearsal: DeliveryStudioSubmissionRehearsal;
+  safety: DeliveryStudioSafety;
+}
+
+export type DeliveryStudioMutationResponseAction = typeof DeliveryStudioMutationResponseAction[keyof typeof DeliveryStudioMutationResponseAction];
+
+
+export const DeliveryStudioMutationResponseAction = {
+  save_response: 'save_response',
+  review_response_claim: 'review_response_claim',
+  start_red_team: 'start_red_team',
+  resolve_red_team_finding: 'resolve_red_team_finding',
+  approve_red_team: 'approve_red_team',
+  assemble_package: 'assemble_package',
+  rehearse_submission: 'rehearse_submission',
+} as const;
+
+export type DeliveryStudioMutationResponseOutcome = typeof DeliveryStudioMutationResponseOutcome[keyof typeof DeliveryStudioMutationResponseOutcome];
+
+
+export const DeliveryStudioMutationResponseOutcome = {
+  recorded: 'recorded',
+  replayed: 'replayed',
+} as const;
+
+export interface DeliveryStudioMutationResponse {
+  projectId: string;
+  action: DeliveryStudioMutationResponseAction;
+  outcome: DeliveryStudioMutationResponseOutcome;
+  receiptId: string;
+  data: DeliveryStudioEnvelope;
+}
+
+export interface PortfolioIntelligenceTotals {
+  /**
+     * @minimum 0
+     * @maximum 500
+     */
+  projectCount: number;
+  /**
+     * @minimum 0
+     * @maximum 500
+     */
+  responseReadyCount: number;
+  /**
+     * @minimum 0
+     * @maximum 500
+     */
+  redTeamApprovedCount: number;
+  /**
+     * @minimum 0
+     * @maximum 500
+     */
+  packageReadyCount: number;
+  /**
+     * @minimum 0
+     * @maximum 500
+     */
+  rehearsalReadyCount: number;
+  /**
+     * @minimum 0
+     * @maximum 500
+     */
+  confirmedOutcomeCount: number;
+}
+
+export type PortfolioIntelligenceProjectStatus = typeof PortfolioIntelligenceProjectStatus[keyof typeof PortfolioIntelligenceProjectStatus];
+
+
+export const PortfolioIntelligenceProjectStatus = {
+  intake: 'intake',
+  extraction: 'extraction',
+  review: 'review',
+  defects: 'defects',
+  reporting: 'reporting',
+  signed_off: 'signed_off',
+  exported: 'exported',
+  archived: 'archived',
+} as const;
+
+export type PortfolioIntelligenceProjectResponseStatus = typeof PortfolioIntelligenceProjectResponseStatus[keyof typeof PortfolioIntelligenceProjectResponseStatus];
+
+
+export const PortfolioIntelligenceProjectResponseStatus = {
+  empty: 'empty',
+  draft: 'draft',
+  review_required: 'review_required',
+  ready: 'ready',
+} as const;
+
+export type PortfolioIntelligenceProjectRedTeamStatus = typeof PortfolioIntelligenceProjectRedTeamStatus[keyof typeof PortfolioIntelligenceProjectRedTeamStatus];
+
+
+export const PortfolioIntelligenceProjectRedTeamStatus = {
+  not_started: 'not_started',
+  running: 'running',
+  findings_open: 'findings_open',
+  ready_for_approval: 'ready_for_approval',
+  approved: 'approved',
+  stale: 'stale',
+} as const;
+
+export type PortfolioIntelligenceProjectPackageStatus = typeof PortfolioIntelligenceProjectPackageStatus[keyof typeof PortfolioIntelligenceProjectPackageStatus];
+
+
+export const PortfolioIntelligenceProjectPackageStatus = {
+  not_started: 'not_started',
+  draft: 'draft',
+  ready: 'ready',
+  stale: 'stale',
+} as const;
+
+export type PortfolioIntelligenceProjectRehearsalStatus = typeof PortfolioIntelligenceProjectRehearsalStatus[keyof typeof PortfolioIntelligenceProjectRehearsalStatus];
+
+
+export const PortfolioIntelligenceProjectRehearsalStatus = {
+  not_started: 'not_started',
+  blocked: 'blocked',
+  incomplete: 'incomplete',
+  review_required: 'review_required',
+  rehearsal_ready: 'rehearsal_ready',
+  stale: 'stale',
+} as const;
+
+export interface PortfolioIntelligenceProject {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  title: string;
+  status: PortfolioIntelligenceProjectStatus;
+  deadline: string | null;
+  responseStatus: PortfolioIntelligenceProjectResponseStatus;
+  redTeamStatus: PortfolioIntelligenceProjectRedTeamStatus;
+  packageStatus: PortfolioIntelligenceProjectPackageStatus;
+  rehearsalStatus: PortfolioIntelligenceProjectRehearsalStatus;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  nextAction: string;
+}
+
+export interface PortfolioIntelligenceEnvelope {
+  generatedAt: string;
+  authorityNote: 'Delivery Studio organises cited response work for named-human review. It never submits to an external portal, approves its own work, predicts an outcome, or reuses another tenant\'s data.';
+  totals: PortfolioIntelligenceTotals;
+  /** @maxItems 500 */
+  projects: PortfolioIntelligenceProject[];
+  /**
+     * @minItems 3
+     * @maxItems 3
+     * @items.minLength 1
+     * @items.maxLength 500
+     */
+  limitations: string[];
+}
+
 export interface SeverityWeights {
   /**
      * @minimum 0
@@ -11624,6 +12642,16 @@ export type TenantSelectionRequiredResponse = ErrorEnvelope;
 export type PreconditionRequiredResponse = ErrorEnvelope;
 
 /**
+ * The supplied If-Match version does not match the current resource version
+ */
+export type PreconditionFailedResponse = ErrorEnvelope;
+
+/**
+ * The Delivery Studio action body exceeds the 4,000,000-byte request limit
+ */
+export type DeliveryStudioPayloadTooLargeResponse = ErrorEnvelope;
+
+/**
  * Authentication, tenant-context resolution or request processing failed unexpectedly
  */
 export type InternalServerErrorResponse = ErrorEnvelope;
@@ -11846,6 +12874,11 @@ export type IfMatchVersionOptionalParameter = string;
  * Stable client-generated identity retained unchanged across retries of one phase transition. Reuse is accepted only for the exact tenant, actor, resource version and trimmed attestation.
  */
 export type RetentionCompletionIdempotencyKeyParameter = string;
+
+/**
+ * Stable client-generated identity; reuse is accepted only for the exact same tenant, actor, project version and action body.
+ */
+export type DeliveryStudioIdempotencyKeyParameter = string;
 
 export type GetWorkInboxParams = {
 /**

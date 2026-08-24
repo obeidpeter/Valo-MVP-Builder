@@ -10,6 +10,7 @@ export const PROTECTED_PREFIXES = [
   "/clients",
   "/projects",
   "/intelligence",
+  "/portfolio-intelligence",
   "/sbd",
   "/operations",
   "/pursuit-operations",

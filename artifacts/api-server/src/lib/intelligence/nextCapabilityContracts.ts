@@ -123,7 +123,10 @@ export function boundedNextCapabilityRecordKeys(
 export function validateNextCapabilitySources(
   sources: readonly SourceDocument[],
   label = "Source documents",
+  options: { readonly maximumContentChars?: number } = {},
 ): { readonly sourceSet: ValidatedSourceSet; readonly issues: DomainIssue[] } {
+  const maximumContentChars =
+    options.maximumContentChars ?? NEXT_CAPABILITY_MAX_TEXT_CHARS;
   const bounded = sources.slice(0, NEXT_CAPABILITY_MAX_ITEMS);
   const issues = validateNextCapabilityCollection(sources, "sources", label);
   bounded.forEach((source, index) => {
@@ -142,6 +145,7 @@ export function validateNextCapabilitySources(
         source.content,
         `sources[${index}].content`,
         "Source content",
+        { maximum: maximumContentChars },
       ),
     );
   });
@@ -150,7 +154,7 @@ export function validateNextCapabilitySources(
       source.title.length <= NEXT_CAPABILITY_MAX_TEXT_CHARS &&
       source.origin.length <= NEXT_CAPABILITY_MAX_TEXT_CHARS &&
       source.content.length > 0 &&
-      source.content.length <= NEXT_CAPABILITY_MAX_TEXT_CHARS,
+      source.content.length <= maximumContentChars,
   );
   const sourceSet = validateSources(safeToInspect);
   issues.push(...sourceSet.issues);

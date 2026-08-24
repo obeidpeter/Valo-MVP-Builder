@@ -85,6 +85,7 @@ export type PlatformArea =
   | "evidence_readiness"
   | "billing_entitlements"
   | "commercial_retainer"
+  | "portfolio_intelligence"
   | "claims_desk"
   | "communications"
   | "notifications"
@@ -136,6 +137,14 @@ export const INTELLIGENCE_READ_PERMISSIONS = [
   "draft:read",
   "package:read",
   "evaluation:read",
+] as const;
+
+export const PORTFOLIO_INTELLIGENCE_READ_PERMISSIONS = [
+  "project:read",
+  "draft:read",
+  "defect:read",
+  "package:read",
+  "analytics:read",
 ] as const;
 
 const CLIENT_ROLES = new Set<PlatformRole>([
@@ -261,6 +270,7 @@ const AREA_ROLES: Record<PlatformArea, ReadonlySet<PlatformRole>> = {
     "consultancy_partner_administrator",
   ]),
   commercial_retainer: COMMERCIAL_RETAINER_ROLES,
+  portfolio_intelligence: PURSUIT_ROLES,
   claims_desk: PURSUIT_ROLES,
   communications: new Set<PlatformRole>([
     ...INTERNAL_ROLES,
@@ -326,6 +336,7 @@ const AREA_REQUIRED_PERMISSIONS: Partial<
   Record<PlatformArea, readonly string[]>
 > = {
   commercial_retainer: ["billing:read", "entitlement:read"],
+  portfolio_intelligence: PORTFOLIO_INTELLIGENCE_READ_PERMISSIONS,
 };
 
 const NAV_ITEMS: PlatformNavItem[] = [
@@ -334,7 +345,6 @@ const NAV_ITEMS: PlatformNavItem[] = [
     label: "Dashboard",
     area: "workbench",
     group: "Workspace",
-    requiredPermission: "analytics:read",
   },
   {
     href: "/projects",
@@ -436,6 +446,13 @@ const NAV_ITEMS: PlatformNavItem[] = [
     area: "pursuit_workbench",
     group: "Oversight",
     requiredPermission: "client:read",
+  },
+  {
+    href: "/portfolio-intelligence",
+    label: "Portfolio intelligence",
+    area: "portfolio_intelligence",
+    group: "Oversight",
+    requiredPermission: "analytics:read",
   },
   {
     href: "/growth-operations",
@@ -673,6 +690,7 @@ export function getPlatformAccessDecision(
       "field_companion",
       "privacy_operations",
       "commercial_retainer",
+      "portfolio_intelligence",
       "claims_desk",
       "communications",
     ].includes(area) &&

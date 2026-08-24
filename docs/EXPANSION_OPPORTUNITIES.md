@@ -1,6 +1,6 @@
 # Valo — Expansion Opportunities
 
-Audit of the codebase against the Valo Business Plan v1.1/v1.2, the Replit Build Brief, the Product Roadmap v1.0, and the TRD v1.0. Originally written July 2026 against the Gate 0 MVP; updated through the August 2026 second-wave source integration — to keep what is built separated from what remains operationally or externally blocked.
+Audit of the codebase against the Valo Business Plan v1.1/v1.2, the Replit Build Brief, the Product Roadmap v1.0, and the TRD v1.0. Originally written July 2026 against the Gate 0 MVP; updated through the August 2026 third-wave source integration — to keep what is built separated from what remains operationally or externally blocked.
 
 ## Shipped
 
@@ -37,6 +37,7 @@ Audit of the codebase against the Valo Business Plan v1.1/v1.2, the Replit Build
 - **Versioned defect taxonomy** (FR-ANL-01) — `TAXONOMY_VERSION` joins the provenance stamp on every report row and DOCX; registry + governed change process in `docs/DEFECT_TAXONOMY.md`.
 - **Report fidelity** — redacted/restricted engagements auto-render their limitation banner (FR-INT-03); notification templates render actual messages from engagement data (FR-NTF-01); the report timestamp is pinned to Nigerian local time.
 - **User manual** — `docs/USER_MANUAL.md`: every screen, workflow, and gate in plain language, with a "why is this blocked?" cheat-sheet.
+- **Third-wave Delivery Studio** — project-scoped, versioned Response Studio claims, exact-source red-team review, deterministic package-manifest assembly and no-effect portal rehearsal, plus tenant-local Portfolio intelligence. These are guarded human workflows, not model execution, package release or external submission; exact boundaries are frozen in `config/product/third-wave.v1.json`.
 
 ## Remaining — near-term (current gate)
 
@@ -44,11 +45,12 @@ Audit of the codebase against the Valo Business Plan v1.1/v1.2, the Replit Build
 2. **Complete the controlled shadow/evaluation execution plane** — connect private authorisation evidence, a privacy-safe fixture loader, the central gateway and telemetry, and a bounded evidence writer without creating a customer-output path. The checked foundation must continue to fail closed until that entire chain is independently approved.
 3. **Assemble the authorised evaluation corpus** — 14 synthetic cases exist today; production needs at least 25 independently adjudicated holdout cases under approved privacy controls (labels are never edited to make a run pass).
 
-## Remaining — v1.0 trio (gated on Phase 1 commercial exit; do not build early)
+## Third-wave integration delivered; higher-autonomy scope remains gated
 
-- **Drafting Engine v1** (FR-DRF-01/02, FR-CAP-02) — criteria-mapped responsive sections generated ONLY from `claimable` Capability Library records; an unevidenced claim hard-fails the render. The claimable seam is already enforced at the data layer.
-- **Red-Team Scorer v1** (FR-RTS-01) — rubric-driven hostile-evaluator pass at T-72h, unskippable, feeding the defect taxonomy; the T-72h window clock already exists in the alerts feed.
-- **Assembly Engine v1** (FR-ASM-02) — full package to tender spec (pagination, tabbing, TOC, cross-refs, copies manifest, signature/seal checklist) with golden-file tests; the DOCX report already carries the manifest/checklist annexes to grow from.
+- **Response Studio is integrated without generative drafting.** Named humans author immutable section versions; deterministic checks require exact in-scope citations for factual and instructional claims and block unsupported claims and placeholders. Any future criteria-mapped generation remains gated to approved, claimable Capability Library records and the production AI activation process.
+- **Red-team review is operable without an autonomous scorer.** Named reviewers create source-hash-bound runs, resolve findings and approve independently; the T-72h clock remains a deterministic alert. Any future model-generated hostile-evaluator proposal remains behind the AI release gates.
+- **Package assembly creates a governed candidate manifest, not a released submission.** Rendering, visual QA, immutable package sign-off, durable delivery receipts and external portal operation remain separate controls. DOCX/PDF/ZIP export continues to use its existing release gate and rechecks current claims and red-team source identity.
+- **Portal rehearsal and Portfolio intelligence are decision support.** Rehearsal never authenticates or submits, while portfolio counts remain tenant-local workflow facts with no prediction, training, benchmark publication or cross-tenant reuse.
 - Supporting: extraction recall ≥95% on a ≥25-doc harness, BPP SBD format detection (FR-EXT-06), cross-document BOQ consistency (FR-BOQ-03), anonymised defect dataset with the k≥8 gate (FR-ANL-02), runbooks (NFR-OPS-01).
 
 ## Guarded product surfaces delivered after the original audit

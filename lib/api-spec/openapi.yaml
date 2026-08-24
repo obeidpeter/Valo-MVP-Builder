@@ -80,6 +80,8 @@ tags:
     description: Evidence-minimised privacy posture and named-human workflow receipts
   - name: Claims Desk
     description: Human-governed contract-event, deadline, variation, claim and payment-certificate records
+  - name: Delivery Studio
+    description: Deterministic response, red-team, package and submission-rehearsal records for named-human review
   - name: AI Operations
     description: Sanitised tenant-scoped AI readiness, capability and evaluation telemetry
   - name: Intelligence
@@ -6445,6 +6447,129 @@ paths:
         "428": { $ref: "#/components/responses/PreconditionRequired" }
         "429": { $ref: "#/components/responses/RoadmapCapacityExceeded" }
         "503": { $ref: "#/components/responses/RoadmapRepositoryUnavailable" }
+  /projects/{projectId}/delivery-studio:
+    get:
+      tags: [Delivery Studio]
+      operationId: getDeliveryStudio
+      summary: Read the deterministic Delivery Studio project snapshot
+      description: Returns tenant-scoped response, red-team, package and rehearsal workflow facts for named-human review. It performs no model execution or external portal action.
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdParam"
+      responses:
+        "200":
+          description: Bounded Delivery Studio snapshot.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+            ETag:
+              $ref: "#/components/headers/VersionETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryStudioEnvelope"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The bounded Delivery Studio project snapshot could not be materialised from the current tenant state.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500": { $ref: "#/components/responses/InternalServerError" }
+  /projects/{projectId}/delivery-studio/actions:
+    post:
+      tags: [Delivery Studio]
+      operationId: runDeliveryStudioAction
+      summary: Record one governed Delivery Studio action
+      description: Records one bounded, deterministic action under optimistic concurrency and idempotency. Named humans retain approval authority; the operation never submits to an external portal.
+      parameters:
+        - $ref: "#/components/parameters/ProjectIdParam"
+        - $ref: "#/components/parameters/IfMatchVersion"
+        - $ref: "#/components/parameters/DeliveryStudioIdempotencyKey"
+      requestBody:
+        required: true
+        x-valo-request-body-max-bytes: 4000000
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeliveryStudioAction"
+      responses:
+        "200":
+          description: Action idempotently replayed with the committed project snapshot.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+            ETag:
+              $ref: "#/components/headers/VersionETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryStudioMutationResponse"
+        "201":
+          description: Action recorded with the committed project snapshot.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+            ETag:
+              $ref: "#/components/headers/VersionETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryStudioMutationResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "412": { $ref: "#/components/responses/PreconditionFailed" }
+        "413": { $ref: "#/components/responses/DeliveryStudioPayloadTooLarge" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+  /portfolio-intelligence:
+    get:
+      tags: [Delivery Studio]
+      operationId: getPortfolioIntelligence
+      summary: Read tenant-local portfolio workflow intelligence
+      description: Returns deterministic workflow facts for the current organisation. It publishes no win prediction, cross-tenant benchmark or reusable lesson without cited named-human review.
+      responses:
+        "200":
+          description: Bounded tenant-local portfolio intelligence.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortfolioIntelligenceEnvelope"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: The bounded organisation portfolio could not be materialised from the current tenant state.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/PrivateNoStore"
+            Vary:
+              $ref: "#/components/headers/VaryOrganisationContext"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500": { $ref: "#/components/responses/InternalServerError" }
   /storage/uploads/request-url:
     post:
       tags: [Storage]
@@ -6837,6 +6962,16 @@ components:
         minLength: 16
         maxLength: 128
         pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$"
+    DeliveryStudioIdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Stable client-generated identity; reuse is accepted only for the exact same tenant, actor, project version and action body.
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+        pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$"
   headers:
     ReleaseSha256:
       description: Declared candidate digest injected by the deployment control; this is not a live artifact hash and is omitted when no valid identity is configured.
@@ -6906,6 +7041,18 @@ components:
             $ref: "#/components/schemas/ErrorEnvelope"
     PreconditionRequired:
       description: A current resource version is required in If-Match
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    PreconditionFailed:
+      description: The supplied If-Match version does not match the current resource version
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    DeliveryStudioPayloadTooLarge:
+      description: The Delivery Studio action body exceeds the 4,000,000-byte request limit
       content:
         application/json:
           schema:
@@ -16759,6 +16906,984 @@ components:
           type: string
           const: STORAGE_LIFECYCLE_PERSISTENCE_UNAVAILABLE
         sideEffectsApplied: { type: boolean, const: false }
+    DeliveryStudioDomainIdentifier:
+      type: string
+      minLength: 1
+      maxLength: 128
+      pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    DeliveryStudioTextIdentifier:
+      type: string
+      minLength: 1
+      maxLength: 128
+    DeliveryStudioSha256:
+      type: string
+      pattern: "^[0-9A-Fa-f]{64}$"
+    DeliveryStudioResponseCitationInput:
+      type: object
+      additionalProperties: false
+      required: [documentId, documentVersionId, pageNumber, quote]
+      properties:
+        documentId: { type: string, format: uuid }
+        documentVersionId: { type: string, format: uuid }
+        pageNumber:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        quote: { type: string, minLength: 1, maxLength: 20000 }
+        startOffset:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        endOffset:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+      dependentRequired:
+        startOffset: [endOffset]
+        endOffset: [startOffset]
+    DeliveryStudioResponseClaimInput:
+      type: object
+      additionalProperties: false
+      required: [claimKey, text, kind, citations]
+      not:
+        description: Factual and instructional claims cannot have an empty citation list.
+        required: [kind, citations]
+        properties:
+          kind:
+            enum: [factual, instructional]
+          citations:
+            maxItems: 0
+      properties:
+        claimKey:
+          $ref: "#/components/schemas/DeliveryStudioDomainIdentifier"
+        text: { type: string, minLength: 1, maxLength: 5000 }
+        kind:
+          type: string
+          enum: [factual, instructional, opinion]
+          description: Factual and instructional claims require at least one exact source citation; opinion claims may be uncited.
+        supportMode:
+          type: string
+          enum: [exact_quote, paraphrase]
+        citations:
+          type: array
+          maxItems: 500
+          description: Required and non-empty when kind is factual or instructional.
+          items:
+            $ref: "#/components/schemas/DeliveryStudioResponseCitationInput"
+    DeliveryStudioSaveResponseAction:
+      type: object
+      additionalProperties: false
+      required: [action, sectionKey, title, content, claims]
+      properties:
+        action: { type: string, const: save_response }
+        sectionKey:
+          $ref: "#/components/schemas/DeliveryStudioDomainIdentifier"
+        title: { type: string, minLength: 1, maxLength: 300 }
+        content: { type: string, minLength: 1, maxLength: 60000 }
+        changeSummary: { type: string, minLength: 1, maxLength: 2000 }
+        claims:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/DeliveryStudioResponseClaimInput"
+    DeliveryStudioReviewResponseClaimAction:
+      type: object
+      additionalProperties: false
+      required: [action, claimId, decision, note]
+      properties:
+        action: { type: string, const: review_response_claim }
+        claimId: { type: string, format: uuid }
+        decision:
+          type: string
+          enum: [accepted, rejected, needs_changes]
+        note: { type: string, minLength: 2, maxLength: 5000 }
+    DeliveryStudioRedTeamFindingInput:
+      type: object
+      additionalProperties: false
+      required: [category, severity, finding]
+      properties:
+        category: { type: string, minLength: 1, maxLength: 120 }
+        severity:
+          type: string
+          enum: [fatal, likely_fatal, scoring_risk, cosmetic]
+        finding: { type: string, minLength: 1, maxLength: 10000 }
+        objectType: { type: string, minLength: 1, maxLength: 120 }
+        objectId: { type: string, format: uuid }
+    DeliveryStudioStartRedTeamAction:
+      type: object
+      additionalProperties: false
+      required: [action, policyVersion, findings]
+      properties:
+        action: { type: string, const: start_red_team }
+        policyVersion: { type: string, minLength: 1, maxLength: 128 }
+        findings:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/DeliveryStudioRedTeamFindingInput"
+    DeliveryStudioResolveRedTeamFindingAction:
+      type: object
+      additionalProperties: false
+      required: [action, runId, findingId, resolution]
+      properties:
+        action: { type: string, const: resolve_red_team_finding }
+        runId: { type: string, format: uuid }
+        findingId: { type: string, format: uuid }
+        resolution: { type: string, minLength: 2, maxLength: 5000 }
+    DeliveryStudioApproveRedTeamAction:
+      type: object
+      additionalProperties: false
+      required: [action, runId, attestation]
+      properties:
+        action: { type: string, const: approve_red_team }
+        runId: { type: string, format: uuid }
+        attestation: { type: string, minLength: 10, maxLength: 2000 }
+    DeliveryStudioAssemblePackageAction:
+      type: object
+      additionalProperties: false
+      required: [action, packageType]
+      properties:
+        action: { type: string, const: assemble_package }
+        packageType: { type: string, const: submission }
+    DeliveryStudioSourceDocumentInput:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          sourceId,
+          versionId,
+          kind,
+          title,
+          content,
+          contentSha256,
+          capturedAt,
+          authority,
+          origin,
+        ]
+      properties:
+        sourceId:
+          $ref: "#/components/schemas/DeliveryStudioDomainIdentifier"
+        versionId:
+          $ref: "#/components/schemas/DeliveryStudioDomainIdentifier"
+        kind:
+          type: string
+          enum:
+            [
+              solicitation,
+              addendum,
+              company_evidence,
+              official_opportunity,
+              other,
+            ]
+        title: { type: string, minLength: 1, maxLength: 2000 }
+        content: { type: string, minLength: 1, maxLength: 2000000 }
+        contentSha256:
+          $ref: "#/components/schemas/DeliveryStudioSha256"
+        capturedAt: { type: string, minLength: 1, maxLength: 40 }
+        authority:
+          type: string
+          enum: [authoritative, corroborating, unverified]
+        origin: { type: string, minLength: 1, maxLength: 2000 }
+    DeliveryStudioExactCitationInput:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          sourceId,
+          sourceVersionId,
+          contentSha256,
+          startOffset,
+          endOffset,
+          quote,
+        ]
+      properties:
+        sourceId:
+          $ref: "#/components/schemas/DeliveryStudioDomainIdentifier"
+        sourceVersionId:
+          $ref: "#/components/schemas/DeliveryStudioDomainIdentifier"
+        contentSha256:
+          $ref: "#/components/schemas/DeliveryStudioSha256"
+        startOffset:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        endOffset:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        quote: { type: string, minLength: 1, maxLength: 20000 }
+        page:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        section: { type: string, minLength: 1, maxLength: 2000 }
+    DeliveryStudioHumanReviewInput:
+      type: object
+      additionalProperties: false
+      required: [state]
+      properties:
+        state:
+          type: string
+          enum: [unreviewed, accepted, rejected, needs_changes]
+        reviewerId:
+          $ref: "#/components/schemas/DeliveryStudioTextIdentifier"
+        reviewedAt: { type: string, minLength: 1, maxLength: 40 }
+        note: { type: string, minLength: 1, maxLength: 5000 }
+    DeliveryStudioSubjectReviewInput:
+      type: object
+      additionalProperties: false
+      required: [subjectId, review]
+      properties:
+        subjectId:
+          $ref: "#/components/schemas/DeliveryStudioTextIdentifier"
+        review:
+          $ref: "#/components/schemas/DeliveryStudioHumanReviewInput"
+    DeliveryStudioPortalFieldRequirementInput:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          externalId,
+          label,
+          fieldType,
+          required,
+          uploadOrder,
+          ruleText,
+          citations,
+          review,
+        ]
+      properties:
+        externalId:
+          $ref: "#/components/schemas/DeliveryStudioTextIdentifier"
+        label: { type: string, minLength: 1, maxLength: 2000 }
+        fieldType: { type: string, enum: [file, declaration] }
+        required: { type: boolean }
+        uploadOrder:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        ruleText: { type: string, minLength: 1, maxLength: 20000 }
+        maxFileBytes:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        maxFileBytesText: { type: string, minLength: 1, maxLength: 2000 }
+        allowedExtensions:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            minLength: 1
+            maxLength: 2000
+        requiredFilenamePrefix: { type: string, minLength: 1, maxLength: 2000 }
+        declarationText: { type: string, minLength: 1, maxLength: 20000 }
+        citations:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/DeliveryStudioExactCitationInput"
+        review:
+          $ref: "#/components/schemas/DeliveryStudioHumanReviewInput"
+    DeliveryStudioPortalPackageFileInput:
+      type: object
+      additionalProperties: false
+      required:
+        [externalId, filename, sizeBytes, sizeText, sha256, citations, review]
+      properties:
+        externalId:
+          $ref: "#/components/schemas/DeliveryStudioTextIdentifier"
+        filename: { type: string, minLength: 1, maxLength: 500 }
+        sizeBytes:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        sizeText: { type: string, minLength: 1, maxLength: 2000 }
+        sha256:
+          $ref: "#/components/schemas/DeliveryStudioSha256"
+        citations:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/DeliveryStudioExactCitationInput"
+        review:
+          $ref: "#/components/schemas/DeliveryStudioHumanReviewInput"
+    DeliveryStudioPortalFileMappingInput:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          externalId,
+          fieldExternalId,
+          fileExternalId,
+          rationale,
+          citations,
+          review,
+        ]
+      properties:
+        externalId:
+          $ref: "#/components/schemas/DeliveryStudioTextIdentifier"
+        fieldExternalId:
+          $ref: "#/components/schemas/DeliveryStudioTextIdentifier"
+        fileExternalId:
+          $ref: "#/components/schemas/DeliveryStudioTextIdentifier"
+        rationale: { type: string, minLength: 1, maxLength: 20000 }
+        citations:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/DeliveryStudioExactCitationInput"
+        review:
+          $ref: "#/components/schemas/DeliveryStudioHumanReviewInput"
+    DeliveryStudioPortalSubmissionRehearsalInput:
+      type: object
+      additionalProperties: false
+      required: [sources, fields, files, mappings]
+      properties:
+        sources:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/DeliveryStudioSourceDocumentInput"
+        fields:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/DeliveryStudioPortalFieldRequirementInput"
+        files:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/DeliveryStudioPortalPackageFileInput"
+        mappings:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/DeliveryStudioPortalFileMappingInput"
+        rehearsalReview:
+          $ref: "#/components/schemas/DeliveryStudioSubjectReviewInput"
+    DeliveryStudioRehearseSubmissionAction:
+      type: object
+      additionalProperties: false
+      required: [action, packageVersionId, rehearsal]
+      properties:
+        action: { type: string, const: rehearse_submission }
+        packageVersionId: { type: string, format: uuid }
+        rehearsal:
+          $ref: "#/components/schemas/DeliveryStudioPortalSubmissionRehearsalInput"
+    DeliveryStudioAction:
+      oneOf:
+        - $ref: "#/components/schemas/DeliveryStudioSaveResponseAction"
+        - $ref: "#/components/schemas/DeliveryStudioReviewResponseClaimAction"
+        - $ref: "#/components/schemas/DeliveryStudioStartRedTeamAction"
+        - $ref: "#/components/schemas/DeliveryStudioResolveRedTeamFindingAction"
+        - $ref: "#/components/schemas/DeliveryStudioApproveRedTeamAction"
+        - $ref: "#/components/schemas/DeliveryStudioAssemblePackageAction"
+        - $ref: "#/components/schemas/DeliveryStudioRehearseSubmissionAction"
+      discriminator:
+        propertyName: action
+        mapping:
+          save_response: "#/components/schemas/DeliveryStudioSaveResponseAction"
+          review_response_claim: "#/components/schemas/DeliveryStudioReviewResponseClaimAction"
+          start_red_team: "#/components/schemas/DeliveryStudioStartRedTeamAction"
+          resolve_red_team_finding: "#/components/schemas/DeliveryStudioResolveRedTeamFindingAction"
+          approve_red_team: "#/components/schemas/DeliveryStudioApproveRedTeamAction"
+          assemble_package: "#/components/schemas/DeliveryStudioAssemblePackageAction"
+          rehearse_submission: "#/components/schemas/DeliveryStudioRehearseSubmissionAction"
+    DeliveryStudioSafety:
+      type: object
+      additionalProperties: false
+      required: [automaticMutation, externalPortalAction, namedHumanAuthority]
+      properties:
+        automaticMutation: { type: boolean, const: false }
+        externalPortalAction: { type: boolean, const: false }
+        namedHumanAuthority: { type: boolean, const: true }
+    DeliveryStudioProject:
+      type: object
+      additionalProperties: false
+      required: [id, title, status, deadline]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string, minLength: 1, maxLength: 500 }
+        status:
+          type: string
+          enum:
+            [
+              intake,
+              extraction,
+              review,
+              defects,
+              reporting,
+              signed_off,
+              exported,
+              archived,
+            ]
+        deadline:
+          oneOf:
+            - { type: string, minLength: 1, maxLength: 128 }
+            - { type: "null" }
+    DeliveryStudioCitation:
+      type: object
+      additionalProperties: false
+      required: [id, documentVersionId, evidenceCitation, evidenceHash]
+      properties:
+        id: { type: string, format: uuid }
+        documentVersionId:
+          oneOf:
+            - { type: string, format: uuid }
+            - { type: "null" }
+        evidenceCitation: { type: string, minLength: 1, maxLength: 60000 }
+        evidenceHash:
+          $ref: "#/components/schemas/DeliveryStudioSha256"
+    DeliveryStudioClaim:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          claimKey,
+          text,
+          kind,
+          supportMode,
+          groundingStatus,
+          reviewerUserId,
+          citations,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        claimKey:
+          $ref: "#/components/schemas/DeliveryStudioDomainIdentifier"
+        text: { type: string, minLength: 1, maxLength: 5000 }
+        kind:
+          type: string
+          enum: [factual, instructional, opinion]
+        supportMode:
+          oneOf:
+            - { type: string, enum: [exact_quote, paraphrase] }
+            - { type: "null" }
+        groundingStatus:
+          type: string
+          enum: [unverified, approved, rejected, review_required]
+        reviewerUserId:
+          oneOf:
+            - { type: string, format: uuid }
+            - { type: "null" }
+        citations:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/DeliveryStudioCitation"
+    DeliveryStudioSectionVersion:
+      type: object
+      additionalProperties: false
+      required: [id, content, contentHash, authorUserId, claims]
+      properties:
+        id: { type: string, format: uuid }
+        content: { type: string, minLength: 1, maxLength: 60000 }
+        contentHash:
+          $ref: "#/components/schemas/DeliveryStudioSha256"
+        authorUserId:
+          oneOf:
+            - { type: string, format: uuid }
+            - { type: "null" }
+        claims:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/DeliveryStudioClaim"
+    DeliveryStudioSection:
+      type: object
+      additionalProperties: false
+      required: [id, sectionKey, title, status, currentVersionNumber, version]
+      properties:
+        id: { type: string, format: uuid }
+        sectionKey:
+          $ref: "#/components/schemas/DeliveryStudioDomainIdentifier"
+        title: { type: string, minLength: 1, maxLength: 500 }
+        status:
+          type: string
+          enum: [draft, review_required, reviewed]
+        currentVersionNumber:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        version:
+          oneOf:
+            - $ref: "#/components/schemas/DeliveryStudioSectionVersion"
+            - { type: "null" }
+    DeliveryStudioResponseStudio:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          status,
+          sectionCount,
+          claimCount,
+          groundedClaimCount,
+          placeholderCount,
+          sections,
+        ]
+      properties:
+        status:
+          type: string
+          enum: [empty, draft, review_required, ready]
+        sectionCount:
+          type: integer
+          minimum: 0
+          maximum: 500
+        claimCount:
+          type: integer
+          minimum: 0
+          maximum: 250000
+        groundedClaimCount:
+          type: integer
+          minimum: 0
+          maximum: 250000
+        placeholderCount:
+          type: integer
+          minimum: 0
+          maximum: 250000
+        sections:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/DeliveryStudioSection"
+    DeliveryStudioRedTeamFinding:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          category,
+          severity,
+          finding,
+          status,
+          resolution,
+          resolvedByUserId,
+          resolvedAt,
+          version,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        category: { type: string, minLength: 1, maxLength: 128 }
+        severity:
+          type: string
+          enum: [fatal, likely_fatal, scoring_risk, cosmetic]
+        finding: { type: string, minLength: 1, maxLength: 20000 }
+        status: { type: string, enum: [open, resolved] }
+        resolution:
+          oneOf:
+            - { type: string, minLength: 1, maxLength: 20000 }
+            - { type: "null" }
+        resolvedByUserId:
+          oneOf:
+            - { type: string, format: uuid }
+            - { type: "null" }
+        resolvedAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: "null" }
+        version:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+    DeliveryStudioRedTeamRun:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          status,
+          sourceSnapshotHash,
+          policyVersion,
+          initiatedByUserId,
+          approvedByUserId,
+          approvedAt,
+          approvalAttestation,
+          createdAt,
+          findings,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [running, findings_open, ready_for_approval, approved, stale]
+        sourceSnapshotHash:
+          $ref: "#/components/schemas/DeliveryStudioSha256"
+        policyVersion: { type: string, minLength: 1, maxLength: 128 }
+        initiatedByUserId:
+          oneOf:
+            - { type: string, format: uuid }
+            - { type: "null" }
+        approvedByUserId:
+          oneOf:
+            - { type: string, format: uuid }
+            - { type: "null" }
+        approvedAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: "null" }
+        approvalAttestation:
+          oneOf:
+            - { type: string, minLength: 10, maxLength: 2000 }
+            - { type: "null" }
+        createdAt: { type: string, format: date-time }
+        findings:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/DeliveryStudioRedTeamFinding"
+    DeliveryStudioRedTeamReview:
+      type: object
+      additionalProperties: false
+      required: [status, dueAt, run]
+      properties:
+        status:
+          type: string
+          enum:
+            [
+              not_started,
+              running,
+              findings_open,
+              ready_for_approval,
+              approved,
+              stale,
+            ]
+        dueAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: "null" }
+        run:
+          oneOf:
+            - $ref: "#/components/schemas/DeliveryStudioRedTeamRun"
+            - { type: "null" }
+    DeliveryStudioPackageManifestItem:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          ordinal,
+          itemType,
+          sourceObjectId,
+          sourceVersion,
+          filename,
+          sha256,
+          sizeBytes,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        ordinal:
+          type: integer
+          minimum: 1
+          maximum: 1000
+        itemType:
+          type: string
+          const: response_section
+        sourceObjectId:
+          oneOf:
+            - { type: string, format: uuid }
+            - { type: "null" }
+        sourceVersion:
+          oneOf:
+            - type: integer
+              minimum: 1
+              maximum: 9007199254740991
+            - { type: "null" }
+        filename: { type: string, minLength: 1, maxLength: 500 }
+        sha256:
+          $ref: "#/components/schemas/DeliveryStudioSha256"
+        sizeBytes:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+    DeliveryStudioPackage:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          status,
+          versionId,
+          versionNumber,
+          sourceSnapshotHash,
+          manifestHash,
+          renderQaStatus,
+          manifestItems,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [draft, assembled] }
+        versionId: { type: string, format: uuid }
+        versionNumber:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        sourceSnapshotHash:
+          $ref: "#/components/schemas/DeliveryStudioSha256"
+        manifestHash:
+          $ref: "#/components/schemas/DeliveryStudioSha256"
+        renderQaStatus:
+          type: string
+          enum: [pending, passed, failed]
+        manifestItems:
+          type: array
+          maxItems: 1000
+          items:
+            $ref: "#/components/schemas/DeliveryStudioPackageManifestItem"
+    DeliveryStudioPackageAssembly:
+      type: object
+      additionalProperties: false
+      required: [status, package]
+      properties:
+        status:
+          type: string
+          enum: [not_started, draft, ready, stale]
+        package:
+          oneOf:
+            - $ref: "#/components/schemas/DeliveryStudioPackage"
+            - { type: "null" }
+    DeliveryStudioRehearsalIssue:
+      type: object
+      additionalProperties: false
+      required: [code, severity, message]
+      properties:
+        code: { type: string, minLength: 1, maxLength: 128 }
+        severity: { type: string, enum: [blocker, warning] }
+        message: { type: string, minLength: 1, maxLength: 20000 }
+    DeliveryStudioRehearsalReceipt:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          packageVersionId,
+          status,
+          rehearsalId,
+          readyForOperatorRehearsal,
+          reviewerUserId,
+          completedAt,
+          issues,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        packageVersionId: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [blocked, incomplete, review_required, rehearsal_ready]
+        rehearsalId:
+          $ref: "#/components/schemas/DeliveryStudioDomainIdentifier"
+        readyForOperatorRehearsal: { type: boolean }
+        reviewerUserId: { type: string, format: uuid }
+        completedAt: { type: string, format: date-time }
+        issues:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/DeliveryStudioRehearsalIssue"
+    DeliveryStudioSubmissionRehearsal:
+      type: object
+      additionalProperties: false
+      required: [status, receipt]
+      properties:
+        status:
+          type: string
+          enum:
+            [
+              not_started,
+              blocked,
+              incomplete,
+              review_required,
+              rehearsal_ready,
+              stale,
+            ]
+        receipt:
+          oneOf:
+            - $ref: "#/components/schemas/DeliveryStudioRehearsalReceipt"
+            - { type: "null" }
+    DeliveryStudioEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          authorityNote,
+          generatedAt,
+          version,
+          project,
+          sourceSnapshotHash,
+          responseStudio,
+          redTeamReview,
+          packageAssembly,
+          submissionRehearsal,
+          safety,
+        ]
+      properties:
+        authorityNote:
+          type: string
+          const: Delivery Studio organises cited response work for named-human review. It never submits to an external portal, approves its own work, predicts an outcome, or reuses another tenant's data.
+        generatedAt: { type: string, format: date-time }
+        version:
+          type: integer
+          minimum: 1
+          maximum: 9007199254740991
+        project:
+          $ref: "#/components/schemas/DeliveryStudioProject"
+        sourceSnapshotHash:
+          $ref: "#/components/schemas/DeliveryStudioSha256"
+        responseStudio:
+          $ref: "#/components/schemas/DeliveryStudioResponseStudio"
+        redTeamReview:
+          $ref: "#/components/schemas/DeliveryStudioRedTeamReview"
+        packageAssembly:
+          $ref: "#/components/schemas/DeliveryStudioPackageAssembly"
+        submissionRehearsal:
+          $ref: "#/components/schemas/DeliveryStudioSubmissionRehearsal"
+        safety:
+          $ref: "#/components/schemas/DeliveryStudioSafety"
+    DeliveryStudioMutationResponse:
+      type: object
+      additionalProperties: false
+      required: [projectId, action, outcome, receiptId, data]
+      properties:
+        projectId: { type: string, format: uuid }
+        action:
+          type: string
+          enum:
+            [
+              save_response,
+              review_response_claim,
+              start_red_team,
+              resolve_red_team_finding,
+              approve_red_team,
+              assemble_package,
+              rehearse_submission,
+            ]
+        outcome: { type: string, enum: [recorded, replayed] }
+        receiptId: { type: string, format: uuid }
+        data:
+          $ref: "#/components/schemas/DeliveryStudioEnvelope"
+    PortfolioIntelligenceTotals:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          projectCount,
+          responseReadyCount,
+          redTeamApprovedCount,
+          packageReadyCount,
+          rehearsalReadyCount,
+          confirmedOutcomeCount,
+        ]
+      properties:
+        projectCount:
+          type: integer
+          minimum: 0
+          maximum: 500
+        responseReadyCount:
+          type: integer
+          minimum: 0
+          maximum: 500
+        redTeamApprovedCount:
+          type: integer
+          minimum: 0
+          maximum: 500
+        packageReadyCount:
+          type: integer
+          minimum: 0
+          maximum: 500
+        rehearsalReadyCount:
+          type: integer
+          minimum: 0
+          maximum: 500
+        confirmedOutcomeCount:
+          type: integer
+          minimum: 0
+          maximum: 500
+    PortfolioIntelligenceProject:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          title,
+          status,
+          deadline,
+          responseStatus,
+          redTeamStatus,
+          packageStatus,
+          rehearsalStatus,
+          nextAction,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string, minLength: 1, maxLength: 500 }
+        status:
+          type: string
+          enum:
+            [
+              intake,
+              extraction,
+              review,
+              defects,
+              reporting,
+              signed_off,
+              exported,
+              archived,
+            ]
+        deadline:
+          oneOf:
+            - { type: string, minLength: 1, maxLength: 128 }
+            - { type: "null" }
+        responseStatus:
+          type: string
+          enum: [empty, draft, review_required, ready]
+        redTeamStatus:
+          type: string
+          enum:
+            [
+              not_started,
+              running,
+              findings_open,
+              ready_for_approval,
+              approved,
+              stale,
+            ]
+        packageStatus:
+          type: string
+          enum: [not_started, draft, ready, stale]
+        rehearsalStatus:
+          type: string
+          enum:
+            [
+              not_started,
+              blocked,
+              incomplete,
+              review_required,
+              rehearsal_ready,
+              stale,
+            ]
+        nextAction: { type: string, minLength: 1, maxLength: 500 }
+    PortfolioIntelligenceEnvelope:
+      type: object
+      additionalProperties: false
+      required: [generatedAt, authorityNote, totals, projects, limitations]
+      properties:
+        generatedAt: { type: string, format: date-time }
+        authorityNote:
+          type: string
+          const: Delivery Studio organises cited response work for named-human review. It never submits to an external portal, approves its own work, predicts an outcome, or reuses another tenant's data.
+        totals:
+          $ref: "#/components/schemas/PortfolioIntelligenceTotals"
+        projects:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/PortfolioIntelligenceProject"
+        limitations:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items: { type: string, minLength: 1, maxLength: 500 }
     SeverityWeights:
       type: object
       required: [fatal, likely_fatal, scoring_risk, cosmetic]
