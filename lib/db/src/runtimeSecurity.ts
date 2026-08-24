@@ -8,6 +8,7 @@ export const TENANT_PARENT_EDGE_MANIFEST_SHA256 =
   "620cbf5d64521211dd59e8bc19128d9661b67eec8eb497eb200c8695a693c2bd";
 const EXPECTED_POLICY_CATALOG_SHA256 =
   "92235aeea371cae756f06c6b9c6ec79f51515ea60825d2a3268129691950308c";
+export const EXPECTED_PUBLIC_SECURITY_TRIGGER_COUNT = 168;
 
 const EXPECTED_FORCE_RLS_TABLES = [
   "addendum_impact_assessments",
@@ -2270,7 +2271,8 @@ export async function assertProductionRuntimeDatabaseSafety(
       authenticatedRateLimitFunctionProofs.rows,
     );
     if (
-      graph?.public_security_trigger_count !== 153 ||
+      graph?.public_security_trigger_count !==
+        EXPECTED_PUBLIC_SECURITY_TRIGGER_COUNT ||
       graph.valo_security_function_count !== 17
     ) {
       throw new Error(

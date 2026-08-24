@@ -6,6 +6,7 @@ import {
   assertIntakeFunctionAttestation,
   assertTenantGraphAttestation,
   assertRuntimePolicyAttestation,
+  EXPECTED_PUBLIC_SECURITY_TRIGGER_COUNT,
   isProductionRuntime,
   selectDatabaseConnectionString,
 } from "./runtimeSecurity";
@@ -234,6 +235,35 @@ const retentionCompletionMigration = readFileSync(
   new URL("../migrations/0011_retention_completion.sql", import.meta.url),
   "utf8",
 );
+const deliverySourceReleaseBoundaryMigration = readFileSync(
+  new URL(
+    "../migrations/0012_delivery_source_release_boundary.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+
+test("pins the post-0012 public security trigger inventory", () => {
+  const deliverySourceGuards =
+    deliverySourceReleaseBoundaryMigration.match(
+      /^CREATE TRIGGER delivery_source_project_guard$/gmu,
+    )?.length ?? 0;
+  const projectDeleteGuards =
+    deliverySourceReleaseBoundaryMigration.match(
+      /^CREATE TRIGGER delivery_project_delete_guard$/gmu,
+    )?.length ?? 0;
+
+  assert.equal(deliverySourceGuards, 14);
+  assert.equal(projectDeleteGuards, 1);
+  assert.equal(
+    EXPECTED_PUBLIC_SECURITY_TRIGGER_COUNT,
+    153 + deliverySourceGuards + projectDeleteGuards,
+  );
+  assert.match(
+    runtimeSecuritySource,
+    /public_security_trigger_count !==\s*EXPECTED_PUBLIC_SECURITY_TRIGGER_COUNT/u,
+  );
+});
 
 function productionAssuranceFunctionProofs() {
   const contracts = [
