@@ -53,6 +53,7 @@ import {
 } from "@/components/organisation-switcher";
 import { ValoMark } from "@/components/valo-mark";
 import { GlobalCommand } from "@/components/global-command";
+import { ValoUserIdCard } from "@/components/valo-user-id-card";
 
 const ICONS: Record<string, LucideIcon> = {
   "/app": LayoutDashboard,
@@ -178,6 +179,38 @@ function UtilityLink({
   );
 }
 
+function IdentityOnlyLayout({ children }: { children: ReactNode }) {
+  return (
+    <div className="min-h-screen bg-background">
+      <a
+        href="#main-content"
+        className="sr-only z-50 rounded-md bg-card px-4 py-2 text-sm font-medium shadow-sm focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
+      >
+        Skip to main content
+      </a>
+      <header className="border-b border-border bg-background">
+        <div className="mx-auto flex min-h-16 max-w-6xl items-center justify-between px-5 sm:px-8">
+          <Link
+            href="/"
+            aria-label="Valo home"
+            className="rounded-md text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ValoMark />
+          </Link>
+          <UserButton
+            afterSignOutUrl="/"
+            userProfileMode="navigation"
+            userProfileUrl="/account"
+          />
+        </div>
+      </header>
+      <main id="main-content" tabIndex={-1}>
+        {children}
+      </main>
+    </div>
+  );
+}
+
 export default function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -259,6 +292,15 @@ export default function Layout({ children }: { children: ReactNode }) {
     );
   }
   if (organisationAccess.isError) return <OrganisationLoadError />;
+  const pendingRole =
+    organisationAccess.effectiveRoles.length === 0 ||
+    organisationAccess.effectiveRoles.every((role) => role === "none");
+  if (
+    location === "/account" &&
+    (!organisationAccess.activeOrganisation || pendingRole)
+  ) {
+    return <IdentityOnlyLayout>{children}</IdentityOnlyLayout>;
+  }
   if (organisationAccess.needsSelection) return <OrganisationSelectionGate />;
   if (!organisationAccess.activeOrganisation) {
     return (
@@ -269,6 +311,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             title="You don't have organisation access yet"
             description="Your sign-in worked, but this account is not linked to an active organisation membership. Ask an organisation administrator to add you."
           />
+          <ValoUserIdCard userId={user.id} />
           <UserButton afterSignOutUrl="/" />
         </div>
       </div>
@@ -276,10 +319,6 @@ export default function Layout({ children }: { children: ReactNode }) {
   }
 
   const effectiveRoles = organisationAccess.effectiveRoles;
-  const pendingRole =
-    effectiveRoles.length === 0 ||
-    effectiveRoles.every((role) => role === "none");
-
   if (pendingRole) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-5">
@@ -289,6 +328,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             title="No role assigned yet"
             description="Your account belongs to this organisation, but it has no active role. Ask an organisation administrator to assign one."
           />
+          <ValoUserIdCard userId={user.id} />
           <UserButton afterSignOutUrl="/" />
         </div>
       </div>

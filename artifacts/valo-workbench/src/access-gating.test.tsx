@@ -50,25 +50,29 @@ vi.mock("@workspace/api-client-react", async (importOriginal) => {
 
 vi.mock("./contexts/organisation-context", () => ({
   useOrganisationAccess: () => {
-    const role = (meResult.data as { role?: string } | undefined)?.role;
-    const activeOrganisation = role
-      ? {
-          id: "org-test",
-          name: "Test organisation",
-          slug: "test-organisation",
-          type: "client" as const,
-          status: "active",
-          countryCode: "NG",
-          membershipId: "membership-test",
-          membershipOrganisationId: "org-test",
-          accessSource: "membership" as const,
-          partnerRelationshipId: null,
-          accessExpiresAt: null,
-          roles: [role],
-          permissions: TEST_PERMISSIONS,
-          version: 1,
-        }
-      : null;
+    const identity = meResult.data as
+      | { role?: string; hasOrganisation?: boolean }
+      | undefined;
+    const role = identity?.role;
+    const activeOrganisation =
+      role && identity?.hasOrganisation !== false
+        ? {
+            id: "org-test",
+            name: "Test organisation",
+            slug: "test-organisation",
+            type: "client" as const,
+            status: "active",
+            countryCode: "NG",
+            membershipId: "membership-test",
+            membershipOrganisationId: "org-test",
+            accessSource: "membership" as const,
+            partnerRelationshipId: null,
+            accessExpiresAt: null,
+            roles: [role],
+            permissions: TEST_PERMISSIONS,
+            version: 1,
+          }
+        : null;
     return {
       organisations: activeOrganisation ? [activeOrganisation] : [],
       activeOrganisation,
@@ -99,6 +103,56 @@ function renderLayout() {
 describe("access gating in Layout", () => {
   beforeEach(() => {
     meResult = { data: undefined, isLoading: true };
+    window.history.pushState({}, "", "/app");
+  });
+
+  it("lets a signed-in user without an organisation open their profile", () => {
+    meResult = {
+      data: {
+        id: "2e1295d3-898f-4757-abec-a06df959401e",
+        email: "new-user@example.com",
+        name: "New User",
+        role: "none",
+        status: "active",
+        hasOrganisation: false,
+      },
+      isLoading: false,
+    };
+    window.history.pushState({}, "", "/account");
+
+    renderLayout();
+
+    expect(screen.getByTestId("protected-child")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Valo home" })).toBeInTheDocument();
+    expect(
+      screen.queryByText(/you don't have organisation access yet/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a new user's ID while ordinary workspace routes remain blocked", () => {
+    const userId = "2e1295d3-898f-4757-abec-a06df959401e";
+    meResult = {
+      data: {
+        id: userId,
+        email: "new-user@example.com",
+        name: "New User",
+        role: "none",
+        status: "active",
+        hasOrganisation: false,
+      },
+      isLoading: false,
+    };
+
+    renderLayout();
+
+    expect(
+      screen.getByText(/you don't have organisation access yet/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(userId)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Copy Valo user ID" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("protected-child")).not.toBeInTheDocument();
   });
 
   it("shows the Pending Access screen for a role 'none' account and hides the app", () => {
