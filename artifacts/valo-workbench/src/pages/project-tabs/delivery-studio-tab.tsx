@@ -49,7 +49,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useOrganisationPermission } from "@/contexts/organisation-context";
+import {
+  useOrganisationAccess,
+  useOrganisationPermission,
+} from "@/contexts/organisation-context";
 import { useToast } from "@/hooks/use-toast";
 import { errorMessage, requestStatus } from "@/lib/errors";
 import { formatWatInstant, humaniseTokenCapitalised } from "@/lib/format";
@@ -341,6 +344,12 @@ const DOMAIN_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
 const SHA_256_PATTERN = /^[a-f0-9]{64}$/iu;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const DELIVERY_STUDIO_READ_PERMISSIONS = [
+  "project:read",
+  "draft:read",
+  "defect:read",
+  "package:read",
+] as const;
 
 function normalizedStatus(value: string | null | undefined): string {
   return value?.trim().toLowerCase().replaceAll("-", "_") || "not_started";
@@ -520,6 +529,19 @@ async function sha256Hex(value: string): Promise<string> {
 export function DeliveryStudioTab({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const organisationAccess = useOrganisationAccess();
+  const activeOrganisation = organisationAccess?.activeOrganisation;
+  const effectivePermissions = organisationAccess?.effectivePermissions ?? [];
+  const hasDirectMembership = Boolean(
+    activeOrganisation?.accessSource === "membership" &&
+    activeOrganisation.membershipOrganisationId === activeOrganisation.id,
+  );
+  const canReadStudio = Boolean(
+    hasDirectMembership &&
+    DELIVERY_STUDIO_READ_PERMISSIONS.every((permission) =>
+      effectivePermissions.includes(permission),
+    ),
+  );
   const canWriteDraft = useOrganisationPermission("draft:write");
   const canReadDocuments = useOrganisationPermission("document:read");
   const canReadEvidence = useOrganisationPermission("evidence:read");
@@ -542,9 +564,14 @@ export function DeliveryStudioTab({ projectId }: { projectId: string }) {
     canReviewIntelligence;
   const meQuery = useGetMe();
   const actorUserId = meQuery.data?.id ?? "";
+  const actorName = meQuery.data?.name?.trim() ?? "";
+  const hasNamedActor = Boolean(
+    actorUserId.length > 0 && actorName.length >= 2 && actorName.length <= 200,
+  );
+  const canRequestStudio = canReadStudio && hasNamedActor;
   const studioQuery = useGetDeliveryStudio(projectId, {
     query: {
-      enabled: projectId.length > 0,
+      enabled: canRequestStudio && projectId.length > 0,
       queryKey: getGetDeliveryStudioQueryKey(projectId),
     },
   });
@@ -1054,6 +1081,30 @@ export function DeliveryStudioTab({ projectId }: { projectId: string }) {
           : completedStages === stages.length
             ? "active"
             : "pending";
+
+  if (organisationAccess?.isLoading || meQuery.isLoading || meQuery.isPending) {
+    return <LoadingPanel label="Checking Delivery Studio access" />;
+  }
+
+  if (!canReadStudio) {
+    return (
+      <StatusPanel
+        state="blocked"
+        title="Delivery Studio access required"
+        description="You need a direct membership in the selected organisation with project, draft, defect and package read permissions. Partner access and narrower grants do not request or reveal Delivery Studio records."
+      />
+    );
+  }
+
+  if (!hasNamedActor) {
+    return (
+      <StatusPanel
+        state="blocked"
+        title="Named profile required"
+        description="Delivery Studio requires your signed-in profile to have a name between 2 and 200 characters. No Delivery Studio records were requested or shown."
+      />
+    );
+  }
 
   if (studioQuery.isLoading || studioQuery.isPending) {
     return <LoadingPanel label="Loading Delivery Studio" />;

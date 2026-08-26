@@ -1004,6 +1004,24 @@ paths:
           $ref: "#/components/responses/Conflict"
         "428":
           $ref: "#/components/responses/PreconditionRequired"
+    delete:
+      operationId: deleteProject
+      tags: [Projects]
+      deprecated: true
+      summary: Direct project deletion is disabled
+      description: >-
+        This compatibility endpoint always fails closed. Create a governed
+        retention request and use the detach, reconcile, and certify workflow;
+        no project or document is deleted by this operation. The operation
+        remains documented only for compatibility with existing clients and
+        will be removed in the next versioned breaking API release.
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /workflow/alerts:
     get:
       operationId: getWorkflowAlerts

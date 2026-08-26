@@ -73,27 +73,65 @@ export function selectInProcessJobs(manifest, environment) {
   });
 }
 
-function defaultRunCommand(job) {
-  return new Promise((resolveRun) => {
-    const [command, ...commandArguments] = job.command.split(" ");
-    const child = spawn(command, commandArguments, {
-      cwd: repositoryRoot,
-      env: process.env,
-      stdio: ["ignore", "inherit", "inherit"],
-    });
-    const timeout = setTimeout(() => {
-      child.kill("SIGTERM");
-    }, job.timeoutSeconds * 1000);
-    timeout.unref?.();
-    child.on("error", () => {
-      clearTimeout(timeout);
-      resolveRun({ exitCode: null, failedToSpawn: true });
-    });
-    child.on("exit", (exitCode, signal) => {
-      clearTimeout(timeout);
-      resolveRun({ exitCode, signal, failedToSpawn: false });
-    });
+function databaseTargetAttestationUrl(value) {
+  if (!value?.trim()) return undefined;
+  try {
+    const target = new URL(value);
+    target.username = "";
+    target.password = "";
+    return target.href;
+  } catch {
+    throw new Error("in-process schedule database target is malformed");
+  }
+}
+
+/**
+ * Capture the one database credential a delayed runtime child needs before
+ * the API imports @workspace/db and deliberately scrubs database URLs from the
+ * mutable process environment. The migration-owner password is never retained:
+ * children receive only its credential-free target for the runtime URL's
+ * same-target attestation.
+ */
+export function createScheduledCommandRunner({
+  environment = process.env,
+  spawnCommand = spawn,
+} = {}) {
+  const databaseHandoff = Object.freeze({
+    ...(environment.DATABASE_URL?.trim()
+      ? {
+          DATABASE_URL: databaseTargetAttestationUrl(environment.DATABASE_URL),
+        }
+      : {}),
+    ...(environment.VALO_RUNTIME_DATABASE_URL?.trim()
+      ? {
+          VALO_RUNTIME_DATABASE_URL:
+            environment.VALO_RUNTIME_DATABASE_URL.trim(),
+        }
+      : {}),
   });
+
+  return function runScheduledCommand(job) {
+    return new Promise((resolveRun) => {
+      const [command, ...commandArguments] = job.command.split(" ");
+      const child = spawnCommand(command, commandArguments, {
+        cwd: repositoryRoot,
+        env: { ...environment, ...databaseHandoff },
+        stdio: ["ignore", "inherit", "inherit"],
+      });
+      const timeout = setTimeout(() => {
+        child.kill("SIGTERM");
+      }, job.timeoutSeconds * 1000);
+      timeout.unref?.();
+      child.on("error", () => {
+        clearTimeout(timeout);
+        resolveRun({ exitCode: null, failedToSpawn: true });
+      });
+      child.on("exit", (exitCode, signal) => {
+        clearTimeout(timeout);
+        resolveRun({ exitCode, signal, failedToSpawn: false });
+      });
+    });
+  };
 }
 
 function minuteKey(date) {
@@ -108,10 +146,12 @@ function minuteKey(date) {
 export function createInProcessScheduleRunner({
   manifest,
   environment = process.env,
-  runCommand = defaultRunCommand,
+  runCommand,
   log = (line) => process.stdout.write(`${line}\n`),
 } = {}) {
   const jobs = selectInProcessJobs(manifest, environment);
+  const executeCommand =
+    runCommand ?? createScheduledCommandRunner({ environment });
   const state = new Map(
     jobs.map((job) => [job.id, { running: false, lastFiredMinute: null }]),
   );
@@ -129,7 +169,7 @@ export function createInProcessScheduleRunner({
       }),
     );
     try {
-      const outcome = await runCommand(job);
+      const outcome = await executeCommand(job);
       log(
         JSON.stringify({
           schema: "valo.inprocess-schedule-receipt/v1",

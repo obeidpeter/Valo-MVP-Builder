@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import test from "node:test";
 import {
   IN_PROCESS_SCHEDULES_ENVIRONMENT_KEY,
   createInProcessScheduleRunner,
+  createScheduledCommandRunner,
   parseSupportedCron,
   readScheduleManifest,
   selectInProcessJobs,
@@ -130,4 +132,51 @@ test("a failing command is recorded, never thrown into the server", async () => 
   const completed = receipts.find((receipt) => receipt.event === "completed");
   assert.equal(completed.succeeded, false);
   assert.equal(completed.exitCode, 1);
+});
+
+test("delayed children retain only the runtime credential and a credential-free owner target", async () => {
+  const ownerPassword = "owner-secret-never-retained";
+  const runtimePassword = "runtime-secret-required-by-child";
+  const environment = {
+    NODE_ENV: "production",
+    REPLIT_DEPLOYMENT: "1",
+    DATABASE_URL: `postgresql://migration_owner:${ownerPassword}@database.example/valo?sslmode=require`,
+    VALO_RUNTIME_DATABASE_URL: `postgresql://valo_app_runtime:${runtimePassword}@database.example/valo?sslmode=require`,
+  };
+  let childEnvironment;
+  const runCommand = createScheduledCommandRunner({
+    environment,
+    spawnCommand: (_command, _arguments, options) => {
+      childEnvironment = options.env;
+      const child = new EventEmitter();
+      child.kill = () => {};
+      queueMicrotask(() => child.emit("exit", 0, null));
+      return child;
+    },
+  });
+
+  // @workspace/db performs this scrub when the API is imported, potentially
+  // hours before the scheduled command is due.
+  delete environment.DATABASE_URL;
+  delete environment.VALO_RUNTIME_DATABASE_URL;
+
+  const outcome = await runCommand({
+    command: "pnpm --filter @workspace/api-server run retention:scan",
+    timeoutSeconds: 10,
+  });
+
+  assert.equal(outcome.exitCode, 0);
+  assert.equal(
+    childEnvironment.DATABASE_URL,
+    "postgresql://database.example/valo?sslmode=require",
+  );
+  assert.equal(
+    childEnvironment.VALO_RUNTIME_DATABASE_URL,
+    `postgresql://valo_app_runtime:${runtimePassword}@database.example/valo?sslmode=require`,
+  );
+  assert.doesNotMatch(JSON.stringify(childEnvironment), /migration_owner/u);
+  assert.doesNotMatch(
+    JSON.stringify(childEnvironment),
+    new RegExp(ownerPassword, "u"),
+  );
 });

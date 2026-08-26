@@ -36,27 +36,144 @@ describe("server-permission action gates", () => {
     ["./pages/client-details.tsx", ["client:update", "project:create"]],
     [
       "./pages/project-tabs/delivery-studio-tab.tsx",
-      ["draft:write", "draft:review", "package:generate", "package:sign_off"],
+      [
+        "draft:write",
+        "document:read",
+        "evidence:read",
+        "draft:review",
+        "defect:write",
+        "defect:review",
+        "intelligence:review",
+        "package:generate",
+        "package:sign_off",
+      ],
     ],
-    ["./pages/portfolio-intelligence.tsx", ["analytics:read"]],
     [
-      "./pages/tender-context-route.tsx",
-      ["requirement:write", "intelligence:review"],
-    ],
-    [
-      "./components/intelligence/addendum-impact-centre.tsx",
-      ["intelligence:review", "project:update"],
+      "./pages/portfolio-intelligence.tsx",
+      [
+        "project:read",
+        "draft:read",
+        "defect:read",
+        "package:read",
+        "analytics:read",
+      ],
     ],
   ])("gates %s with the API permissions", (path, permissions) => {
     const content = source(path);
-    // Older surfaces gate per-permission hooks; the wave-1/3 surfaces derive
-    // capability flags from the effective permission set. Either mechanism
-    // binds the UI affordance to the server-side permission strings below.
-    expect(
-      content.includes("useOrganisationPermission") ||
-        content.includes("effectivePermissions"),
-    ).toBe(true);
-    for (const permission of permissions) expect(content).toContain(permission);
+    for (const permission of permissions) {
+      expect(content).toMatch(
+        new RegExp(
+          `useOrganisationPermission\\(\\s*"${permission}"\\s*,?\\s*\\)`,
+          "u",
+        ),
+      );
+    }
+  });
+
+  it("binds Delivery Studio reads to direct membership and every server-required grant", () => {
+    const content = source("./pages/project-tabs/delivery-studio-tab.tsx");
+    for (const permission of [
+      "project:read",
+      "draft:read",
+      "defect:read",
+      "package:read",
+    ]) {
+      expect(content).toContain(`"${permission}"`);
+    }
+    expect(content).toMatch(
+      /activeOrganisation\?\.accessSource === "membership"/u,
+    );
+    expect(content).toMatch(
+      /activeOrganisation\.membershipOrganisationId === activeOrganisation\.id/u,
+    );
+    expect(content).toMatch(
+      /DELIVERY_STUDIO_READ_PERMISSIONS\.every\(\(permission\) =>\s*effectivePermissions\.includes\(permission\)/u,
+    );
+    expect(content).toMatch(
+      /const actorName = meQuery\.data\?\.name\?\.trim\(\)/u,
+    );
+    expect(content).toMatch(
+      /actorName\.length >= 2 && actorName\.length <= 200/u,
+    );
+    expect(content).toMatch(
+      /enabled: canRequestStudio && projectId\.length > 0/u,
+    );
+    expect(content).toContain('title="Delivery Studio access required"');
+    expect(content).toContain('title="Named profile required"');
+  });
+
+  it("binds portfolio reads to the server's direct named-member scope", () => {
+    const content = source("./pages/portfolio-intelligence.tsx");
+    expect(content).toMatch(
+      /activeOrganisation\?\.accessSource === "membership"/u,
+    );
+    expect(content).toMatch(
+      /activeOrganisation\.membershipOrganisationId === activeOrganisation\.id/u,
+    );
+    expect(content).toMatch(
+      /const actorName = meQuery\.data\?\.name\?\.trim\(\)/u,
+    );
+    expect(content).toMatch(
+      /actorName\.length >= 2 && actorName\.length <= 200/u,
+    );
+    expect(content).toMatch(/enabled: canRequestPortfolio/u);
+    expect(content).toContain('title="Portfolio intelligence access required"');
+    expect(content).toContain('title="Named profile required"');
+  });
+
+  it("binds Tender Context reads and mutations to the complete capability set", () => {
+    const content = source("./pages/tender-context-route.tsx");
+    for (const permission of [
+      "project:read",
+      "document:read",
+      "requirement:read",
+      "evidence:read",
+      "rule_pack:read",
+    ]) {
+      expect(content).toContain(`"${permission}"`);
+    }
+    expect(content).toMatch(
+      /READ_PERMISSIONS\.every\(\(permission\) => permissions\.includes\(permission\)\)/,
+    );
+    expect(content).toMatch(
+      /canRead && isDirectMember && permissions\.includes\("requirement:write"\)/,
+    );
+    expect(content).toMatch(
+      /canRead && isDirectMember && permissions\.includes\("intelligence:review"\)/,
+    );
+  });
+
+  it("binds Addendum review and apply to the complete capability sets", () => {
+    const content = source(
+      "./components/intelligence/addendum-impact-centre.tsx",
+    );
+    for (const permission of [
+      "project:read",
+      "document:read",
+      "requirement:read",
+      "draft:read",
+      "package:read",
+      "report:read",
+    ]) {
+      expect(content).toContain(`"${permission}"`);
+    }
+    for (const permission of [
+      "project:update",
+      "requirement:review",
+      "package:generate",
+      "report:generate",
+    ]) {
+      expect(content).toContain(`"${permission}"`);
+    }
+    expect(content).toMatch(
+      /READ_PERMISSIONS\.every\(\(permission\) => permissions\.includes\(permission\)\)/,
+    );
+    expect(content).toMatch(
+      /canRead && directMembership && permissions\.includes\("intelligence:review"\)/,
+    );
+    expect(content).toMatch(
+      /APPLY_PERMISSIONS\.every\(\(permission\) => permissions\.includes\(permission\)\)/,
+    );
   });
 
   it("loads selected-tenant reviewer choices from membership permission, never legacy role", () => {

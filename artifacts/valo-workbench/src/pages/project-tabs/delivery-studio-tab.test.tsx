@@ -11,6 +11,13 @@ const refetch = vi.fn();
 const getStudio = vi.fn();
 const toast = vi.fn();
 
+const READ_PERMISSIONS = [
+  "project:read",
+  "draft:read",
+  "defect:read",
+  "package:read",
+];
+
 type TestFinding = {
   id: string;
   category: string;
@@ -40,6 +47,7 @@ type TestRehearsalReceipt = {
 
 const state = {
   permissions: [
+    ...READ_PERMISSIONS,
     "draft:write",
     "document:read",
     "evidence:read",
@@ -50,6 +58,9 @@ const state = {
     "package:generate",
     "package:sign_off",
   ],
+  accessSource: "membership" as "membership" | "partner",
+  actorName: "Delivery Reviewer",
+  meLoading: false,
   loading: false,
   pending: false,
   error: false,
@@ -76,10 +87,23 @@ vi.mock("@workspace/api-client-react", () => ({
     mutate,
     isPending: false,
   }),
-  useGetMe: () => ({ data: { id: ACTOR_ID } }),
+  useGetMe: () => ({
+    data: { id: ACTOR_ID, name: state.actorName },
+    isLoading: state.meLoading,
+    isPending: state.meLoading,
+  }),
 }));
 
 vi.mock("@/contexts/organisation-context", () => ({
+  useOrganisationAccess: () => ({
+    activeOrganisation: {
+      id: "organisation-1",
+      membershipOrganisationId: "organisation-1",
+      accessSource: state.accessSource,
+    },
+    effectivePermissions: state.permissions,
+    isLoading: false,
+  }),
   useOrganisationPermission: (permission: string) =>
     state.permissions.includes(permission),
 }));
@@ -218,6 +242,7 @@ function renderTab() {
 describe("DeliveryStudioTab", () => {
   beforeEach(() => {
     state.permissions = [
+      ...READ_PERMISSIONS,
       "draft:write",
       "document:read",
       "evidence:read",
@@ -228,6 +253,9 @@ describe("DeliveryStudioTab", () => {
       "package:generate",
       "package:sign_off",
     ];
+    state.accessSource = "membership";
+    state.actorName = "Delivery Reviewer";
+    state.meLoading = false;
     state.loading = false;
     state.pending = false;
     state.error = false;
@@ -271,7 +299,7 @@ describe("DeliveryStudioTab", () => {
   });
 
   it("keeps every mutation unavailable when the matching grants are absent", () => {
-    state.permissions = [];
+    state.permissions = [...READ_PERMISSIONS];
     renderTab();
 
     expect(
@@ -293,6 +321,61 @@ describe("DeliveryStudioTab", () => {
       screen.getByText(/does not include package:generate/i),
     ).toBeInTheDocument();
   });
+
+  it.each([
+    {
+      label: "partner access",
+      accessSource: "partner" as const,
+      permissions: [...READ_PERMISSIONS],
+    },
+    {
+      label: "narrow direct grants",
+      accessSource: "membership" as const,
+      permissions: READ_PERMISSIONS.filter(
+        (permission) => permission !== "package:read",
+      ),
+    },
+  ])(
+    "shows an access-required state without enabling the request for $label",
+    ({ accessSource, permissions }) => {
+      state.accessSource = accessSource;
+      state.permissions = permissions;
+      renderTab();
+
+      expect(
+        screen.getByRole("heading", {
+          name: "Delivery Studio access required",
+        }),
+      ).toBeInTheDocument();
+      expect(getStudio).toHaveBeenCalledWith(
+        PROJECT_ID,
+        expect.objectContaining({
+          query: expect.objectContaining({ enabled: false }),
+        }),
+      );
+      expect(
+        screen.queryByRole("button", { name: "Add response section" }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it.each(["", " ", "A", "A".repeat(201)])(
+    "does not request Delivery Studio for an invalid actor name %#",
+    (actorName) => {
+      state.actorName = actorName;
+      renderTab();
+
+      expect(
+        screen.getByRole("heading", { name: "Named profile required" }),
+      ).toBeInTheDocument();
+      expect(getStudio).toHaveBeenCalledWith(
+        PROJECT_ID,
+        expect.objectContaining({
+          query: expect.objectContaining({ enabled: false }),
+        }),
+      );
+    },
+  );
 
   it("requires an explicit classified claim before saving a response version", async () => {
     renderTab();

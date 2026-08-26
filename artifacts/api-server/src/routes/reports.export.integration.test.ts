@@ -17,6 +17,8 @@ import {
   pool,
   users,
   organisations,
+  organisationMemberships,
+  roleGrants,
   clients,
   projects,
   documents,
@@ -63,6 +65,11 @@ import {
   loadRedTeamApprovalAttestation,
 } from "../lib/deliveryStudio/drizzleRepository";
 
+const nodeRequire = createRequire(import.meta.url);
+const { ZipArchive } = nodeRequire("archiver") as {
+  ZipArchive: new (options?: ArchiverOptions) => Archiver;
+};
+
 /**
  * End-to-end proof that the real `GET /projects/:id/export` HTTP route can't
  * leak or corrupt findings. Unlike the unit tests in `reports.test.ts` (which
@@ -87,6 +94,8 @@ let projectId: string;
 let adminId: string;
 let generatorId: string;
 let organisationId: string;
+let adminMembershipId: string;
+let adminRoleGrantId: string;
 let signedReportId: string;
 let draftReportId: string;
 
@@ -98,6 +107,10 @@ const FAKE_DOCX_BYTES = Buffer.from(
   "utf8",
 );
 const unavailableObjectPaths = new Set<string>();
+let signedReportDownloadBarrier: {
+  entered: () => void;
+  release: Promise<void>;
+} | null = null;
 const seeded = {
   reqs: [] as { id: string; reviewStatus: string; expected: string }[],
   evidence: [] as { id: string; suggested: boolean; expected: string }[],
@@ -189,6 +202,52 @@ async function waitForAuditEventCount(
   );
 }
 
+const membershipAdministrationLockKey = () =>
+  `valo.membership-administration:${organisationId}`;
+
+async function waitingAdvisoryLockCount(): Promise<number> {
+  const result = await pool.query<{ count: number }>(
+    `
+      WITH target AS (
+        SELECT hashtextextended($1, 0)::bigint AS lock_key
+      )
+      SELECT count(*)::integer AS count
+      FROM pg_catalog.pg_locks AS held
+      CROSS JOIN target
+      WHERE held.locktype = 'advisory'
+        AND held.objsubid = 1
+        AND held.classid::bigint = ((target.lock_key >> 32) & 4294967295)
+        AND held.objid::bigint = (target.lock_key & 4294967295)
+        AND NOT held.granted
+    `,
+    [membershipAdministrationLockKey()],
+  );
+  return result.rows[0]?.count ?? 0;
+}
+
+async function waitForCondition(
+  condition: () => Promise<boolean>,
+  failureMessage: string,
+): Promise<void> {
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
+    if (await condition()) return;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  assert.fail(failureMessage);
+}
+
+function requestReportSignOff(): Promise<globalThis.Response> {
+  return fetch(`${baseUrl}/reports/${signedReportId}/sign-off`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      attestation:
+        "I reviewed the release evidence and approve this report for sign-off.",
+    }),
+  });
+}
+
 before(async () => {
   const stamp = new Date().toISOString();
   assert.equal(
@@ -233,6 +292,20 @@ before(async () => {
     })
     .returning();
   organisationId = organisation.id;
+
+  const [adminMembership] = await db
+    .insert(organisationMemberships)
+    .values({ organisationId, userId: adminId, status: "active" })
+    .returning();
+  adminMembershipId = adminMembership.id;
+  const [adminRoleGrant] = await db
+    .insert(roleGrants)
+    .values({
+      membershipId: adminMembershipId,
+      role: "client_organisation_owner",
+    })
+    .returning();
+  adminRoleGrantId = adminRoleGrant.id;
 
   const [client] = await db
     .insert(clients)
@@ -528,20 +601,16 @@ before(async () => {
     .returning();
   draftReportId = draft.id;
 
-  const signedOffAt = new Date();
   const [signed] = await db
     .insert(reports)
     .values({
       organisationId,
       projectId: project.id,
       version: 2,
-      status: "signed_off",
+      status: "draft",
       docxPath: "/objects/uploads/signed-report-v2",
       pdfPath: "/objects/uploads/signed-report-v2-pdf",
       generatedBy: generatorId,
-      reviewerId: adminId,
-      reviewerName: "Export Admin",
-      signedOffAt,
       engineVersion: ENGINE_VERSION,
       promptPackVersion: PROMPT_PACK_VERSION,
       modelId: MODEL_ID,
@@ -550,19 +619,7 @@ before(async () => {
     .returning();
   signedReportId = signed.id;
 
-  const [signedOffProject] = await db
-    .update(projects)
-    .set({
-      status: "signed_off",
-      concludedAt: signedOffAt,
-      version: sql`${projects.version} + 1`,
-      updatedAt: signedOffAt,
-    })
-    .where(eq(projects.id, project.id))
-    .returning();
-  assert.equal(signedOffProject?.status, "signed_off");
-
-  const signedOffSourceSnapshotHash = await withTenantDatabase(
+  const currentSourceSnapshotHash = await withTenantDatabase(
     organisationId,
     () =>
       computeCurrentDeliveryStudioSourceSnapshotHash(
@@ -570,7 +627,7 @@ before(async () => {
         project.id,
       ),
   );
-  assert.equal(signedOffSourceSnapshotHash, sourceSnapshotHash);
+  assert.equal(currentSourceSnapshotHash, sourceSnapshotHash);
 
   mock.method(
     ObjectStorageService.prototype,
@@ -578,6 +635,15 @@ before(async () => {
     async (objectPath: string) => {
       if (unavailableObjectPaths.has(objectPath)) {
         throw new Error("simulated unavailable governed report artefact");
+      }
+      if (
+        objectPath === "/objects/uploads/signed-report-v2" &&
+        signedReportDownloadBarrier
+      ) {
+        const barrier = signedReportDownloadBarrier;
+        signedReportDownloadBarrier = null;
+        barrier.entered();
+        await barrier.release;
       }
       return {
         download: async () => [FAKE_DOCX_BYTES],
@@ -597,7 +663,8 @@ before(async () => {
     if (role) {
       (req as Request & { accessContext?: AccessContext }).accessContext = {
         organisationId,
-        membershipId: currentUser!.id,
+        membershipId:
+          currentUser!.id === adminId ? adminMembershipId : currentUser!.id,
         membershipOrganisationId: organisationId,
         source: "membership",
         roles: [role],
@@ -658,6 +725,176 @@ after(async () => {
 });
 
 describe("GET /projects/:id/export (live route)", () => {
+  test("a concurrent grant revocation that commits first returns 403 without signing", async () => {
+    const revoker = await pool.connect();
+    let signOffRequest: Promise<globalThis.Response> | undefined;
+    try {
+      await revoker.query("BEGIN");
+      await revoker.query(
+        "SELECT valo_security.set_current_organisation_id($1::uuid)",
+        [organisationId],
+      );
+      await revoker.query(
+        "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+        [membershipAdministrationLockKey()],
+      );
+      const revoked = await revoker.query(
+        "UPDATE public.role_grants SET revoked_at = clock_timestamp(), revocation_reason = 'concurrency test' WHERE id = $1::uuid",
+        [adminRoleGrantId],
+      );
+      assert.equal(revoked.rowCount, 1);
+
+      const waitingBefore = await waitingAdvisoryLockCount();
+      currentUser = {
+        id: adminId,
+        role: "client_organisation_owner",
+        name: "Export Approver",
+      } as LocalUser;
+      signOffRequest = requestReportSignOff();
+      await waitForCondition(
+        async () => (await waitingAdvisoryLockCount()) > waitingBefore,
+        "sign-off did not wait behind the concurrent grant revocation",
+      );
+      await revoker.query("COMMIT");
+
+      const response = await signOffRequest;
+      assert.equal(response.status, 403);
+      assert.match(
+        ((await response.json()) as { error: string }).error,
+        /authority changed/i,
+      );
+      const [currentReport] = await db
+        .select({ status: reports.status })
+        .from(reports)
+        .where(eq(reports.id, signedReportId));
+      const [currentProject] = await db
+        .select({ status: projects.status })
+        .from(projects)
+        .where(eq(projects.id, projectId));
+      assert.equal(currentReport?.status, "draft");
+      assert.equal(currentProject?.status, "reporting");
+      assert.equal(
+        await matchingAuditEventCount("report.signed_off", signedReportId),
+        0,
+      );
+    } finally {
+      await revoker.query("ROLLBACK").catch(() => undefined);
+      if (signOffRequest) await signOffRequest.catch(() => undefined);
+      await db
+        .update(roleGrants)
+        .set({ revokedAt: null, revocationReason: null })
+        .where(eq(roleGrants.id, adminRoleGrantId));
+      currentUser = null;
+      revoker.release();
+    }
+  });
+
+  test("sign-off that holds authority first commits before membership revocation", async () => {
+    const projectBlocker = await pool.connect();
+    const revoker = await pool.connect();
+    const lockProbe = await pool.connect();
+    let signOffRequest: Promise<globalThis.Response> | undefined;
+    let revocationWork: Promise<void> | undefined;
+    try {
+      await projectBlocker.query("BEGIN");
+      await projectBlocker.query(
+        "SELECT valo_security.set_current_organisation_id($1::uuid)",
+        [organisationId],
+      );
+      const lockedProject = await projectBlocker.query(
+        "SELECT id FROM public.projects WHERE id = $1::uuid FOR UPDATE",
+        [projectId],
+      );
+      assert.equal(lockedProject.rowCount, 1);
+
+      currentUser = {
+        id: adminId,
+        role: "client_organisation_owner",
+        name: "Export Approver",
+      } as LocalUser;
+      signOffRequest = requestReportSignOff();
+
+      await waitForCondition(async () => {
+        const result = await lockProbe.query<{ acquired: boolean }>(
+          "SELECT pg_try_advisory_lock(hashtextextended($1, 0)) AS acquired",
+          [membershipAdministrationLockKey()],
+        );
+        if (!result.rows[0]?.acquired) return true;
+        await lockProbe.query(
+          "SELECT pg_advisory_unlock(hashtextextended($1, 0))",
+          [membershipAdministrationLockKey()],
+        );
+        return false;
+      }, "sign-off did not acquire the membership authority lock");
+
+      const waitingBefore = await waitingAdvisoryLockCount();
+      await revoker.query("BEGIN");
+      await revoker.query(
+        "SELECT valo_security.set_current_organisation_id($1::uuid)",
+        [organisationId],
+      );
+      revocationWork = (async () => {
+        await revoker.query(
+          "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+          [membershipAdministrationLockKey()],
+        );
+        const revoked = await revoker.query(
+          "UPDATE public.organisation_memberships SET status = 'suspended', version = version + 1, updated_at = clock_timestamp() WHERE id = $1::uuid",
+          [adminMembershipId],
+        );
+        assert.equal(revoked.rowCount, 1);
+        await revoker.query("COMMIT");
+      })();
+      void revocationWork.catch(() => undefined);
+      await waitForCondition(
+        async () => (await waitingAdvisoryLockCount()) > waitingBefore,
+        "membership revocation did not wait behind report sign-off",
+      );
+
+      await projectBlocker.query("COMMIT");
+      const response = await signOffRequest;
+      assert.equal(response.status, 200);
+      assert.equal(
+        ((await response.json()) as { status: string }).status,
+        "signed_off",
+      );
+      await revocationWork;
+
+      const [currentReport] = await db
+        .select({ status: reports.status })
+        .from(reports)
+        .where(eq(reports.id, signedReportId));
+      const [currentProject] = await db
+        .select({ status: projects.status })
+        .from(projects)
+        .where(eq(projects.id, projectId));
+      const [currentMembership] = await db
+        .select({ status: organisationMemberships.status })
+        .from(organisationMemberships)
+        .where(eq(organisationMemberships.id, adminMembershipId));
+      assert.equal(currentReport?.status, "signed_off");
+      assert.equal(currentProject?.status, "signed_off");
+      assert.equal(currentMembership?.status, "suspended");
+      assert.equal(
+        await matchingAuditEventCount("report.signed_off", signedReportId),
+        1,
+      );
+    } finally {
+      await projectBlocker.query("ROLLBACK").catch(() => undefined);
+      await revoker.query("ROLLBACK").catch(() => undefined);
+      if (signOffRequest) await signOffRequest.catch(() => undefined);
+      if (revocationWork) await revocationWork.catch(() => undefined);
+      await db
+        .update(organisationMemberships)
+        .set({ status: "active", updatedAt: new Date() })
+        .where(eq(organisationMemberships.id, adminMembershipId));
+      currentUser = null;
+      lockProbe.release();
+      revoker.release();
+      projectBlocker.release();
+    }
+  });
+
   test("members without report:export are denied", async () => {
     currentUser = { id: generatorId, role: "contributor" } as LocalUser;
     const res = await fetch(`${baseUrl}/projects/${projectId}/export`);
@@ -710,6 +947,85 @@ describe("GET /projects/:id/export (live route)", () => {
         await tx.delete(auditEvents).where(eq(auditEvents.projectId, gated.id));
       });
       await db.delete(projects).where(eq(projects.id, gated.id));
+      currentUser = null;
+    }
+  });
+
+  test("an NDA revocation during artefact preparation denies export before package evidence or ZIP bytes", async () => {
+    let markDownloadStarted!: () => void;
+    let releaseDownload!: () => void;
+    const downloadStarted = new Promise<void>((resolve) => {
+      markDownloadStarted = resolve;
+    });
+    const release = new Promise<void>((resolve) => {
+      releaseDownload = resolve;
+    });
+    signedReportDownloadBarrier = {
+      entered: markDownloadStarted,
+      release,
+    };
+    currentUser = {
+      id: adminId,
+      role: "client_organisation_owner",
+      name: "Export Approver",
+    } as LocalUser;
+
+    try {
+      const responsePromise = fetch(`${baseUrl}/projects/${projectId}/export`);
+      await Promise.race([
+        downloadStarted,
+        new Promise<never>((_resolve, reject) =>
+          setTimeout(
+            () => reject(new Error("export did not reach artefact download")),
+            10_000,
+          ),
+        ),
+      ]);
+
+      await db
+        .update(clients)
+        .set({
+          ndaStatus: "declined",
+          version: sql`${clients.version} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(clients.id, clientId));
+      releaseDownload();
+
+      const response = await responsePromise;
+      assert.equal(response.status, 409);
+      assert.deepEqual(await response.json(), {
+        error:
+          "Package export was denied because NDA approval changed. Refresh before retrying.",
+        blockers: [
+          {
+            code: "nda_missing",
+            message: "A current signed NDA is required for package export.",
+          },
+        ],
+      });
+
+      const projectPackages = await db
+        .select({ id: packages.id })
+        .from(packages)
+        .where(eq(packages.projectId, projectId));
+      assert.deepEqual(projectPackages, []);
+      const [unchangedProject] = await db
+        .select({ status: projects.status })
+        .from(projects)
+        .where(eq(projects.id, projectId));
+      assert.equal(unchangedProject?.status, "signed_off");
+    } finally {
+      releaseDownload();
+      signedReportDownloadBarrier = null;
+      await db
+        .update(clients)
+        .set({
+          ndaStatus: "signed",
+          version: sql`${clients.version} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(clients.id, clientId));
       currentUser = null;
     }
   });
@@ -824,6 +1140,62 @@ describe("GET /projects/:id/export (live route)", () => {
     assert.ok(events.some((e) => e.eventType === "project.exported"));
   });
 
+  test("archive assembly failure leaves no durable package/export evidence", async () => {
+    const packageVersionIds = async () =>
+      (
+        await db
+          .select({ id: packageVersions.id })
+          .from(packageVersions)
+          .innerJoin(packages, eq(packageVersions.packageId, packages.id))
+          .where(eq(packages.projectId, projectId))
+      )
+        .map((row) => row.id)
+        .sort();
+    const releaseEvidenceIds = async () =>
+      (
+        await db
+          .select({ id: auditEvents.id, eventType: auditEvents.eventType })
+          .from(auditEvents)
+          .where(eq(auditEvents.projectId, projectId))
+      )
+        .filter(
+          (event) =>
+            event.eventType === "project.exported" ||
+            event.eventType.startsWith("package.project_export_version_"),
+        )
+        .map((event) => event.id)
+        .sort();
+
+    const beforePackageVersions = await packageVersionIds();
+    const beforeReleaseEvidence = await releaseEvidenceIds();
+    const finalizeMock = mock.method(
+      ZipArchive.prototype,
+      "finalize",
+      async () => {
+        throw new Error("simulated archive assembly failure");
+      },
+    );
+    try {
+      currentUser = {
+        id: adminId,
+        role: "client_organisation_owner",
+        name: "Export Approver",
+      } as LocalUser;
+      const res = await fetch(`${baseUrl}/projects/${projectId}/export`);
+      assert.equal(res.status, 502);
+      assert.match(
+        ((await res.json()) as { error: string }).error,
+        /could not be assembled/i,
+      );
+
+      assert.deepEqual(await packageVersionIds(), beforePackageVersions);
+      assert.deepEqual(await releaseEvidenceIds(), beforeReleaseEvidence);
+    } finally {
+      finalizeMock.mock.restore();
+      currentUser = null;
+    }
+  });
+
   // Fetch the mandatory report before sending ZIP headers so storage failure
   // is a clean non-200 rather than a partial or corrupt successful download.
   test("an unavailable signed artefact fails closed before ZIP streaming", async () => {
@@ -850,85 +1222,6 @@ describe("GET /projects/:id/export (live route)", () => {
     } finally {
       unavailableObjectPaths.delete(objectPath);
       currentUser = null;
-    }
-  });
-});
-
-/**
- * The export streams the archive to the client with a 200 + zip headers already
- * flushed. If the archiver fails mid-stream, the status code can no longer be
- * changed — ending the response cleanly would hand the client a 200 with a
- * truncated, corrupt ZIP that *looks* successful. This test reproduces the
- * route's exact streaming/error wiring (`archive.pipe(res)` +
- * `archive.on("error", err => res.destroy(err))`) and forces a mid-stream
- * archive error, asserting the client detects the truncation (its body read
- * fails) rather than receiving a clean-but-corrupt download.
- */
-describe("mid-stream archive failure aborts the download", () => {
-  const nodeRequire = createRequire(import.meta.url);
-  const { ZipArchive } = nodeRequire("archiver") as {
-    ZipArchive: new (options?: ArchiverOptions) => Archiver;
-  };
-
-  test("client cannot read a complete body when the archive errors after headers are sent", async () => {
-    const srv = createServer((_req, res) => {
-      res.setHeader("Content-Type", "application/zip");
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename="project-export-abort.zip"`,
-      );
-      const archive = new ZipArchive({ zlib: { level: 9 } });
-      // Same failure handling as the real route: abort the connection so the
-      // client sees an incomplete download instead of a clean, corrupt 200.
-      archive.on("error", (err) => {
-        res.destroy(err as Error);
-      });
-      archive.pipe(res);
-      // Enough data to flush headers + partial body before we fail.
-      archive.append(Buffer.alloc(300_000, 65), { name: "data.bin" });
-      void archive.finalize();
-      setTimeout(
-        () => archive.emit("error", new Error("simulated mid-stream failure")),
-        2,
-      );
-    });
-
-    await new Promise<void>((resolve) => srv.listen(0, () => resolve()));
-    const { port } = srv.address() as AddressInfo;
-
-    try {
-      const res = await fetch(`http://127.0.0.1:${port}/`);
-      // Headers were already flushed, so the status looks like a success...
-      let bodyReadSucceeded = false;
-      let validZip = false;
-      try {
-        const buffer = Buffer.from(await res.arrayBuffer());
-        bodyReadSucceeded = true;
-        try {
-          await JSZip.loadAsync(buffer);
-          validZip = true;
-        } catch {
-          validZip = false;
-        }
-      } catch {
-        bodyReadSucceeded = false;
-      }
-
-      // ...but the client must NOT be able to read a complete body: the aborted
-      // connection surfaces as a read failure, so the truncation is detectable.
-      assert.equal(
-        bodyReadSucceeded,
-        false,
-        "client body read must fail on a mid-stream abort",
-      );
-      // And it certainly must never be handed a valid-looking, complete ZIP.
-      assert.equal(
-        validZip,
-        false,
-        "a mid-stream failure must never produce a valid ZIP",
-      );
-    } finally {
-      await new Promise<void>((resolve) => srv.close(() => resolve()));
     }
   });
 });

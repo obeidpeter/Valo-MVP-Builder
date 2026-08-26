@@ -8,9 +8,13 @@ import PortfolioIntelligence from "./portfolio-intelligence";
 
 const portfolioHook = vi.fn();
 const refetch = vi.fn();
+const ACTOR_ID = "99999999-9999-4999-8999-999999999999";
 
 const state = {
   canRead: true,
+  accessSource: "membership" as "membership" | "partner",
+  actorName: "Portfolio Reviewer",
+  meLoading: false,
   loading: false,
   pending: false,
   error: false,
@@ -30,9 +34,22 @@ vi.mock("@workspace/api-client-react", () => ({
       refetch,
     };
   },
+  useGetMe: () => ({
+    data: { id: ACTOR_ID, name: state.actorName },
+    isLoading: state.meLoading,
+    isPending: state.meLoading,
+  }),
 }));
 
 vi.mock("@/contexts/organisation-context", () => ({
+  useOrganisationAccess: () => ({
+    activeOrganisation: {
+      id: "organisation-1",
+      membershipOrganisationId: "organisation-1",
+      accessSource: state.accessSource,
+    },
+    isLoading: false,
+  }),
   useOrganisationPermission: (permission: string) =>
     new Set([
       "project:read",
@@ -115,6 +132,9 @@ describe("PortfolioIntelligence", () => {
   beforeEach(() => {
     Element.prototype.scrollIntoView ??= vi.fn();
     state.canRead = true;
+    state.accessSource = "membership";
+    state.actorName = "Portfolio Reviewer";
+    state.meLoading = false;
     state.loading = false;
     state.pending = false;
     state.error = false;
@@ -190,6 +210,39 @@ describe("PortfolioIntelligence", () => {
       }),
     );
   });
+
+  it("fails closed for partner access even when every read grant is present", () => {
+    state.accessSource = "partner";
+    renderPage();
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Portfolio intelligence access required",
+      }),
+    ).toBeInTheDocument();
+    expect(portfolioHook).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: expect.objectContaining({ enabled: false }),
+      }),
+    );
+  });
+
+  it.each(["", " ", "A", "A".repeat(201)])(
+    "does not request portfolio intelligence for an invalid actor name %#",
+    (actorName) => {
+      state.actorName = actorName;
+      renderPage();
+
+      expect(
+        screen.getByRole("heading", { name: "Named profile required" }),
+      ).toBeInTheDocument();
+      expect(portfolioHook).toHaveBeenCalledWith(
+        expect.objectContaining({
+          query: expect.objectContaining({ enabled: false }),
+        }),
+      );
+    },
+  );
 
   it("keeps empty portfolio and filtered-empty states explicit", async () => {
     const view = renderPage();

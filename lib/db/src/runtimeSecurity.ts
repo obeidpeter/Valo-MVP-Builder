@@ -152,6 +152,22 @@ type SpecialTenantTriggerProof = {
   when_clause: string | null;
 };
 
+export type DeliveryGuardTriggerProof = {
+  relation_schema: string;
+  table_name: string;
+  trigger_name: string;
+  trigger_enabled: string;
+  trigger_type: number;
+  update_columns: string;
+  trigger_args_hex: string;
+  when_clause: string | null;
+  is_internal: boolean;
+  function_schema: string;
+  function_name: string;
+  function_identity_arguments: string;
+  function_oid_matches: boolean;
+};
+
 export type TenantGuardFunctionProof = {
   function_name: string;
   language_name: string;
@@ -174,6 +190,14 @@ export type TenantGuardFunctionProof = {
   runtime_can_execute: boolean;
   public_can_execute?: boolean;
   function_source: string;
+};
+
+export type DeliveryGuardFunctionProof = TenantGuardFunctionProof & {
+  function_arguments: string;
+  argument_default_count: number;
+  owner_is_database_owner: boolean;
+  owner_is_security_owner: boolean;
+  execute_acl: string[];
 };
 
 type IntakeFunctionProof = TenantGuardFunctionProof & {
@@ -1090,15 +1114,96 @@ export function assertTenantGraphAttestation(input: {
   }
 }
 
+const DELIVERY_SOURCE_GUARD_TABLES = [
+  "boq_checks",
+  "claim_evidence_links",
+  "defects",
+  "document_version_snapshots",
+  "document_versions",
+  "documents",
+  "draft_claims",
+  "draft_versions",
+  "drafts",
+  "evidence_items",
+  "red_team_findings",
+  "red_team_runs",
+  "requirements",
+  "reviews",
+] as const;
+
+const EXPECTED_DELIVERY_GUARD_TRIGGERS = new Map<
+  string,
+  { functionName: string; triggerType: number }
+>([
+  ...DELIVERY_SOURCE_GUARD_TABLES.map(
+    (tableName) =>
+      [
+        `public.${tableName}.delivery_source_project_guard`,
+        {
+          functionName: "valo_guard_delivery_source_mutation",
+          // BEFORE ROW INSERT OR DELETE OR UPDATE.
+          triggerType: 31,
+        },
+      ] as const,
+  ),
+  [
+    "public.projects.delivery_project_delete_guard",
+    {
+      functionName: "valo_guard_delivery_project_delete",
+      // BEFORE ROW DELETE.
+      triggerType: 11,
+    },
+  ],
+]);
+
+export function assertDeliveryGuardTriggerAttestation(
+  triggerProofs: DeliveryGuardTriggerProof[],
+): void {
+  const actualTriggers = new Map(
+    triggerProofs.map((proof) => [
+      `${proof.relation_schema}.${proof.table_name}.${proof.trigger_name}`,
+      proof,
+    ]),
+  );
+  const malformedTrigger = [...EXPECTED_DELIVERY_GUARD_TRIGGERS].some(
+    ([triggerContract, expected]) => {
+      const actual = actualTriggers.get(triggerContract);
+      return (
+        !actual ||
+        actual.trigger_enabled !== "O" ||
+        actual.trigger_type !== expected.triggerType ||
+        actual.update_columns !== "" ||
+        actual.trigger_args_hex !== "" ||
+        actual.when_clause !== null ||
+        actual.is_internal ||
+        actual.function_schema !== "public" ||
+        actual.function_name !== expected.functionName ||
+        actual.function_identity_arguments !== "" ||
+        actual.function_oid_matches !== true
+      );
+    },
+  );
+  if (
+    triggerProofs.length !== EXPECTED_DELIVERY_GUARD_TRIGGERS.size ||
+    actualTriggers.size !== EXPECTED_DELIVERY_GUARD_TRIGGERS.size ||
+    malformedTrigger
+  ) {
+    throw new Error(
+      "production database delivery guard triggers are incomplete or drifted",
+    );
+  }
+}
+
 /**
  * The 0012 delivery-source release-boundary functions live in the public
  * schema (their trigger bodies call each other schema-qualified), so they sit
  * outside the valo_security function inventory. This map pins them
- * independently: exact catalog shape, normalized source, no PUBLIC execute,
- * and runtime execute only on the two helpers the SECURITY INVOKER trigger
- * bodies call as the mutating role (0013 grants). The two trigger entry
- * points stay owner-only — trigger EXECUTE is checked at CREATE TRIGGER time,
- * never at fire time.
+ * independently: exact catalog shape, normalized source, ownership shared by
+ * the database owner and pinned security-function owner, and a canonical ACL
+ * with runtime execute only on the two helpers the SECURITY INVOKER trigger
+ * bodies call as the mutating role (0013 grants). The two trigger entry points
+ * stay owner-only — trigger EXECUTE is checked at CREATE TRIGGER time, never
+ * at fire time.
  */
 const EXPECTED_DELIVERY_GUARD_FUNCTIONS = new Map<
   string,
@@ -1108,6 +1213,8 @@ const EXPECTED_DELIVERY_GUARD_FUNCTIONS = new Map<
     argumentCount: number;
     argumentTypes: string;
     identityArguments: string;
+    functionArguments: string;
+    argumentDefaultCount: number;
     returnType: string;
     functionResult: string;
     runtimeCanExecute: boolean;
@@ -1123,6 +1230,9 @@ const EXPECTED_DELIVERY_GUARD_FUNCTIONS = new Map<
       argumentTypes: "uuid,boolean",
       identityArguments:
         "source_project_id uuid, allow_terminal_delete boolean",
+      functionArguments:
+        "source_project_id uuid, allow_terminal_delete boolean DEFAULT false",
+      argumentDefaultCount: 1,
       returnType: "void",
       functionResult: "void",
       runtimeCanExecute: true,
@@ -1138,6 +1248,8 @@ const EXPECTED_DELIVERY_GUARD_FUNCTIONS = new Map<
       argumentCount: 2,
       argumentTypes: "name,jsonb",
       identityArguments: "source_table name, source_row jsonb",
+      functionArguments: "source_table name, source_row jsonb",
+      argumentDefaultCount: 0,
       returnType: "uuid",
       functionResult: "uuid",
       runtimeCanExecute: true,
@@ -1153,6 +1265,8 @@ const EXPECTED_DELIVERY_GUARD_FUNCTIONS = new Map<
       argumentCount: 0,
       argumentTypes: "",
       identityArguments: "",
+      functionArguments: "",
+      argumentDefaultCount: 0,
       returnType: "trigger",
       functionResult: "trigger",
       runtimeCanExecute: false,
@@ -1168,6 +1282,8 @@ const EXPECTED_DELIVERY_GUARD_FUNCTIONS = new Map<
       argumentCount: 0,
       argumentTypes: "",
       identityArguments: "",
+      functionArguments: "",
+      argumentDefaultCount: 0,
       returnType: "trigger",
       functionResult: "trigger",
       runtimeCanExecute: false,
@@ -1178,7 +1294,7 @@ const EXPECTED_DELIVERY_GUARD_FUNCTIONS = new Map<
 ]);
 
 export function assertDeliveryGuardFunctionAttestation(
-  functionProofs: TenantGuardFunctionProof[],
+  functionProofs: DeliveryGuardFunctionProof[],
 ): void {
   const actualFunctions = new Map(
     functionProofs.map((proof) => [proof.function_name, proof]),
@@ -1186,6 +1302,12 @@ export function assertDeliveryGuardFunctionAttestation(
   const malformedFunction = [...EXPECTED_DELIVERY_GUARD_FUNCTIONS].some(
     ([functionName, expected]) => {
       const actual = actualFunctions.get(functionName);
+      const expectedExecuteAcl = [
+        "$OWNER>$OWNER:EXECUTE:false",
+        ...(expected.runtimeCanExecute
+          ? ["$OWNER>$ROLE:valo_app_runtime:EXECUTE:false"]
+          : []),
+      ].sort();
       return (
         !actual ||
         actual.language_name !== "plpgsql" ||
@@ -1200,12 +1322,20 @@ export function assertDeliveryGuardFunctionAttestation(
         actual.argument_count !== expected.argumentCount ||
         actual.argument_types !== expected.argumentTypes ||
         actual.identity_arguments !== expected.identityArguments ||
+        actual.function_arguments !== expected.functionArguments ||
+        actual.argument_default_count !== expected.argumentDefaultCount ||
         actual.return_type !== expected.returnType ||
         actual.function_result !== expected.functionResult ||
         actual.returns_set ||
         actual.owner_name === "valo_app_runtime" ||
+        actual.owner_is_database_owner !== true ||
+        actual.owner_is_security_owner !== true ||
         actual.public_can_execute !== false ||
         actual.runtime_can_execute !== expected.runtimeCanExecute ||
+        actual.execute_acl.length !== expectedExecuteAcl.length ||
+        [...actual.execute_acl]
+          .sort()
+          .some((grant, index) => grant !== expectedExecuteAcl[index]) ||
         normalizedFunctionSourceSha256(actual.function_source) !==
           expected.sourceSha256
       );
@@ -2222,6 +2352,56 @@ export async function assertProductionRuntimeDatabaseSafety(
         AND NOT guard.tgisinternal
       ORDER BY trigger_contract
     `);
+    const deliveryGuardTriggerProofs =
+      await client.query<DeliveryGuardTriggerProof>(`
+      SELECT relation_namespace.nspname::text AS relation_schema,
+        relation.relname::text AS table_name,
+        guard.tgname::text AS trigger_name,
+        guard.tgenabled::text AS trigger_enabled,
+        guard.tgtype::integer AS trigger_type,
+        COALESCE((
+          SELECT pg_catalog.string_agg(
+            attribute.attname,',' ORDER BY selected.ordinality
+          )
+          FROM pg_catalog.unnest(guard.tgattr::smallint[]) WITH ORDINALITY
+            AS selected(attnum,ordinality)
+          JOIN pg_catalog.pg_attribute AS attribute
+            ON attribute.attrelid=guard.tgrelid
+           AND attribute.attnum=selected.attnum
+        ),'') AS update_columns,
+        pg_catalog.encode(guard.tgargs,'hex') AS trigger_args_hex,
+        pg_catalog.pg_get_expr(guard.tgqual,guard.tgrelid,false)
+          AS when_clause,
+        guard.tgisinternal AS is_internal,
+        function_namespace.nspname::text AS function_schema,
+        guard_function.proname::text AS function_name,
+        pg_catalog.pg_get_function_identity_arguments(guard_function.oid)
+          AS function_identity_arguments,
+        guard.tgfoid=(CASE
+          WHEN guard.tgname='delivery_project_delete_guard'
+            THEN pg_catalog.to_regprocedure(
+              'public.valo_guard_delivery_project_delete()'
+            )
+          WHEN guard.tgname='delivery_source_project_guard'
+            THEN pg_catalog.to_regprocedure(
+              'public.valo_guard_delivery_source_mutation()'
+            )
+          ELSE NULL
+        END) AS function_oid_matches
+      FROM pg_catalog.pg_trigger AS guard
+      JOIN pg_catalog.pg_class AS relation ON relation.oid=guard.tgrelid
+      JOIN pg_catalog.pg_namespace AS relation_namespace
+        ON relation_namespace.oid=relation.relnamespace
+      JOIN pg_catalog.pg_proc AS guard_function ON guard_function.oid=guard.tgfoid
+      JOIN pg_catalog.pg_namespace AS function_namespace
+        ON function_namespace.oid=guard_function.pronamespace
+      WHERE relation_namespace.nspname='public'
+        AND guard.tgname IN (
+          'delivery_project_delete_guard',
+          'delivery_source_project_guard'
+        )
+      ORDER BY relation_schema,table_name,trigger_name
+    `);
     const functionProofs = await client.query<TenantGuardFunctionProof>(`
       SELECT guard_function.proname::text AS function_name,
         language.lanname::text AS language_name,
@@ -2293,7 +2473,7 @@ export async function assertProductionRuntimeDatabaseSafety(
       ORDER BY function_name
     `);
     const deliveryGuardFunctionProofs =
-      await client.query<TenantGuardFunctionProof>(`
+      await client.query<DeliveryGuardFunctionProof>(`
       SELECT guard_function.proname::text AS function_name,
         language.lanname::text AS language_name,
         guard_function.prokind::text AS function_kind,
@@ -2317,10 +2497,26 @@ export async function assertProductionRuntimeDatabaseSafety(
         ), '') AS argument_types,
         pg_catalog.pg_get_function_identity_arguments(guard_function.oid)
           AS identity_arguments,
+        pg_catalog.pg_get_function_arguments(guard_function.oid)
+          AS function_arguments,
+        guard_function.pronargdefaults::integer AS argument_default_count,
         pg_catalog.format_type(guard_function.prorettype,NULL) AS return_type,
         pg_catalog.pg_get_function_result(guard_function.oid) AS function_result,
         guard_function.proretset AS returns_set,
         pg_catalog.pg_get_userbyid(guard_function.proowner) AS owner_name,
+        guard_function.proowner=(
+          SELECT database_record.datdba
+          FROM pg_catalog.pg_database AS database_record
+          WHERE database_record.datname=pg_catalog.current_database()
+        ) AS owner_is_database_owner,
+        guard_function.proowner=(
+          SELECT retention_purge.proowner
+          FROM pg_catalog.pg_proc AS retention_purge
+          WHERE retention_purge.oid=pg_catalog.to_regprocedure(
+            'valo_security.purge_retention_project(uuid,uuid,uuid,uuid,text,integer)'
+          )
+            AND retention_purge.prosecdef
+        ) AS owner_is_security_owner,
         pg_catalog.has_function_privilege(
           current_user,guard_function.oid,'EXECUTE'
         ) AS runtime_can_execute,
@@ -2335,6 +2531,32 @@ export async function assertProductionRuntimeDatabaseSafety(
           WHERE function_acl.grantee=0
             AND function_acl.privilege_type='EXECUTE'
         ) AS public_can_execute,
+        ARRAY(
+          SELECT pg_catalog.format(
+            '%s>%s:%s:%s',
+            CASE
+              WHEN function_acl.grantor=guard_function.proowner THEN '$OWNER'
+              ELSE '$ROLE:' ||
+                pg_catalog.pg_get_userbyid(function_acl.grantor)
+            END,
+            CASE
+              WHEN function_acl.grantee=0 THEN '$PUBLIC'
+              WHEN function_acl.grantee=guard_function.proowner THEN '$OWNER'
+              ELSE '$ROLE:' ||
+                pg_catalog.pg_get_userbyid(function_acl.grantee)
+            END,
+            function_acl.privilege_type,
+            function_acl.is_grantable
+          )
+          FROM pg_catalog.aclexplode(
+            COALESCE(
+              guard_function.proacl,
+              pg_catalog.acldefault('f',guard_function.proowner)
+            )
+          ) AS function_acl
+          ORDER BY function_acl.grantor,function_acl.grantee,
+            function_acl.privilege_type,function_acl.is_grantable
+        ) AS execute_acl,
         guard_function.prosrc AS function_source
       FROM pg_catalog.pg_proc AS guard_function
       JOIN pg_catalog.pg_namespace AS function_namespace
@@ -2456,6 +2678,7 @@ export async function assertProductionRuntimeDatabaseSafety(
       immutableArchiveExceptions: graph?.immutable_archive_exceptions ?? -1,
       tenantParentTriggerCount: graph?.tenant_parent_trigger_count ?? -1,
     });
+    assertDeliveryGuardTriggerAttestation(deliveryGuardTriggerProofs.rows);
     assertDeliveryGuardFunctionAttestation(deliveryGuardFunctionProofs.rows);
     assertIntakeFunctionAttestation(intakeFunctionProofs.rows);
     assertAuthenticatedRateLimitFunctionAttestation(

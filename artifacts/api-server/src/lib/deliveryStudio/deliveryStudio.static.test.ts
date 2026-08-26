@@ -115,6 +115,19 @@ test("red-team approval and package assembly remain bound to current state", () 
 });
 
 test("rehearsal exact-binds package files and authoritative server sources", () => {
+  assert.match(
+    repository,
+    /import \{ UUID_PATTERN \} from "\.\.\/identifierPatterns"/u,
+  );
+  assert.match(
+    repository,
+    /\.filter\(\(versionId\) => UUID_PATTERN\.test\(versionId\)\)/u,
+  );
+  assert.match(
+    repository,
+    /!UUID_PATTERN\.test\(source\.sourceId\)[\s\S]*!UUID_PATTERN\.test\(source\.versionId\)/u,
+  );
+  assert.doesNotMatch(repository, /const UUID\s*=/u);
   assert.match(repository, /version\.packageType\s*!==\s*"submission"/u);
   assert.match(
     repository,
