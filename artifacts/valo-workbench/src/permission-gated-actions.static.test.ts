@@ -34,9 +34,28 @@ describe("server-permission action gates", () => {
     ],
     ["./pages/project-tabs/risk-tab.tsx", ["defect:review"]],
     ["./pages/client-details.tsx", ["client:update", "project:create"]],
+    [
+      "./pages/project-tabs/delivery-studio-tab.tsx",
+      ["draft:write", "draft:review", "package:generate", "package:sign_off"],
+    ],
+    ["./pages/portfolio-intelligence.tsx", ["analytics:read"]],
+    [
+      "./pages/tender-context-route.tsx",
+      ["requirement:write", "intelligence:review"],
+    ],
+    [
+      "./components/intelligence/addendum-impact-centre.tsx",
+      ["intelligence:review", "project:update"],
+    ],
   ])("gates %s with the API permissions", (path, permissions) => {
     const content = source(path);
-    expect(content).toContain("useOrganisationPermission");
+    // Older surfaces gate per-permission hooks; the wave-1/3 surfaces derive
+    // capability flags from the effective permission set. Either mechanism
+    // binds the UI affordance to the server-side permission strings below.
+    expect(
+      content.includes("useOrganisationPermission") ||
+        content.includes("effectivePermissions"),
+    ).toBe(true);
     for (const permission of permissions) expect(content).toContain(permission);
   });
 
@@ -54,6 +73,18 @@ describe("server-permission action gates", () => {
     expect(content).toContain('organisation_settings: "membership:manage"');
     expect(content).toMatch(
       /href: "\/organisation-settings"[\s\S]*?requiredPermission: "membership:manage"/,
+    );
+  });
+
+  it("gates the dashboard area on analytics:read at the area level", () => {
+    const content = source("./lib/platform-access.ts");
+    // The /app nav item deliberately carries no per-item requiredPermission:
+    // navigationForRole already routes every item through the area decision,
+    // and this area-level entry is the single authoritative dashboard gate
+    // for both the nav link and the route.
+    expect(content).toContain('workbench: "analytics:read"');
+    expect(content).toMatch(
+      /const requiredPermission = AREA_REQUIRED_PERMISSION\[area\];/,
     );
   });
 

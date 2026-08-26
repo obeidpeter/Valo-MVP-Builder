@@ -83,17 +83,18 @@ lineage and has completed the reviewed bridge, adopting the exact
 `0000`-`0002` journal. Do not replay the bridge or baseline, run
 `drizzle-kit push`, or accept a publish schema diff. The only automated
 production DDL path is the source-controlled `migration:replit:intake` launcher:
-it is restricted to Replit production, pins all twelve migration files, and
+it is restricted to Replit production, pins all fourteen migration files, and
 accepts only exact `0000`-`0002`, `0000`-`0005`, `0000`-`0006`,
-`0000`-`0007`, `0000`-`0008`, `0000`-`0009`, `0000`-`0010`, or
-`0000`-`0011` journal prefixes. The three-row baseline requires the intake
-schema to be absent and applies `0003`-`0011`; the six- through eleven-row
-upgrade states apply only their respective missing suffix (`0006`-`0011`
-through `0011`); and the twelve-row state is current.
+`0000`-`0007`, `0000`-`0008`, `0000`-`0009`, `0000`-`0010`,
+`0000`-`0011`, `0000`-`0012`, or
+`0000`-`0013` journal prefixes. The three-row baseline requires the intake
+schema to be absent and applies `0003`-`0013`; the six- through thirteen-row
+upgrade states apply only their respective missing suffix (`0006`-`0013`
+through `0013`); and the fourteen-row state is current.
 Every upgrade state requires the intake schema to be present.
 The
 launcher validates separate same-target owner/runtime URLs, holds a fixed
-advisory lock across migration, and verifies the exact twelve-row journal and
+advisory lock across migration, and verifies the exact fourteen-row journal and
 intake object catalog before allowing API startup. The effective API
 artifact and legacy `.replit` run path both invoke
 `scripts/start-replit-production.mjs`; this same-process wrapper awaits that

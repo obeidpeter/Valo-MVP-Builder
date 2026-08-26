@@ -1090,6 +1090,138 @@ export function assertTenantGraphAttestation(input: {
   }
 }
 
+/**
+ * The 0012 delivery-source release-boundary functions live in the public
+ * schema (their trigger bodies call each other schema-qualified), so they sit
+ * outside the valo_security function inventory. This map pins them
+ * independently: exact catalog shape, normalized source, no PUBLIC execute,
+ * and runtime execute only on the two helpers the SECURITY INVOKER trigger
+ * bodies call as the mutating role (0013 grants). The two trigger entry
+ * points stay owner-only — trigger EXECUTE is checked at CREATE TRIGGER time,
+ * never at fire time.
+ */
+const EXPECTED_DELIVERY_GUARD_FUNCTIONS = new Map<
+  string,
+  {
+    volatility: "i" | "s" | "v";
+    returnsTrigger: boolean;
+    argumentCount: number;
+    argumentTypes: string;
+    identityArguments: string;
+    returnType: string;
+    functionResult: string;
+    runtimeCanExecute: boolean;
+    sourceSha256: string;
+  }
+>([
+  [
+    "valo_assert_delivery_project_mutable",
+    {
+      volatility: "v",
+      returnsTrigger: false,
+      argumentCount: 2,
+      argumentTypes: "uuid,boolean",
+      identityArguments:
+        "source_project_id uuid, allow_terminal_delete boolean",
+      returnType: "void",
+      functionResult: "void",
+      runtimeCanExecute: true,
+      sourceSha256:
+        "801194e9255d427a046c45b2fb19f8c2e614c2741f17bb916260aab21d845a03",
+    },
+  ],
+  [
+    "valo_delivery_source_project_id",
+    {
+      volatility: "s",
+      returnsTrigger: false,
+      argumentCount: 2,
+      argumentTypes: "name,jsonb",
+      identityArguments: "source_table name, source_row jsonb",
+      returnType: "uuid",
+      functionResult: "uuid",
+      runtimeCanExecute: true,
+      sourceSha256:
+        "55426212117c41dadee7bdcd167e42540b14232fe1082b31078d8ea12899e718",
+    },
+  ],
+  [
+    "valo_guard_delivery_project_delete",
+    {
+      volatility: "v",
+      returnsTrigger: true,
+      argumentCount: 0,
+      argumentTypes: "",
+      identityArguments: "",
+      returnType: "trigger",
+      functionResult: "trigger",
+      runtimeCanExecute: false,
+      sourceSha256:
+        "a8767b19436393b9ce44077499a16f6899b4400d3b69757dd997b12c49a24b79",
+    },
+  ],
+  [
+    "valo_guard_delivery_source_mutation",
+    {
+      volatility: "v",
+      returnsTrigger: true,
+      argumentCount: 0,
+      argumentTypes: "",
+      identityArguments: "",
+      returnType: "trigger",
+      functionResult: "trigger",
+      runtimeCanExecute: false,
+      sourceSha256:
+        "ac6770b6382e6f74a793d8901dde97f6a0a7212e75b600ade35ab3a61415d6eb",
+    },
+  ],
+]);
+
+export function assertDeliveryGuardFunctionAttestation(
+  functionProofs: TenantGuardFunctionProof[],
+): void {
+  const actualFunctions = new Map(
+    functionProofs.map((proof) => [proof.function_name, proof]),
+  );
+  const malformedFunction = [...EXPECTED_DELIVERY_GUARD_FUNCTIONS].some(
+    ([functionName, expected]) => {
+      const actual = actualFunctions.get(functionName);
+      return (
+        !actual ||
+        actual.language_name !== "plpgsql" ||
+        actual.function_kind !== "f" ||
+        actual.security_definer ||
+        actual.leakproof ||
+        actual.strict ||
+        actual.volatility !== expected.volatility ||
+        actual.parallel_safety !== "u" ||
+        actual.function_config !== "search_path=pg_catalog, public" ||
+        actual.returns_trigger !== expected.returnsTrigger ||
+        actual.argument_count !== expected.argumentCount ||
+        actual.argument_types !== expected.argumentTypes ||
+        actual.identity_arguments !== expected.identityArguments ||
+        actual.return_type !== expected.returnType ||
+        actual.function_result !== expected.functionResult ||
+        actual.returns_set ||
+        actual.owner_name === "valo_app_runtime" ||
+        actual.public_can_execute !== false ||
+        actual.runtime_can_execute !== expected.runtimeCanExecute ||
+        normalizedFunctionSourceSha256(actual.function_source) !==
+          expected.sourceSha256
+      );
+    },
+  );
+  if (
+    functionProofs.length !== EXPECTED_DELIVERY_GUARD_FUNCTIONS.size ||
+    actualFunctions.size !== EXPECTED_DELIVERY_GUARD_FUNCTIONS.size ||
+    malformedFunction
+  ) {
+    throw new Error(
+      "production database delivery guard functions are semantically drifted",
+    );
+  }
+}
+
 export function assertIntakeFunctionAttestation(
   functionProofs: IntakeFunctionProof[],
 ): void {
@@ -2160,6 +2292,64 @@ export async function assertProductionRuntimeDatabaseSafety(
         )
       ORDER BY function_name
     `);
+    const deliveryGuardFunctionProofs =
+      await client.query<TenantGuardFunctionProof>(`
+      SELECT guard_function.proname::text AS function_name,
+        language.lanname::text AS language_name,
+        guard_function.prokind::text AS function_kind,
+        guard_function.prosecdef AS security_definer,
+        guard_function.proleakproof AS leakproof,
+        guard_function.proisstrict AS strict,
+        guard_function.provolatile::text AS volatility,
+        guard_function.proparallel::text AS parallel_safety,
+        COALESCE(pg_catalog.array_to_string(guard_function.proconfig,','),'')
+          AS function_config,
+        guard_function.prorettype='pg_catalog.trigger'::pg_catalog.regtype
+          AS returns_trigger,
+        guard_function.pronargs::integer AS argument_count,
+        COALESCE((
+          SELECT pg_catalog.string_agg(
+            pg_catalog.format_type(argument_type.type_oid,NULL),
+            ',' ORDER BY argument_type.ordinality
+          )
+          FROM pg_catalog.unnest(guard_function.proargtypes::oid[])
+            WITH ORDINALITY AS argument_type(type_oid,ordinality)
+        ), '') AS argument_types,
+        pg_catalog.pg_get_function_identity_arguments(guard_function.oid)
+          AS identity_arguments,
+        pg_catalog.format_type(guard_function.prorettype,NULL) AS return_type,
+        pg_catalog.pg_get_function_result(guard_function.oid) AS function_result,
+        guard_function.proretset AS returns_set,
+        pg_catalog.pg_get_userbyid(guard_function.proowner) AS owner_name,
+        pg_catalog.has_function_privilege(
+          current_user,guard_function.oid,'EXECUTE'
+        ) AS runtime_can_execute,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.aclexplode(
+            COALESCE(
+              guard_function.proacl,
+              pg_catalog.acldefault('f',guard_function.proowner)
+            )
+          ) AS function_acl
+          WHERE function_acl.grantee=0
+            AND function_acl.privilege_type='EXECUTE'
+        ) AS public_can_execute,
+        guard_function.prosrc AS function_source
+      FROM pg_catalog.pg_proc AS guard_function
+      JOIN pg_catalog.pg_namespace AS function_namespace
+        ON function_namespace.oid=guard_function.pronamespace
+      JOIN pg_catalog.pg_language AS language
+        ON language.oid=guard_function.prolang
+      WHERE function_namespace.nspname='public'
+        AND guard_function.proname IN (
+          'valo_assert_delivery_project_mutable',
+          'valo_delivery_source_project_id',
+          'valo_guard_delivery_project_delete',
+          'valo_guard_delivery_source_mutation'
+        )
+      ORDER BY function_name
+    `);
     const intakeFunctionProofs = await client.query<IntakeFunctionProof>(`
       SELECT intake_function.proname::text AS function_name,
         language.lanname::text AS language_name,
@@ -2266,6 +2456,7 @@ export async function assertProductionRuntimeDatabaseSafety(
       immutableArchiveExceptions: graph?.immutable_archive_exceptions ?? -1,
       tenantParentTriggerCount: graph?.tenant_parent_trigger_count ?? -1,
     });
+    assertDeliveryGuardFunctionAttestation(deliveryGuardFunctionProofs.rows);
     assertIntakeFunctionAttestation(intakeFunctionProofs.rows);
     assertAuthenticatedRateLimitFunctionAttestation(
       authenticatedRateLimitFunctionProofs.rows,
