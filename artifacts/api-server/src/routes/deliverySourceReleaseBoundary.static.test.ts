@@ -9,6 +9,17 @@ const migration = readFileSync(
   ),
   "utf8",
 ).replaceAll("\r\n", "\n");
+const leastPrivilegeMigration = readFileSync(
+  new URL(
+    "../../../../lib/db/migrations/0013_delivery_guard_least_privilege.sql",
+    import.meta.url,
+  ),
+  "utf8",
+).replaceAll("\r\n", "\n");
+const runtimeSecuritySource = readFileSync(
+  new URL("../../../../lib/db/src/runtimeSecurity.ts", import.meta.url),
+  "utf8",
+);
 
 test("every exact-source table shares the terminal-project release lock", () => {
   for (const table of [
@@ -79,4 +90,70 @@ test("project deletion is reserved for the governed retention purge owner", () =
     4,
   );
   assert.equal([...migration.matchAll(/CREATE TRIGGER /gu)].length, 15);
+});
+
+test("the guard functions carry the 0013 least-privilege posture", () => {
+  for (const signature of [
+    "public.valo_delivery_source_project_id(name, jsonb)",
+    "public.valo_assert_delivery_project_mutable(uuid, boolean)",
+    "public.valo_guard_delivery_project_delete()",
+    "public.valo_guard_delivery_source_mutation()",
+  ]) {
+    assert.match(
+      leastPrivilegeMigration,
+      new RegExp(
+        `REVOKE ALL ON FUNCTION\\s+${signature
+          .replaceAll(".", "\\.")
+          .replaceAll("(", "\\(")
+          .replaceAll(")", "\\)")}\\s+FROM PUBLIC`,
+        "u",
+      ),
+      `${signature} must lose the default PUBLIC execute grant`,
+    );
+  }
+  // The SECURITY INVOKER trigger bodies call these two helpers as the
+  // mutating role, so only they are granted back to the runtime; the two
+  // trigger entry points stay owner-only.
+  assert.match(
+    leastPrivilegeMigration,
+    /GRANT EXECUTE\s+ON FUNCTION public\.valo_delivery_source_project_id\(name, jsonb\)\s+TO valo_app_runtime/u,
+  );
+  assert.match(
+    leastPrivilegeMigration,
+    /GRANT EXECUTE\s+ON FUNCTION public\.valo_assert_delivery_project_mutable\(uuid, boolean\)\s+TO valo_app_runtime/u,
+  );
+  assert.match(
+    leastPrivilegeMigration,
+    /REVOKE EXECUTE\s+ON FUNCTION public\.valo_guard_delivery_project_delete\(\)\s+FROM valo_app_runtime/u,
+  );
+  assert.match(
+    leastPrivilegeMigration,
+    /REVOKE EXECUTE\s+ON FUNCTION public\.valo_guard_delivery_source_mutation\(\)\s+FROM valo_app_runtime/u,
+  );
+  assert.doesNotMatch(
+    leastPrivilegeMigration,
+    /GRANT EXECUTE[\s\S]{0,120}valo_guard_delivery/u,
+    "trigger entry points must never be granted to the runtime role",
+  );
+});
+
+test("startup attestation pins the guard functions independently", () => {
+  assert.match(
+    runtimeSecuritySource,
+    /EXPECTED_DELIVERY_GUARD_FUNCTIONS/u,
+    "the delivery guard functions must have their own pinned inventory",
+  );
+  assert.match(
+    runtimeSecuritySource,
+    /assertDeliveryGuardFunctionAttestation\(deliveryGuardFunctionProofs\.rows\)/u,
+    "the delivery guard attestation must run inside the startup proof",
+  );
+  for (const functionName of [
+    "valo_assert_delivery_project_mutable",
+    "valo_delivery_source_project_id",
+    "valo_guard_delivery_project_delete",
+    "valo_guard_delivery_source_mutation",
+  ]) {
+    assert.match(runtimeSecuritySource, new RegExp(functionName, "u"));
+  }
 });

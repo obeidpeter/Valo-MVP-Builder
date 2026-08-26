@@ -92,6 +92,13 @@
       "when": 1787558400000,
       "tag": "0012_delivery_source_release_boundary",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1787644800000,
+      "tag": "0013_delivery_guard_least_privilege",
+      "breakpoints": true
     }
   ]
 }

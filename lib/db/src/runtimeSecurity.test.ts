@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, test } from "node:test";
 import {
   assertAuthenticatedRateLimitFunctionAttestation,
+  assertDeliveryGuardFunctionAttestation,
   assertIntakeFunctionAttestation,
   assertTenantGraphAttestation,
   assertRuntimePolicyAttestation,
@@ -890,6 +891,142 @@ describe("production tenant graph attestation", () => {
           tenantParentTriggerCount: 118,
         }),
       /guard functions are semantically drifted/,
+    );
+  });
+});
+
+function deliveryGuardFunctionProofs() {
+  return [
+    ["valo_assert_delivery_project_mutable", "v", false, true],
+    ["valo_delivery_source_project_id", "s", false, true],
+    ["valo_guard_delivery_project_delete", "v", true, false],
+    ["valo_guard_delivery_source_mutation", "v", true, false],
+  ].map(([functionName, volatility, returnsTrigger, runtimeCanExecute]) => {
+    const definitionStart = deliverySourceReleaseBoundaryMigration.indexOf(
+      `CREATE OR REPLACE FUNCTION public.${functionName as string}`,
+    );
+    const sourceStart = deliverySourceReleaseBoundaryMigration.indexOf(
+      "AS $$",
+      definitionStart,
+    );
+    const sourceEnd = deliverySourceReleaseBoundaryMigration.indexOf(
+      "$$;",
+      sourceStart,
+    );
+    assert.ok(
+      definitionStart >= 0 &&
+        sourceStart > definitionStart &&
+        sourceEnd > sourceStart,
+      `0012 must define public.${functionName as string}`,
+    );
+    const isHelper = runtimeCanExecute === true;
+    return {
+      function_name: functionName as string,
+      language_name: "plpgsql",
+      function_kind: "f",
+      security_definer: false,
+      leakproof: false,
+      strict: false,
+      volatility: volatility as string,
+      parallel_safety: "u",
+      function_config: "search_path=pg_catalog, public",
+      returns_trigger: returnsTrigger as boolean,
+      argument_count: isHelper ? 2 : 0,
+      argument_types: isHelper
+        ? functionName === "valo_delivery_source_project_id"
+          ? "name,jsonb"
+          : "uuid,boolean"
+        : "",
+      identity_arguments: isHelper
+        ? functionName === "valo_delivery_source_project_id"
+          ? "source_table name, source_row jsonb"
+          : "source_project_id uuid, allow_terminal_delete boolean"
+        : "",
+      return_type: returnsTrigger
+        ? "trigger"
+        : functionName === "valo_delivery_source_project_id"
+          ? "uuid"
+          : "void",
+      function_result: returnsTrigger
+        ? "trigger"
+        : functionName === "valo_delivery_source_project_id"
+          ? "uuid"
+          : "void",
+      returns_set: false,
+      owner_name: "synthetic_migration_owner",
+      runtime_can_execute: runtimeCanExecute as boolean,
+      public_can_execute: false,
+      function_source: deliverySourceReleaseBoundaryMigration.slice(
+        sourceStart + "AS $$".length,
+        sourceEnd,
+      ),
+    };
+  });
+}
+
+describe("production delivery guard function attestation", () => {
+  test("accepts the exact 0012 functions under the 0013 privilege posture", () => {
+    assert.doesNotThrow(() =>
+      assertDeliveryGuardFunctionAttestation(deliveryGuardFunctionProofs()),
+    );
+  });
+
+  test("rejects a missing, extra, or drifted function", () => {
+    const proofs = deliveryGuardFunctionProofs();
+    assert.throws(
+      () => assertDeliveryGuardFunctionAttestation(proofs.slice(1)),
+      /delivery guard functions are semantically drifted/,
+    );
+    assert.throws(
+      () =>
+        assertDeliveryGuardFunctionAttestation([
+          ...proofs,
+          { ...proofs[0], function_name: "valo_extra_guard" },
+        ]),
+      /delivery guard functions are semantically drifted/,
+    );
+    assert.throws(
+      () =>
+        assertDeliveryGuardFunctionAttestation(
+          proofs.map((proof) => ({
+            ...proof,
+            function_source: `${proof.function_source}\n-- drifted`,
+          })),
+        ),
+      /delivery guard functions are semantically drifted/,
+    );
+  });
+
+  test("rejects a PUBLIC-executable or SECURITY DEFINER guard", () => {
+    for (const override of [
+      { public_can_execute: true },
+      { security_definer: true },
+      { function_config: "search_path=pg_catalog" },
+      { owner_name: "valo_app_runtime" },
+    ]) {
+      assert.throws(
+        () =>
+          assertDeliveryGuardFunctionAttestation(
+            deliveryGuardFunctionProofs().map((proof) => ({
+              ...proof,
+              ...override,
+            })),
+          ),
+        /delivery guard functions are semantically drifted/,
+      );
+    }
+  });
+
+  test("rejects trigger entry points the runtime can execute", () => {
+    assert.throws(
+      () =>
+        assertDeliveryGuardFunctionAttestation(
+          deliveryGuardFunctionProofs().map((proof) => ({
+            ...proof,
+            runtime_can_execute: true,
+          })),
+        ),
+      /delivery guard functions are semantically drifted/,
     );
   });
 });
