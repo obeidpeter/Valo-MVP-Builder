@@ -1,10 +1,13 @@
 import { UserProfile } from "@clerk/clerk-react";
+import { useGetMe } from "@workspace/api-client-react";
 import { PageHeader } from "@/components/platform-states";
+import { ValoUserIdCard } from "@/components/valo-user-id-card";
 import { useOrganisationAccess } from "@/contexts/organisation-context";
 import { platformRoleLabel } from "@/lib/platform-access";
 
 export default function AccountPage() {
   const access = useOrganisationAccess();
+  const meQuery = useGetMe();
   return (
     <div className="mx-auto w-full max-w-6xl space-y-7 p-5 sm:p-8">
       <PageHeader
@@ -36,6 +39,7 @@ export default function AccountPage() {
           </div>
         </dl>
       </section>
+      {meQuery.data?.id ? <ValoUserIdCard userId={meQuery.data.id} /> : null}
       <section
         aria-labelledby="identity-provider-heading"
         className="space-y-3"
