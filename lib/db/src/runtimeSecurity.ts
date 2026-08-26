@@ -1303,9 +1303,9 @@ export function assertDeliveryGuardFunctionAttestation(
     ([functionName, expected]) => {
       const actual = actualFunctions.get(functionName);
       const expectedExecuteAcl = [
-        "$OWNER>$OWNER:EXECUTE:false",
+        "$OWNER>$OWNER:EXECUTE:f",
         ...(expected.runtimeCanExecute
-          ? ["$OWNER>$ROLE:valo_app_runtime:EXECUTE:false"]
+          ? ["$OWNER>$ROLE:valo_app_runtime:EXECUTE:f"]
           : []),
       ].sort();
       return (

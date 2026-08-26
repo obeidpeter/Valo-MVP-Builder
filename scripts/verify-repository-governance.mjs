@@ -202,7 +202,7 @@ const REVIEWED_WORKFLOW_SHA256 = new Map([
   ],
   [
     ".github/workflows/release-candidate.yml",
-    "51dcaeabd9297f082bf9947ecbe8914bbb4033c72603e8222d3a1478249d8160",
+    "ee50d2b0ff3b9e5cf3291836db14848b88402d448bef538cb2235b74c53c7042",
   ],
   [
     ".github/workflows/deployment-verification.yml",

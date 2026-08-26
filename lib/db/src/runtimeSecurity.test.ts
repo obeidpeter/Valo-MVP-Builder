@@ -1101,9 +1101,9 @@ function deliveryGuardFunctionProofs() {
       runtime_can_execute: runtimeCanExecute as boolean,
       public_can_execute: false,
       execute_acl: [
-        "$OWNER>$OWNER:EXECUTE:false",
+        "$OWNER>$OWNER:EXECUTE:f",
         ...(runtimeCanExecute
-          ? ["$OWNER>$ROLE:valo_app_runtime:EXECUTE:false"]
+          ? ["$OWNER>$ROLE:valo_app_runtime:EXECUTE:f"]
           : []),
       ],
       function_source: deliverySourceReleaseBoundaryMigration.slice(
@@ -1118,6 +1118,43 @@ describe("production delivery guard function attestation", () => {
   test("accepts the exact 0012 functions under the 0013 privilege posture", () => {
     assert.doesNotThrow(() =>
       assertDeliveryGuardFunctionAttestation(deliveryGuardFunctionProofs()),
+    );
+  });
+
+  test("matches PostgreSQL's f/t ACL boolean representation", () => {
+    assert.match(
+      runtimeSecuritySource,
+      /SELECT pg_catalog\.format\(\s*'%s>%s:%s:%s',[\s\S]*?function_acl\.is_grantable\s*\)[\s\S]*?\) AS execute_acl/u,
+      "the catalog proof must format PostgreSQL is_grantable directly",
+    );
+    assert.match(
+      runtimeSecuritySource,
+      /"\$OWNER>\$OWNER:EXECUTE:f"/u,
+      "the canonical ACL must use PostgreSQL's text form for false",
+    );
+    assert.doesNotMatch(
+      runtimeSecuritySource,
+      /"\$OWNER>\$OWNER:EXECUTE:false"/u,
+    );
+
+    const proofs = deliveryGuardFunctionProofs();
+    assert.ok(
+      proofs
+        .flatMap((proof) => proof.execute_acl)
+        .every((grant) => grant.endsWith(":f")),
+    );
+    assert.doesNotThrow(() => assertDeliveryGuardFunctionAttestation(proofs));
+    assert.throws(
+      () =>
+        assertDeliveryGuardFunctionAttestation(
+          proofs.map((proof) => ({
+            ...proof,
+            execute_acl: proof.execute_acl.map((grant) =>
+              grant.replace(/:f$/u, ":false"),
+            ),
+          })),
+        ),
+      /delivery guard functions are semantically drifted/,
     );
   });
 
@@ -1209,7 +1246,7 @@ describe("production delivery guard function attestation", () => {
   test("rejects arbitrary grantees, grant options, or a non-canonical runtime grant", () => {
     const arbitraryGrantProofs = deliveryGuardFunctionProofs();
     arbitraryGrantProofs[0]!.execute_acl.push(
-      "$OWNER>$ROLE:untrusted_role:EXECUTE:false",
+      "$OWNER>$ROLE:untrusted_role:EXECUTE:f",
     );
     assert.throws(
       () => assertDeliveryGuardFunctionAttestation(arbitraryGrantProofs),
@@ -1218,8 +1255,8 @@ describe("production delivery guard function attestation", () => {
 
     const grantOptionProofs = deliveryGuardFunctionProofs();
     grantOptionProofs[0]!.execute_acl = [
-      "$OWNER>$OWNER:EXECUTE:false",
-      "$OWNER>$ROLE:valo_app_runtime:EXECUTE:true",
+      "$OWNER>$OWNER:EXECUTE:f",
+      "$OWNER>$ROLE:valo_app_runtime:EXECUTE:t",
     ];
     assert.throws(
       () => assertDeliveryGuardFunctionAttestation(grantOptionProofs),
@@ -1227,9 +1264,7 @@ describe("production delivery guard function attestation", () => {
     );
 
     const inheritedRuntimeGrantProofs = deliveryGuardFunctionProofs();
-    inheritedRuntimeGrantProofs[0]!.execute_acl = [
-      "$OWNER>$OWNER:EXECUTE:false",
-    ];
+    inheritedRuntimeGrantProofs[0]!.execute_acl = ["$OWNER>$OWNER:EXECUTE:f"];
     assert.throws(
       () => assertDeliveryGuardFunctionAttestation(inheritedRuntimeGrantProofs),
       /delivery guard functions are semantically drifted/,
@@ -1237,7 +1272,7 @@ describe("production delivery guard function attestation", () => {
 
     const triggerEntryGrantProofs = deliveryGuardFunctionProofs();
     triggerEntryGrantProofs[2]!.execute_acl.push(
-      "$OWNER>$ROLE:valo_app_runtime:EXECUTE:false",
+      "$OWNER>$ROLE:valo_app_runtime:EXECUTE:f",
     );
     assert.throws(
       () => assertDeliveryGuardFunctionAttestation(triggerEntryGrantProofs),
