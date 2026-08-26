@@ -137,6 +137,19 @@ test("the guard functions carry the 0013 least-privilege posture", () => {
   );
 });
 
+test("startup ACL attestation matches PostgreSQL boolean text", () => {
+  assert.match(
+    runtimeSecuritySource,
+    /SELECT pg_catalog\.format\(\s*'%s>%s:%s:%s',[\s\S]*?function_acl\.is_grantable\s*\)[\s\S]*?\) AS execute_acl/u,
+    "the proof query must format is_grantable using PostgreSQL's f/t text",
+  );
+  assert.match(runtimeSecuritySource, /"\$OWNER>\$OWNER:EXECUTE:f"/u);
+  assert.doesNotMatch(
+    runtimeSecuritySource,
+    /"\$OWNER>\$OWNER:EXECUTE:false"/u,
+  );
+});
+
 test("startup attestation pins the guard functions independently", () => {
   assert.match(
     runtimeSecuritySource,
