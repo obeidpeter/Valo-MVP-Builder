@@ -1275,6 +1275,18 @@ export const UpdateProjectResponse = zod.object({
 
 
 /**
+ * This compatibility endpoint always fails closed. Create a governed retention request and use the detach, reconcile, and certify workflow; no project or document is deleted by this operation. The operation remains documented only for compatibility with existing clients and will be removed in the next versioned breaking API release.
+ * @deprecated
+ * @summary Direct project deletion is disabled
+ */
+export const DeleteProjectParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const DeleteProjectResponse = zod.void()
+
+
+/**
  * @summary Internal SLA, red-team and Vault expiry alert candidates
  */
 export const GetWorkflowAlertsResponse = zod.object({

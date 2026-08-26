@@ -33,6 +33,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { writeAudit, type AuditParams } from "../audit";
+import { UUID_PATTERN } from "../identifierPatterns";
 import {
   parseProposedStructuredSnapshot,
   type ProposedStructuredSnapshot,
@@ -70,8 +71,6 @@ import {
 
 const PLACEHOLDER =
   /(?:\bTBC\b|\bTODO\b|\[\s*insert[^\]]*\]|<\s*insert[^>]*>)/iu;
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const RECEIPT_SCHEMA = "valo.delivery-studio-receipt/v1";
 const ACTION_RECEIPT = "delivery_studio_action_receipt";
 const REHEARSAL_RECEIPT = "delivery_studio_rehearsal_receipt";
@@ -2130,7 +2129,7 @@ async function normalizeRehearsalForMutation(
   const projectVersionIds = action.rehearsal.sources
     .filter((source) => source.kind !== "company_evidence")
     .map((source) => source.versionId)
-    .filter((versionId) => UUID.test(versionId));
+    .filter((versionId) => UUID_PATTERN.test(versionId));
   const projectSourceRows =
     projectVersionIds.length === 0
       ? []
@@ -2494,7 +2493,9 @@ async function rehearseSubmission(
   );
   if (
     projectSources.some(
-      (source) => !UUID.test(source.sourceId) || !UUID.test(source.versionId),
+      (source) =>
+        !UUID_PATTERN.test(source.sourceId) ||
+        !UUID_PATTERN.test(source.versionId),
     )
   ) {
     throw new DeliveryStudioError(

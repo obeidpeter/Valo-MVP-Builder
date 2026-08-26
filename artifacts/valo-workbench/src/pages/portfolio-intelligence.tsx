@@ -1,6 +1,7 @@
 import {
   getGetPortfolioIntelligenceQueryKey,
   useGetPortfolioIntelligence,
+  useGetMe,
 } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import {
@@ -36,7 +37,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useOrganisationPermission } from "@/contexts/organisation-context";
+import {
+  useOrganisationAccess,
+  useOrganisationPermission,
+} from "@/contexts/organisation-context";
 import { formatWatInstant, humaniseTokenCapitalised } from "@/lib/format";
 
 type PortfolioProject = {
@@ -185,6 +189,12 @@ function MetricCard({
 }
 
 export default function PortfolioIntelligence() {
+  const organisationAccess = useOrganisationAccess();
+  const activeOrganisation = organisationAccess?.activeOrganisation;
+  const hasDirectMembership = Boolean(
+    activeOrganisation?.accessSource === "membership" &&
+    activeOrganisation.membershipOrganisationId === activeOrganisation.id,
+  );
   const canReadProjects = useOrganisationPermission("project:read");
   const canReadDrafts = useOrganisationPermission("draft:read");
   const canReadDefects = useOrganisationPermission("defect:read");
@@ -196,9 +206,15 @@ export default function PortfolioIntelligence() {
     canReadDefects &&
     canReadPackages &&
     canReadAnalytics;
+  const meQuery = useGetMe();
+  const actorName = meQuery.data?.name?.trim() ?? "";
+  const hasNamedActor = Boolean(
+    meQuery.data?.id && actorName.length >= 2 && actorName.length <= 200,
+  );
+  const canRequestPortfolio = canRead && hasDirectMembership && hasNamedActor;
   const portfolioQuery = useGetPortfolioIntelligence({
     query: {
-      enabled: canRead,
+      enabled: canRequestPortfolio,
       queryKey: getGetPortfolioIntelligenceQueryKey(),
     },
   });
@@ -236,13 +252,33 @@ export default function PortfolioIntelligence() {
     });
   }, [healthFilter, projects, search]);
 
-  if (!canRead) {
+  if (organisationAccess?.isLoading || meQuery.isLoading || meQuery.isPending) {
+    return (
+      <div className="p-5 sm:p-8">
+        <LoadingPanel label="Checking portfolio intelligence access" />
+      </div>
+    );
+  }
+
+  if (!canRead || !hasDirectMembership) {
     return (
       <div className="p-5 sm:p-8">
         <StatusPanel
           state="blocked"
           title="Portfolio intelligence access required"
-          description="Your role in the selected organisation does not include every required project, draft, defect, package and analytics read grant. No portfolio records were requested or shown."
+          description="You need a direct membership in the selected organisation with every required project, draft, defect, package and analytics read grant. Partner access and narrower grants do not request or reveal portfolio records."
+        />
+      </div>
+    );
+  }
+
+  if (!hasNamedActor) {
+    return (
+      <div className="p-5 sm:p-8">
+        <StatusPanel
+          state="blocked"
+          title="Named profile required"
+          description="Portfolio intelligence requires your signed-in profile to have a name between 2 and 200 characters. No portfolio records were requested or shown."
         />
       </div>
     );

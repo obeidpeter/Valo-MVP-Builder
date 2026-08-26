@@ -55,7 +55,7 @@ test("governed export persists one canonical metadata-only package lifecycle", (
   assert.match(lifecycle, /eq\(packages\.version, packageRow\.version\)/u);
   assert.match(lifecycle, /Canonical project export package CAS failed/u);
   assert.match(reports, /buildCanonicalProjectExportManifest\(/u);
-  assert.match(reports, /persistCanonicalProjectExportPackage\(tx,/u);
+  assert.match(reports, /persistCanonicalProjectExportPackage\(\s*tx,/u);
   assert.match(reports, /package\.project_export_version_created/u);
   assert.match(reports, /\.filter\(includeAuditEventInProjectExport\)/u);
   assert.match(reports, /filename: "audit_export_policy\.json"/u);

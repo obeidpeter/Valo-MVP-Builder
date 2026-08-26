@@ -251,13 +251,16 @@ runtime path to resolve exactly to `pg_catalog, public`, then deparses under a
 transaction-local `search_path=pg_catalog`. It pins all 106 public-table RLS
 flags, the exact 94 FORCE-RLS identities, all 113 policy definitions, the
 118-edge tenant-parent trigger graph, all 35 special trigger contracts, all 15
-`valo_security` routine signatures and bodies, and
+`valo_security` routine signatures and bodies, all four public Delivery Studio
+guard routines and their exact 15 trigger bindings, and
 all seven `valo_intake` routine signatures, bodies and execution boundaries, as
 well as the complete effective table/column/sequence privilege matrix. It also
 requires `row_security=on`, `session_replication_role=origin`, the fixed runtime
 identity, no inherited/owned or schema-creation escape, and runtime EXECUTE only
-on the two tenant-context routines plus the bounded Bid Autopsy store, shared
-limiter, content-minimised active-queue read and status-transition functions. Direct intake table/column privileges and both owner-side
+on the two tenant-context routines, the two Delivery Studio resolution/mutability
+helpers, plus the bounded Bid Autopsy store, shared limiter, content-minimised
+active-queue read and status-transition functions. The two Delivery Studio
+trigger entry points remain owner-only. Direct intake table/column privileges and both owner-side
 purge functions remain denied to the web runtime. Any mismatch stops the
 listener/job before application queries.
 
@@ -341,10 +344,10 @@ the source backup and audit export as private evidence.
    candidate workflow, manifest, SBOM, artifact and source digests.
 4. For an unbridged legacy target, execute only the approved legacy bridge
    procedure above. For the current already-bridged Replit target, require one
-   exact approved journal prefix through `0011`, verify both checked-in production run
+   exact approved journal prefix through `0013`, verify both checked-in production run
    paths name `scripts/start-replit-production.mjs`, and let its bounded
    `migration:replit:intake` implementation apply the missing suffix from
-   `0003`-`0011`. Never
+   `0003`-`0013`. Never
    substitute the unrestricted migration command or a publish schema diff.
    Halt on any journal, source-hash, catalog, reconciliation, or RLS error.
 5. Deploy workers/API/web in compatible order; keep new commercial flags off.

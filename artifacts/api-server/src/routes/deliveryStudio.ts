@@ -15,6 +15,7 @@ import {
   resolveCurrentDirectAuthority,
   type CurrentDirectAuthority,
 } from "../lib/directMembershipAuthority";
+import { UUID_PATTERN } from "../lib/identifierPatterns";
 import { parseExpectedVersion, type Permission } from "../lib/permissions";
 import type {
   ExactCitation,
@@ -30,8 +31,6 @@ import type {
 } from "../lib/intelligence/portalSubmissionRehearsal";
 import { createBoundedJsonBody } from "./boundedJsonBody";
 
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const DOMAIN_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
 const SHA256 = /^[a-f0-9]{64}$/iu;
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/u;
@@ -444,9 +443,9 @@ export function parseDeliveryStudioAction(
               "endOffset",
             ]) ||
             typeof citation.documentId !== "string" ||
-            !UUID.test(citation.documentId) ||
+            !UUID_PATTERN.test(citation.documentId) ||
             typeof citation.documentVersionId !== "string" ||
-            !UUID.test(citation.documentVersionId) ||
+            !UUID_PATTERN.test(citation.documentVersionId) ||
             !Number.isSafeInteger(citation.pageNumber) ||
             (citation.pageNumber as number) < 1 ||
             !textBetween(citation.quote, 1, 20_000) ||
@@ -485,7 +484,7 @@ export function parseDeliveryStudioAction(
     case "review_response_claim":
       return exactKeys(value, ["action", "claimId", "decision", "note"]) &&
         typeof value.claimId === "string" &&
-        UUID.test(value.claimId) &&
+        UUID_PATTERN.test(value.claimId) &&
         ["accepted", "rejected", "needs_changes"].includes(
           String(value.decision),
         ) &&
@@ -520,23 +519,23 @@ export function parseDeliveryStudioAction(
             textBetween(finding.objectType, 1, 120)) &&
           (finding.objectId === undefined ||
             (typeof finding.objectId === "string" &&
-              UUID.test(finding.objectId))),
+              UUID_PATTERN.test(finding.objectId))),
       );
       return valid ? (value as unknown as DeliveryStudioAction) : null;
     }
     case "resolve_red_team_finding":
       return exactKeys(value, ["action", "runId", "findingId", "resolution"]) &&
         typeof value.runId === "string" &&
-        UUID.test(value.runId) &&
+        UUID_PATTERN.test(value.runId) &&
         typeof value.findingId === "string" &&
-        UUID.test(value.findingId) &&
+        UUID_PATTERN.test(value.findingId) &&
         textBetween(value.resolution, 2, 5_000)
         ? (value as unknown as DeliveryStudioAction)
         : null;
     case "approve_red_team":
       return exactKeys(value, ["action", "runId", "attestation"]) &&
         typeof value.runId === "string" &&
-        UUID.test(value.runId) &&
+        UUID_PATTERN.test(value.runId) &&
         textBetween(value.attestation, 10, 2_000)
         ? (value as unknown as DeliveryStudioAction)
         : null;
@@ -549,7 +548,7 @@ export function parseDeliveryStudioAction(
       if (
         !exactKeys(value, ["action", "packageVersionId", "rehearsal"]) ||
         typeof value.packageVersionId !== "string" ||
-        !UUID.test(value.packageVersionId)
+        !UUID_PATTERN.test(value.packageVersionId)
       ) {
         return null;
       }

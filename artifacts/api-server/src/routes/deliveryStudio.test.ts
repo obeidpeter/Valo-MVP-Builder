@@ -130,6 +130,43 @@ describe("Delivery Studio route contract", () => {
     );
   });
 
+  test("accepts RFC 9562 UUIDv6-v8 values allowed by the API contract", () => {
+    const uuidV6 = "66666666-6666-6666-8666-666666666666";
+    const uuidV7 = "77777777-7777-7777-8777-777777777777";
+    const uuidV8 = "88888888-8888-8888-8888-888888888888";
+    assert.ok(
+      parseDeliveryStudioAction({
+        action: "save_response",
+        sectionKey: "methodology",
+        title: "Methodology",
+        content: "Use the cited inspection sequence.",
+        claims: [
+          {
+            claimKey: "method-step",
+            text: "Use the cited inspection sequence.",
+            kind: "instructional",
+            citations: [
+              {
+                documentId: uuidV6,
+                documentVersionId: uuidV8,
+                pageNumber: 1,
+                quote: "Use the cited inspection sequence.",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    assert.ok(
+      parseDeliveryStudioAction({
+        action: "review_response_claim",
+        claimId: uuidV7,
+        decision: "accepted",
+        note: "Grounding checked.",
+      }),
+    );
+  });
+
   before(async () => {
     const service: NonNullable<DeliveryStudioRouterOptions["service"]> = {
       getStudio: async () => envelope,

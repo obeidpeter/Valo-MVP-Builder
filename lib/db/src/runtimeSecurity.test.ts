@@ -4,6 +4,7 @@ import { describe, test } from "node:test";
 import {
   assertAuthenticatedRateLimitFunctionAttestation,
   assertDeliveryGuardFunctionAttestation,
+  assertDeliveryGuardTriggerAttestation,
   assertIntakeFunctionAttestation,
   assertTenantGraphAttestation,
   assertRuntimePolicyAttestation,
@@ -895,6 +896,140 @@ describe("production tenant graph attestation", () => {
   });
 });
 
+const DELIVERY_SOURCE_GUARD_TABLES = [
+  "boq_checks",
+  "claim_evidence_links",
+  "defects",
+  "document_version_snapshots",
+  "document_versions",
+  "documents",
+  "draft_claims",
+  "draft_versions",
+  "drafts",
+  "evidence_items",
+  "red_team_findings",
+  "red_team_runs",
+  "requirements",
+  "reviews",
+];
+
+function deliveryGuardTriggerProofs() {
+  return [
+    ...DELIVERY_SOURCE_GUARD_TABLES.map((tableName) => ({
+      relation_schema: "public",
+      table_name: tableName,
+      trigger_name: "delivery_source_project_guard",
+      trigger_enabled: "O",
+      trigger_type: 31,
+      update_columns: "",
+      trigger_args_hex: "",
+      when_clause: null,
+      is_internal: false,
+      function_schema: "public",
+      function_name: "valo_guard_delivery_source_mutation",
+      function_identity_arguments: "",
+      function_oid_matches: true,
+    })),
+    {
+      relation_schema: "public",
+      table_name: "projects",
+      trigger_name: "delivery_project_delete_guard",
+      trigger_enabled: "O",
+      trigger_type: 11,
+      update_columns: "",
+      trigger_args_hex: "",
+      when_clause: null,
+      is_internal: false,
+      function_schema: "public",
+      function_name: "valo_guard_delivery_project_delete",
+      function_identity_arguments: "",
+      function_oid_matches: true,
+    },
+  ];
+}
+
+describe("production delivery guard trigger attestation", () => {
+  test("compares trigger and expected function OIDs inside PostgreSQL", () => {
+    const source = readFileSync(
+      new URL("./runtimeSecurity.ts", import.meta.url),
+      "utf8",
+    );
+    assert.match(
+      source,
+      /guard\.tgfoid=\(CASE[\s\S]*END\) AS function_oid_matches/u,
+    );
+  });
+
+  test("accepts exactly the 14 source guards and project delete guard", () => {
+    assert.doesNotThrow(() =>
+      assertDeliveryGuardTriggerAttestation(deliveryGuardTriggerProofs()),
+    );
+  });
+
+  test("rejects a missing, extra, or misplaced delivery guard", () => {
+    const proofs = deliveryGuardTriggerProofs();
+    assert.throws(
+      () => assertDeliveryGuardTriggerAttestation(proofs.slice(1)),
+      /delivery guard triggers are incomplete or drifted/,
+    );
+    assert.throws(
+      () =>
+        assertDeliveryGuardTriggerAttestation([
+          ...proofs,
+          { ...proofs[0]!, table_name: "unexpected_source" },
+        ]),
+      /delivery guard triggers are incomplete or drifted/,
+    );
+    assert.throws(
+      () =>
+        assertDeliveryGuardTriggerAttestation(
+          proofs.map((proof, index) =>
+            index === 0 ? { ...proof, table_name: "drafts" } : proof,
+          ),
+        ),
+      /delivery guard triggers are incomplete or drifted/,
+    );
+  });
+
+  test("rejects a disabled or rebound delivery guard", () => {
+    for (const override of [
+      { trigger_enabled: "D" },
+      { function_oid_matches: false },
+      { function_name: "valo_guard_delivery_project_delete" },
+    ]) {
+      assert.throws(
+        () =>
+          assertDeliveryGuardTriggerAttestation(
+            deliveryGuardTriggerProofs().map((proof, index) =>
+              index === 0 ? { ...proof, ...override } : proof,
+            ),
+          ),
+        /delivery guard triggers are incomplete or drifted/,
+      );
+    }
+  });
+
+  test("rejects event, argument, column, or predicate drift", () => {
+    for (const override of [
+      { trigger_type: 23 },
+      { trigger_args_hex: "74616d7065726564" },
+      { update_columns: "status" },
+      { when_clause: "(status IS NOT NULL)" },
+      { is_internal: true },
+    ]) {
+      assert.throws(
+        () =>
+          assertDeliveryGuardTriggerAttestation(
+            deliveryGuardTriggerProofs().map((proof, index) =>
+              index === 0 ? { ...proof, ...override } : proof,
+            ),
+          ),
+        /delivery guard triggers are incomplete or drifted/,
+      );
+    }
+  });
+});
+
 function deliveryGuardFunctionProofs() {
   return [
     ["valo_assert_delivery_project_mutable", "v", false, true],
@@ -942,6 +1077,13 @@ function deliveryGuardFunctionProofs() {
           ? "source_table name, source_row jsonb"
           : "source_project_id uuid, allow_terminal_delete boolean"
         : "",
+      function_arguments: isHelper
+        ? functionName === "valo_delivery_source_project_id"
+          ? "source_table name, source_row jsonb"
+          : "source_project_id uuid, allow_terminal_delete boolean DEFAULT false"
+        : "",
+      argument_default_count:
+        functionName === "valo_assert_delivery_project_mutable" ? 1 : 0,
       return_type: returnsTrigger
         ? "trigger"
         : functionName === "valo_delivery_source_project_id"
@@ -954,8 +1096,16 @@ function deliveryGuardFunctionProofs() {
           : "void",
       returns_set: false,
       owner_name: "synthetic_migration_owner",
+      owner_is_database_owner: true,
+      owner_is_security_owner: true,
       runtime_can_execute: runtimeCanExecute as boolean,
       public_can_execute: false,
+      execute_acl: [
+        "$OWNER>$OWNER:EXECUTE:false",
+        ...(runtimeCanExecute
+          ? ["$OWNER>$ROLE:valo_app_runtime:EXECUTE:false"]
+          : []),
+      ],
       function_source: deliverySourceReleaseBoundaryMigration.slice(
         sourceStart + "AS $$".length,
         sourceEnd,
@@ -997,12 +1147,38 @@ describe("production delivery guard function attestation", () => {
     );
   });
 
+  test("rejects missing or changed helper default semantics", () => {
+    for (const override of [
+      { argument_default_count: 0 },
+      {
+        function_arguments:
+          "source_project_id uuid, allow_terminal_delete boolean",
+      },
+      {
+        function_arguments:
+          "source_project_id uuid, allow_terminal_delete boolean DEFAULT true",
+      },
+    ]) {
+      assert.throws(
+        () =>
+          assertDeliveryGuardFunctionAttestation(
+            deliveryGuardFunctionProofs().map((proof, index) =>
+              index === 0 ? { ...proof, ...override } : proof,
+            ),
+          ),
+        /delivery guard functions are semantically drifted/,
+      );
+    }
+  });
+
   test("rejects a PUBLIC-executable or SECURITY DEFINER guard", () => {
     for (const override of [
       { public_can_execute: true },
       { security_definer: true },
       { function_config: "search_path=pg_catalog" },
       { owner_name: "valo_app_runtime" },
+      { owner_is_database_owner: false },
+      { owner_is_security_owner: false },
     ]) {
       assert.throws(
         () =>
@@ -1026,6 +1202,45 @@ describe("production delivery guard function attestation", () => {
             runtime_can_execute: true,
           })),
         ),
+      /delivery guard functions are semantically drifted/,
+    );
+  });
+
+  test("rejects arbitrary grantees, grant options, or a non-canonical runtime grant", () => {
+    const arbitraryGrantProofs = deliveryGuardFunctionProofs();
+    arbitraryGrantProofs[0]!.execute_acl.push(
+      "$OWNER>$ROLE:untrusted_role:EXECUTE:false",
+    );
+    assert.throws(
+      () => assertDeliveryGuardFunctionAttestation(arbitraryGrantProofs),
+      /delivery guard functions are semantically drifted/,
+    );
+
+    const grantOptionProofs = deliveryGuardFunctionProofs();
+    grantOptionProofs[0]!.execute_acl = [
+      "$OWNER>$OWNER:EXECUTE:false",
+      "$OWNER>$ROLE:valo_app_runtime:EXECUTE:true",
+    ];
+    assert.throws(
+      () => assertDeliveryGuardFunctionAttestation(grantOptionProofs),
+      /delivery guard functions are semantically drifted/,
+    );
+
+    const inheritedRuntimeGrantProofs = deliveryGuardFunctionProofs();
+    inheritedRuntimeGrantProofs[0]!.execute_acl = [
+      "$OWNER>$OWNER:EXECUTE:false",
+    ];
+    assert.throws(
+      () => assertDeliveryGuardFunctionAttestation(inheritedRuntimeGrantProofs),
+      /delivery guard functions are semantically drifted/,
+    );
+
+    const triggerEntryGrantProofs = deliveryGuardFunctionProofs();
+    triggerEntryGrantProofs[2]!.execute_acl.push(
+      "$OWNER>$ROLE:valo_app_runtime:EXECUTE:false",
+    );
+    assert.throws(
+      () => assertDeliveryGuardFunctionAttestation(triggerEntryGrantProofs),
       /delivery guard functions are semantically drifted/,
     );
   });

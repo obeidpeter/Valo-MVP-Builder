@@ -54,10 +54,18 @@ test("retention never performs synchronous blob deletion or direct project DELET
     openapi.indexOf("  /projects/{id}:"),
     openapi.indexOf("  /workflow/alerts:"),
   );
-  // The retired deleteProject compatibility operation has left the contract
-  // entirely; only the server keeps its fail-closed 409 stub for stale
-  // clients. No delete operation — working or deprecated — may reappear on
-  // the project resource.
-  assert.doesNotMatch(projectDeleteContract, /^    delete:/mu);
-  assert.doesNotMatch(projectDeleteContract, /"204":/u);
+  const projectDeleteStart = projectDeleteContract.indexOf("    delete:");
+  assert.ok(
+    projectDeleteStart >= 0,
+    "DELETE /projects/{id} must be documented",
+  );
+  const deleteContract = projectDeleteContract.slice(projectDeleteStart);
+  // The runtime still mounts the fail-closed compatibility operation, so the
+  // current-version external contract must continue to describe that exact
+  // 403/409 behaviour until a versioned breaking release removes both.
+  assert.match(deleteContract, /delete:[\s\S]*deprecated: true/u);
+  assert.match(deleteContract, /summary: Direct project deletion is disabled/u);
+  assert.match(deleteContract, /"403":/u);
+  assert.match(deleteContract, /"409":/u);
+  assert.doesNotMatch(deleteContract, /"204":/u);
 });

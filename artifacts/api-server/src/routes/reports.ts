@@ -1,6 +1,4 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { createRequire } from "node:module";
-import type { Archiver, ArchiverError, ArchiverOptions } from "archiver";
 import { and, eq, desc, sql } from "drizzle-orm";
 import {
   db,
@@ -80,6 +78,8 @@ import {
   loadRedTeamApprovalAttestation,
   type DeliveryStudioQueryExecutor,
 } from "../lib/deliveryStudio/drizzleRepository";
+import { resolveCurrentDirectAuthority } from "../lib/directMembershipAuthority";
+import { buildProjectExportZip } from "../lib/projectExportArchive";
 
 const router: IRouter = Router();
 const objectStorage = new ObjectStorageService();
@@ -93,19 +93,29 @@ class ReportSignOffConflictError extends Error {
     this.name = "ReportSignOffConflictError";
   }
 }
+
+class ReportSignOffAuthorityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ReportSignOffAuthorityError";
+  }
+}
+
+class PackageExportGovernanceError extends Error {
+  constructor(
+    message: string,
+    readonly ndaStatus: string | null,
+  ) {
+    super(message);
+    this.name = "PackageExportGovernanceError";
+  }
+}
 import {
   SHA256_HEX_PATTERN as SHA256_PATTERN,
   UUID_V1_5_PATTERN as UUID_PATTERN,
 } from "../lib/identifierPatterns";
 import { isOneOf } from "../lib/typeGuards";
 import { parseInstantViaString } from "../lib/dbClock";
-
-// archiver@8 dropped the classic default `archiver(format, options)` factory and
-// now only exports named classes, so we construct a `ZipArchive` directly.
-const nodeRequire = createRequire(import.meta.url);
-const { ZipArchive } = nodeRequire("archiver") as {
-  ZipArchive: new (options?: ArchiverOptions) => Archiver;
-};
 
 type StoredReportData = Omit<ReportData, "project"> & {
   project: ReportData["project"] & {
@@ -653,9 +663,34 @@ router.post(
     }
 
     const reviewerName = user?.name || user?.email || "Unknown reviewer";
+    const signOffAccessContext = getAccessContext(req);
+    const assertCurrentSignerAuthority = (
+      authority: Awaited<ReturnType<typeof resolveCurrentDirectAuthority>>,
+    ): void => {
+      if (
+        !authority ||
+        authority.organisationId !== reportOrganisationId ||
+        authority.membershipId !== signOffAccessContext?.membershipId ||
+        !authority.permissions.has("report:sign_off")
+      ) {
+        throw new ReportSignOffAuthorityError(
+          "Signer membership or report sign-off grant changed during sign-off.",
+        );
+      }
+    };
     let updated;
     try {
       updated = await db.transaction(async (tx) => {
+        // The request context was resolved before the route ran and is only a
+        // selector here. Re-derive authority from current durable membership
+        // and grants inside the final transaction. The resolver takes the same
+        // organisation-scoped advisory lock as membership administration, so
+        // a concurrent revoke is ordered either wholly before this check (and
+        // denied) or wholly after the committed sign-off.
+        assertCurrentSignerAuthority(
+          await resolveCurrentDirectAuthority(signOffAccessContext, user?.id),
+        );
+
         // Client -> project is the canonical release lock order. A concurrent
         // NDA change either completes before this point-in-time re-read or is
         // serialized after sign-off; package export rechecks current NDA state.
@@ -794,6 +829,17 @@ router.post(
         if (signedOffAt === null) {
           throw new Error("Database clock is unavailable during sign-off");
         }
+        // Bind the final authority decision to the exact timestamp recorded on
+        // the sign-off. The advisory lock above has prevented administrative
+        // revocation; this second read also closes a naturally expiring grant
+        // window after readiness recomputation but before the report mutation.
+        assertCurrentSignerAuthority(
+          await resolveCurrentDirectAuthority(
+            signOffAccessContext,
+            user?.id,
+            signedOffAt,
+          ),
+        );
         const [signed] = await tx
           .update(reports)
           .set({
@@ -847,7 +893,13 @@ router.post(
         return signed;
       });
     } catch (error) {
-      if (!(error instanceof ReportSignOffConflictError)) throw error;
+      if (
+        !(error instanceof ReportSignOffConflictError) &&
+        !(error instanceof ReportSignOffAuthorityError)
+      ) {
+        throw error;
+      }
+      const authorityChanged = error instanceof ReportSignOffAuthorityError;
       await writeAudit({
         user,
         organisationId: reportOrganisationId,
@@ -857,13 +909,19 @@ router.post(
         objectId: report.id,
         details: JSON.stringify({
           reason: error.message,
-          blockerCodes: error.blockers?.map((blocker) => blocker.code) ?? [],
+          blockerCodes:
+            error instanceof ReportSignOffConflictError
+              ? (error.blockers?.map((blocker) => blocker.code) ?? [])
+              : [],
         }),
       });
-      res.status(409).json({
-        error:
-          "Report sign-off was denied because the release state changed. Refresh and review the current blockers.",
-        ...(error.blockers ? { blockers: error.blockers } : {}),
+      res.status(authorityChanged ? 403 : 409).json({
+        error: authorityChanged
+          ? "Report sign-off authority changed. Refresh your access before retrying."
+          : "Report sign-off was denied because the release state changed. Refresh and review the current blockers.",
+        ...(error instanceof ReportSignOffConflictError && error.blockers
+          ? { blockers: error.blockers }
+          : {}),
       });
       return;
     }
@@ -1082,7 +1140,12 @@ router.get(
   async (req: Request, res: Response) => {
     const projectId = String(req.params.id);
     const [governance] = await db
-      .select({ project: projects, ndaStatus: clients.ndaStatus })
+      .select({
+        project: projects,
+        clientId: clients.id,
+        ndaStatus: clients.ndaStatus,
+        ndaVersion: clients.version,
+      })
       .from(projects)
       .leftJoin(clients, eq(projects.clientId, clients.id))
       .where(eq(projects.id, projectId));
@@ -1370,93 +1433,171 @@ router.get(
       archiveEntries,
     );
 
-    await db.transaction(
-      async (tx) => {
-        const packageVersion = await persistCanonicalProjectExportPackage(tx, {
-          identity: {
-            organisationId: getOrganisationId(req)!,
-            projectId,
-            projectVersion: canonicalProject.version,
-            reportId: latestReport!.id,
-            reportVersion: latestReport!.version,
-          },
-          manifest: packageManifest,
-          generatedByUserId: getLocalUser(req)?.id ?? null,
-        });
-        if (project.status === "signed_off") {
-          const transitioned = await tx
-            .update(projects)
-            .set({
-              status: "exported",
-              version: sql`${projects.version} + 1`,
-              updatedAt: exportTransitionAt,
+    let zipBuffer: Buffer;
+    try {
+      zipBuffer = await buildProjectExportZip(archiveEntries);
+    } catch (error) {
+      req.log.error({ err: error }, "project export archive assembly failed");
+      await writeAudit({
+        user: getLocalUser(req),
+        organisationId: getOrganisationId(req),
+        projectId,
+        eventType: "project.export_denied",
+        objectType: "project",
+        objectId: projectId,
+        details:
+          "Package export archive assembly failed before release evidence was persisted.",
+      });
+      res.status(502).json({
+        error:
+          "Package export could not be assembled. Refresh before retrying.",
+      });
+      return;
+    }
+
+    try {
+      await db.transaction(
+        async (tx) => {
+          // Package bytes and their manifest were prepared from the earlier
+          // readiness snapshot. Re-lock and re-read the authoritative client
+          // row immediately before writing durable package/export evidence.
+          // A concurrent NDA change must therefore commit before this read
+          // (and fail the version/state check), or wait until this export has
+          // committed. No stale approval can authorize a package.
+          const [currentClient] = await tx
+            .select({
+              id: clients.id,
+              ndaStatus: clients.ndaStatus,
+              version: clients.version,
             })
+            .from(clients)
             .where(
               and(
-                eq(projects.id, projectId),
-                eq(projects.organisationId, getOrganisationId(req)!),
-                eq(projects.status, "signed_off"),
-                eq(projects.version, project.version),
+                eq(clients.id, project.clientId),
+                eq(clients.organisationId, project.organisationId!),
               ),
             )
-            .returning({ id: projects.id });
-          if (transitioned.length !== 1) {
-            throw new Error("Project export status CAS failed");
+            .for("share");
+          if (
+            !currentClient ||
+            currentClient.id !== governance.clientId ||
+            currentClient.ndaStatus !== "signed" ||
+            currentClient.version !== governance.ndaVersion
+          ) {
+            throw new PackageExportGovernanceError(
+              "Client NDA state or version changed during package export.",
+              currentClient?.ndaStatus ?? null,
+            );
           }
-        }
-        await writeAuditTx(tx, {
-          user: getLocalUser(req),
-          organisationId: getOrganisationId(req),
-          projectId,
-          eventType: packageVersion.created
-            ? "package.project_export_version_created"
-            : "package.project_export_version_reused",
-          objectType: "package_version",
-          objectId: packageVersion.packageVersionId,
-          details: JSON.stringify({
-            packageId: packageVersion.packageId,
-            versionNumber: packageVersion.versionNumber,
-            sourceSnapshotHash: packageVersion.sourceSnapshotHash,
-            manifestHash: packageVersion.manifestHash,
-            entryCount: packageManifest.items.length,
-            renderQaStatus: packageVersion.renderQaStatus,
-          }),
-        });
-        await writeAuditTx(tx, {
-          user: getLocalUser(req),
-          organisationId: getOrganisationId(req),
-          projectId,
-          eventType: "project.exported",
-          objectType: "project",
-          objectId: projectId,
-        });
-      },
-      { isolationLevel: "read committed" },
-    );
+
+          const packageVersion = await persistCanonicalProjectExportPackage(
+            tx,
+            {
+              identity: {
+                organisationId: getOrganisationId(req)!,
+                projectId,
+                projectVersion: canonicalProject.version,
+                reportId: latestReport!.id,
+                reportVersion: latestReport!.version,
+              },
+              manifest: packageManifest,
+              generatedByUserId: getLocalUser(req)?.id ?? null,
+            },
+          );
+          if (project.status === "signed_off") {
+            const transitioned = await tx
+              .update(projects)
+              .set({
+                status: "exported",
+                version: sql`${projects.version} + 1`,
+                updatedAt: exportTransitionAt,
+              })
+              .where(
+                and(
+                  eq(projects.id, projectId),
+                  eq(projects.organisationId, getOrganisationId(req)!),
+                  eq(projects.status, "signed_off"),
+                  eq(projects.version, project.version),
+                ),
+              )
+              .returning({ id: projects.id });
+            if (transitioned.length !== 1) {
+              throw new Error("Project export status CAS failed");
+            }
+          }
+          await writeAuditTx(tx, {
+            user: getLocalUser(req),
+            organisationId: getOrganisationId(req),
+            projectId,
+            eventType: packageVersion.created
+              ? "package.project_export_version_created"
+              : "package.project_export_version_reused",
+            objectType: "package_version",
+            objectId: packageVersion.packageVersionId,
+            details: JSON.stringify({
+              packageId: packageVersion.packageId,
+              versionNumber: packageVersion.versionNumber,
+              sourceSnapshotHash: packageVersion.sourceSnapshotHash,
+              manifestHash: packageVersion.manifestHash,
+              entryCount: packageManifest.items.length,
+              renderQaStatus: packageVersion.renderQaStatus,
+            }),
+          });
+          await writeAuditTx(tx, {
+            user: getLocalUser(req),
+            organisationId: getOrganisationId(req),
+            projectId,
+            eventType: "project.exported",
+            objectType: "project",
+            objectId: projectId,
+          });
+        },
+        { isolationLevel: "read committed" },
+      );
+    } catch (error) {
+      if (!(error instanceof PackageExportGovernanceError)) throw error;
+      const ndaApprovalMissing = error.ndaStatus !== "signed";
+      await writeAudit({
+        user: getLocalUser(req),
+        organisationId: getOrganisationId(req),
+        projectId,
+        eventType: "project.export_denied",
+        objectType: "project",
+        objectId: projectId,
+        details: error.message,
+      });
+      res.status(409).json({
+        error: ndaApprovalMissing
+          ? "Package export was denied because NDA approval changed. Refresh before retrying."
+          : "Package export was denied because client governance changed. Refresh before retrying.",
+        ...(ndaApprovalMissing
+          ? {
+              blockers: [
+                {
+                  code: "nda_missing",
+                  message:
+                    "A current signed NDA is required for package export.",
+                },
+              ],
+            }
+          : {}),
+      });
+      return;
+    }
+
+    // The ZIP is already complete. Commit the locked governance decision and
+    // durable package evidence before exposing any response headers or bytes.
+    // A failed archive or COMMIT therefore cannot look like a successful
+    // download to the caller.
+    await commitTenantDatabaseBeforeResponse(req);
 
     res.setHeader("Content-Type", "application/zip");
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="project-export-${projectId}.zip"`,
     );
-
-    const archive = new ZipArchive({ zlib: { level: 9 } });
-    archive.on("error", (err: ArchiverError) => {
-      req.log.error({ err }, "export archive error");
-      // Headers are already flushed by the time we're streaming, so the status
-      // code can no longer be changed to signal failure. Ending the response
-      // cleanly would hand the client a 200 with a truncated, corrupt ZIP that
-      // looks successful. Destroy the socket instead so the client sees an
-      // aborted/incomplete download and can detect the truncation.
-      res.destroy(err);
-    });
-    archive.pipe(res);
-
-    for (const entry of archiveEntries) {
-      archive.append(entry.bytes, { name: entry.filename });
-    }
-
-    await archive.finalize();
+    res.setHeader("Content-Length", zipBuffer.byteLength);
+    res.send(zipBuffer);
   },
 );
 

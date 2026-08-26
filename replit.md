@@ -182,12 +182,15 @@ read-only transaction. It requires the ambient path to be exactly
 deterministic catalog deparsing. It verifies the exact 106-table RLS flag set,
 94 FORCE-RLS table identities, 113 policy contracts, the 118-edge tenant-parent
 trigger graph, all 35 special trigger contracts, 15 `valo_security` routine
-contracts, all seven `valo_intake` routine
+contracts, all four public Delivery Studio guard routines and their exact 15
+trigger bindings, all seven `valo_intake` routine
 contracts, and every effective runtime table/column/sequence privilege. It also
 requires `row_security=on`, `session_replication_role=origin`, no
 ownership/schema-creation path, and runtime EXECUTE only on the two
-tenant-context helpers plus the bounded Bid Autopsy store, shared limiter,
-content-minimised active-queue read and status-transition functions. The owner-side intake purge functions and direct intake table or
+tenant-context helpers, the two Delivery Studio resolution/mutability helpers,
+plus the bounded Bid Autopsy store, shared limiter, content-minimised active-queue
+read and status-transition functions. The Delivery Studio trigger entry points
+remain owner-only. The owner-side intake purge functions and direct intake table or
 column privileges remain denied. A same-count but semantically drifted database
 must not start.
 
@@ -246,7 +249,7 @@ Server-side commercial flags also default off when no tenant/global record exist
    quiescence, verified backup and isolated restore, frozen source evidence, and
    an approved rehearsal. Stop on journal, schema, count, audit, ownership, or
    RLS differences.
-4. Confirm production has exactly one approved journal prefix through `0011`
+4. Confirm production has exactly one approved journal prefix through `0013`
    and do not replay the bridge or baseline. Verify both checked-in Replit run paths name
    `scripts/start-replit-production.mjs`; it runs the bounded
    `migration:replit:intake` owner-side implementation before importing the API
