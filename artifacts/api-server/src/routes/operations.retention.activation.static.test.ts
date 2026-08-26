@@ -54,11 +54,10 @@ test("retention never performs synchronous blob deletion or direct project DELET
     openapi.indexOf("  /projects/{id}:"),
     openapi.indexOf("  /workflow/alerts:"),
   );
-  assert.match(projectDeleteContract, /delete:[\s\S]*deprecated: true/u);
-  assert.match(
-    projectDeleteContract,
-    /summary: Direct project deletion is disabled/u,
-  );
-  assert.match(projectDeleteContract, /"409":/u);
+  // The retired deleteProject compatibility operation has left the contract
+  // entirely; only the server keeps its fail-closed 409 stub for stale
+  // clients. No delete operation — working or deprecated — may reappear on
+  // the project resource.
+  assert.doesNotMatch(projectDeleteContract, /^    delete:/mu);
   assert.doesNotMatch(projectDeleteContract, /"204":/u);
 });
