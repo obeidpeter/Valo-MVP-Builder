@@ -35,6 +35,10 @@ const tenancy = readFileSync(
   new URL("../middlewares/tenancy.ts", import.meta.url),
   "utf8",
 );
+const projectRoutePolicy = readFileSync(
+  new URL("../lib/projectRoutePolicy.ts", import.meta.url),
+  "utf8",
+);
 
 test("governed export persists one canonical metadata-only package lifecycle", () => {
   assert.match(
@@ -180,16 +184,21 @@ test("every non-cancellation post-freeze transition rechecks the latest clean QA
 
 test("released content immutability admits only exact package/post-award ledger routes", () => {
   assert.match(
-    tenancy,
-    /projectStatus !== "signed_off" && projectStatus !== "exported"/u,
+    projectRoutePolicy,
+    /projectStatus === "signed_off" \|\| projectStatus === "exported"/u,
   );
   for (const route of [
     "submission-war-rooms",
     "visual-qa-reports",
     "post-award-items",
   ]) {
-    assert.match(tenancy, new RegExp(`operations-suite\\\\/${route}`, "u"));
+    assert.match(
+      projectRoutePolicy,
+      new RegExp(`operations-suite\\\\/${route}`, "u"),
+    );
   }
+  assert.match(projectRoutePolicy, /released_append_only_ledger/u);
+  assert.match(projectRoutePolicy, /released_export_command/u);
   assert.match(
     tenancy,
     /isProjectContentImmutable\(project\.status\)[\s\S]*!canMutateReleasedOperationsLedger\([\s\S]*project\.status,[\s\S]*req\.method,[\s\S]*req\.path/u,

@@ -19,6 +19,8 @@ import {
   organisations,
   organisationMemberships,
   roleGrants,
+  partnerRelationships,
+  featureFlags,
   clients,
   projects,
   documents,
@@ -46,7 +48,11 @@ import {
   type AccessContext,
 } from "../middlewares/tenancy";
 import { attachTenantDatabase } from "../middlewares/databaseTenancy";
-import { normalizeLegacyRole, permissionsForRoles } from "../lib/permissions";
+import {
+  normalizeLegacyRole,
+  partnerDerivedPermissionsForRoles,
+  permissionsForRoles,
+} from "../lib/permissions";
 import { DrizzleOperationsSuiteStore } from "../lib/operationsSuite/drizzleStore";
 import { ObjectStorageService } from "../lib/objectStorage";
 import { writeAudit } from "../lib/audit";
@@ -99,6 +105,11 @@ let adminMembershipId: string;
 let adminRoleGrantId: string;
 let signedReportId: string;
 let draftReportId: string;
+let partnerUserId: string;
+let partnerOrganisationId: string;
+let partnerMembershipId: string;
+let partnerRelationshipId: string;
+let currentAccessContext: AccessContext | null = null;
 
 // The bytes an object-storage download() is faked to return for the signed
 // report's .docx, so we can assert the exact payload lands in the ZIP / stream
@@ -382,6 +393,50 @@ async function durableExportState(): Promise<{
   };
 }
 
+async function readExportReceipt(idempotencyKey: string): Promise<{
+  packageVersionId: string;
+  packageVersionNumber: number;
+  packageManifestSha256: string;
+  packageSourceSnapshotSha256: string;
+}> {
+  const receiptObjectId = createHash("sha256")
+    .update(`${organisationId}\u0000${idempotencyKey}`, "utf8")
+    .digest("hex");
+  const receipts = (
+    await db
+      .select({
+        eventType: auditEvents.eventType,
+        objectType: auditEvents.objectType,
+        objectId: auditEvents.objectId,
+        details: auditEvents.details,
+      })
+      .from(auditEvents)
+      .where(eq(auditEvents.projectId, projectId))
+  ).filter(
+    (event) =>
+      event.eventType === "project.exported" &&
+      event.objectType === "project_export_request" &&
+      event.objectId === receiptObjectId,
+  );
+  assert.equal(receipts.length, 1);
+  const receipt = JSON.parse(receipts[0]!.details ?? "null") as {
+    packageVersionId?: string;
+    packageVersionNumber?: number;
+    packageManifestSha256?: string;
+    packageSourceSnapshotSha256?: string;
+  } | null;
+  assert.equal(typeof receipt?.packageVersionId, "string");
+  assert.equal(typeof receipt?.packageVersionNumber, "number");
+  assert.equal(typeof receipt?.packageManifestSha256, "string");
+  assert.equal(typeof receipt?.packageSourceSnapshotSha256, "string");
+  return receipt as {
+    packageVersionId: string;
+    packageVersionNumber: number;
+    packageManifestSha256: string;
+    packageSourceSnapshotSha256: string;
+  };
+}
+
 before(async () => {
   const stamp = new Date().toISOString();
   assert.equal(
@@ -440,6 +495,60 @@ before(async () => {
     })
     .returning();
   adminRoleGrantId = adminRoleGrant.id;
+
+  const [partnerUser] = await db
+    .insert(users)
+    .values({
+      clerkUserId: `__export_it_partner__${stamp}`,
+      email: `partner-${stamp}@export-it.local`,
+      name: "Export Partner",
+      role: "partner_reviewer",
+      status: "active",
+    })
+    .returning();
+  partnerUserId = partnerUser.id;
+  const [partnerOrganisation] = await db
+    .insert(organisations)
+    .values({
+      name: `__EXPORT_IT_PARTNER__ ${stamp}`,
+      slug: `export-it-partner-${Date.now()}`,
+      type: "consultancy_partner",
+    })
+    .returning();
+  partnerOrganisationId = partnerOrganisation.id;
+  const [partnerMembership] = await db
+    .insert(organisationMemberships)
+    .values({
+      organisationId: partnerOrganisationId,
+      userId: partnerUserId,
+      status: "active",
+    })
+    .returning();
+  partnerMembershipId = partnerMembership.id;
+  await db.insert(roleGrants).values({
+    membershipId: partnerMembershipId,
+    role: "consultancy_partner_analyst_reviewer",
+  });
+  const [partnerRelationship] = await db
+    .insert(partnerRelationships)
+    .values({
+      partnerOrganisationId,
+      clientOrganisationId: organisationId,
+      status: "active",
+      accessStartsAt: new Date(),
+      approvedByMembershipId: adminMembershipId,
+    })
+    .returning();
+  partnerRelationshipId = partnerRelationship.id;
+  await withTenantDatabase(organisationId, () =>
+    db.insert(featureFlags).values({
+      organisationId,
+      key: "partner_edition",
+      enabled: true,
+      commercialGate: "approved:export-integration-test",
+      updatedByUserId: adminId,
+    }),
+  );
 
   const [client] = await db
     .insert(clients)
@@ -794,7 +903,10 @@ before(async () => {
   app.use((req: Request, _res: Response, next: NextFunction) => {
     (req as unknown as { localUser: LocalUser | null }).localUser = currentUser;
     const role = currentUser ? normalizeLegacyRole(currentUser.role) : null;
-    if (role) {
+    if (currentAccessContext) {
+      (req as Request & { accessContext?: AccessContext }).accessContext =
+        currentAccessContext;
+    } else if (role) {
       (req as Request & { accessContext?: AccessContext }).accessContext = {
         organisationId,
         membershipId:
@@ -851,6 +963,11 @@ after(async () => {
     });
   }
   if (clientId) await db.delete(clients).where(eq(clients.id, clientId));
+  if (partnerUserId) await db.delete(users).where(eq(users.id, partnerUserId));
+  if (partnerOrganisationId)
+    await db
+      .delete(organisations)
+      .where(eq(organisations.id, partnerOrganisationId));
   if (adminId) await db.delete(users).where(eq(users.id, adminId));
   if (generatorId) await db.delete(users).where(eq(users.id, generatorId));
   if (organisationId)
@@ -1224,6 +1341,310 @@ describe("POST /projects/:id/export exact confirmation (live route)", () => {
         })
         .where(eq(clients.id, clientId));
       currentUser = null;
+    }
+  });
+
+  test("a grant revocation during artefact preparation denies export before package evidence or ZIP bytes", async () => {
+    let markDownloadStarted!: () => void;
+    let releaseDownload!: () => void;
+    const downloadStarted = new Promise<void>((resolve) => {
+      markDownloadStarted = resolve;
+    });
+    const release = new Promise<void>((resolve) => {
+      releaseDownload = resolve;
+    });
+    signedReportDownloadBarrier = {
+      entered: markDownloadStarted,
+      release,
+    };
+    currentUser = {
+      id: adminId,
+      role: "client_organisation_owner",
+      name: "Export Approver",
+    } as LocalUser;
+    const confirmation = await readExactExportConfirmation();
+    const deniedBefore = await matchingAuditEventCount(
+      "project.export_denied",
+      projectId,
+    );
+    const exportedBefore = await matchingAuditEventCount(
+      "project.exported",
+      projectId,
+    );
+
+    try {
+      const responsePromise = postConfirmedProjectExport({ confirmation });
+      await Promise.race([
+        downloadStarted,
+        new Promise<never>((_resolve, reject) =>
+          setTimeout(
+            () => reject(new Error("export did not reach artefact download")),
+            10_000,
+          ),
+        ),
+      ]);
+
+      await db.transaction(async (tx) => {
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtextextended(${membershipAdministrationLockKey()}, 0))`,
+        );
+        await tx
+          .update(roleGrants)
+          .set({
+            revokedAt: new Date(),
+            revocationReason: "package export concurrency test",
+          })
+          .where(eq(roleGrants.id, adminRoleGrantId));
+      });
+      releaseDownload();
+
+      const response = await responsePromise;
+      assert.equal(response.status, 403);
+      assert.deepEqual(await response.json(), {
+        error: "Package export authority changed. Refresh before retrying.",
+      });
+      await waitForAuditEventCount(
+        "project.export_denied",
+        projectId,
+        deniedBefore + 1,
+      );
+      assert.equal(
+        await matchingAuditEventCount("project.exported", projectId),
+        exportedBefore,
+      );
+      const projectPackages = await db
+        .select({ id: packages.id })
+        .from(packages)
+        .where(eq(packages.projectId, projectId));
+      assert.deepEqual(projectPackages, []);
+      const [unchangedProject] = await db
+        .select({ status: projects.status })
+        .from(projects)
+        .where(eq(projects.id, projectId));
+      assert.equal(unchangedProject?.status, "signed_off");
+    } finally {
+      releaseDownload();
+      signedReportDownloadBarrier = null;
+      await db
+        .update(roleGrants)
+        .set({ revokedAt: null, revocationReason: null })
+        .where(eq(roleGrants.id, adminRoleGrantId));
+      currentUser = null;
+    }
+  });
+
+  test("an exact partner-relationship revocation during artefact preparation denies export before persistence or ZIP bytes", async () => {
+    let markDownloadStarted!: () => void;
+    let releaseDownload!: () => void;
+    const downloadStarted = new Promise<void>((resolve) => {
+      markDownloadStarted = resolve;
+    });
+    const release = new Promise<void>((resolve) => {
+      releaseDownload = resolve;
+    });
+    signedReportDownloadBarrier = {
+      entered: markDownloadStarted,
+      release,
+    };
+    currentUser = {
+      id: partnerUserId,
+      role: "partner_reviewer",
+      name: "Export Partner",
+    } as LocalUser;
+    currentAccessContext = {
+      organisationId,
+      membershipId: partnerMembershipId,
+      membershipOrganisationId: partnerOrganisationId,
+      source: "partner",
+      roles: ["consultancy_partner_analyst_reviewer"],
+      permissions: partnerDerivedPermissionsForRoles([
+        "consultancy_partner_analyst_reviewer",
+      ]),
+      breakGlassSessionId: null,
+      partnerRelationshipId,
+      partnerCoSigningRequired: false,
+    };
+    let exportRequest: Promise<globalThis.Response> | undefined;
+    try {
+      const confirmation = await readExactExportConfirmation();
+      const durableBefore = await durableExportState();
+      const deniedBefore = await matchingAuditEventCount(
+        "project.export_denied",
+        projectId,
+      );
+      exportRequest = postConfirmedProjectExport({ confirmation });
+      await Promise.race([
+        downloadStarted,
+        new Promise<never>((_resolve, reject) =>
+          setTimeout(
+            () => reject(new Error("export did not reach artefact download")),
+            10_000,
+          ),
+        ),
+      ]);
+
+      const revoked = await db
+        .update(partnerRelationships)
+        .set({
+          status: "revoked",
+          version: sql`${partnerRelationships.version} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(partnerRelationships.id, partnerRelationshipId))
+        .returning({ id: partnerRelationships.id });
+      assert.deepEqual(revoked, [{ id: partnerRelationshipId }]);
+      releaseDownload();
+
+      const response = await exportRequest;
+      assert.equal(response.status, 403);
+      assert.match(response.headers.get("content-type") ?? "", /json/iu);
+      assert.deepEqual(await response.json(), {
+        error: "Package export authority changed. Refresh before retrying.",
+      });
+      await waitForAuditEventCount(
+        "project.export_denied",
+        projectId,
+        deniedBefore + 1,
+      );
+      assert.deepEqual(
+        await durableExportState(),
+        durableBefore,
+        "relationship revocation creates no package, receipt, transition, or release evidence",
+      );
+    } finally {
+      releaseDownload();
+      if (exportRequest) await exportRequest.catch(() => undefined);
+      signedReportDownloadBarrier = null;
+      await db
+        .update(partnerRelationships)
+        .set({
+          status: "active",
+          version: sql`${partnerRelationships.version} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(partnerRelationships.id, partnerRelationshipId));
+      currentAccessContext = null;
+      currentUser = null;
+    }
+  });
+
+  test("export holding current authority commits consistent ZIP evidence before grant revocation", async () => {
+    const projectBlocker = await pool.connect();
+    const revoker = await pool.connect();
+    const lockProbe = await pool.connect();
+    const idempotencyKey = randomUUID();
+    let exportRequest: Promise<globalThis.Response> | undefined;
+    let revocationWork: Promise<void> | undefined;
+    let revocationCompleted = false;
+    try {
+      currentUser = {
+        id: adminId,
+        role: "client_organisation_owner",
+        name: "Export Approver",
+      } as LocalUser;
+      const confirmation = await readExactExportConfirmation();
+
+      await projectBlocker.query("BEGIN");
+      await projectBlocker.query(
+        "SELECT valo_security.set_current_organisation_id($1::uuid)",
+        [organisationId],
+      );
+      const lockedProject = await projectBlocker.query(
+        "SELECT id FROM public.projects WHERE id = $1::uuid FOR UPDATE",
+        [projectId],
+      );
+      assert.equal(lockedProject.rowCount, 1);
+
+      exportRequest = postConfirmedProjectExport({
+        confirmation,
+        idempotencyKey,
+      });
+      await waitForCondition(async () => {
+        const result = await lockProbe.query<{ acquired: boolean }>(
+          "SELECT pg_try_advisory_lock(hashtextextended($1, 0)) AS acquired",
+          [membershipAdministrationLockKey()],
+        );
+        if (!result.rows[0]?.acquired) return true;
+        await lockProbe.query(
+          "SELECT pg_advisory_unlock(hashtextextended($1, 0))",
+          [membershipAdministrationLockKey()],
+        );
+        return false;
+      }, "package export did not acquire the membership authority lock");
+
+      const waitingBefore = await waitingAdvisoryLockCount();
+      await revoker.query("BEGIN");
+      await revoker.query(
+        "SELECT valo_security.set_current_organisation_id($1::uuid)",
+        [organisationId],
+      );
+      revocationWork = (async () => {
+        await revoker.query(
+          "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+          [membershipAdministrationLockKey()],
+        );
+        const revoked = await revoker.query(
+          "UPDATE public.role_grants SET revoked_at = clock_timestamp(), revocation_reason = 'package export-first concurrency test' WHERE id = $1::uuid",
+          [adminRoleGrantId],
+        );
+        assert.equal(revoked.rowCount, 1);
+        await revoker.query("COMMIT");
+        revocationCompleted = true;
+      })();
+      void revocationWork.catch(() => undefined);
+      await waitForCondition(
+        async () => (await waitingAdvisoryLockCount()) > waitingBefore,
+        "grant revocation did not wait behind package export authority",
+      );
+      assert.equal(revocationCompleted, false);
+
+      await projectBlocker.query("COMMIT");
+      const response = await exportRequest;
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("content-type"), "application/zip");
+      const bytes = Buffer.from(await response.arrayBuffer());
+      await revocationWork;
+      assert.equal(revocationCompleted, true);
+      const receipt = await readExportReceipt(idempotencyKey);
+      const [persistedVersion] = await db
+        .select({
+          id: packageVersions.id,
+          versionNumber: packageVersions.versionNumber,
+          manifestSha256: packageVersions.manifestHash,
+          sourceSnapshotSha256: packageVersions.sourceSnapshotHash,
+        })
+        .from(packageVersions)
+        .where(eq(packageVersions.id, receipt.packageVersionId));
+      assert.deepEqual(persistedVersion, {
+        id: receipt.packageVersionId,
+        versionNumber: receipt.packageVersionNumber,
+        manifestSha256: receipt.packageManifestSha256,
+        sourceSnapshotSha256: receipt.packageSourceSnapshotSha256,
+      });
+      const zip = await JSZip.loadAsync(bytes);
+      const reportBytes = await zip
+        .file("bid-autopsy-report-v2.docx")!
+        .async("nodebuffer");
+      assert.ok(reportBytes.equals(FAKE_DOCX_BYTES));
+      const [grant] = await db
+        .select({ revokedAt: roleGrants.revokedAt })
+        .from(roleGrants)
+        .where(eq(roleGrants.id, adminRoleGrantId));
+      assert.ok(grant?.revokedAt);
+    } finally {
+      await projectBlocker.query("ROLLBACK").catch(() => undefined);
+      if (exportRequest) await exportRequest.catch(() => undefined);
+      if (revocationWork) await revocationWork.catch(() => undefined);
+      await revoker.query("ROLLBACK").catch(() => undefined);
+      await db
+        .update(roleGrants)
+        .set({ revokedAt: null, revocationReason: null })
+        .where(eq(roleGrants.id, adminRoleGrantId));
+      currentAccessContext = null;
+      currentUser = null;
+      lockProbe.release();
+      revoker.release();
+      projectBlocker.release();
     }
   });
 

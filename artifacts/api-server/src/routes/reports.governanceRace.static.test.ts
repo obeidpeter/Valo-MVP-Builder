@@ -11,6 +11,14 @@ const membershipWriterSource = readFileSync(
   new URL("./organisations.ts", import.meta.url),
   "utf8",
 );
+const tenancySource = readFileSync(
+  new URL("../middlewares/tenancy.ts", import.meta.url),
+  "utf8",
+);
+const routeIndexSource = readFileSync(
+  new URL("./index.ts", import.meta.url),
+  "utf8",
+);
 
 function routeSource(startMarker: string, endMarker: string): string {
   const start = source.indexOf(startMarker);
@@ -95,6 +103,48 @@ test("sign-off authority and every supported membership mutation share one organ
   assert.ok(membershipUpdate > lifecycleLock);
 });
 
+test("the shared request boundary resolves and locks the project before report handlers", () => {
+  const tenantDatabase = routeIndexSource.indexOf(
+    "router.use(attachTenantDatabase)",
+  );
+  const resourceBoundary = routeIndexSource.indexOf(
+    "router.use(enforceTenantResourceBoundary)",
+  );
+  const reportsMount = routeIndexSource.indexOf("router.use(reportsRouter)");
+  const boundaryStart = tenancySource.indexOf(
+    "export async function enforceTenantResourceBoundary(",
+  );
+  const boundaryEnd = tenancySource.indexOf(
+    "export function auditBreakGlassUse(",
+    boundaryStart,
+  );
+  const boundary = tenancySource.slice(boundaryStart, boundaryEnd);
+  const projectLookupLoop = boundary.indexOf(
+    "for (const resource of PROJECT_LOOKUPS)",
+  );
+  const projectResolution = boundary.indexOf(
+    "await Promise.all(projectChecks)",
+    projectLookupLoop,
+  );
+  const projectLock = boundary.indexOf(
+    "pg_advisory_xact_lock(hashtextextended(${projectId}, 0))",
+    projectResolution,
+  );
+  const reportLookup = tenancySource.indexOf(
+    "{ pattern: /^\\/reports\\/([^/]+)/, load: lookupProjectId(reports) }",
+  );
+
+  assert.ok(tenantDatabase >= 0);
+  assert.ok(resourceBoundary > tenantDatabase);
+  assert.ok(reportsMount > resourceBoundary);
+  assert.ok(boundaryStart >= 0 && boundaryEnd > boundaryStart);
+  assert.ok(reportLookup >= 0);
+  assert.ok(projectLookupLoop >= 0);
+  assert.ok(projectResolution > projectLookupLoop);
+  assert.ok(projectLock > projectResolution);
+  assert.doesNotMatch(tenancySource, /defersProjectLockToFinalTransaction/u);
+});
+
 test("package export locks and revalidates NDA state/version before evidence and commits before bytes", () => {
   const handler = routeSource(
     '"/projects/:id/export"',
@@ -103,6 +153,14 @@ test("package export locks and revalidates NDA state/version before evidence and
   const finalTransaction = handler.indexOf("await db.transaction(");
   const zipBuild = handler.indexOf(
     "await buildProjectExportZip(archiveEntries)",
+  );
+  const firstAuthority = handler.indexOf(
+    "await retainsExportAuthority()",
+    finalTransaction,
+  );
+  const projectLock = handler.indexOf(
+    "pg_advisory_xact_lock(hashtextextended",
+    firstAuthority,
   );
   const ndaRead = handler.indexOf("const [currentClient]", finalTransaction);
   const ndaLock = handler.indexOf('.for("share")', ndaRead);
@@ -114,9 +172,13 @@ test("package export locks and revalidates NDA state/version before evidence and
     "currentClient.version !== governance.ndaVersion",
     ndaStateCheck,
   );
+  const finalAuthority = handler.indexOf(
+    "await retainsExportAuthority()",
+    firstAuthority + 1,
+  );
   const persist = handler.indexOf(
     "persistCanonicalProjectExportPackage",
-    ndaVersionCheck,
+    finalAuthority,
   );
   const commit = handler.indexOf(
     "await commitTenantDatabaseBeforeResponse(req)",
@@ -132,14 +194,22 @@ test("package export locks and revalidates NDA state/version before evidence and
   assert.ok(zipBuild >= 0);
   assert.ok(zipBuild < finalTransaction);
   assert.ok(finalTransaction >= 0);
+  assert.ok(firstAuthority > finalTransaction);
+  assert.ok(projectLock > firstAuthority);
   assert.ok(ndaRead > finalTransaction);
   assert.ok(ndaLock > ndaRead);
   assert.ok(ndaStateCheck > ndaLock);
   assert.ok(ndaVersionCheck > ndaStateCheck);
+  assert.ok(finalAuthority > ndaVersionCheck);
   assert.ok(persist > ndaVersionCheck);
   assert.ok(commit > persist);
   assert.ok(zipHeaders > commit);
   assert.ok(zipSend > zipHeaders);
+  assert.match(handler, /authorityLost[\s\S]*res\.status\(403\)/u);
+  assert.match(
+    handler,
+    /eventType: "project\.export_denied"[\s\S]*authorityLost/u,
+  );
   assert.doesNotMatch(handler, /archive\.pipe\(res\)/u);
 });
 

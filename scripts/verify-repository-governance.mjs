@@ -190,7 +190,7 @@ const REQUIRED_WORKFLOW_ACTIONS = new Map([
 const REVIEWED_WORKFLOW_SHA256 = new Map([
   [
     ".github/workflows/ci.yml",
-    "fb2e57761b7b930212e408c6dadafd78fa03830c75421ca9d9c7b61da9f95ba6",
+    "18f3190eae574ea8701953f9f38cd43f2794ec14156da5d973b7af54b8cb5fdb",
   ],
   [
     ".github/workflows/codeql.yml",
