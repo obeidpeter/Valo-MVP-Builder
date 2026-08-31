@@ -16,7 +16,10 @@ import {
   type PlatformAccessSource,
   type PlatformRoleInput,
 } from "@/lib/platform-access";
-import { getProtectedRouteContext } from "@/lib/protected-route-context";
+import {
+  getProtectedRouteContext,
+  getProtectedRouteManualTopic,
+} from "@/lib/protected-route-context";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -43,6 +46,7 @@ export function ContextualHelpDrawer({
   const [open, setOpen] = useState(false);
   const [searchParams] = useSearchParams();
   const context = getProtectedRouteContext(location, searchParams);
+  const manualTopic = getProtectedRouteManualTopic(location);
   const normalizedRoles = normalizePlatformRoles(roles);
   const roleLabel = normalizedRoles.length
     ? normalizedRoles.map(platformRoleLabel).join(" · ")
@@ -69,7 +73,7 @@ export function ContextualHelpDrawer({
   const accessReason = missingPermissions.length
     ? `Missing required permission${missingPermissions.length === 1 ? "" : "s"}: ${missingPermissions.join(", ")}.`
     : (decision?.reason ??
-      "This profile page does not require an organisation feature area.");
+      "This identity-level page does not require an organisation feature area.");
   const exactNextAction = blocked
     ? `Ask an organisation administrator for ${missingPermissions.length ? missingPermissions.join(", ") : "access to this page"}, then reload this route.`
     : pending
@@ -186,12 +190,12 @@ export function ContextualHelpDrawer({
           </section>
 
           <a
-            href="/how-it-works"
+            href={`/help?topic=${encodeURIComponent(manualTopic)}#${manualTopic}`}
             target="_blank"
             rel="noreferrer"
             className="inline-flex min-h-11 items-center gap-2 rounded-md font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Open the full workflow guide
+            Open the full user manual
             <ExternalLink className="size-4" aria-hidden="true" />
           </a>
         </div>

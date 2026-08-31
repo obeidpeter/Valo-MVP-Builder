@@ -11,6 +11,89 @@ export interface ProtectedRouteContext {
   nextAction: string;
 }
 
+const MANUAL_TOPIC_BY_ROUTE: ReadonlyArray<{
+  prefixes: readonly string[];
+  topic: string;
+}> = [
+  {
+    prefixes: ["/projects"],
+    topic: "pursuits-the-register-and-the-workspace",
+  },
+  {
+    prefixes: ["/clients"],
+    topic: "clients-the-certificate-vault-and-the-capability-library",
+  },
+  {
+    prefixes: ["/sbd"],
+    topic: "compliance-corpus-standard-bidding-documents-sbd",
+  },
+  { prefixes: ["/intelligence"], topic: "intelligence-centre-intelligence" },
+  {
+    prefixes: ["/operations", "/pursuit-operations"],
+    topic: "operations-consoles-internal-roles",
+  },
+  {
+    prefixes: ["/field-companion"],
+    topic: "field-companion-field-companion-offline-notes-done-safely",
+  },
+  {
+    prefixes: ["/growth-operations", "/opportunity-sources"],
+    topic: "getting-started-offers-and-opportunity-sources",
+  },
+  {
+    prefixes: ["/portal", "/client-actions"],
+    topic: "the-client-facing-rooms",
+  },
+  {
+    prefixes: ["/partner", "/consortium-room"],
+    topic: "partner-workspaces",
+  },
+  {
+    prefixes: [
+      "/evidence-readiness",
+      "/evidence-renewals",
+      "/reports",
+      "/portfolio-intelligence",
+    ],
+    topic: "evidence-renewals-reports-and-portfolio-intelligence",
+  },
+  {
+    prefixes: ["/billing", "/commercial-retainer", "/claims-desk"],
+    topic: "commercial-surfaces",
+  },
+  {
+    prefixes: ["/notifications", "/communications"],
+    topic: "notifications-and-communication-receipts",
+  },
+  {
+    prefixes: [
+      "/app/security",
+      "/privacy-operations",
+      "/production-acceptance",
+      "/ai-shadow",
+      "/organisation-settings",
+      "/settings",
+      "/account",
+    ],
+    topic: "administration",
+  },
+  {
+    prefixes: ["/app", "/dashboard"],
+    topic: "the-dashboard-internal-roles",
+  },
+];
+
+export function getProtectedRouteManualTopic(location: string): string {
+  const pathname = location.split("?", 1)[0].replace(/\/$/, "") || "/";
+  return (
+    MANUAL_TOPIC_BY_ROUTE.find(({ prefixes }) =>
+      prefixes.some(
+        (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+      ),
+    )?.topic ?? "finding-your-way-around"
+  );
+}
+
 const PROJECT_TAB_CONTEXTS: Readonly<Record<string, ProtectedRouteContext>> = {
   overview: {
     title: "Overview · Pursuit",
@@ -427,6 +510,32 @@ export function getProtectedRouteContext(
   searchParams: URLSearchParams = new URLSearchParams(),
 ): ProtectedRouteContext {
   const pathname = location.split("?")[0].replace(/\/$/, "") || "/";
+
+  if (pathname === "/help") {
+    return {
+      title: "Help & user manual",
+      helpTitle: "Using the Help & user manual",
+      purpose:
+        "Provides searchable, release-matched guidance without opening customer records or changing organisation access.",
+      requiredPermissions: [],
+      keyTerms: [
+        {
+          term: "Manual guidance",
+          meaning:
+            "An explanation of Valo workflows and boundaries; it never grants access or overrides the current on-screen state.",
+        },
+        {
+          term: "Topic search",
+          meaning:
+            "A local search across the manual headings and guidance included in this Valo release.",
+        },
+      ],
+      example:
+        "Search for “blocked” to find the diagnostic guide, then follow the exact message shown on the authoritative workspace page.",
+      nextAction:
+        "Search for your task or choose a topic from the table of contents.",
+    };
+  }
 
   if (/^\/projects\/[^/]+\/tender-context$/.test(pathname)) {
     return {

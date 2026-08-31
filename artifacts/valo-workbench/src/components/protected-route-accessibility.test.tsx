@@ -6,6 +6,28 @@ import { memoryLocation } from "wouter/memory-location";
 import { ProtectedRouteAccessibility } from "@/components/protected-route-accessibility";
 
 describe("ProtectedRouteAccessibility", () => {
+  it("sets private metadata for the in-platform manual", async () => {
+    const { hook } = memoryLocation({ path: "/help", record: true });
+    render(
+      <Router hook={hook}>
+        <main id="main-content" tabIndex={-1}>
+          <ProtectedRouteAccessibility />
+        </main>
+      </Router>,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Opened Help & user manual",
+    );
+    await waitFor(() => {
+      expect(document.title).toBe("Help & user manual | Valo");
+    });
+    expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute(
+      "content",
+      "noindex, nofollow",
+    );
+  });
+
   it("sets a route-specific private title, announces the tab and focuses main", async () => {
     const { hook } = memoryLocation({
       path: "/projects/11111111-1111-4111-8111-111111111111?tab=requirements",
