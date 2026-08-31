@@ -142,3 +142,129 @@ test("package export locks and revalidates NDA state/version before evidence and
   assert.ok(zipSend > zipHeaders);
   assert.doesNotMatch(handler, /archive\.pipe\(res\)/u);
 });
+
+test("package export is a strict POST bound to the confirmed report and package scope", () => {
+  const handler = routeSource(
+    '"/projects/:id/export"',
+    "export default router",
+  );
+  const packageBindingHelper = routeSource(
+    "function hasCompletePackageBinding",
+    "type ExportReceipt",
+  );
+  const bodyValidation = handler.indexOf(
+    "ExportProjectBody.strict().safeParse(req.body)",
+  );
+  const archiveAssembly = handler.indexOf(
+    "await buildProjectExportZip(archiveEntries)",
+  );
+  const finalTransaction = handler.indexOf("await db.transaction(");
+  const finalScopeCheck = handler.indexOf(
+    "exportScopeSha256(currentReport, lockedPackageBinding)",
+    finalTransaction,
+  );
+
+  assert.match(source, /router\.post\(\s*"\/projects\/:id\/export"/u);
+  assert.doesNotMatch(source, /router\.get\(\s*"\/projects\/:id\/export"/u);
+  assert.match(handler, /requirePermissionOrLegacy\("report:export"\)/u);
+  assert.match(handler, /req\.get\("Idempotency-Key"\)/u);
+  assert.match(handler, /req\.get\("If-Match"\)/u);
+  assert.match(handler, /\^"\(\[a-f0-9\]\{64\}\)"\$/u);
+  assert.match(handler, /UUID_ANY_PATTERN\.test\(idempotencyKey\)/u);
+  assert.match(handler, /hasCompletePackageBinding\(parsedBody\.data\)/u);
+  assert.match(packageBindingHelper, /binding\.packageVersionId/u);
+  assert.match(packageBindingHelper, /binding\.packageVersionNumber/u);
+  assert.match(packageBindingHelper, /binding\.packageManifestSha256/u);
+  assert.match(packageBindingHelper, /binding\.packageSourceSnapshotSha256/u);
+  assert.doesNotMatch(packageBindingHelper, /Object\.values/u);
+  assert.ok(bodyValidation >= 0);
+  assert.ok(archiveAssembly > bodyValidation);
+  assert.ok(finalTransaction > archiveAssembly);
+  assert.ok(finalScopeCheck > finalTransaction);
+  assert.match(
+    handler,
+    /res\.status\(409\)[\s\S]*confirmed report, package provenance or source material changed/iu,
+  );
+});
+
+test("package export serializes idempotent effects and makes receipt replay read-only", () => {
+  const handler = routeSource(
+    '"/projects/:id/export"',
+    "export default router",
+  );
+  const finalTransaction = handler.indexOf("await db.transaction(");
+  const advisoryLock = handler.indexOf(
+    "pg_advisory_xact_lock(hashtextextended",
+    finalTransaction,
+  );
+  const finalReceiptRead = handler.indexOf(
+    "const finalReceipts = await tx",
+    advisoryLock,
+  );
+  const replayComment = handler.indexOf(
+    "A completed request is a read-only replay",
+    finalReceiptRead,
+  );
+  const replayBranch = handler.indexOf("if (finalReceipt)", replayComment);
+  const replayReturn = handler.indexOf("return;", replayBranch);
+  const persist = handler.indexOf(
+    "persistCanonicalProjectExportPackage",
+    replayReturn,
+  );
+  const receiptWrite = handler.indexOf(
+    'objectType: "project_export_request"',
+    persist,
+  );
+  const projectTransition = handler.indexOf(
+    "const transitioned = await tx",
+    receiptWrite,
+  );
+
+  assert.ok(finalTransaction >= 0);
+  assert.ok(advisoryLock > finalTransaction);
+  assert.ok(finalReceiptRead > advisoryLock);
+  assert.ok(replayComment > finalReceiptRead);
+  assert.ok(replayBranch > replayComment);
+  assert.ok(replayReturn > replayBranch);
+  assert.ok(persist > replayReturn);
+  assert.ok(receiptWrite > persist);
+  assert.ok(projectTransition > receiptWrite);
+  assert.match(
+    handler,
+    /requestSha256[\s\S]*confirmedScopeSha256[\s\S]*exportRequest/u,
+  );
+  assert.match(handler, /finalReceipt\.requestSha256 !== requestSha256/u);
+  assert.match(
+    handler,
+    /packageManifest\.manifestHash !==[\s\S]*finalReceipt\.packageManifestSha256/u,
+  );
+  assert.match(
+    handler,
+    /packageManifest\.sourceSnapshotHash !==[\s\S]*finalReceipt\.packageSourceSnapshotSha256/u,
+  );
+});
+
+test("package-version projection exposes the server-verifiable export fingerprint", () => {
+  const handler = routeSource(
+    '"/projects/:id/package-versions"',
+    '"/projects/:id/export"',
+  );
+
+  assert.match(
+    handler,
+    /sourceSnapshotSha256: packageVersions\.sourceSnapshotHash/u,
+  );
+  assert.match(handler, /exportScopeSha256: exportScopeSha256\(currentReport/u);
+  assert.match(
+    handler,
+    /packageVersionId: items\[0\]\?\.packageVersionId \?\? null/u,
+  );
+  assert.match(
+    handler,
+    /packageManifestSha256: items\[0\]\?\.manifestSha256 \?\? null/u,
+  );
+  assert.match(
+    handler,
+    /packageSourceSnapshotSha256:[\s\S]*items\[0\]\?\.sourceSnapshotSha256 \?\? null/u,
+  );
+});

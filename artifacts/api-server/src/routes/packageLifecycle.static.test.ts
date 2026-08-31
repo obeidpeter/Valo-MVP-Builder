@@ -82,6 +82,8 @@ test("package discovery is bounded, package-reader-only and content-free", () =>
     "packageId",
     "packageVersionId",
     "manifestSha256",
+    "sourceSnapshotSha256",
+    "exportScopeSha256",
     "renderQaStatus",
     "createdAt",
   ]) {
@@ -89,12 +91,17 @@ test("package discovery is bounded, package-reader-only and content-free", () =>
   }
   assert.doesNotMatch(
     endpoint,
-    /readinessSnapshot|sourceSnapshotHash|docxObjectPath|pdfObjectPath|zipObjectPath|bytes|contentText/u,
+    /readinessSnapshot|docxObjectPath|pdfObjectPath|zipObjectPath|bytes|contentText/u,
   );
-  assert.match(endpoint, /UUID_PATTERN\.test\(row\.packageId\)/u);
-  assert.match(endpoint, /UUID_PATTERN\.test\(row\.packageVersionId\)/u);
+  assert.match(
+    endpoint,
+    /sourceSnapshotSha256: packageVersions\.sourceSnapshotHash/u,
+  );
+  assert.match(endpoint, /UUID_ANY_PATTERN\.test\(row\.packageId\)/u);
+  assert.match(endpoint, /UUID_ANY_PATTERN\.test\(row\.packageVersionId\)/u);
   assert.match(endpoint, /Number\.isSafeInteger\(row\.versionNumber\)/u);
   assert.match(endpoint, /SHA256_PATTERN\.test\(row\.manifestSha256\)/u);
+  assert.match(endpoint, /SHA256_PATTERN\.test\(row\.sourceSnapshotSha256\)/u);
   assert.match(endpoint, /Number\.isNaN\(row\.createdAt\.getTime\(\)\)/u);
   assert.match(endpoint, /Cache-Control", "private, no-store/u);
 });

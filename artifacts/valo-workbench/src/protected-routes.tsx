@@ -4,6 +4,7 @@ import RequireAdmin from "@/components/require-admin";
 import RequireArea from "@/components/require-area";
 import { LoadingPanel } from "@/components/platform-states";
 import { platformFeatureFlags } from "@/lib/platform-access";
+import { ProtectedRouteAccessibility } from "@/components/protected-route-accessibility";
 
 const RoleHome = lazy(() => import("@/components/role-home"));
 const NotFound = lazy(() => import("@/pages/not-found"));
@@ -73,6 +74,7 @@ export default function ProtectedRoutes() {
         </div>
       }
     >
+      <ProtectedRouteAccessibility />
       <Switch>
         <Route path="/app" component={RoleHome} />
         <Route path="/dashboard" component={RoleHome} />

@@ -9,7 +9,6 @@ import {
   BriefcaseBusiness,
   Building2,
   CheckCircle2,
-  CircleHelp,
   ClipboardCheck,
   CreditCard,
   FileStack,
@@ -54,6 +53,7 @@ import {
 import { ValoMark } from "@/components/valo-mark";
 import { GlobalCommand } from "@/components/global-command";
 import { ValoUserIdCard } from "@/components/valo-user-id-card";
+import { ContextualHelpDrawer } from "@/components/contextual-help-drawer";
 
 const ICONS: Record<string, LucideIcon> = {
   "/app": LayoutDashboard,
@@ -451,10 +451,13 @@ export default function Layout({ children }: { children: ReactNode }) {
                     icon={Bell}
                   />
                 ) : null}
-                <UtilityLink
-                  href="/how-it-works"
-                  label="Help and workflow guide"
-                  icon={CircleHelp}
+                <ContextualHelpDrawer
+                  location={location}
+                  roles={normalizedRoles}
+                  permissions={organisationAccess.effectivePermissions}
+                  accessSource={
+                    organisationAccess.activeOrganisation.accessSource
+                  }
                 />
                 <div className="hidden px-2 xl:block">
                   <OrganisationSwitcher />
