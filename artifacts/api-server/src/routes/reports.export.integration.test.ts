@@ -1,7 +1,7 @@
 import { test, describe, before, after, mock } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import { createRequire } from "node:module";
 import type { Archiver, ArchiverOptions } from "archiver";
@@ -71,14 +71,15 @@ const { ZipArchive } = nodeRequire("archiver") as {
 };
 
 /**
- * End-to-end proof that the real `GET /projects/:id/export` HTTP route can't
- * leak or corrupt findings. Unlike the unit tests in `reports.test.ts` (which
- * only exercise the extracted `review_state` helpers), this test seeds a live
- * database, drives the actual Express handler over HTTP, unzips the streamed
- * archiver response in memory, and asserts the bytes of every CSV. It also
- * covers export-permission auth and the project.status -> "exported"
+ * End-to-end proof that the real exact-confirmation
+ * `POST /projects/:id/export` HTTP route can't leak or corrupt findings.
+ * Unlike the unit tests in `reports.test.ts` (which only exercise the
+ * extracted `review_state` helpers), this test seeds a live database, drives
+ * the actual Express handler over HTTP, unzips the streamed archiver response
+ * in memory, and asserts the bytes of every CSV. It also covers
+ * export-permission auth, idempotency, and the project.status -> "exported"
  * transition, so a refactor that reorders columns, drops a CSV, or breaks the
- * wiring is caught.
+ * confirmation wiring is caught.
  */
 
 // The middleware-injected user for the current request (swapped per test to
@@ -246,6 +247,139 @@ function requestReportSignOff(): Promise<globalThis.Response> {
         "I reviewed the release evidence and approve this report for sign-off.",
     }),
   });
+}
+
+type ExactExportBody = {
+  reportId: string;
+  reportVersion: number;
+  packageVersionId: string | null;
+  packageVersionNumber: number | null;
+  packageManifestSha256: string | null;
+  packageSourceSnapshotSha256: string | null;
+};
+
+type ExactExportConfirmation = {
+  projectId: string;
+  exportScopeSha256: string;
+  body: ExactExportBody;
+};
+
+async function readExactExportConfirmation(
+  targetProjectId = projectId,
+): Promise<ExactExportConfirmation> {
+  const [reportsResponse, packageVersionsResponse] = await Promise.all([
+    fetch(`${baseUrl}/projects/${targetProjectId}/reports`),
+    fetch(`${baseUrl}/projects/${targetProjectId}/package-versions`),
+  ]);
+  assert.equal(reportsResponse.status, 200);
+  assert.equal(packageVersionsResponse.status, 200);
+
+  const reportRows = (await reportsResponse.json()) as Array<{
+    id: string;
+    version: number;
+    status: string;
+  }>;
+  const latestReport = reportRows[0];
+  assert.ok(latestReport, "exact export confirmation requires a latest report");
+
+  const packageProjection = (await packageVersionsResponse.json()) as {
+    items: Array<{
+      packageVersionId: string;
+      versionNumber: number;
+      manifestSha256: string;
+      sourceSnapshotSha256: string;
+    }>;
+    exportScopeSha256: string;
+  };
+  assert.match(packageProjection.exportScopeSha256, /^[a-f0-9]{64}$/u);
+  assert.ok(
+    packageProjection.items.length <= 1,
+    "only the canonical package version may be confirmed",
+  );
+  const currentPackage = packageProjection.items[0];
+
+  return {
+    projectId: targetProjectId,
+    exportScopeSha256: packageProjection.exportScopeSha256,
+    body: {
+      reportId: latestReport.id,
+      reportVersion: latestReport.version,
+      packageVersionId: currentPackage?.packageVersionId ?? null,
+      packageVersionNumber: currentPackage?.versionNumber ?? null,
+      packageManifestSha256: currentPackage?.manifestSha256 ?? null,
+      packageSourceSnapshotSha256: currentPackage?.sourceSnapshotSha256 ?? null,
+    },
+  };
+}
+
+async function postConfirmedProjectExport(
+  options: {
+    targetProjectId?: string;
+    confirmation?: ExactExportConfirmation;
+    idempotencyKey?: string;
+    ifMatch?: string;
+    body?: unknown;
+  } = {},
+): Promise<globalThis.Response> {
+  const targetProjectId =
+    options.targetProjectId ?? options.confirmation?.projectId ?? projectId;
+  const confirmation =
+    options.confirmation ??
+    (await readExactExportConfirmation(targetProjectId));
+
+  return fetch(`${baseUrl}/projects/${targetProjectId}/export`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "idempotency-key": options.idempotencyKey ?? randomUUID(),
+      "if-match": options.ifMatch ?? `"${confirmation.exportScopeSha256}"`,
+    },
+    body: JSON.stringify(options.body ?? confirmation.body),
+  });
+}
+
+async function durableExportState(): Promise<{
+  projectStatus: string | undefined;
+  projectVersion: number | undefined;
+  packageVersionIds: string[];
+  releaseEvidenceIds: string[];
+}> {
+  const [project] = await db
+    .select({ status: projects.status, version: projects.version })
+    .from(projects)
+    .where(eq(projects.id, projectId));
+  const packageVersionIds = (
+    await db
+      .select({ id: packageVersions.id })
+      .from(packageVersions)
+      .innerJoin(packages, eq(packageVersions.packageId, packages.id))
+      .where(eq(packages.projectId, projectId))
+  )
+    .map((row) => row.id)
+    .sort();
+  const releaseEvidenceIds = (
+    await db
+      .select({
+        id: auditEvents.id,
+        eventType: auditEvents.eventType,
+      })
+      .from(auditEvents)
+      .where(eq(auditEvents.projectId, projectId))
+  )
+    .filter(
+      (event) =>
+        event.eventType === "project.exported" ||
+        event.eventType.startsWith("package.project_export_version_"),
+    )
+    .map((event) => event.id)
+    .sort();
+
+  return {
+    projectStatus: project?.status,
+    projectVersion: project?.version,
+    packageVersionIds,
+    releaseEvidenceIds,
+  };
 }
 
 before(async () => {
@@ -724,7 +858,7 @@ after(async () => {
   await pool.end();
 });
 
-describe("GET /projects/:id/export (live route)", () => {
+describe("POST /projects/:id/export exact confirmation (live route)", () => {
   test("a concurrent grant revocation that commits first returns 403 without signing", async () => {
     const revoker = await pool.connect();
     let signOffRequest: Promise<globalThis.Response> | undefined;
@@ -895,11 +1029,72 @@ describe("GET /projects/:id/export (live route)", () => {
     }
   });
 
+  test("missing or malformed exact confirmation is rejected with 400", async () => {
+    currentUser = {
+      id: adminId,
+      role: "client_organisation_owner",
+      name: "Export Approver",
+    } as LocalUser;
+    try {
+      const missing = await fetch(`${baseUrl}/projects/${projectId}/export`, {
+        method: "POST",
+      });
+      assert.equal(missing.status, 400);
+      assert.deepEqual(await missing.json(), {
+        error: "Invalid exact export confirmation",
+      });
+
+      const confirmation = await readExactExportConfirmation();
+      const malformed = await postConfirmedProjectExport({
+        confirmation,
+        idempotencyKey: "not-a-uuid",
+        ifMatch: "not-a-quoted-sha256",
+      });
+      assert.equal(malformed.status, 400);
+      assert.deepEqual(await malformed.json(), {
+        error: "Invalid exact export confirmation",
+      });
+    } finally {
+      currentUser = null;
+    }
+  });
+
+  test("a stale confirmed export scope is rejected with 409", async () => {
+    currentUser = {
+      id: adminId,
+      role: "client_organisation_owner",
+      name: "Export Approver",
+    } as LocalUser;
+    try {
+      const confirmation = await readExactExportConfirmation();
+      const response = await postConfirmedProjectExport({
+        confirmation,
+        ifMatch: `"${"0".repeat(64)}"`,
+      });
+      assert.equal(response.status, 409);
+      assert.match(
+        ((await response.json()) as { error: string }).error,
+        /confirmed report or package provenance changed/i,
+      );
+    } finally {
+      currentUser = null;
+    }
+  });
+
   test("members without report:export are denied", async () => {
+    currentUser = {
+      id: adminId,
+      role: "client_organisation_owner",
+      name: "Export Approver",
+    } as LocalUser;
+    const confirmation = await readExactExportConfirmation();
     currentUser = { id: generatorId, role: "contributor" } as LocalUser;
-    const res = await fetch(`${baseUrl}/projects/${projectId}/export`);
-    assert.equal(res.status, 403);
-    currentUser = null;
+    try {
+      const res = await postConfirmedProjectExport({ confirmation });
+      assert.equal(res.status, 403);
+    } finally {
+      currentUser = null;
+    }
   });
 
   test("a signed-off project without a physical-archive instruction is denied export (409)", async () => {
@@ -937,7 +1132,8 @@ describe("GET /projects/:id/export (live route)", () => {
         role: "client_organisation_owner",
         name: "Export Approver",
       } as LocalUser;
-      const res = await fetch(`${baseUrl}/projects/${gated.id}/export`);
+      const confirmation = await readExactExportConfirmation(gated.id);
+      const res = await postConfirmedProjectExport({ confirmation });
       assert.equal(res.status, 409);
     } finally {
       await db.transaction(async (tx) => {
@@ -969,9 +1165,10 @@ describe("GET /projects/:id/export (live route)", () => {
       role: "client_organisation_owner",
       name: "Export Approver",
     } as LocalUser;
+    const confirmation = await readExactExportConfirmation();
 
     try {
-      const responsePromise = fetch(`${baseUrl}/projects/${projectId}/export`);
+      const responsePromise = postConfirmedProjectExport({ confirmation });
       await Promise.race([
         downloadStarted,
         new Promise<never>((_resolve, reject) =>
@@ -1036,7 +1233,7 @@ describe("GET /projects/:id/export (live route)", () => {
       role: "client_organisation_owner",
       name: "Export Approver",
     } as LocalUser;
-    const res = await fetch(`${baseUrl}/projects/${projectId}/export`);
+    const res = await postConfirmedProjectExport();
     assert.equal(res.status, 200);
     assert.equal(res.headers.get("content-type"), "application/zip");
 
@@ -1140,6 +1337,111 @@ describe("GET /projects/:id/export (live route)", () => {
     assert.ok(events.some((e) => e.eventType === "project.exported"));
   });
 
+  test("the same idempotency key and exact body replay without duplicate durable effects", async () => {
+    currentUser = {
+      id: adminId,
+      role: "client_organisation_owner",
+      name: "Export Approver",
+    } as LocalUser;
+    try {
+      const confirmation = await readExactExportConfirmation();
+      const idempotencyKey = randomUUID();
+      const firstResponse = await postConfirmedProjectExport({
+        confirmation,
+        idempotencyKey,
+      });
+      assert.equal(firstResponse.status, 200);
+      const firstBytes = Buffer.from(await firstResponse.arrayBuffer());
+      const afterFirst = await durableExportState();
+
+      const replayResponse = await postConfirmedProjectExport({
+        confirmation,
+        idempotencyKey,
+      });
+      assert.equal(replayResponse.status, 200);
+      const replayBytes = Buffer.from(await replayResponse.arrayBuffer());
+      const [firstZip, replayZip] = await Promise.all([
+        JSZip.loadAsync(firstBytes),
+        JSZip.loadAsync(replayBytes),
+      ]);
+      const firstFilenames = Object.keys(firstZip.files).sort();
+      assert.deepEqual(Object.keys(replayZip.files).sort(), firstFilenames);
+      for (const filename of firstFilenames) {
+        const [firstEntry, replayEntry] = await Promise.all([
+          firstZip.file(filename)!.async("nodebuffer"),
+          replayZip.file(filename)!.async("nodebuffer"),
+        ]);
+        assert.ok(
+          replayEntry.equals(firstEntry),
+          `idempotent replay preserves ${filename}`,
+        );
+      }
+      assert.deepEqual(
+        await durableExportState(),
+        afterFirst,
+        "an idempotent replay creates no package version, transition, or release evidence",
+      );
+
+      const receiptObjectId = createHash("sha256")
+        .update(`${organisationId}\u0000${idempotencyKey}`, "utf8")
+        .digest("hex");
+      const receipts = (
+        await db
+          .select({
+            eventType: auditEvents.eventType,
+            objectType: auditEvents.objectType,
+            objectId: auditEvents.objectId,
+          })
+          .from(auditEvents)
+          .where(eq(auditEvents.projectId, projectId))
+      ).filter(
+        (event) =>
+          event.eventType === "project.exported" &&
+          event.objectType === "project_export_request" &&
+          event.objectId === receiptObjectId,
+      );
+      assert.equal(receipts.length, 1);
+    } finally {
+      currentUser = null;
+    }
+  });
+
+  test("reusing an idempotency key with a changed body returns 409 without durable effects", async () => {
+    currentUser = {
+      id: adminId,
+      role: "client_organisation_owner",
+      name: "Export Approver",
+    } as LocalUser;
+    try {
+      const confirmation = await readExactExportConfirmation();
+      const idempotencyKey = randomUUID();
+      const firstResponse = await postConfirmedProjectExport({
+        confirmation,
+        idempotencyKey,
+      });
+      assert.equal(firstResponse.status, 200);
+      await firstResponse.arrayBuffer();
+      const afterFirst = await durableExportState();
+
+      const changedBody: ExactExportBody = {
+        ...confirmation.body,
+        reportVersion: confirmation.body.reportVersion + 1,
+      };
+      const conflictResponse = await postConfirmedProjectExport({
+        confirmation,
+        idempotencyKey,
+        body: changedBody,
+      });
+      assert.equal(conflictResponse.status, 409);
+      assert.deepEqual(await conflictResponse.json(), {
+        error: "Idempotency key was already bound to another export scope.",
+      });
+      assert.deepEqual(await durableExportState(), afterFirst);
+    } finally {
+      currentUser = null;
+    }
+  });
+
   test("archive assembly failure leaves no durable package/export evidence", async () => {
     const packageVersionIds = async () =>
       (
@@ -1181,7 +1483,7 @@ describe("GET /projects/:id/export (live route)", () => {
         role: "client_organisation_owner",
         name: "Export Approver",
       } as LocalUser;
-      const res = await fetch(`${baseUrl}/projects/${projectId}/export`);
+      const res = await postConfirmedProjectExport();
       assert.equal(res.status, 502);
       assert.match(
         ((await res.json()) as { error: string }).error,
@@ -1207,7 +1509,7 @@ describe("GET /projects/:id/export (live route)", () => {
         role: "client_organisation_owner",
         name: "Export Approver",
       } as LocalUser;
-      const res = await fetch(`${baseUrl}/projects/${projectId}/export`);
+      const res = await postConfirmedProjectExport();
       assert.equal(res.status, 502);
       assert.match(
         ((await res.json()) as { error: string }).error,
@@ -1245,7 +1547,7 @@ describe("object-storage-backed report attach & download", () => {
       role: "client_organisation_owner",
       name: "Export Approver",
     } as LocalUser;
-    const res = await fetch(`${baseUrl}/projects/${projectId}/export`);
+    const res = await postConfirmedProjectExport();
     assert.equal(res.status, 200);
 
     const buffer = Buffer.from(await res.arrayBuffer());
@@ -1340,6 +1642,7 @@ describe("object-storage-backed report attach & download", () => {
         packageType: "project_export",
         versionNumber: packageVersion.versionNumber,
         manifestSha256: packageVersion.manifestHash,
+        sourceSnapshotSha256: packageVersion.sourceSnapshotHash,
         renderQaStatus: "pending",
         createdAt: packageVersion.createdAt.toISOString(),
       },
@@ -1448,9 +1751,7 @@ describe("object-storage-backed report attach & download", () => {
     );
     assert.equal(updatedPostAward.status, "in_progress");
 
-    const repeatedExport = await fetch(
-      `${baseUrl}/projects/${projectId}/export`,
-    );
+    const repeatedExport = await postConfirmedProjectExport();
     assert.equal(repeatedExport.status, 200);
     await repeatedExport.arrayBuffer();
     const [packageAfterRepeat] = await db
