@@ -103,7 +103,7 @@ test("sign-off authority and every supported membership mutation share one organ
   assert.ok(membershipUpdate > lifecycleLock);
 });
 
-test("the shared request boundary resolves and locks the project before report handlers", () => {
+test("sign-off and export resolve and lock their project before handler membership authority", () => {
   const tenantDatabase = routeIndexSource.indexOf(
     "router.use(attachTenantDatabase)",
   );
@@ -130,18 +130,76 @@ test("the shared request boundary resolves and locks the project before report h
     "pg_advisory_xact_lock(hashtextextended(${projectId}, 0))",
     projectResolution,
   );
+  const nextHandler = boundary.lastIndexOf("next();");
+  const projectRouteLookup = tenancySource.indexOf(
+    "{ pattern: /^\\/projects\\/([^/]+)/, load: async (id) => id }",
+  );
   const reportLookup = tenancySource.indexOf(
     "{ pattern: /^\\/reports\\/([^/]+)/, load: lookupProjectId(reports) }",
+  );
+  const signOffHandler = routeSource(
+    '"/reports/:id/sign-off"',
+    "function reportDownloadHandler",
+  );
+  const signOffTransaction = signOffHandler.indexOf(
+    "updated = await db.transaction",
+  );
+  const signOffMembershipAuthority = signOffHandler.indexOf(
+    "resolveCurrentDirectAuthority(",
+    signOffTransaction,
+  );
+  const exportHandler = routeSource(
+    '"/projects/:id/export"',
+    "export default router",
+  );
+  const exportTransaction = exportHandler.indexOf("await db.transaction(");
+  const exportMembershipAuthority = exportHandler.indexOf(
+    "await retainsExportAuthority()",
+    exportTransaction,
+  );
+  const directAuthorityResolver = authoritySource.slice(
+    authoritySource.indexOf(
+      "export async function resolveCurrentDirectAuthority(",
+    ),
+    authoritySource.indexOf("async function resolveMembershipAuthorityAt("),
+  );
+  const accessAuthorityResolver = authoritySource.slice(
+    authoritySource.indexOf(
+      "export async function resolveCurrentAccessAuthority(",
+    ),
+    authoritySource.indexOf(
+      "export async function hasCurrentAccessPermission(",
+    ),
   );
 
   assert.ok(tenantDatabase >= 0);
   assert.ok(resourceBoundary > tenantDatabase);
   assert.ok(reportsMount > resourceBoundary);
+  assert.equal(
+    routeIndexSource.match(/router\.use\(reportsRouter\)/gu)?.length,
+    1,
+  );
   assert.ok(boundaryStart >= 0 && boundaryEnd > boundaryStart);
+  assert.ok(projectRouteLookup >= 0);
   assert.ok(reportLookup >= 0);
   assert.ok(projectLookupLoop >= 0);
   assert.ok(projectResolution > projectLookupLoop);
   assert.ok(projectLock > projectResolution);
+  assert.ok(nextHandler > projectLock);
+  assert.ok(signOffMembershipAuthority > signOffTransaction);
+  assert.ok(exportMembershipAuthority > exportTransaction);
+  assert.match(
+    exportHandler,
+    /const retainsExportAuthority = \(\) =>[\s\S]*hasCurrentAccessPermission\(/u,
+  );
+  assert.match(
+    directAuthorityResolver,
+    /valo\.membership-administration:\$\{context\.organisationId\}/u,
+  );
+  assert.match(
+    accessAuthorityResolver,
+    /valo\.membership-administration:\$\{context\.membershipOrganisationId\}/u,
+  );
   assert.doesNotMatch(tenancySource, /defersProjectLockToFinalTransaction/u);
 });
 

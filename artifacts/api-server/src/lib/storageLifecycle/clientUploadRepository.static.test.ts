@@ -36,11 +36,12 @@ test("project precedes current authority and both upload commands invoke that he
   const issueObject = issue.indexOf("lockStagedUploadObject(objectPath)");
   const issueStorage = issue.indexOf("getObjectEntityUploadURL(");
   assert.ok(issueStart >= 0 && finalizeStart > issueStart);
+  assert.equal(issue.match(/lockAuthorityAndProject\(scope\)/gu)?.length, 1);
   assert.ok(issueAuthority >= 0 && issueTarget > issueAuthority);
   assert.ok(issueObject > issueTarget && issueStorage > issueObject);
 
   const finalizeEnd = source.indexOf(
-    "  async #completedReplay(",
+    "  async #recordFailedIntake(",
     finalizeStart,
   );
   const finalize = source.slice(finalizeStart, finalizeEnd);
@@ -49,6 +50,7 @@ test("project precedes current authority and both upload commands invoke that he
   const finalizeObject = finalize.indexOf("lockStagedUploadObject(objectPath)");
   const finalizeStorage = finalize.indexOf("downloadObjectEntityForIntake(");
   assert.ok(finalizeEnd > finalizeStart);
+  assert.equal(finalize.match(/lockAuthorityAndProject\(scope\)/gu)?.length, 1);
   assert.ok(finalizeAuthority >= 0 && finalizeTarget > finalizeAuthority);
   assert.ok(
     finalizeObject > finalizeTarget && finalizeStorage > finalizeObject,
