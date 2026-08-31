@@ -171,7 +171,7 @@ export function resolveAliasTarget(rules, specifier) {
   return relativeRepositoryPath(
     posix.join(
       selected.rule.base,
-      selected.rule.target.replace("*", selected.wildcard),
+      selected.rule.target.replaceAll("*", selected.wildcard),
     ),
     `alias ${specifier}`,
   );
