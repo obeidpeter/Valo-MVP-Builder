@@ -136,6 +136,24 @@ export function canMutateReleasedGovernedAddendumImpact(
   );
 }
 
+/**
+ * Package export is a governed release command, not a mutation of the released
+ * source material. Admit only the exact POST endpoint used by the
+ * confirmation-bound export protocol. Archived projects and near-match paths
+ * stay behind the release immutability boundary.
+ */
+export function canRunReleasedGovernedProjectExport(
+  projectStatus: string,
+  method: string,
+  path: string,
+): boolean {
+  return (
+    (projectStatus === "signed_off" || projectStatus === "exported") &&
+    method.toUpperCase() === "POST" &&
+    /^\/projects\/[^/]+\/export$/u.test(path)
+  );
+}
+
 export interface AccessContext {
   organisationId: string;
   membershipId: string | null;
@@ -697,6 +715,11 @@ export async function enforceTenantResourceBoundary(
             req.path,
           ) &&
           !canMutateReleasedGovernedAddendumImpact(
+            project.status,
+            req.method,
+            req.path,
+          ) &&
+          !canRunReleasedGovernedProjectExport(
             project.status,
             req.method,
             req.path,
