@@ -1074,7 +1074,7 @@ describe("POST /projects/:id/export exact confirmation (live route)", () => {
       assert.equal(response.status, 409);
       assert.match(
         ((await response.json()) as { error: string }).error,
-        /confirmed report or package provenance changed/i,
+        /confirmed report, package provenance or source material changed/i,
       );
     } finally {
       currentUser = null;
