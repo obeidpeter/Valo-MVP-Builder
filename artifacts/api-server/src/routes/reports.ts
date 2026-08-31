@@ -79,7 +79,10 @@ import {
   loadRedTeamApprovalAttestation,
   type DeliveryStudioQueryExecutor,
 } from "../lib/deliveryStudio/drizzleRepository";
-import { resolveCurrentDirectAuthority } from "../lib/directMembershipAuthority";
+import {
+  hasCurrentAccessPermission,
+  resolveCurrentDirectAuthority,
+} from "../lib/directMembershipAuthority";
 import { buildProjectExportZip } from "../lib/projectExportArchive";
 
 const router: IRouter = Router();
@@ -106,6 +109,7 @@ class PackageExportGovernanceError extends Error {
   constructor(
     message: string,
     readonly ndaStatus: string | null,
+    readonly authorityLost = false,
   ) {
     super(message);
     this.name = "PackageExportGovernanceError";
@@ -766,9 +770,10 @@ router.post(
           await resolveCurrentDirectAuthority(signOffAccessContext, user?.id),
         );
 
-        // Client -> project is the canonical release lock order. A concurrent
-        // NDA change either completes before this point-in-time re-read or is
-        // serialized after sign-off; package export rechecks current NDA state.
+        // Inside the project advisory boundary already established by shared
+        // middleware, client row -> project row is the canonical row-lock
+        // order. A concurrent NDA change either completes before this re-read
+        // or is serialized after sign-off; export rechecks current NDA state.
         const [lockedClient] = await tx
           .select({ id: clients.id, ndaStatus: clients.ndaStatus })
           .from(clients)
@@ -1623,9 +1628,23 @@ router.post(
       return;
     }
 
+    const authorityLoss = new PackageExportGovernanceError(
+      "Package export authority changed or expired before persistence.",
+      null,
+      true,
+    );
+    const exportAccessContext = getAccessContext(req);
+    const exportActorId = getLocalUser(req)?.id;
+    const retainsExportAuthority = () =>
+      hasCurrentAccessPermission(
+        exportAccessContext,
+        exportActorId,
+        "report:export",
+      );
     try {
       await db.transaction(
         async (tx) => {
+          if (!(await retainsExportAuthority())) throw authorityLoss;
           await tx.execute(
             sql`select pg_advisory_xact_lock(hashtextextended(${projectId}, 0))`,
           );
@@ -1814,6 +1833,7 @@ router.post(
               currentClient?.ndaStatus ?? null,
             );
           }
+          if (!(await retainsExportAuthority())) throw authorityLoss;
 
           // A completed request is a read-only replay. The advisory lock makes
           // concurrent same-key calls observe the first receipt; matching the
@@ -1941,6 +1961,12 @@ router.post(
         objectId: projectId,
         details: error.message,
       });
+      if (error.authorityLost) {
+        res.status(403).json({
+          error: "Package export authority changed. Refresh before retrying.",
+        });
+        return;
+      }
       res.status(409).json({
         error: ndaApprovalMissing
           ? "Package export was denied because NDA approval changed. Refresh before retrying."
