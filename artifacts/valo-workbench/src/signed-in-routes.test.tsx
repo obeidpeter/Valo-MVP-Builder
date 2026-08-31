@@ -248,6 +248,23 @@ describe("signed-in routing", () => {
     await waitFor(() => expect(document.title).toBe("Dashboard | Valo"));
   });
 
+  it("renders the identity-level Help and user manual route", async () => {
+    currentRole = "client_auditor";
+    renderAt("/help");
+
+    expect(
+      await screen.findByRole(
+        "heading",
+        { level: 1, name: "Help & user manual" },
+        ROUTE_LOAD_WAIT,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Opened Help & user manual")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(document.title).toBe("Help & user manual | Valo"),
+    );
+  });
+
   it("renders the NotFound page for an unknown protected path", async () => {
     renderAt("/no/such/protected/route");
     expect(

@@ -60,6 +60,7 @@ const EvidenceReadiness = lazy(() => import("@/pages/evidence-readiness"));
 const EvidenceRenewal = lazy(() => import("@/pages/evidence-renewal"));
 const ReportsIndex = lazy(() => import("@/pages/reports-index"));
 const AccountPage = lazy(() => import("@/pages/account"));
+const HelpPage = lazy(() => import("@/pages/help"));
 const OrganisationSettings = lazy(
   () => import("@/pages/organisation-settings"),
 );
@@ -243,6 +244,7 @@ export default function ProtectedRoutes() {
           </RequireAdmin>
         </Route>
         <Route path="/account" component={AccountPage} />
+        <Route path="/help" component={HelpPage} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

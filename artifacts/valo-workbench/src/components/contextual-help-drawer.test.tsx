@@ -49,10 +49,13 @@ describe("ContextualHelpDrawer", () => {
       screen.getByRole("heading", { name: "Exact next action" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /open the full workflow guide/i }),
-    ).toHaveAttribute("href", "/how-it-works");
+      screen.getByRole("link", { name: /open the full user manual/i }),
+    ).toHaveAttribute(
+      "href",
+      "/help?topic=pursuits-the-register-and-the-workspace#pursuits-the-register-and-the-workspace",
+    );
     expect(
-      screen.getByRole("link", { name: /open the full workflow guide/i }),
+      screen.getByRole("link", { name: /open the full user manual/i }),
     ).toHaveAttribute("target", "_blank");
   });
 
